@@ -3,10 +3,23 @@
 #load "window.p";
 #load "ui.p";
 #load "mixer.p";
+#load "threads.p";
 #load "graphics_engine/graphics_engine.p";
 
 // Client files
 #load "draw.p";
+
+// @Volatile: Must be in sync with server/server.p
+Shared_Server_Data :: struct {
+    state: enum {
+        Starting;
+        Running;
+        Closing;
+        Closed;
+    };
+
+    requested_port: u16;
+}
 
 Client_State :: enum {
     Main_Menu;
@@ -26,10 +39,32 @@ Client :: struct {
 
     ui_font: Font;
     state: Client_State;
+
+    //
+    // Networking
+    //
+    server_data: Shared_Server_Data;
+    server_thread: Thread;
     
     //
     // Game Data
     //
+}
+
+logprint :: (format: string, args: ..Any) {
+    print(format, ..args);
+    print("\n");
+}
+
+host_server :: (client: *Client, port: u16) {
+    server_entry_point :: (data: *Shared_Server_Data) -> u32 #foreign;
+
+    client.server_thread = create_thread(server_entry_point, *client.server_data, false);
+    while client.server_data.state == .Starting {}
+}
+
+join_server :: (client: *Client, name: string, host: string, port: u16) {
+    logprint("Joining server...");
 }
 
 do_main_menu :: (client: *Client) {
@@ -48,7 +83,8 @@ do_main_menu :: (client: *Client) {
         ui_divider(ui, true);
         
         if ui_button(ui, "Host!") && name.valid && port.valid {
-            print("Hosting server!\n");
+            host_server(client, port._int);
+            join_server(client, name._string, "localhost", port._int);
         }
         
         ui_pop_window(ui);
@@ -68,6 +104,7 @@ do_main_menu :: (client: *Client) {
         
         if ui_button(ui, "Join!") && name.valid && host.valid && port.valid {
             print("Joining server!\n");
+            join_server(client, name._string, host._string, port._int);
         }
         
         ui_pop_window(ui);
@@ -120,8 +157,7 @@ main :: () -> s32 {
             ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
             
             if #complete client.state == {
-              case .Main_Menu;
-                draw_ui_frame(*client.ui);
+              case .Main_Menu; draw_ui_frame(*client.ui);
             }
                         
             ge_swap_buffers(*client.graphics);
