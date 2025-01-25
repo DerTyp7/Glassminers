@@ -1,0 +1,7 @@
+# Output files
+
+run_tree/*.pdb
+run_tree/*.lib
+run_tree/*.exp
+run_tree/*.obj
+run_tree/*.o
