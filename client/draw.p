@@ -18,3 +18,9 @@ set_ui_scissors :: (client: *Client, rect: UI_Rect) {
 clear_ui_scissors :: (client: *Client) {
     
 }
+
+
+
+draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignment: Text_Alignment, foreground: UI_Color) {
+    ge_draw_text(*client.graphics, font, text, x, y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
+}
