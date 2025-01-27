@@ -1,16 +1,37 @@
 Player_Id :: u32;
 
+Message_Type :: enum {
+    Player_Information :: 0x1;
+    Player_Disconnect  :: 0x2;
+}
+
 Player_Information_Message :: struct {
+    TYPE :: Message_Type.Player_Information;
+
     id: Player_Id;
     name: string;
 }
 
+Player_Disconnect_Message :: struct {
+    TYPE :: Message_Type.Player_Disconnect;
+
+    id: Player_Id;
+}
+
 Message :: struct {
-    type: Type; // This is type_id of the underlying message
+    type: Message_Type;
 
     #using underlying: union {
         player_information: Player_Information_Message;
+        player_disconnect: Player_Disconnect_Message;
     };
+}
+
+
+make_message :: ($T: Type) -> Message {
+    msg: Message = ---;
+    msg.type = T.TYPE;
+    return msg;
 }
 
 send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
@@ -19,22 +40,28 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
 
     serialize_bytes(*packet, message.type);
 
-    if message.type == {
-      case type_id(Player_Information_Message);
+    if #complete message.type == {
+      case .Player_Information;
         serialize_bytes(*packet, message.player_information.id);
         serialize_string(*packet, message.player_information.name);
+
+      case .Player_Disconnect;
+        serialize_bytes(*packet, message.player_disconnect.id);
     }
     
     send_reliable_packet(connection, *packet, .Message);
 }
 
 read_message :: (connection: *Virtual_Connection, message: *Message) {
-    message.type = deserialize_bytes(*connection.incoming_packet, Type);
+    message.type = deserialize_bytes(*connection.incoming_packet, Message_Type);
     
-    if message.type == {
-      case type_id(Player_Information_Message);
-        message.player_information.id = deserialize_bytes(*connection.incoming_packet, Player_Id);
+    if #complete message.type == {
+      case .Player_Information;
+        message.player_information.id   = deserialize_bytes(*connection.incoming_packet, Player_Id);
         message.player_information.name = deserialize_string(*connection.incoming_packet);
+
+      case .Player_Disconnect;
+        message.player_disconnect.id = deserialize_bytes(*connection.incoming_packet, Player_Id);
     }
 }
 

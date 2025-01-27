@@ -17,22 +17,118 @@ Shared_Server_Data :: struct {
 }
 
 Remote_Client :: struct {
+    id: Player_Id;
+    name: string;
     connection: Virtual_Connection;
 }
 
+Game_State :: enum {
+    Lobby;
+}
+
 Server :: struct {
+    //
+    // Engine structure
+    //
     perm_pool: Memory_Pool;
     perm: Allocator;
 
+    //
+    // Networking
+    //
     connection: Virtual_Connection;
     clients: [..]Remote_Client;
     incoming_messages: [..]Message;
     outgoing_messages: [..]Message;
+
+    //
+    // Game Data
+    //
+    state: Game_State;
+    id_counter: Player_Id;
 }
 
 logprint :: (format: string, args: ..Any) {
     print(format, ..args);
     print("\n");
+}
+
+find_client_by_id :: (server: *Server, id: Player_Id) -> *Remote_Client {
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get_pointer(*server.clients, i);
+        if client.id == id return client;
+    }
+    
+    return null;
+}
+
+handle_connection_request :: (server: *Server) {
+    if server.state != .Lobby return; // If we aren't in the lobby, don't accept new clients
+
+    // Check if we already have a client connected at this remote, because the client will spam
+    // this connection request a few times to combat potential packet loss.
+    for i := 0; i < server.clients.count; ++i {
+        connected_client := array_get_pointer(*server.clients, i);
+        if remote_sockets_equal(*server.connection.remote, *connected_client.connection.remote) {
+            return;
+        }
+    }
+
+    //
+    // Create a new client on this server
+    //    
+    client := array_push(*server.clients);
+    client.connection = create_udp_remote_client_connection(*server.connection);
+    client.id         = server.id_counter;
+    client.connection.info.client_id = client.id;
+
+    send_connection_established_packet(*client.connection, 5);
+    
+    ++server.id_counter;
+    
+    logprint("Connected to client '%'.", client.id);
+}
+
+handle_connection_closed :: (server: *Server) {
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get_pointer(*server.clients, i);
+        if client.id == server.connection.incoming_packet.header.sender_client_id {
+            logprint("Disconnected from client '%'.", client.id);
+            
+            msg := make_message(Player_Disconnect_Message);
+            msg.player_disconnect.id = client.id;
+            array_add(*server.outgoing_messages, msg);
+            
+            if client.name deallocate_string(*server.perm, *client.name);
+            
+            array_remove_index(*server.clients, i);
+            break;
+        }
+    }
+}
+
+handle_incoming_message :: (server: *Server, msg: *Message) {
+    if #complete msg.type == {
+      case .Player_Disconnect; // Ignore
+      
+      case .Player_Information;
+        // Respond to this specific player by sending all other already-connected clients
+        target := find_client_by_id(server, msg.player_information.id);
+        for i := 0; i < server.clients.count; ++i {
+            source := array_get_pointer(*server.clients, i);
+            target_msg := make_message(Player_Information_Message);
+            target_msg.player_information.id   = source.id;
+            target_msg.player_information.name = source.name;
+            send_reliable_message(*target.connection, *target_msg);
+        }
+        
+        // Store the information locally
+        if target.name deallocate_string(*server.perm, *target.name);
+        target.name = copy_string(*server.perm, msg.player_information.name);
+      
+        // Broadcast the message along
+        array_add(*server.outgoing_messages, ~msg);
+    }
 }
 
 server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
@@ -58,6 +154,9 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         data.state = .Closing;
     }
     
+    server.state = .Lobby;
+    server.id_counter = 1;
+    
     logprint("Started the server.");
     
     while data.state == .Running {
@@ -72,13 +171,14 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
             while read_packet(*server.connection) {
                 if server.connection.incoming_packet.header.packet_type == {
                   case Packet_Type.Connection_Request;
-                    logprint("Connection request!");
+                    handle_connection_request(*server);
                     
                   case Packet_Type.Connection_Closed;
-                    logprint("Connection closed!");
+                    handle_connection_closed(*server);
                     
                   case Packet_Type.Ping;
-                    logprint("Ping!"); 
+                    client := find_client_by_id(*server, server.connection.incoming_packet.header.sender_client_id);
+                    if client send_ping_packet(*client.connection);
                     
                   case Packet_Type.Message;
                     message := array_push(*server.incoming_messages);
@@ -91,7 +191,9 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         // Update the internal state based on the received messages.
         //
         {
-            
+            for i := 0; i < server.incoming_messages.count; ++i {
+                handle_incoming_message(*server, array_get_pointer(*server.incoming_messages, i));
+            }
         }
         
         //

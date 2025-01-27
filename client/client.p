@@ -9,6 +9,7 @@
 
 // Client files
 #load "draw.p";
+#load "../shared/messages.p";
 
 // @Volatile: Must be in sync with server/server.p
 Shared_Server_Data :: struct {
@@ -22,9 +23,15 @@ Shared_Server_Data :: struct {
     requested_port: u16;
 }
 
-Client_State :: enum {
+Game_State :: enum {
     Main_Menu;
     Connecting;
+    Lobby;
+}
+
+Remote_Client :: struct {
+    id: Player_Id;
+    name: string;
 }
 
 Client :: struct {
@@ -40,7 +47,6 @@ Client :: struct {
     perm: Allocator;
 
     ui_font, title_font: Font;
-    state: Client_State;
 
     //
     // Networking
@@ -48,16 +54,26 @@ Client :: struct {
     server_data: Shared_Server_Data = .{ .Closed, 0 };
     server_thread: Thread;
     connection: Virtual_Connection;
+    remote_clients: [..]Remote_Client;
+    my_name: string;
+    my_id: Player_Id;
     
     //
     // Game Data
     //
+    state: Game_State;
 }
+
+
+
 
 logprint :: (format: string, args: ..Any) {
     print(format, ..args);
     print("\n");
 }
+
+
+
 
 host_server :: (client: *Client, port: u16) {
     server_entry_point :: (data: *Shared_Server_Data) -> u32 #foreign;
@@ -71,6 +87,7 @@ host_server :: (client: *Client, port: u16) {
 join_server :: (client: *Client, name: string, host: string, port: u16) {
     if create_client_connection(*client.connection, .UDP, host, port) == .Success {
         send_connection_request_packet(*client.connection, 5);
+        client.my_name = copy_string(*client.perm, name);
         client.state = .Connecting;
     } else {
         maybe_shutdown_server(client);
@@ -78,7 +95,17 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
 }
 
 disconnect_from_server :: (client: *Client) {
+    send_connection_closed_packet(*client.connection, 5);
+    destroy_connection(*client.connection);
     maybe_shutdown_server(client);
+    deallocate_string(*client.perm, *client.my_name);
+    
+    for i := 0; i < client.remote_clients.count; ++i {
+        deallocate_string(*client.perm, *array_get_pointer(*client.remote_clients, i).name);
+    }
+    
+    array_clear(*client.remote_clients);
+    
     client.state = .Main_Menu;
 }
 
@@ -88,6 +115,77 @@ maybe_shutdown_server :: (client: *Client) {
         join_thread(*client.server_thread);
     }
 }
+
+remove_client_by_id :: (client: *Client, id: Player_Id) {
+    for i := 0; i < client.remote_clients.count; ++i {
+        rc := array_get_pointer(*client.remote_clients, i);
+        if rc.id == id {
+            deallocate_string(*client.perm, *rc.name);
+            array_remove_index(*client.remote_clients, i);
+        }        
+    }
+}
+
+find_client_by_id :: (client: *Client, id: Player_Id) -> *Remote_Client {
+    for i := 0; i < client.remote_clients.count; ++i {
+        rc := array_get_pointer(*client.remote_clients, i);
+        if rc.id == id return rc;
+    }
+    
+    return null;
+}
+
+handle_incoming_message :: (client: *Client, msg: *Message) {
+    if #complete msg.type == {
+      case .Player_Information;
+        if msg.player_information.id != client.my_id {
+            rc := find_client_by_id(client, msg.player_information.id);
+            
+            if rc == null {
+                rc = array_push(*client.remote_clients);
+                rc.id = msg.player_information.id;
+                rc.name = copy_string(*client.perm, msg.player_information.name);
+            }
+        }
+    
+      case .Player_Disconnect;
+        remove_client_by_id(client, msg.player_disconnect.id);
+    }
+}
+
+do_network_loop :: (client: *Client) {
+    msg: Message = ---;
+    
+    while read_packet(*client.connection) {
+        update_virtual_connection_information_for_packet(*client.connection, *client.connection.incoming_packet.header);
+        
+        if client.connection.incoming_packet.header.packet_type == {
+          case Packet_Type.Connection_Request; // Ignore
+          
+          case Packet_Type.Connection_Established;
+            if client.state == .Connecting {
+                client.my_id = client.connection.incoming_packet.header.sender_client_id;
+                client.connection.info.client_id = client.my_id;
+                client.state = .Lobby;
+                
+                msg := make_message(Player_Information_Message);
+                msg.player_information.id   = client.my_id;
+                msg.player_information.name = client.my_name;
+                send_reliable_message(*client.connection, *msg);
+            }
+          
+          case Packet_Type.Connection_Closed;
+            disconnect_from_server(client); // Server closed on us
+          
+          case Packet_Type.Message;
+            read_message(*client.connection, *msg);
+            handle_incoming_message(client, *msg);
+        }
+    }
+}
+
+
+
 
 do_main_menu :: (client: *Client) {
     ui :: *client.ui;
@@ -135,17 +233,46 @@ do_main_menu :: (client: *Client) {
 }
 
 do_connecting_screen :: (client: *Client) {
-    ui :: *client.ui;
+    // Do the UI
+    {
+        ui :: *client.ui;
+        ui_push_width(ui, .Pixels, 256, 1);
+        ui_push_window(ui, "Connecting...", .Default, .{ .5, .5 });
+        ui_label(ui, false, "...");
+        ui_divider(ui, true);
+        if ui_button(ui, "Cancel!") {
+            disconnect_from_server(client);
+        }
+        ui_pop_window(ui);
+        ui_pop_width(ui);
+    }    
 
-    ui_push_width(ui, .Pixels, 256, 1);
-    ui_push_window(ui, "Connecting...", .Default, .{ .5, .5 });
-    ui_label(ui, false, "...");
-    ui_divider(ui, true);
-    if ui_button(ui, "Cancel!") {
-        disconnect_from_server(client);
+    do_network_loop(client);
+}
+
+do_lobby_screen :: (client: *Client) {
+    // Do the UI
+    {
+        ui :: *client.ui;
+        ui_push_width(ui, .Pixels, 256, 1);
+        ui_push_window(ui, "Lobby!", .Default, .{ .5, .5 });
+        
+        ui_label(ui, false, client.my_name);
+        
+        for i := 0; i < client.remote_clients.count; ++i {
+            rc := array_get_pointer(*client.remote_clients, i);
+            ui_label(ui, false, rc.name);
+        }
+        
+        ui_divider(ui, true);
+        if ui_button(ui, "Disconnect!") {
+            disconnect_from_server(client);
+        }
+        ui_pop_window(ui);
+        ui_pop_width(ui);
     }
-    ui_pop_window(ui);
-    ui_pop_width(ui);
+
+    do_network_loop(client);
 }
 
 main :: () -> s32 {
@@ -167,6 +294,7 @@ main :: () -> s32 {
     create_ui(*client.ui, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 1);
 
+    client.remote_clients.allocator = *client.perm;
     client.state = .Main_Menu;
 
     //
@@ -183,8 +311,9 @@ main :: () -> s32 {
             begin_ui_frame(*client.ui, .{ 128, 24 });
             
             if #complete client.state == {
-              case .Main_Menu; do_main_menu(*client);
+              case .Main_Menu;  do_main_menu(*client);
               case .Connecting; do_connecting_screen(*client);
+              case .Lobby;      do_lobby_screen(*client);
             }
         }
         
@@ -195,7 +324,7 @@ main :: () -> s32 {
             ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
             
             if #complete client.state == {
-              case .Main_Menu, .Connecting;
+              case .Main_Menu, .Connecting, .Lobby;
                 draw_text(*client, *client.title_font, "GlassMiners", xx client.window.w / 2, xx client.window.h / 4, .Center | .Median, .{ 255, 255, 255, 255 });
                 draw_ui_frame(*client.ui);
             }
