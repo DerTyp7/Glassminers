@@ -27,6 +27,7 @@ Game_State :: enum {
     Main_Menu;
     Connecting;
     Lobby;
+    Ingame;
 }
 
 Remote_Client :: struct {
@@ -62,6 +63,7 @@ Client :: struct {
     // Game Data
     //
     state: Game_State;
+    game_seed: s64;
 }
 
 
@@ -109,6 +111,11 @@ disconnect_from_server :: (client: *Client) {
     client.state = .Main_Menu;
 }
 
+start_lobby :: (client: *Client) {
+    msg := make_message(Request_Game_Start_Message);
+    send_reliable_message(*client.connection, *msg);
+}
+
 maybe_shutdown_server :: (client: *Client) {
     if client.server_data.state != .Closed {
         client.server_data.state = .Closing;
@@ -137,6 +144,8 @@ find_client_by_id :: (client: *Client, id: Player_Id) -> *Remote_Client {
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.type == {
+      case .Request_Game_Start; // Ignore
+
       case .Player_Information;
         if msg.player_information.id != client.my_id {
             rc := find_client_by_id(client, msg.player_information.id);
@@ -150,6 +159,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
     
       case .Player_Disconnect;
         remove_client_by_id(client, msg.player_disconnect.id);
+
+      case .Game_Start;
+        client.game_seed = msg.game_start.seed;
+        client.state = .Ingame;
     }
 }
 
@@ -263,6 +276,11 @@ do_lobby_screen :: (client: *Client) {
             rc := array_get_pointer(*client.remote_clients, i);
             ui_label(ui, false, rc.name);
         }
+
+        ui_divider(ui, true);
+        if ui_button(ui, "Start!") {
+            start_lobby(client);
+        }
         
         ui_divider(ui, true);
         if ui_button(ui, "Disconnect!") {
@@ -273,6 +291,10 @@ do_lobby_screen :: (client: *Client) {
     }
 
     do_network_loop(client);
+}
+
+do_game_tick :: (client: *Client) {
+    
 }
 
 main :: () -> s32 {
@@ -314,6 +336,7 @@ main :: () -> s32 {
               case .Main_Menu;  do_main_menu(*client);
               case .Connecting; do_connecting_screen(*client);
               case .Lobby;      do_lobby_screen(*client);
+              case .Ingame;     do_game_tick(*client);
             }
         }
         
@@ -327,6 +350,9 @@ main :: () -> s32 {
               case .Main_Menu, .Connecting, .Lobby;
                 draw_text(*client, *client.title_font, "GlassMiners", xx client.window.w / 2, xx client.window.h / 4, .Center | .Median, .{ 255, 255, 255, 255 });
                 draw_ui_frame(*client.ui);
+            
+              case .Ingame;
+                
             }
                         
             ge_swap_buffers(*client.graphics);

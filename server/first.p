@@ -45,6 +45,6 @@ build_release_dll :: () {
     compiler_create_and_compile_workspace(*options);    
 }
 
-#run build_debug_exe();
-//#run build_debug_dll();
+//#run build_debug_exe();
+#run build_debug_dll();
 //#run build_release_dll();

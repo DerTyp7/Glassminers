@@ -46,6 +46,7 @@ Server :: struct {
     //
     state: Game_State;
     id_counter: Player_Id;
+    game_seed: s64;
 }
 
 logprint :: (format: string, args: ..Any) {
@@ -109,7 +110,7 @@ handle_connection_closed :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.type == {
-      case .Player_Disconnect; // Ignore
+      case .Player_Disconnect, .Game_Start; // Ignore
       
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -128,6 +129,13 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
       
         // Broadcast the message along
         array_add(*server.outgoing_messages, ~msg);
+
+      case .Request_Game_Start;
+        server.game_seed = 54873543;
+        
+        game_start := make_message(Game_Start_Message);
+        game_start.game_start.seed = server.game_seed;
+        array_add(*server.outgoing_messages, game_start);
     }
 }
 
