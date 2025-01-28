@@ -9,7 +9,9 @@
 
 // Client files
 #load "draw.p";
+#load "world.p";
 #load "../shared/messages.p";
+#load "../shared/world.p";
 
 // @Volatile: Must be in sync with server/server.p
 Shared_Server_Data :: struct {
@@ -64,6 +66,7 @@ Client :: struct {
     //
     state: Game_State;
     game_seed: s64;
+    world: World;
 }
 
 
@@ -90,7 +93,7 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
     if create_client_connection(*client.connection, .UDP, host, port) == .Success {
         send_connection_request_packet(*client.connection, 5);
         client.my_name = copy_string(*client.perm, name);
-        client.state = .Connecting;
+        switch_to_state(client, .Connecting);
     } else {
         maybe_shutdown_server(client);
     }
@@ -108,7 +111,7 @@ disconnect_from_server :: (client: *Client) {
     
     array_clear(*client.remote_clients);
     
-    client.state = .Main_Menu;
+    switch_to_state(client, .Main_Menu);
 }
 
 start_lobby :: (client: *Client) {
@@ -166,7 +169,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
     }
 }
 
-do_network_loop :: (client: *Client) {
+read_incoming_packets :: (client: *Client) {
     msg: Message = ---;
     
     while read_packet(*client.connection) {
@@ -179,7 +182,7 @@ do_network_loop :: (client: *Client) {
             if client.state == .Connecting {
                 client.my_id = client.connection.incoming_packet.header.sender_client_id;
                 client.connection.info.client_id = client.my_id;
-                client.state = .Lobby;
+                switch_to_state(client, .Lobby);
                 
                 msg := make_message(Player_Information_Message);
                 msg.player_information.id   = client.my_id;
@@ -197,6 +200,27 @@ do_network_loop :: (client: *Client) {
     }
 }
 
+
+
+switch_to_state :: (client: *Client, state: Game_State) {
+    if #complete client.state == {
+      case .Main_Menu, .Connecting, .Lobby;
+        if state == .Main_Menu maybe_shutdown_server(client);
+
+      case .Ingame;
+        destroy_world(*client.world);
+        maybe_shutdown_server(client);
+    }
+
+    client.state = state;
+    
+    if #complete client.state == {
+      case .Main_Menu, .Connecting, .Lobby;
+      
+      case .Ingame;    
+        create_world(*client.world, *client.perm);
+    }
+}
 
 
 
@@ -246,7 +270,8 @@ do_main_menu :: (client: *Client) {
 }
 
 do_connecting_screen :: (client: *Client) {
-    // Do the UI
+    read_incoming_packets(client);
+
     {
         ui :: *client.ui;
         ui_push_width(ui, .Pixels, 256, 1);
@@ -259,12 +284,11 @@ do_connecting_screen :: (client: *Client) {
         ui_pop_window(ui);
         ui_pop_width(ui);
     }    
-
-    do_network_loop(client);
 }
 
 do_lobby_screen :: (client: *Client) {
-    // Do the UI
+    read_incoming_packets(client);
+
     {
         ui :: *client.ui;
         ui_push_width(ui, .Pixels, 256, 1);
@@ -289,12 +313,20 @@ do_lobby_screen :: (client: *Client) {
         ui_pop_window(ui);
         ui_pop_width(ui);
     }
-
-    do_network_loop(client);
 }
 
 do_game_tick :: (client: *Client) {
+    read_incoming_packets(client);
+
+    {
+        // @Incomplete: Respond to player input
+    }
     
+    {
+        // @Incomplete: Send all outgoing packets
+    }
+    
+    remove_all_marked_entities(*client.world);
 }
 
 main :: () -> s32 {
@@ -317,7 +349,9 @@ main :: () -> s32 {
     create_mixer(*client.mixer, 1);
 
     client.remote_clients.allocator = *client.perm;
-    client.state = .Main_Menu;
+    client.state = .Count;
+    
+    switch_to_state(*client, .Main_Menu); // Potentially initialize resources
 
     //
     // Main loop
@@ -352,7 +386,7 @@ main :: () -> s32 {
                 draw_ui_frame(*client.ui);
             
               case .Ingame;
-                
+                draw_game_tick(*client);
             }
                         
             ge_swap_buffers(*client.graphics);
@@ -364,7 +398,7 @@ main :: () -> s32 {
         os_sleep_to_tick_rate(frame_start, frame_end, 144);
     }
 
-    maybe_shutdown_server(*client);
+    switch_to_state(*client, .Count); // Shut down all resources that might currently be in use
         
     //
     // Destroy the engine
