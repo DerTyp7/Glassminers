@@ -50,6 +50,7 @@ Client :: struct {
     perm: Allocator;
 
     ui_font, title_font: Font;
+    sprite_atlas: *GE_Texture;
 
     //
     // Networking
@@ -67,6 +68,7 @@ Client :: struct {
     state: Game_State;
     game_seed: s64;
     world: World;
+    camera: Camera;
 }
 
 
@@ -165,7 +167,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Game_Start;
         client.game_seed = msg.game_start.seed;
-        client.state = .Ingame;
+        switch_to_state(client, .Ingame);
     }
 }
 
@@ -219,6 +221,11 @@ switch_to_state :: (client: *Client, state: Game_State) {
       
       case .Ingame;    
         create_world(*client.world, *client.perm);
+        prototypes := generate_world(client.game_seed, *temp);
+        for i := 0; i < prototypes.count; ++i {
+            prototype := array_get_pointer(*prototypes, i);
+            create_entity(*client.world, prototype.kind, prototype.position);
+        }
     }
 }
 
@@ -320,6 +327,8 @@ do_game_tick :: (client: *Client) {
 
     {
         // @Incomplete: Respond to player input
+        client.camera.center = .{ 4, 2 };
+        update_camera_matrices(*client.camera, *client.window);
     }
     
     {
@@ -345,6 +354,7 @@ main :: () -> s32 {
     ge_create(*client.graphics, *client.window, *client.perm);
     ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 12, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
+    client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png");
     create_ui(*client.ui, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 1);
 
@@ -386,7 +396,8 @@ main :: () -> s32 {
                 draw_ui_frame(*client.ui);
             
               case .Ingame;
-                draw_game_tick(*client);
+                draw_world(*client);
+                draw_ui_frame(*client.ui);
             }
                         
             ge_swap_buffers(*client.graphics);
@@ -405,6 +416,7 @@ main :: () -> s32 {
     //
     destroy_mixer(*client.mixer);
     destroy_ui(*client.ui);
+    ge_destroy_texture(*client.graphics, client.sprite_atlas);
     ge_destroy_font(*client.graphics, *client.ui_font);
     ge_destroy_font(*client.graphics, *client.title_font);
     ge_destroy(*client.graphics);

@@ -1,3 +1,11 @@
+Camera :: struct {
+    DESIRED_VERTICAL_UNITS: f32 : 5;
+
+    ratio: f32;
+    world_to_screen: v2f;
+    center: v2f;
+}
+
 Entity :: struct {
     pid: Pid;
     kind: Entity_Kind;
@@ -12,6 +20,30 @@ World :: struct {
     pid_counter: Pid;    
 }
 
+
+//
+// Camera
+//
+
+screen_from_world_position :: (client: *Client, world: v2f) -> v2f {
+    return .{ (world.x - client.camera.center.x) * client.camera.world_to_screen.x + xx client.window.w / 2, (world.y - client.camera.center.y) * client.camera.world_to_screen.y + xx client.window.h / 2 };
+}
+
+screen_from_world_scale :: (client: *Client, world: v2f) -> v2f {
+    return .{ world.x * client.camera.world_to_screen.x, world.y * client.camera.world_to_screen.y };
+}
+
+update_camera_matrices :: (camera: *Camera, window: *Window) {
+    camera.ratio             = xx window.w / xx window.h;
+    camera.world_to_screen.y = xx window.h / camera.DESIRED_VERTICAL_UNITS;
+    camera.world_to_screen.x = camera.world_to_screen.y;
+}
+
+
+//
+// World
+//
+
 create_world :: (world: *World, allocator: *Allocator) {
     world.entities.allocator = allocator;
     world.pid_counter = 0;
@@ -20,6 +52,12 @@ create_world :: (world: *World, allocator: *Allocator) {
 destroy_world :: (world: *World) {
     array_clear(*world.entities);
 }
+
+
+
+//
+// Entity
+//
 
 create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position: v2i) -> *Entity {
     assert(get_entity(world, pid) == null, "An entity with the requested id already exists.");

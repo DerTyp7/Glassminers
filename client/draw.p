@@ -1,3 +1,7 @@
+//
+// UI Module Callbacks
+//
+
 draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
     return .{ client, draw_ui_text, draw_ui_rect, set_ui_scissors, clear_ui_scissors };
 }
@@ -21,11 +25,72 @@ clear_ui_scissors :: (client: *Client) {
 
 
 
+//
+// HUD Drawing
+//
+
 draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignment: Text_Alignment, foreground: UI_Color) {
     ge_draw_text(*client.graphics, font, text, x, y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
 }
 
 
-draw_game_tick :: (client: *Client) {
+
+//
+// World Drawing
+//
+
+draw_world :: (client: *Client) {
+    draw_entity :: (client: *Client, kind: Entity_Kind, visual_position: v2f) {
+        screen_center := screen_from_world_position(client, visual_position);
+        screen_size   := screen_from_world_scale(client, .{ 1, 1 });
+
+        vertices: [4]v2f = .[ .{ screen_center.x - screen_size.x / 2, screen_center.y - screen_size.y / 2 },
+                              .{ screen_center.x + screen_size.x / 2, screen_center.y - screen_size.y / 2 },
+                              .{ screen_center.x - screen_size.x / 2, screen_center.y + screen_size.y / 2 },
+                              .{ screen_center.x + screen_size.x / 2, screen_center.y + screen_size.y / 2 } ];
+        uvs:      [4]v2f = calculate_uv_box_for_entity_kind(kind);
+        indices:  [6]s32 = .[ 0, 1, 2, 1, 3, 2 ];
+        
+        for i := 0; i < indices.Capacity; ++i {
+            ge_imm2d_textured_vertex(*client.graphics, vertices[indices[i]].x, vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, client.sprite_atlas, .{ 255, 255, 255, 255 });
+        }
+    }
     
+    world :: *client.world;
+    
+    //
+    // Draw implicit background inanimates
+    //
+    for x := 0; x < WORLD_WIDTH; ++x {
+        for y := 0; y < WORLD_HEIGHT; ++y {
+            draw_entity(client, .Inanimate, .{ xx x, xx y });            
+        }
+    }
+    
+    //
+    // Draw all entities
+    //
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        draw_entity(client, entity.kind, entity.visual_position);
+    }
+
+    ge_imm2d_flush(*client.graphics);
+}
+
+
+#file_scope
+
+SPRITE_ATLAS_COLUMNS :: 8;
+
+calculate_uv_box_for_entity_kind :: (kind: Entity_Kind) -> [4]v2f {
+    WIDTH: f32 : 1.0 / xx SPRITE_ATLAS_COLUMNS;
+
+    column := kind % SPRITE_ATLAS_COLUMNS;
+    row    := kind / SPRITE_ATLAS_COLUMNS;
+
+    x0 := xx cast(s64) column * WIDTH;
+    y0 := xx cast(s64) row    * WIDTH;
+    
+    return .[ .{ x0, y0 }, .{ x0 + WIDTH, y0 }, .{ x0, y0 + WIDTH }, .{ x0 + WIDTH, y0 + WIDTH } ];
 }
