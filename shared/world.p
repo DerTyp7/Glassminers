@@ -1,4 +1,4 @@
-WORLD_WIDTH  :: 128;
+WORLD_WIDTH  :: 32;
 WORLD_HEIGHT :: 5;
 
 v2i :: Vector2_Base(s32);

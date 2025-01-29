@@ -57,6 +57,8 @@ draw_world :: (client: *Client) {
     }
     
     world :: *client.world;
+
+    ge_imm2d_blend_mode(*client.graphics, .Default);
     
     //
     // Draw implicit background inanimates

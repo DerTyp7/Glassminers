@@ -221,6 +221,8 @@ switch_to_state :: (client: *Client, state: Game_State) {
       
       case .Ingame;    
         create_world(*client.world, *client.perm);
+        client.camera.center = .{ 4, 2 };
+
         prototypes := generate_world(client.game_seed, *temp);
         for i := 0; i < prototypes.count; ++i {
             prototype := array_get_pointer(*prototypes, i);
@@ -327,8 +329,12 @@ do_game_tick :: (client: *Client) {
 
     {
         // @Incomplete: Respond to player input
-        client.camera.center = .{ 4, 2 };
         update_camera_matrices(*client.camera, *client.window);
+        
+        if client.window.keys[.Arrow_Left]  & .Repeated client.camera.center.x -= 1;
+        if client.window.keys[.Arrow_Right] & .Repeated client.camera.center.x += 1;
+        if client.window.keys[.Arrow_Up]    & .Repeated client.camera.center.y -= 1;
+        if client.window.keys[.Arrow_Down]  & .Repeated client.camera.center.y += 1;
     }
     
     {

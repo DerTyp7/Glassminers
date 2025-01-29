@@ -30,5 +30,5 @@ build_release :: () {
     compiler_create_and_compile_workspace(*options);
 }
 
-#run build_debug();
-//#run build_release();
+//#run build_debug();
+#run build_release();
