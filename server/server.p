@@ -4,6 +4,10 @@
 
 // Shared
 #load "../shared/messages.p";
+#load "../shared/world.p";
+
+// Server
+#load "world.p";
 
 Shared_Server_Data :: struct {
     state: enum {
@@ -17,13 +21,14 @@ Shared_Server_Data :: struct {
 }
 
 Remote_Client :: struct {
-    id: Player_Id;
+    pid: Pid;
     name: string;
     connection: Virtual_Connection;
 }
 
 Game_State :: enum {
     Lobby;
+    Ingame;
 }
 
 Server :: struct {
@@ -40,13 +45,14 @@ Server :: struct {
     clients: [..]Remote_Client;
     incoming_messages: [..]Message;
     outgoing_messages: [..]Message;
+    client_pid_counter: Pid;
 
     //
     // Game Data
     //
     state: Game_State;
-    id_counter: Player_Id;
     game_seed: s64;
+    world: World;
 }
 
 logprint :: (format: string, args: ..Any) {
@@ -54,10 +60,10 @@ logprint :: (format: string, args: ..Any) {
     print("\n");
 }
 
-find_client_by_id :: (server: *Server, id: Player_Id) -> *Remote_Client {
+find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        if client.id == id return client;
+        if client.pid == pid return client;
     }
     
     return null;
@@ -80,24 +86,24 @@ handle_connection_request :: (server: *Server) {
     //    
     client := array_push(*server.clients);
     client.connection = create_udp_remote_client_connection(*server.connection);
-    client.id         = server.id_counter;
-    client.connection.info.client_id = client.id;
+    client.pid        = server.client_pid_counter;
+    client.connection.info.client_id = client.pid;
 
     send_connection_established_packet(*client.connection, 5);
     
-    ++server.id_counter;
+    ++server.client_pid_counter;
     
-    logprint("Connected to client '%'.", client.id);
+    logprint("Connected to client '%'.", client.pid);
 }
 
 handle_connection_closed :: (server: *Server) {
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        if client.id == server.connection.incoming_packet.header.sender_client_id {
-            logprint("Disconnected from client '%'.", client.id);
+        if client.pid == server.connection.incoming_packet.header.sender_client_id {
+            logprint("Disconnected from client '%'.", client.pid);
             
             msg := make_message(Player_Disconnect_Message);
-            msg.player_disconnect.id = client.id;
+            msg.player_disconnect.player_pid = client.pid;
             array_add(*server.outgoing_messages, msg);
             
             if client.name deallocate_string(*server.perm, *client.name);
@@ -110,15 +116,15 @@ handle_connection_closed :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.type == {
-      case .Player_Disconnect, .Game_Start; // Ignore
+      case .Player_Disconnect, .Game_Start, .Create_Entity, .Destroy_Entity; // Ignore
       
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
-        target := find_client_by_id(server, msg.player_information.id);
+        target := find_client_by_pid(server, msg.player_information.player_pid);
         for i := 0; i < server.clients.count; ++i {
             source := array_get_pointer(*server.clients, i);
             target_msg := make_message(Player_Information_Message);
-            target_msg.player_information.id   = source.id;
+            target_msg.player_information.player_pid = source.pid;
             target_msg.player_information.name = source.name;
             send_reliable_message(*target.connection, *target_msg);
         }
@@ -131,8 +137,36 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         array_add(*server.outgoing_messages, ~msg);
 
       case .Request_Game_Start;
+        switch_to_state(server, .Ingame);
+
+      case .Move_Entity;
+        entity := get_entity(*server.world, msg.move_entity.pid);
+        if entity {
+            entity.physical_position = msg.move_entity.position;
+            array_add(*server.outgoing_messages, ~msg);
+        }
+    }
+}
+
+switch_to_state :: (server: *Server, state: Game_State) {
+    if #complete server.state == {
+      case .Lobby; // Ignore
+    
+      case .Ingame;
+        destroy_world(*server.world);
+    }
+    
+    server.state = state;
+    
+    if #complete server.state == {
+      case .Lobby; // Ignore
+    
+      case .Ingame;
         server.game_seed = 54873543;
-        
+        create_world(*server.world, *server.perm);
+
+        // Create one entity for each player @Incomplete
+
         game_start := make_message(Game_Start_Message);
         game_start.game_start.seed = server.game_seed;
         array_add(*server.outgoing_messages, game_start);
@@ -162,10 +196,12 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         data.state = .Closing;
     }
     
-    server.state = .Lobby;
-    server.id_counter = 1;
+    server.state = .Count;
+    server.client_pid_counter = 1;
     
     logprint("Started the server.");
+    
+    switch_to_state(*server, .Lobby);
     
     while data.state == .Running {
         tick_start := os_get_hardware_time();
@@ -185,7 +221,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
                     handle_connection_closed(*server);
                     
                   case Packet_Type.Ping;
-                    client := find_client_by_id(*server, server.connection.incoming_packet.header.sender_client_id);
+                    client := find_client_by_pid(*server, server.connection.incoming_packet.header.sender_client_id);
                     if client send_ping_packet(*client.connection);
                     
                   case Packet_Type.Message;

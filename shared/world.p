@@ -1,3 +1,5 @@
+#load "math/Vector.p";
+
 WORLD_WIDTH  :: 32;
 WORLD_HEIGHT :: 5;
 

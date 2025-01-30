@@ -1,23 +1,25 @@
-Player_Id :: u32;
-
 Message_Type :: enum {
     Player_Information :: 0x1;
     Player_Disconnect  :: 0x2;
     Request_Game_Start :: 0x3;
     Game_Start         :: 0x4;
+    Create_Entity      :: 0x5;
+    Destroy_Entity     :: 0x6;
+    Move_Entity        :: 0x7;
 }
 
 Player_Information_Message :: struct {
     TYPE :: Message_Type.Player_Information;
 
-    id: Player_Id;
+    player_pid: Pid;
     name: string;
+    entity_id: Pid;
 }
 
 Player_Disconnect_Message :: struct {
     TYPE :: Message_Type.Player_Disconnect;
 
-    id: Player_Id;
+    player_pid: Pid;
 }
 
 Request_Game_Start_Message :: struct {
@@ -30,6 +32,27 @@ Game_Start_Message :: struct {
     seed: s64;
 }
 
+Create_Entity_Message :: struct {
+    TYPE :: Message_Type.Create_Entity;
+    
+    pid: Pid;
+    kind: Entity_Kind;
+    position: v2i;
+}
+
+Destroy_Entity_Message :: struct {
+    TYPE :: Message_Type.Destroy_Entity;
+
+    pid: Pid;
+}
+
+Move_Entity_Message :: struct {
+    TYPE :: Message_Type.Move_Entity;
+    
+    pid: Pid;
+    position: v2i;
+}
+
 Message :: struct {
     type: Message_Type;
 
@@ -38,6 +61,9 @@ Message :: struct {
         player_disconnect: Player_Disconnect_Message;
         request_game_start: Request_Game_Start_Message;
         game_start: Game_Start_Message;
+        create_entity: Create_Entity_Message;
+        destroy_entity: Destroy_Entity_Message;
+        move_entity: Move_Entity_Message;
     };
 }
 
@@ -58,34 +84,62 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
       case .Request_Game_Start;
 
       case .Player_Information;
-        serialize_bytes(*packet, message.player_information.id);
+        serialize_bytes(*packet, message.player_information.player_pid);
         serialize_string(*packet, message.player_information.name);
 
       case .Player_Disconnect;
-        serialize_bytes(*packet, message.player_disconnect.id);
+        serialize_bytes(*packet, message.player_disconnect.player_pid);
 
       case .Game_Start;
         serialize_bytes(*packet, message.game_start.seed);
+
+      case .Create_Entity;
+        serialize_bytes(*packet, message.create_entity.pid);
+        serialize_bytes(*packet, message.create_entity.kind);
+        serialize_bytes(*packet, message.create_entity.position.x);
+        serialize_bytes(*packet, message.create_entity.position.y);
+        
+      case .Destroy_Entity;
+        serialize_bytes(*packet, message.destroy_entity.pid);
+        
+      case .Move_Entity;
+        serialize_bytes(*packet, message.move_entity.pid);
+        serialize_bytes(*packet, message.move_entity.position.x);
+        serialize_bytes(*packet, message.move_entity.position.y);
     }
     
     send_reliable_packet(connection, *packet, .Message);
 }
 
 read_message :: (connection: *Virtual_Connection, message: *Message) {
-    message.type = deserialize_bytes(*connection.incoming_packet, Message_Type);
+    deserialize_bytes(*connection.incoming_packet, *message.type);
     
     if #complete message.type == {
       case .Request_Game_Start;
 
       case .Player_Information;
-        message.player_information.id   = deserialize_bytes(*connection.incoming_packet, Player_Id);
-        message.player_information.name = deserialize_string(*connection.incoming_packet);
+        deserialize_bytes(*connection.incoming_packet, *message.player_information.player_pid);
+        deserialize_string(*connection.incoming_packet, *message.player_information.name);
 
       case .Player_Disconnect;
-        message.player_disconnect.id = deserialize_bytes(*connection.incoming_packet, Player_Id);
+        deserialize_bytes(*connection.incoming_packet, *message.player_disconnect.player_pid);
 
       case .Game_Start;
-        message.game_start.seed = deserialize_bytes(*connection.incoming_packet, s64);
+        deserialize_bytes(*connection.incoming_packet, *message.game_start.seed);
+        
+      case .Create_Entity;
+        deserialize_bytes(*connection.incoming_packet, *message.create_entity.pid);
+        deserialize_bytes(*connection.incoming_packet, *message.create_entity.kind);
+        deserialize_bytes(*connection.incoming_packet, *message.create_entity.position.x);
+        deserialize_bytes(*connection.incoming_packet, *message.create_entity.position.y);
+    
+      case .Destroy_Entity;
+        deserialize_bytes(*connection.incoming_packet, *message.destroy_entity.pid);
+        
+      case .Move_Entity;
+        deserialize_bytes(*connection.incoming_packet, *message.move_entity.pid);
+        deserialize_bytes(*connection.incoming_packet, *message.move_entity.position.x);
+        deserialize_bytes(*connection.incoming_packet, *message.move_entity.position.y);
     }
 }
 
@@ -107,22 +161,18 @@ serialize_string :: (packet: *Packet, data: string) {
     packet.body_size += data.count;
 }
 
-deserialize_bytes :: (packet: *Packet, $T: Type) -> T {
+deserialize_bytes :: (packet: *Packet, data: *$T) {
     assert(packet.body_read_offset + size_of(T) <= packet.body_size, "The packet ran out of available bytes.");
-    result: T = ---;
-    copy_memory(*result, *packet.body[packet.body_read_offset], size_of(T));
+    copy_memory(data, *packet.body[packet.body_read_offset], size_of(T));
     packet.body_read_offset += size_of(T);
-    return result;
 }
 
-deserialize_string :: (packet: *Packet) -> string {
+deserialize_string :: (packet: *Packet, data: *string) {
     assert(packet.body_read_offset + size_of(s64) <= packet.body_size, "The packet ran out of available bytes.");
-    result: string = ---;
-    copy_memory(*result.count, *packet.body[packet.body_read_offset], size_of(s64));
+    copy_memory(*data.count, *packet.body[packet.body_read_offset], size_of(s64));
     packet.body_read_offset += size_of(s64);
-    assert(packet.body_read_offset + result.count <= packet.body_size, "The packet ran out of available bytes.");
-    result.data = allocate(*temp, result.count);
-    copy_memory(result.data, *packet.body[packet.body_read_offset], result.count);
-    packet.body_read_offset += result.count;
-    return result;
+    assert(packet.body_read_offset + data.count <= packet.body_size, "The packet ran out of available bytes.");
+    data.data = allocate(*temp, data.count);
+    copy_memory(data.data, *packet.body[packet.body_read_offset], data.count);
+    packet.body_read_offset += data.count;
 }

@@ -7,11 +7,13 @@
 #load "virtual_connection.p";
 #load "graphics_engine/graphics_engine.p";
 
-// Client files
-#load "draw.p";
-#load "world.p";
+// Shared
 #load "../shared/messages.p";
 #load "../shared/world.p";
+
+// Client
+#load "draw.p";
+#load "world.p";
 
 // @Volatile: Must be in sync with server/server.p
 Shared_Server_Data :: struct {
@@ -33,7 +35,7 @@ Game_State :: enum {
 }
 
 Remote_Client :: struct {
-    id: Player_Id;
+    pid: Pid;
     name: string;
 }
 
@@ -60,7 +62,7 @@ Client :: struct {
     connection: Virtual_Connection;
     remote_clients: [..]Remote_Client;
     my_name: string;
-    my_id: Player_Id;
+    my_pid: Pid;
     
     //
     // Game Data
@@ -128,20 +130,20 @@ maybe_shutdown_server :: (client: *Client) {
     }
 }
 
-remove_client_by_id :: (client: *Client, id: Player_Id) {
+remove_client_by_pid :: (client: *Client, pid: Pid) {
     for i := 0; i < client.remote_clients.count; ++i {
         rc := array_get_pointer(*client.remote_clients, i);
-        if rc.id == id {
+        if rc.pid == pid {
             deallocate_string(*client.perm, *rc.name);
             array_remove_index(*client.remote_clients, i);
         }        
     }
 }
 
-find_client_by_id :: (client: *Client, id: Player_Id) -> *Remote_Client {
+find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
     for i := 0; i < client.remote_clients.count; ++i {
         rc := array_get_pointer(*client.remote_clients, i);
-        if rc.id == id return rc;
+        if rc.pid == pid return rc;
     }
     
     return null;
@@ -152,18 +154,18 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Request_Game_Start; // Ignore
 
       case .Player_Information;
-        if msg.player_information.id != client.my_id {
-            rc := find_client_by_id(client, msg.player_information.id);
+        if msg.player_information.player_pid != client.my_pid {
+            rc := find_client_by_pid(client, msg.player_information.player_pid);
             
             if rc == null {
                 rc = array_push(*client.remote_clients);
-                rc.id = msg.player_information.id;
+                rc.pid = msg.player_information.player_pid;
                 rc.name = copy_string(*client.perm, msg.player_information.name);
             }
         }
     
       case .Player_Disconnect;
-        remove_client_by_id(client, msg.player_disconnect.id);
+        remove_client_by_pid(client, msg.player_disconnect.player_pid);
 
       case .Game_Start;
         client.game_seed = msg.game_start.seed;
@@ -182,12 +184,12 @@ read_incoming_packets :: (client: *Client) {
           
           case Packet_Type.Connection_Established;
             if client.state == .Connecting {
-                client.my_id = client.connection.incoming_packet.header.sender_client_id;
-                client.connection.info.client_id = client.my_id;
+                client.my_pid = client.connection.incoming_packet.header.sender_client_id;
+                client.connection.info.client_id = client.my_pid;
                 switch_to_state(client, .Lobby);
                 
                 msg := make_message(Player_Information_Message);
-                msg.player_information.id   = client.my_id;
+                msg.player_information.player_pid = client.my_pid;
                 msg.player_information.name = client.my_name;
                 send_reliable_message(*client.connection, *msg);
             }
