@@ -170,6 +170,19 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Start;
         client.game_seed = msg.game_start.seed;
         switch_to_state(client, .Ingame);
+
+      case .Create_Entity;
+        create_entity_with_pid(*client.world, msg.create_entity.pid, msg.create_entity.kind, msg.create_entity.position);
+
+      case .Destroy_Entity;
+        mark_entity_for_removal(*client.world, msg.destroy_entity.pid);
+
+      case .Move_Entity;
+        entity := get_entity(*client.world, msg.move_entity.pid);
+        if entity {
+            entity.physical_position = msg.move_entity.position;
+            entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
+        }
     }
 }
 
@@ -208,9 +221,19 @@ read_incoming_packets :: (client: *Client) {
 
 switch_to_state :: (client: *Client, state: Game_State) {
     if #complete client.state == {
-      case .Main_Menu, .Connecting, .Lobby;
-        if state == .Main_Menu maybe_shutdown_server(client);
+      case .Main_Menu;
 
+      case .Connecting;
+        if state != .Lobby {
+            maybe_shutdown_server(client);
+        }
+
+      case .Lobby;
+        if state != .Ingame {
+            destroy_world(*client.world);
+            maybe_shutdown_server(client);
+        }
+        
       case .Ingame;
         destroy_world(*client.world);
         maybe_shutdown_server(client);
@@ -219,17 +242,16 @@ switch_to_state :: (client: *Client, state: Game_State) {
     client.state = state;
     
     if #complete client.state == {
-      case .Main_Menu, .Connecting, .Lobby;
+      case .Main_Menu, .Connecting;
       
-      case .Ingame;    
+      case .Lobby;
+        // We already create the world here because otherwise we cannot guarantee
+        // the world has been created before the entities arrive from the server (since
+        // our protocol does not guarantee the order in which messages will arrive.
         create_world(*client.world, *client.perm);
         client.camera.center = .{ 4, 2 };
 
-        prototypes := generate_world(client.game_seed, *temp);
-        for i := 0; i < prototypes.count; ++i {
-            prototype := array_get_pointer(*prototypes, i);
-            create_entity(*client.world, prototype.kind, prototype.position);
-        }
+      case .Ingame;
     }
 }
 

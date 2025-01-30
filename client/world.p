@@ -17,7 +17,6 @@ Entity :: struct {
 
 World :: struct {
     entities: [..]Entity;
-    pid_counter: Pid;    
 }
 
 
@@ -46,7 +45,6 @@ update_camera_matrices :: (camera: *Camera, window: *Window) {
 
 create_world :: (world: *World, allocator: *Allocator) {
     world.entities.allocator = allocator;
-    world.pid_counter = 0;
 }
 
 destroy_world :: (world: *World) {
@@ -70,13 +68,6 @@ create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position:
     return entity;
 }
 
-create_entity :: (world: *World, kind: Entity_Kind, position: v2i) -> Pid, *Entity {
-    pid := world.pid_counter;
-    entity := create_entity_with_pid(world, pid, kind, position);
-    ++world.pid_counter;
-    return pid, entity;
-}
-
 get_entity :: (world: *World, pid: Pid) -> *Entity {
     for i := 0; i < world.entities.count; ++i {
         entity := array_get_pointer(*world.entities, i);
@@ -84,6 +75,11 @@ get_entity :: (world: *World, pid: Pid) -> *Entity {
     }
     
     return null;
+}
+
+mark_entity_for_removal :: (world: *World, pid: Pid) {
+    entity := get_entity(world, pid);
+    if entity entity.marked_for_removal = true;
 }
 
 remove_all_marked_entities :: (world: *World) {

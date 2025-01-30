@@ -165,11 +165,37 @@ switch_to_state :: (server: *Server, state: Game_State) {
         server.game_seed = 54873543;
         create_world(*server.world, *server.perm);
 
-        // Create one entity for each player @Incomplete
-
+        //
+        // Notify the clients about the game seed
+        //
         game_start := make_message(Game_Start_Message);
         game_start.game_start.seed = server.game_seed;
         array_add(*server.outgoing_messages, game_start);
+
+        //
+        // Generate the base world
+        //
+        generate_world(*server.world, server.game_seed);
+
+        //
+        // Generate one entity for each player and attach it to the player
+        //
+        for i := 0; i < server.clients.count; ++i {
+            entity, id := create_entity(*server.world, .Player, .{ 4, 2 });
+        }
+
+        //
+        // Notify the clients about all the created entities
+        //
+        for i := 0; i < server.world.entities.count; ++i {
+            entity := array_get_pointer(*server.world.entities, i);
+
+            msg := make_message(Create_Entity_Message);
+            msg.create_entity.pid      = entity.pid;
+            msg.create_entity.kind     = entity.kind;
+            msg.create_entity.position = entity.physical_position;
+            array_add(*server.outgoing_messages, msg);
+        }
     }
 }
 

@@ -20,36 +20,3 @@ Entity_Prototype :: struct {
     position: v2i;
 }
 
-
-generate_world :: (seed: s64, allocator: *Allocator) -> [..]Entity_Prototype {
-    rand :: () -> s32 #foreign;
-    
-    random_position :: () -> v2i {
-        return .{ rand() % WORLD_WIDTH, rand() % WORLD_HEIGHT };
-    }
-
-    srand(seed);
-
-    entities: [..]Entity_Prototype;
-    entities.allocator = allocator;
-    
-    //
-    // Generate some stones
-    //
-    for i := 0; i < 15; ++i {
-        entity := array_push(*entities);
-        entity.kind = .Stone;
-        entity.position = random_position();
-    }
-    
-    //
-    // Generate some crystals
-    //
-    for i := 0; i < 15; ++i {
-        entity := array_push(*entities);
-        entity.kind = .Crystal;
-        entity.position = random_position();
-    }
-    
-    return entities;
-}

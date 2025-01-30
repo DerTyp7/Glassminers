@@ -24,25 +24,45 @@ destroy_world :: (world: *World) {
     array_clear(*world.entities);
 }
 
+generate_world :: (world: *World, seed: s64) {
+    rand :: () -> s32 #foreign;
+    
+    random_position :: () -> v2i {
+        return .{ rand() % WORLD_WIDTH, rand() % WORLD_HEIGHT };
+    }
+
+    srand(seed);
+    
+    //
+    // Generate some stones
+    //
+    for i := 0; i < 15; ++i {
+        create_entity(world, .Stone, random_position());
+    }
+    
+    //
+    // Generate some crystals
+    //
+    for i := 0; i < 15; ++i {
+        create_entity(world, .Crystal, random_position());
+    }
+}
+
 
 
 //
 // Entity
 //
 
-create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position: v2i) -> *Entity {
-    assert(get_entity(world, pid) == null, "An entity with the requested id already exists.");
+create_entity :: (world: *World, kind: Entity_Kind, position: v2i) -> Pid, *Entity {
+    pid := world.pid_counter;
+
     entity := array_push(*world.entities);
     entity.pid                = pid;
     entity.kind               = kind;
-    entity.marked_for_removal = false;
     entity.physical_position  = position;
-    return entity;
-}
+    entity.marked_for_removal = false;
 
-create_entity :: (world: *World, kind: Entity_Kind, position: v2i) -> Pid, *Entity {
-    pid := world.pid_counter;
-    entity := create_entity_with_pid(world, pid, kind, position);
     ++world.pid_counter;
     return pid, entity;
 }
