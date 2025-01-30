@@ -13,7 +13,7 @@ Player_Information_Message :: struct {
 
     player_pid: Pid;
     name: string;
-    entity_id: Pid;
+    entity_pid: Pid;
 }
 
 Player_Disconnect_Message :: struct {
@@ -86,6 +86,7 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
       case .Player_Information;
         serialize_bytes(*packet, message.player_information.player_pid);
         serialize_string(*packet, message.player_information.name);
+        serialize_bytes(*packet, message.player_information.entity_pid);
 
       case .Player_Disconnect;
         serialize_bytes(*packet, message.player_disconnect.player_pid);
@@ -118,8 +119,9 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
       case .Request_Game_Start;
 
       case .Player_Information;
-        deserialize_bytes(*connection.incoming_packet, *message.player_information.player_pid);
+        deserialize_bytes(*connection.incoming_packet,  *message.player_information.player_pid);
         deserialize_string(*connection.incoming_packet, *message.player_information.name);
+        deserialize_bytes(*connection.incoming_packet,  *message.player_information.entity_pid);
 
       case .Player_Disconnect;
         deserialize_bytes(*connection.incoming_packet, *message.player_disconnect.player_pid);

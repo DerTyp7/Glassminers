@@ -21,9 +21,10 @@ Shared_Server_Data :: struct {
 }
 
 Remote_Client :: struct {
-    pid: Pid;
-    name: string;
     connection: Virtual_Connection;
+    player_pid: Pid;
+    entity_pid: Pid;
+    name: string;
 }
 
 Game_State :: enum {
@@ -63,7 +64,7 @@ logprint :: (format: string, args: ..Any) {
 find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        if client.pid == pid return client;
+        if client.player_pid == pid return client;
     }
     
     return null;
@@ -86,24 +87,27 @@ handle_connection_request :: (server: *Server) {
     //    
     client := array_push(*server.clients);
     client.connection = create_udp_remote_client_connection(*server.connection);
-    client.pid        = server.client_pid_counter;
-    client.connection.info.client_id = client.pid;
-
+    client.player_pid = server.client_pid_counter;
+    client.entity_pid = INVALID_PID;
+    client.connection.info.client_id = client.player_pid;
+    
     send_connection_established_packet(*client.connection, 5);
     
     ++server.client_pid_counter;
     
-    logprint("Connected to client '%'.", client.pid);
+    logprint("Connected to client '%'.", client.player_pid);
 }
 
 handle_connection_closed :: (server: *Server) {
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        if client.pid == server.connection.incoming_packet.header.sender_client_id {
-            logprint("Disconnected from client '%'.", client.pid);
+        if client.player_pid == server.connection.incoming_packet.header.sender_client_id {
+            logprint("Disconnected from client '%'.", client.player_pid);
+
+            // @Cleanup: We should probably also remove the entity here...
             
             msg := make_message(Player_Disconnect_Message);
-            msg.player_disconnect.player_pid = client.pid;
+            msg.player_disconnect.player_pid = client.player_pid;
             array_add(*server.outgoing_messages, msg);
             
             if client.name deallocate_string(*server.perm, *client.name);
@@ -124,8 +128,9 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         for i := 0; i < server.clients.count; ++i {
             source := array_get_pointer(*server.clients, i);
             target_msg := make_message(Player_Information_Message);
-            target_msg.player_information.player_pid = source.pid;
-            target_msg.player_information.name = source.name;
+            target_msg.player_information.player_pid = source.player_pid;
+            target_msg.player_information.name       = source.name;
+            target_msg.player_information.entity_pid = source.entity_pid;
             send_reliable_message(*target.connection, *target_msg);
         }
         
@@ -181,7 +186,16 @@ switch_to_state :: (server: *Server, state: Game_State) {
         // Generate one entity for each player and attach it to the player
         //
         for i := 0; i < server.clients.count; ++i {
-            entity, id := create_entity(*server.world, .Player, .{ 4, 2 });
+            client := array_get_pointer(*server.clients, i);
+            pid, entity := create_entity(*server.world, .Player, .{ 4, 2 });
+
+            client.entity_pid = pid;
+            
+            msg := make_message(Player_Information_Message);
+            msg.player_information.player_pid = client.player_pid;
+            msg.player_information.name       = client.name;
+            msg.player_information.entity_pid = client.entity_pid;
+            array_add(*server.outgoing_messages, msg);            
         }
 
         //

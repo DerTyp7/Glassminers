@@ -35,7 +35,8 @@ Game_State :: enum {
 }
 
 Remote_Client :: struct {
-    pid: Pid;
+    player_pid: Pid;
+    entity_pid: Pid;
     name: string;
 }
 
@@ -61,8 +62,8 @@ Client :: struct {
     server_thread: Thread;
     connection: Virtual_Connection;
     remote_clients: [..]Remote_Client;
+    my_player_pid: Pid;
     my_name: string;
-    my_pid: Pid;
     
     //
     // Game Data
@@ -71,6 +72,7 @@ Client :: struct {
     game_seed: s64;
     world: World;
     camera: Camera;
+    my_entity_pid: Pid;
 }
 
 
@@ -133,7 +135,7 @@ maybe_shutdown_server :: (client: *Client) {
 remove_client_by_pid :: (client: *Client, pid: Pid) {
     for i := 0; i < client.remote_clients.count; ++i {
         rc := array_get_pointer(*client.remote_clients, i);
-        if rc.pid == pid {
+        if rc.player_pid == pid {
             deallocate_string(*client.perm, *rc.name);
             array_remove_index(*client.remote_clients, i);
         }        
@@ -143,7 +145,7 @@ remove_client_by_pid :: (client: *Client, pid: Pid) {
 find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
     for i := 0; i < client.remote_clients.count; ++i {
         rc := array_get_pointer(*client.remote_clients, i);
-        if rc.pid == pid return rc;
+        if rc.player_pid == pid return rc;
     }
     
     return null;
@@ -154,14 +156,19 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Request_Game_Start; // Ignore
 
       case .Player_Information;
-        if msg.player_information.player_pid != client.my_pid {
+        if msg.player_information.player_pid != client.my_player_pid {
             rc := find_client_by_pid(client, msg.player_information.player_pid);
             
             if rc == null {
-                rc = array_push(*client.remote_clients);
-                rc.pid = msg.player_information.player_pid;
-                rc.name = copy_string(*client.perm, msg.player_information.name);
+                rc            = array_push(*client.remote_clients);
+                rc.player_pid = msg.player_information.player_pid;
+                rc.name       = copy_string(*client.perm, msg.player_information.name);
+                rc.entity_pid = msg.player_information.entity_pid;
+            } else if msg.player_information.entity_pid != INVALID_PID {
+                rc.entity_pid = msg.player_information.entity_pid;
             }
+        } else if msg.player_information.entity_pid != INVALID_PID {
+            client.my_entity_pid = msg.player_information.entity_pid;
         }
     
       case .Player_Disconnect;
@@ -197,12 +204,12 @@ read_incoming_packets :: (client: *Client) {
           
           case Packet_Type.Connection_Established;
             if client.state == .Connecting {
-                client.my_pid = client.connection.incoming_packet.header.sender_client_id;
-                client.connection.info.client_id = client.my_pid;
+                client.my_player_pid = client.connection.incoming_packet.header.sender_client_id;
+                client.connection.info.client_id = client.my_player_pid;
                 switch_to_state(client, .Lobby);
                 
                 msg := make_message(Player_Information_Message);
-                msg.player_information.player_pid = client.my_pid;
+                msg.player_information.player_pid = client.my_player_pid;
                 msg.player_information.name = client.my_name;
                 send_reliable_message(*client.connection, *msg);
             }
@@ -250,7 +257,8 @@ switch_to_state :: (client: *Client, state: Game_State) {
         // our protocol does not guarantee the order in which messages will arrive.
         create_world(*client.world, *client.perm);
         client.camera.center = .{ 4, 2 };
-
+        client.my_entity_pid = INVALID_PID;
+        
       case .Ingame;
     }
 }
@@ -351,18 +359,43 @@ do_lobby_screen :: (client: *Client) {
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
 
+    outgoing_messages: [..]Message;
+    outgoing_messages.allocator = *temp;
+    
+    // Update the camera
     {
-        // @Incomplete: Respond to player input
-        update_camera_matrices(*client.camera, *client.window);
-        
         if client.window.keys[.Arrow_Left]  & .Repeated client.camera.center.x -= 1;
         if client.window.keys[.Arrow_Right] & .Repeated client.camera.center.x += 1;
         if client.window.keys[.Arrow_Up]    & .Repeated client.camera.center.y -= 1;
         if client.window.keys[.Arrow_Down]  & .Repeated client.camera.center.y += 1;
+        update_camera_matrices(*client.camera, *client.window);
     }
-    
+
+    // Move the player
     {
-        // @Incomplete: Send all outgoing packets
+        velocity: v2i = .{ 0, 0 };
+
+        if client.window.keys[.A] & .Repeated velocity.x -= 1;
+        if client.window.keys[.D] & .Repeated velocity.x += 1;
+        if client.window.keys[.W] & .Repeated && velocity.x == 0 velocity.y -= 1;
+        if client.window.keys[.S] & .Repeated && velocity.x == 0 velocity.y += 1;
+
+        if velocity.x != 0 || velocity.y != 0 {
+            entity := get_entity(*client.world, client.my_entity_pid);
+
+            msg := make_message(Move_Entity_Message);
+            msg.move_entity.pid = entity.pid;
+            msg.move_entity.position.x = entity.physical_position.x + velocity.x;
+            msg.move_entity.position.y = entity.physical_position.y + velocity.y;
+            array_add(*outgoing_messages, msg);
+        }
+    }
+
+    // Send all outgoing messages
+    {
+        for i := 0; i < outgoing_messages.count; ++i {
+            send_reliable_message(*client.connection, array_get_pointer(*outgoing_messages, i));
+        }
     }
     
     remove_all_marked_entities(*client.world);

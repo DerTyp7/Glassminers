@@ -8,6 +8,8 @@ v2f :: Vector2_Base(f32);
 
 Pid :: u32;
 
+INVALID_PID: Pid : -1;
+
 Entity_Kind :: enum {
     Inanimate;
     Player;
