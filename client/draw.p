@@ -29,6 +29,11 @@ clear_ui_scissors :: (client: *Client) {
 // HUD Drawing
 //
 
+draw_rect :: (client: *Client, x0, y0, x1, y1: f32, color: GE_Color) {
+    ge_imm2d_colored_rect(*client.graphics, x0, y0, x1, y1, color);
+    ge_imm2d_flush(*client.graphics);
+}
+
 draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignment: Text_Alignment, foreground: UI_Color) {
     ge_draw_text(*client.graphics, font, text, x, y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
 }
@@ -56,6 +61,17 @@ draw_world :: (client: *Client) {
         }
     }
     
+    draw_label :: (client: *Client, label: string, entity_pid: Pid) {
+        entity := get_entity(*client.world, entity_pid);
+        if entity {
+            screen_center := screen_from_world_position(client, v2f.{ entity.visual_position.x, entity.visual_position.y - 0.55 });
+            screen_size   := v2f.{ xx get_string_width_in_pixels(*client.ui_font, label) + 5, xx client.ui_font.line_height };
+            
+            draw_rect(client, screen_center.x - screen_size.x / 2, screen_center.y - screen_size.y / 2, screen_center.x + screen_size.x / 2, screen_center.y + screen_size.y / 2, .{ 100, 100, 100, 100 });
+            draw_text(client, *client.ui_font, label, screen_center.x, screen_center.y, .Center | .Median, .{ 255, 255, 255, 255 });
+        }
+    }
+    
     world :: *client.world;
 
     ge_imm2d_blend_mode(*client.graphics, .Default);
@@ -76,6 +92,19 @@ draw_world :: (client: *Client) {
         entity := array_get_pointer(*world.entities, i);
         draw_entity(client, entity.kind, entity.visual_position);
     }
+
+    //
+    // Draw the player's name above their entities
+    //
+    for i := 0; i < client.remote_clients.count; ++i {
+        rc := array_get_pointer(*client.remote_clients, i);
+        draw_label(client, rc.name, rc.entity_pid);
+    }
+
+    //
+    // Draw an indicate above this player's entity
+    //
+    draw_label(client, "v YOU v", client.my_entity_pid);
 
     ge_imm2d_flush(*client.graphics);
 }

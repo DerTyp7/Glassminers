@@ -146,9 +146,8 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
 
       case .Move_Entity;
         entity := get_entity(*server.world, msg.move_entity.pid);
-        if entity {
-            entity.physical_position = msg.move_entity.position;
-            array_add(*server.outgoing_messages, ~msg);
+        if entity && can_move_to_position(*server.world, entity, msg.move_entity.position) {
+            move_to_position(*server.world, entity, msg.move_entity.position);
         }
     }
 }
@@ -187,7 +186,7 @@ switch_to_state :: (server: *Server, state: Game_State) {
         //
         for i := 0; i < server.clients.count; ++i {
             client := array_get_pointer(*server.clients, i);
-            pid, entity := create_entity(*server.world, .Player, .{ 4, 2 });
+            pid, entity := create_entity(*server.world, .Player, .{ 3 + i, 2 });
 
             client.entity_pid = pid;
             
@@ -277,6 +276,22 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         {
             for i := 0; i < server.incoming_messages.count; ++i {
                 handle_incoming_message(*server, array_get_pointer(*server.incoming_messages, i));
+            }
+        }
+        
+        //
+        // Figure out all updates this frame
+        //
+        if server.state == .Ingame {
+            for i := 0; i < server.world.entities.count; ++i {
+                entity := array_get_pointer(*server.world.entities, i);
+                if entity.moved_this_frame {
+                    msg := make_message(Move_Entity_Message);
+                    msg.move_entity.pid      = entity.pid;
+                    msg.move_entity.position = entity.physical_position;
+                    array_add(*server.outgoing_messages, msg);
+                    entity.moved_this_frame  = false;
+                }
             }
         }
         
