@@ -16,6 +16,9 @@ Entity :: struct {
 }
 
 World :: struct {
+    allocator: *Allocator;
+
+    size: v2i;
     entities: [..]Entity;
 }
 
@@ -44,7 +47,8 @@ update_camera_matrices :: (camera: *Camera, window: *Window) {
 //
 
 create_world :: (world: *World, allocator: *Allocator) {
-    world.entities.allocator = allocator;
+    world.allocator = allocator;
+    world.entities.allocator = world.allocator;
 }
 
 destroy_world :: (world: *World) {

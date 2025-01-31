@@ -118,98 +118,155 @@ handle_connection_closed :: (server: *Server) {
     }
 }
 
-handle_incoming_message :: (server: *Server, msg: *Message) {
-    if #complete msg.type == {
-      case .Player_Disconnect, .Game_Start, .Create_Entity, .Destroy_Entity; // Ignore
-      
-      case .Player_Information;
-        // Respond to this specific player by sending all other already-connected clients
-        target := find_client_by_pid(server, msg.player_information.player_pid);
-        for i := 0; i < server.clients.count; ++i {
-            source := array_get_pointer(*server.clients, i);
-            target_msg := make_message(Player_Information_Message);
-            target_msg.player_information.player_pid = source.player_pid;
-            target_msg.player_information.name       = source.name;
-            target_msg.player_information.entity_pid = source.entity_pid;
-            send_reliable_message(*target.connection, *target_msg);
-        }
-        
-        // Store the information locally
-        if target.name deallocate_string(*server.perm, *target.name);
-        target.name = copy_string(*server.perm, msg.player_information.name);
-      
-        // Broadcast the message along
-        array_add(*server.outgoing_messages, ~msg);
-
-      case .Request_Game_Start;
-        switch_to_state(server, .Ingame);
-
-      case .Move_Entity;
-        entity := get_entity(*server.world, msg.move_entity.pid);
-        if entity && can_move_to_position(*server.world, entity, msg.move_entity.position) {
-            move_to_position(*server.world, entity, msg.move_entity.position);
+send_all_outgoing_messages :: (server: *Server) {
+    for j := 0; j < server.clients.count; ++j {
+        client := array_get_pointer(*server.clients, j);
+        for i := 0; i < server.outgoing_messages.count; ++i {
+            send_reliable_message(*client.connection, array_get_pointer(*server.outgoing_messages, i));
         }
     }
+    
+    array_clear_without_deallocation(*server.outgoing_messages);    
 }
 
 switch_to_state :: (server: *Server, state: Game_State) {
     if #complete server.state == {
       case .Lobby; // Ignore
-    
-      case .Ingame;
-        destroy_world(*server.world);
+      case .Ingame; destroy_world(*server.world);
     }
     
     server.state = state;
     
     if #complete server.state == {
       case .Lobby; // Ignore
-    
-      case .Ingame;
-        server.game_seed = 54873543;
-        create_world(*server.world, *server.perm);
+      case .Ingame; setup_game(server);
+    }
+}
 
-        //
-        // Notify the clients about the game seed
-        //
-        game_start := make_message(Game_Start_Message);
-        game_start.game_start.seed = server.game_seed;
-        array_add(*server.outgoing_messages, game_start);
+setup_game :: (server: *Server) {
+    server.game_seed = 54873543;
+    create_world(*server.world, *server.perm, .{ 32, 5 });
 
-        //
-        // Generate the base world
-        //
-        generate_world(*server.world, server.game_seed);
+    //
+    // Notify the clients about the game seed
+    //
+    game_start := make_message(Game_Start_Message);
+    game_start.game_start.seed = server.game_seed;
+    game_start.game_start.size = server.world.size;
+    array_add(*server.outgoing_messages, game_start);
 
-        //
-        // Generate one entity for each player and attach it to the player
-        //
-        for i := 0; i < server.clients.count; ++i {
-            client := array_get_pointer(*server.clients, i);
-            pid, entity := create_entity(*server.world, .Player, .{ 3 + i, 2 });
+    //
+    // Generate the base world
+    //
+    generate_world(*server.world, server.game_seed);
 
-            client.entity_pid = pid;
+    //
+    // Generate one entity for each player and attach it to the player
+    //
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get_pointer(*server.clients, i);
+        pid, entity := create_entity(*server.world, .Player, .{ 3 + i, 2 });
+
+        client.entity_pid = pid;
+        
+        msg := make_message(Player_Information_Message);
+        msg.player_information.player_pid = client.player_pid;
+        msg.player_information.name       = client.name;
+        msg.player_information.entity_pid = client.entity_pid;
+        array_add(*server.outgoing_messages, msg);            
+    }
+
+    //
+    // Notify the clients about all the created entities
+    //
+    for i := 0; i < server.world.entities.count; ++i {
+        entity := array_get_pointer(*server.world.entities, i);
+
+        msg := make_message(Create_Entity_Message);
+        msg.create_entity.pid      = entity.pid;
+        msg.create_entity.kind     = entity.kind;
+        msg.create_entity.position = entity.physical_position;
+        array_add(*server.outgoing_messages, msg);
+    }
+}
+
+do_lobby_tick :: (server: *Server) {
+    //
+    // Handle all incoming messages on player information and game info
+    //
+    for i := 0; i < server.incoming_messages.count; ++i {
+        msg := array_get_pointer(*server.incoming_messages, i);
+
+        if msg.type == {
+          case .Player_Information;
+            // Respond to this specific player by sending all other already-connected clients
+            target := find_client_by_pid(server, msg.player_information.player_pid);
+            for i := 0; i < server.clients.count; ++i {
+                source := array_get_pointer(*server.clients, i);
+                target_msg := make_message(Player_Information_Message);
+                target_msg.player_information.player_pid = source.player_pid;
+                target_msg.player_information.name       = source.name;
+                target_msg.player_information.entity_pid = source.entity_pid;
+                send_reliable_message(*target.connection, *target_msg);
+            }
             
-            msg := make_message(Player_Information_Message);
-            msg.player_information.player_pid = client.player_pid;
-            msg.player_information.name       = client.name;
-            msg.player_information.entity_pid = client.entity_pid;
-            array_add(*server.outgoing_messages, msg);            
-        }
+            // Store the information locally
+            if target.name deallocate_string(*server.perm, *target.name);
+            target.name = copy_string(*server.perm, msg.player_information.name);
+            
+            // Broadcast the message along
+            array_add(*server.outgoing_messages, ~msg);
 
-        //
-        // Notify the clients about all the created entities
-        //
-        for i := 0; i < server.world.entities.count; ++i {
-            entity := array_get_pointer(*server.world.entities, i);
+          case .Request_Game_Start;
+            switch_to_state(server, .Ingame);
+        }    
+    }
 
-            msg := make_message(Create_Entity_Message);
-            msg.create_entity.pid      = entity.pid;
-            msg.create_entity.kind     = entity.kind;
-            msg.create_entity.position = entity.physical_position;
-            array_add(*server.outgoing_messages, msg);
+    //
+    // Send all updates to clients.
+    //
+    send_all_outgoing_messages(server);
+}
+
+do_game_tick :: (server: *Server) {
+    //
+    // Handle all incoming messages on player input
+    //
+    for i := 0; i < server.incoming_messages.count; ++i {
+        msg := array_get_pointer(*server.incoming_messages, i);
+        
+        if msg.type == {
+          case .Move_Entity;
+            entity := get_entity(*server.world, msg.move_entity.pid);
+            if entity && can_move_to_position(*server.world, entity, msg.move_entity.position) {
+                move_to_position(*server.world, entity, msg.move_entity.position);
+            }
         }
     }
+
+    //
+    // Recalculate all emitters
+    //
+    recalculate_emitters(*server.world);
+    
+    //
+    // Figure out all updates this frame
+    //
+    for i := 0; i < server.world.entities.count; ++i {
+        entity := array_get_pointer(*server.world.entities, i);
+        if entity.moved_this_frame {
+            msg := make_message(Move_Entity_Message);
+            msg.move_entity.pid      = entity.pid;
+            msg.move_entity.position = entity.physical_position;
+            array_add(*server.outgoing_messages, msg);
+            entity.moved_this_frame  = false;
+        }
+    }
+
+    //
+    // Send all updates to clients.
+    //
+    send_all_outgoing_messages(server);
 }
 
 server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
@@ -271,42 +328,11 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         }
         
         //
-        // Update the internal state based on the received messages.
+        // Update the current state
         //
-        {
-            for i := 0; i < server.incoming_messages.count; ++i {
-                handle_incoming_message(*server, array_get_pointer(*server.incoming_messages, i));
-            }
-        }
-        
-        //
-        // Figure out all updates this frame
-        //
-        if server.state == .Ingame {
-            for i := 0; i < server.world.entities.count; ++i {
-                entity := array_get_pointer(*server.world.entities, i);
-                if entity.moved_this_frame {
-                    msg := make_message(Move_Entity_Message);
-                    msg.move_entity.pid      = entity.pid;
-                    msg.move_entity.position = entity.physical_position;
-                    array_add(*server.outgoing_messages, msg);
-                    entity.moved_this_frame  = false;
-                }
-            }
-        }
-        
-        //
-        // Send all updates to clients.
-        //
-        {
-            for j := 0; j < server.clients.count; ++j {
-                client := array_get_pointer(*server.clients, j);
-                for i := 0; i < server.outgoing_messages.count; ++i {
-                    send_reliable_message(*client.connection, array_get_pointer(*server.outgoing_messages, i));
-                }
-            }
-        
-            array_clear_without_deallocation(*server.outgoing_messages);
+        if #complete server.state == {
+          case .Lobby; do_lobby_tick(*server);
+          case .Ingame; do_game_tick(*server);
         }
 
         release_temp_allocator(0);

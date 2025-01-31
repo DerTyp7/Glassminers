@@ -5,20 +5,32 @@ Entity :: struct {
     moved_this_frame: bool;
 
     physical_position: v2i;
+
+    derived: *void;
+}
+
+Emitter :: struct {
+    KIND :: Entity_Kind.Emitter;
+    fields: [..]v2i;
 }
 
 World :: struct {
-    entities: [..]Entity;
+    allocator: *Allocator;
+
+    size: v2i;
     pid_counter: Pid;    
+    entities: [..]Entity;
 }
 
 //
 // World
 //
 
-create_world :: (world: *World, allocator: *Allocator) {
-    world.entities.allocator = allocator;
+create_world :: (world: *World, allocator: *Allocator, size: v2i) {
+    world.allocator   = allocator;
+    world.size        = size;
     world.pid_counter = 0;
+    world.entities.allocator = world.allocator;
 }
 
 destroy_world :: (world: *World) {
@@ -28,32 +40,69 @@ destroy_world :: (world: *World) {
 generate_world :: (world: *World, seed: s64) {
     rand :: () -> s32 #foreign;
     
-    random_position :: () -> v2i {
-        return .{ rand() % WORLD_WIDTH, rand() % WORLD_HEIGHT };
+    random_position :: (world: *World) -> v2i {
+        position := v2i.{ rand() % world.size.x, rand() % world.size.y };
+
+        while get_entity_at_position(world, position) != null {
+            position = v2i.{ rand() % world.size.x, rand() % world.size.y };
+        }
+        
+        return position;
     }
 
     srand(seed);
+
+    //
+    // Generate an emitter
+    //
+    create_entity(world, .Emitter, .{ 0, 2 });
     
     //
     // Generate some stones
     //
     for i := 0; i < 15; ++i {
-        create_entity(world, .Stone, random_position());
+        create_entity(world, .Stone, random_position(world));
     }
     
     //
     // Generate some crystals
     //
     for i := 0; i < 15; ++i {
-        create_entity(world, .Crystal, random_position());
+        create_entity(world, .Crystal, random_position(world));
     }
 }
 
+recalculate_emitters :: (world: *World) {
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        if entity.kind != .Emitter continue;
+
+        emitter := down(entity, Emitter);
+        emitter.fields.allocator = *temp;
+        array_clear_without_deallocation(*emitter.fields);
+        
+        direction := v2i.{ 1, 0 };
+        field     := entity.physical_position;
+        
+        while true {
+            field.x += direction.x;
+            field.y += direction.y;
+            if !position_in_bounds(world, field) break;
+            
+            array_add(*emitter.fields, field);
+        }
+    }
+}
 
 
 //
 // Entity
 //
+
+down :: (entity: *Entity, $T: Type) -> *T {
+    assert(entity.kind == T.KIND && entity.derived != null, "Invalid down() cast on entity.");
+    return cast(*T) entity.derived;
+}
 
 create_entity :: (world: *World, kind: Entity_Kind, position: v2i) -> Pid, *Entity {
     pid := world.pid_counter;
@@ -65,6 +114,10 @@ create_entity :: (world: *World, kind: Entity_Kind, position: v2i) -> Pid, *Enti
     entity.marked_for_removal = false;
     entity.moved_this_frame   = false;
 
+    if kind == {
+      case .Emitter; entity.derived = allocate(world.allocator, Emitter);
+    }
+    
     ++world.pid_counter;
     return pid, entity;
 }
@@ -94,6 +147,10 @@ remove_all_marked_entities :: (world: *World) {
 // Movement Code
 //
 
+position_in_bounds :: (world: *World, position: v2i) -> bool {
+    return position.x >= 0 && position.x < world.size.x && position.y >= 0 && position.y < world.size.y;
+}
+
 get_entity_at_position :: (world: *World, position: v2i) -> *Entity {
     for i := 0; i < world.entities.count; ++i {
         entity := array_get_pointer(*world.entities, i);
@@ -121,7 +178,7 @@ recursive_move_check :: (world: *World, entity: *Entity, move_delta: v2i) -> boo
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
     // Make sure the position is in bounds of the world
-    if position.x < 0 || position.y < 0 || position.x >= WORLD_WIDTH || position.y >= WORLD_HEIGHT then return false;
+    if !position_in_bounds(world, position) then return false;
 
     // Make sure the space is unoccupied or can be moved away
     collision := get_entity_at_position(world, position);

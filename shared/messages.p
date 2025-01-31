@@ -30,6 +30,7 @@ Game_Start_Message :: struct {
     TYPE :: Message_Type.Game_Start;
 
     seed: s64;
+    size: v2i;
 }
 
 Create_Entity_Message :: struct {
@@ -93,7 +94,9 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
 
       case .Game_Start;
         serialize_bytes(*packet, message.game_start.seed);
-
+        serialize_bytes(*packet, message.game_start.size.x);
+        serialize_bytes(*packet, message.game_start.size.y);
+        
       case .Create_Entity;
         serialize_bytes(*packet, message.create_entity.pid);
         serialize_bytes(*packet, message.create_entity.kind);
@@ -128,6 +131,8 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
 
       case .Game_Start;
         deserialize_bytes(*connection.incoming_packet, *message.game_start.seed);
+        deserialize_bytes(*connection.incoming_packet, *message.game_start.size.x);
+        deserialize_bytes(*connection.incoming_packet, *message.game_start.size.y);
         
       case .Create_Entity;
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.pid);

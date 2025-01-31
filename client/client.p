@@ -176,6 +176,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Game_Start;
         client.game_seed = msg.game_start.seed;
+        client.world.size = msg.game_start.size;
         switch_to_state(client, .Ingame);
 
       case .Create_Entity;

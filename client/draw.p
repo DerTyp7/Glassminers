@@ -79,8 +79,8 @@ draw_world :: (client: *Client) {
     //
     // Draw implicit background inanimates
     //
-    for x := 0; x < WORLD_WIDTH; ++x {
-        for y := 0; y < WORLD_HEIGHT; ++y {
+    for x := 0; x < client.world.size.x; ++x {
+        for y := 0; y < client.world.size.y; ++y {
             draw_entity(client, .Inanimate, .{ xx x, xx y });            
         }
     }
