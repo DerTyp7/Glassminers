@@ -89,7 +89,7 @@ logprint :: (format: string, args: ..Any) {
 host_server :: (client: *Client, port: u16) {
     server_entry_point :: (data: *Shared_Server_Data) -> u32 #foreign;
 
-    client.server_data.state = .Starting;
+    client.server_data.state          = .Starting;
     client.server_data.requested_port = port;
     client.server_thread = create_thread(server_entry_point, *client.server_data, false);
     while client.server_data.state == .Starting {}
@@ -467,7 +467,7 @@ main :: () -> s32 {
                 draw_world(*client);
                 draw_ui_frame(*client.ui);
             }
-                        
+             
             ge_swap_buffers(*client.graphics);
         }
 
@@ -491,6 +491,5 @@ main :: () -> s32 {
     destroy_window(*client.window);
     destroy_memory_pool(*client.perm_pool);
     destroy_temp_allocator();
-
     return 0;
 }

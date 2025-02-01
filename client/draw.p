@@ -12,15 +12,14 @@ draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector
 
 draw_ui_rect :: (client: *Client, rect: UI_Rect, rounding: f32, color: UI_Color) {
     ge_imm2d_colored_rect(*client.graphics, rect.x0, rect.y0, rect.x1, rect.y1, .{ color.r, color.g, color.b, color.a });
-    ge_imm2d_flush(*client.graphics);
 }
 
 set_ui_scissors :: (client: *Client, rect: UI_Rect) {
-
+    ge_imm2d_set_scissors(*client.graphics, .[ rect.x0, rect.y0, rect.x1, rect.y1 ]);
 }
 
 clear_ui_scissors :: (client: *Client) {
-    
+    ge_imm2d_clear_scissors(*client.graphics);
 }
 
 
