@@ -4,6 +4,7 @@ Entity :: struct {
     marked_for_removal: bool;
     moved_this_frame: bool;
 
+    rotation: Direction;
     physical_position: v2i;
 
     derived: *void;
@@ -55,20 +56,20 @@ generate_world :: (world: *World, seed: s64) {
     //
     // Generate an emitter
     //
-    create_entity(world, .Emitter, .{ 0, 2 });
+    create_entity(world, .Emitter, .{ 0, 2 }, .North);
     
     //
     // Generate some stones
     //
     for i := 0; i < 15; ++i {
-        create_entity(world, .Stone, random_position(world));
+        create_entity(world, .Stone, random_position(world), .North);
     }
     
     //
     // Generate some crystals
     //
     for i := 0; i < 15; ++i {
-        create_entity(world, .Crystal, random_position(world));
+        create_entity(world, .Crystal, random_position(world), .North);
     }
 }
 
@@ -89,6 +90,9 @@ recalculate_emitters :: (world: *World) {
             field.y += direction.y;
             if !position_in_bounds(world, field) break;
             
+            blocking := get_entity_at_position(world, field);
+            if blocking != null && blocking.kind != .Player break;
+            
             array_add(*emitter.fields, field);
         }
     }
@@ -104,15 +108,17 @@ down :: (entity: *Entity, $T: Type) -> *T {
     return cast(*T) entity.derived;
 }
 
-create_entity :: (world: *World, kind: Entity_Kind, position: v2i) -> Pid, *Entity {
+create_entity :: (world: *World, kind: Entity_Kind, position: v2i, rotation: Direction) -> Pid, *Entity {
     pid := world.pid_counter;
 
     entity := array_push(*world.entities);
     entity.pid                = pid;
     entity.kind               = kind;
-    entity.physical_position  = position;
     entity.marked_for_removal = false;
     entity.moved_this_frame   = false;
+    entity.rotation           = rotation;
+    entity.physical_position  = position;
+    entity.derived            = null;
 
     if kind == {
       case .Emitter; entity.derived = allocate(world.allocator, Emitter);

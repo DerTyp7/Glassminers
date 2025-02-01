@@ -165,7 +165,7 @@ setup_game :: (server: *Server) {
     //
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        pid, entity := create_entity(*server.world, .Player, .{ 3 + i, 2 });
+        pid, entity := create_entity(*server.world, .Player, .{ 3 + i, 2 }, .North);
 
         client.entity_pid = pid;
         
@@ -186,6 +186,7 @@ setup_game :: (server: *Server) {
         msg.create_entity.pid      = entity.pid;
         msg.create_entity.kind     = entity.kind;
         msg.create_entity.position = entity.physical_position;
+        msg.create_entity.rotation = entity.rotation;
         array_add(*server.outgoing_messages, msg);
     }
 }
@@ -238,7 +239,11 @@ do_game_tick :: (server: *Server) {
         if msg.type == {
           case .Move_Entity;
             entity := get_entity(*server.world, msg.move_entity.pid);
-            if entity && can_move_to_position(*server.world, entity, msg.move_entity.position) {
+            if !entity break;
+            
+            move_delta := v2i.{ msg.move_entity.position.x - entity.physical_position.x, msg.move_entity.position.y - entity.physical_position.y };
+            
+            if can_move_to_position(*server.world, entity, msg.move_entity.position) {
                 move_to_position(*server.world, entity, msg.move_entity.position);
             }
         }
@@ -258,6 +263,7 @@ do_game_tick :: (server: *Server) {
             msg := make_message(Move_Entity_Message);
             msg.move_entity.pid      = entity.pid;
             msg.move_entity.position = entity.physical_position;
+            msg.move_entity.rotation = entity.rotation;
             array_add(*server.outgoing_messages, msg);
             entity.moved_this_frame  = false;
         }

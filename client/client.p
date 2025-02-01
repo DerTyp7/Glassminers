@@ -180,7 +180,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         switch_to_state(client, .Ingame);
 
       case .Create_Entity;
-        create_entity_with_pid(*client.world, msg.create_entity.pid, msg.create_entity.kind, msg.create_entity.position);
+        create_entity_with_pid(*client.world, msg.create_entity.pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
 
       case .Destroy_Entity;
         mark_entity_for_removal(*client.world, msg.destroy_entity.pid);
@@ -190,6 +190,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         if entity {
             entity.physical_position = msg.move_entity.position;
             entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
+            entity.rotation          = msg.move_entity.rotation;
         }
     }
 }
@@ -360,6 +361,9 @@ do_lobby_screen :: (client: *Client) {
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
 
+    // Update all emitters based on the data received by the server
+    recalculate_emitters(*client.world);
+
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;
     
@@ -416,7 +420,7 @@ main :: () -> s32 {
 
     create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, .Default);
     ge_create(*client.graphics, *client.window, *client.perm);
-    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 12, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
     client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png");
     create_ui(*client.ui, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);

@@ -39,6 +39,7 @@ Create_Entity_Message :: struct {
     pid: Pid;
     kind: Entity_Kind;
     position: v2i;
+    rotation: Direction;
 }
 
 Destroy_Entity_Message :: struct {
@@ -52,6 +53,7 @@ Move_Entity_Message :: struct {
     
     pid: Pid;
     position: v2i;
+    rotation: Direction;
 }
 
 Message :: struct {
@@ -102,6 +104,7 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
         serialize_bytes(*packet, message.create_entity.kind);
         serialize_bytes(*packet, message.create_entity.position.x);
         serialize_bytes(*packet, message.create_entity.position.y);
+        serialize_bytes(*packet, message.create_entity.rotation);
         
       case .Destroy_Entity;
         serialize_bytes(*packet, message.destroy_entity.pid);
@@ -110,6 +113,7 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
         serialize_bytes(*packet, message.move_entity.pid);
         serialize_bytes(*packet, message.move_entity.position.x);
         serialize_bytes(*packet, message.move_entity.position.y);
+        serialize_bytes(*packet, message.move_entity.rotation);
     }
     
     send_reliable_packet(connection, *packet, .Message);
@@ -139,6 +143,7 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.kind);
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.position.x);
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.position.y);
+        deserialize_bytes(*connection.incoming_packet, *message.create_entity.rotation);
     
       case .Destroy_Entity;
         deserialize_bytes(*connection.incoming_packet, *message.destroy_entity.pid);
@@ -147,6 +152,7 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
         deserialize_bytes(*connection.incoming_packet, *message.move_entity.pid);
         deserialize_bytes(*connection.incoming_packet, *message.move_entity.position.x);
         deserialize_bytes(*connection.incoming_packet, *message.move_entity.position.y);
+        deserialize_bytes(*connection.incoming_packet, *message.move_entity.rotation);
     }
 }
 
