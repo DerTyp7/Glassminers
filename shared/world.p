@@ -13,6 +13,7 @@ Entity_Kind :: enum {
     Crystal;
     Stone;
     Emitter;
+    Receiver;
 }
 
 Direction :: enum {

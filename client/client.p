@@ -431,6 +431,8 @@ main :: () -> s32 {
     
     switch_to_state(*client, .Main_Menu); // Potentially initialize resources
 
+    value: f32 = 0; // nocheckin
+
     //
     // Main loop
     //
@@ -462,6 +464,11 @@ main :: () -> s32 {
               case .Main_Menu, .Connecting, .Lobby;
                 draw_text(*client, *client.title_font, "GlassMiners", xx client.window.w / 2, xx client.window.h / 4, .Center | .Median, .{ 255, 255, 255, 255 });
                 draw_ui_frame(*client.ui);
+            
+                // nocheckin
+                draw_progress_circle(*client, xx client.window.w / 2, xx client.window.h - 50, 50, value);
+                value = fmodf(value + client.window.frame_time / 10, 1);
+                ge_imm2d_flush(*client.graphics);
             
               case .Ingame;
                 draw_world(*client);

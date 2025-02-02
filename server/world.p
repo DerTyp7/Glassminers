@@ -59,6 +59,11 @@ generate_world :: (world: *World, seed: s64) {
     create_entity(world, .Emitter, .{ 0, 2 }, .North);
     
     //
+    // Create a receiver
+    //
+    create_entity(world, .Receiver, .{ world.size.x - 1, 2 }, .North);
+    
+    //
     // Generate some stones
     //
     for i := 0; i < 15; ++i {

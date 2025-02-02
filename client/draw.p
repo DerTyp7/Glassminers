@@ -37,6 +37,64 @@ draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignm
     ge_draw_text(*client.graphics, font, text, x, y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
 }
 
+draw_progress_circle :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
+    draw_circle_segment :: (client: *Client, x, y: f32, outer_radius: f32, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
+        subsegments :: 4;
+        
+        for i := 0; i < subsegments; ++i {
+            range  := theta1 - theta0;
+            seg_t0 := (cast(f32) i / cast(f32) subsegments * range + theta0) * FTAU;
+            seg_t1 := (cast(f32) (i + 1 % subsegments) / cast(f32) subsegments * range + theta0) * FTAU;
+            
+            p0 := v2f.{ x + sinf(seg_t0) * outer_radius, y - cosf(seg_t0) * outer_radius };
+            p1 := v2f.{ x + sinf(seg_t1) * outer_radius, y - cosf(seg_t1) * outer_radius };
+            p2 := v2f.{ x + sinf(seg_t0) * inner_radius, y - cosf(seg_t0) * inner_radius };
+            p3 := v2f.{ x + sinf(seg_t1) * inner_radius, y - cosf(seg_t1) * inner_radius };
+            
+            ge_imm2d_colored_vertex(*client.graphics, p0.x, p0.y, color);
+            ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
+            ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
+
+            ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
+            ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
+            ge_imm2d_colored_vertex(*client.graphics, p3.x, p3.y, color);
+        }
+    }
+
+    previous := ge_imm2d_blend_mode(*client.graphics, .Default);
+
+    segments :: 6;
+    gap_size :: cast(f32) 0.03; // Percentage of the entire circle
+    background :: GE_Color.{ 100, 100, 100, 200 };
+    foreground :: GE_Color.{ 100, 240, 150, 200 };
+    inner_radius: f32 = outer_radius * 0.35;
+    
+    //
+    // Draw the background circle
+    //
+    for i := 0; i < segments; ++i {
+        theta0 := (cast(f32) i / cast(f32) segments);
+        theta1 := (cast(f32) (i + 1 % segments) / cast(f32) segments);
+        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, background);
+    }
+    
+    //
+    // Draw the foreground circle
+    //
+    for i := 0; i < segments; ++i {
+        theta0 := (cast(f32) i / cast(f32) segments);
+        theta1 := (cast(f32) (i + 1 % segments) / cast(f32) segments);
+        
+        alpha: f32 = ---;
+        if theta1 <= percentage then
+            alpha = 1;
+        else
+            alpha = clamp((percentage - theta0) / (theta1 - theta0), 0, 1);
+        
+        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, .{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) });
+    }
+}
+
 
 
 //
