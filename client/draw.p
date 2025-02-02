@@ -37,7 +37,10 @@ draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignm
     ge_draw_text(*client.graphics, font, text, x, y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
 }
 
-draw_progress_circle :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
+
+#if PROGRESS_BAR_AS_CIRCLE {
+
+draw_progress_bar :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
     draw_circle_segment :: (client: *Client, x, y: f32, outer_radius: f32, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
         subsegments :: 4;
         
@@ -61,25 +64,16 @@ draw_progress_circle :: (client: *Client, x, y: f32, outer_radius: f32, percenta
         }
     }
 
-    previous := ge_imm2d_blend_mode(*client.graphics, .Default);
+    ge_imm2d_blend_mode(*client.graphics, .Default);
 
     segments :: 6;
-    gap_size :: cast(f32) 0.03; // Percentage of the entire circle
     background :: GE_Color.{ 100, 100, 100, 200 };
     foreground :: GE_Color.{ 100, 240, 150, 200 };
+    gap_size :: cast(f32) 0.03; // Percentage of the entire circle
     inner_radius: f32 = outer_radius * 0.35;
     
     //
-    // Draw the background circle
-    //
-    for i := 0; i < segments; ++i {
-        theta0 := (cast(f32) i / cast(f32) segments);
-        theta1 := (cast(f32) (i + 1 % segments) / cast(f32) segments);
-        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, background);
-    }
-    
-    //
-    // Draw the foreground circle
+    // Draw the circle segments
     //
     for i := 0; i < segments; ++i {
         theta0 := (cast(f32) i / cast(f32) segments);
@@ -90,11 +84,50 @@ draw_progress_circle :: (client: *Client, x, y: f32, outer_radius: f32, percenta
             alpha = 1;
         else
             alpha = clamp((percentage - theta0) / (theta1 - theta0), 0, 1);
-        
-        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, .{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) });
+            
+        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
+
+        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, background);
+        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, color);
     }
 }
 
+} #else {
+
+draw_progress_bar :: (client: *Client, x, y: f32, box_size: f32, percentage: f32) {
+    boxes :: 6;
+    background :: GE_Color.{ 100, 100, 100, 200 };
+    foreground :: GE_Color.{ 100, 240, 150, 200 };
+
+    gap_size := round(cast(f32) box_size * 0.1);
+
+    ge_imm2d_blend_mode(*client.graphics, .Default);
+    
+    //
+    // Draw the boxes
+    //
+    for i := 0; i < boxes; ++i {
+        theta := cast(f32) i / cast(f32) boxes;
+        
+        x0 := x + (theta - 0.5) * xx boxes * (box_size + gap_size);
+        x1 := x0 + box_size;
+        y0 := y - box_size / 2;
+        y1 := y + box_size / 2;
+        
+        alpha: f32 = ---;
+        if theta + (cast(f32) 1 / cast(f32) boxes) <= percentage then
+            alpha = 1;
+        else
+            alpha = clamp((percentage - theta) / (cast(f32) 1 / cast(f32) boxes), 0, 1);
+
+        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
+
+        draw_rect(client, x0, y0, x1, y1, background);
+        draw_rect(client, x0, y0, x1, y1, color);
+    }
+}
+
+}
 
 
 //
@@ -199,6 +232,7 @@ draw_world :: (client: *Client) {
 
 #file_scope
 
+PROGRESS_BAR_AS_CIRCLE :: false;
 SPRITE_ATLAS_COLUMNS :: 8;
 
 calculate_uv_box_for_entity_kind :: (kind: Entity_Kind, rotation: Direction) -> [4]v2f {

@@ -466,7 +466,7 @@ main :: () -> s32 {
                 draw_ui_frame(*client.ui);
             
                 // nocheckin
-                draw_progress_circle(*client, xx client.window.w / 2, xx client.window.h - 50, 50, value);
+                draw_progress_bar(*client, xx client.window.w / 2, xx client.window.h - 50, 16, value);
                 value = fmodf(value + client.window.frame_time / 10, 1);
                 ge_imm2d_flush(*client.graphics);
             
