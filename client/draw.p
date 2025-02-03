@@ -33,6 +33,10 @@ draw_rect :: (client: *Client, x0, y0, x1, y1: f32, color: GE_Color) {
     ge_imm2d_flush(*client.graphics);
 }
 
+draw_outlined_rect :: (client: *Client, x0, y0, x1, y1: f32, thickness: f32, color: GE_Color) {
+    ge_imm2d_colored_rect_outline(*client.graphics, x0, y0, x1, y1, thickness, color);
+}
+
 draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignment: Text_Alignment, foreground: UI_Color) {
     ge_draw_text(*client.graphics, font, text, x, y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
 }
@@ -212,6 +216,26 @@ draw_world :: (client: *Client) {
             }
         }
     }
+    
+    //
+    // Draw all player states
+    //
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        if entity.kind == .Player {
+            player := down(entity, Player);
+            target_scale := screen_from_world_scale(client, .{ 0.9, 0.9 });
+            target_position := screen_from_world_position(client, .{ xx player.target_position.x, xx player.target_position.y });
+
+            draw_outlined_rect(client, target_position.x - target_scale.x / 2, target_position.y - target_scale.y / 2, target_position.x + target_scale.x / 2, target_position.y + target_scale.y / 2, 4, .{ 255, 255, 255, 255 });
+            
+            if #complete player.state == {
+              case .Idle;
+              case .Digging;
+                draw_progress_bar(client, target_position.x, target_position.y, round(target_scale.x * 0.13333), player.progress_time_in_seconds / DIGGING_TIME);
+            }
+        }
+    }    
 
     //
     // Draw the player's name above their entities

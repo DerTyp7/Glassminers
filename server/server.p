@@ -9,6 +9,8 @@
 // Server
 #load "world.p";
 
+TICK_RATE: f32 : 60;
+
 Shared_Server_Data :: struct {
     state: enum {
         Starting;
@@ -54,6 +56,7 @@ Server :: struct {
     state: Game_State;
     game_seed: s64;
     world: World;
+    frame_time: f32;
 }
 
 logprint :: (format: string, args: ..Any) {
@@ -183,10 +186,10 @@ setup_game :: (server: *Server) {
         entity := array_get_pointer(*server.world.entities, i);
 
         msg := make_message(Create_Entity_Message);
-        msg.create_entity.pid      = entity.pid;
-        msg.create_entity.kind     = entity.kind;
-        msg.create_entity.position = entity.physical_position;
-        msg.create_entity.rotation = entity.rotation;
+        msg.create_entity.entity_pid = entity.pid;
+        msg.create_entity.kind       = entity.kind;
+        msg.create_entity.position   = entity.physical_position;
+        msg.create_entity.rotation   = entity.rotation;
         array_add(*server.outgoing_messages, msg);
     }
 }
@@ -238,14 +241,30 @@ do_game_tick :: (server: *Server) {
         
         if msg.type == {
           case .Move_Entity;
-            entity := get_entity(*server.world, msg.move_entity.pid);
-            if !entity break;
+            entity := get_entity(*server.world, msg.move_entity.entity_pid);
             
             move_delta := v2i.{ msg.move_entity.position.x - entity.physical_position.x, msg.move_entity.position.y - entity.physical_position.y };
             
             if can_move_to_position(*server.world, entity, msg.move_entity.position) {
                 move_to_position(*server.world, entity, msg.move_entity.position);
             }
+            
+            if entity.kind == .Player {
+                player := down(entity, Player);
+                player.aim_direction = direction_from_vector(move_delta);
+                player.state = .Idle;
+                player.progress_time_in_seconds = 0;
+            }
+            
+          case .Player_Interact;
+            entity := get_entity(*server.world, msg.player_interact.entity_pid);
+            player := down(entity, Player);
+            
+            target_entity := get_entity_at_position(*server.world, player.target_position);
+            if target_entity && target_entity.kind == .Stone {
+                player.state = .Digging;
+                player.progress_time_in_seconds = 0;
+            }   
         }
     }
 
@@ -253,7 +272,38 @@ do_game_tick :: (server: *Server) {
     // Recalculate all emitters
     //
     recalculate_emitters(*server.world);
-    
+
+    //
+    // Update each player's target position
+    //
+    for i := 0; i < server.world.entities.count; ++i {
+        entity := array_get_pointer(*server.world.entities, i);
+        if entity.kind == .Player {
+            player := down(entity, Player);
+            
+            look_vector := vector_from_direction(player.aim_direction);
+            player.target_position = .{ entity.physical_position.x + look_vector.x, entity.physical_position.y + look_vector.y };
+            
+            if player.state == {
+              case .Digging;
+                player.progress_time_in_seconds += server.frame_time;
+                if player.progress_time_in_seconds >= DIGGING_TIME {
+                    target_entity := get_entity_at_position(*server.world, player.target_position);
+                    target_entity.marked_for_removal = true;
+                    player.state = .Idle;
+                    player.progress_time_in_seconds = 0;
+                }
+            }
+            
+            msg := make_message(Player_State_Message);
+            msg.player_state.entity_pid = entity.pid;
+            msg.player_state.state = player.state;
+            msg.player_state.target_position = player.target_position;
+            msg.player_state.progress_time_in_seconds = player.progress_time_in_seconds;
+            array_add(*server.outgoing_messages, msg);
+        }
+    }
+        
     //
     // Figure out all updates this frame
     //
@@ -261,11 +311,17 @@ do_game_tick :: (server: *Server) {
         entity := array_get_pointer(*server.world.entities, i);
         if entity.moved_this_frame {
             msg := make_message(Move_Entity_Message);
-            msg.move_entity.pid      = entity.pid;
-            msg.move_entity.position = entity.physical_position;
-            msg.move_entity.rotation = entity.rotation;
+            msg.move_entity.entity_pid = entity.pid;
+            msg.move_entity.position   = entity.physical_position;
+            msg.move_entity.rotation   = entity.rotation;
             array_add(*server.outgoing_messages, msg);
-            entity.moved_this_frame  = false;
+            entity.moved_this_frame = false;
+        }
+        
+        if entity.marked_for_removal {
+            msg := make_message(Destroy_Entity_Message);
+            msg.destroy_entity.entity_pid = entity.pid;
+            array_add(*server.outgoing_messages, msg);
         }
     }
 
@@ -273,6 +329,11 @@ do_game_tick :: (server: *Server) {
     // Send all updates to clients.
     //
     send_all_outgoing_messages(server);
+    
+    //
+    // Finally actually delete all marked entities
+    //
+    remove_all_marked_entities(*server.world);
 }
 
 server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
@@ -307,6 +368,8 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     
     while data.state == .Running {
         tick_start := os_get_hardware_time();
+
+        server.frame_time = 1 / TICK_RATE;
 
         //
         // Handle connection packets and read all messages from clients.
@@ -344,7 +407,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         release_temp_allocator(0);
         
         tick_end := os_get_hardware_time();
-        os_sleep_to_tick_rate(tick_start, tick_end, 60);
+        os_sleep_to_tick_rate(tick_start, tick_end, TICK_RATE);
     }
     
     data.state = .Closing;

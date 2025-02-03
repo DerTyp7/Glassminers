@@ -18,6 +18,13 @@ Entity :: struct {
     derived: *void;
 }
 
+Player :: struct {
+    KIND :: Entity_Kind.Player;
+    state: Player_State;
+    target_position: v2i;
+    progress_time_in_seconds: f32;
+}
+
 Emitter :: struct {
     KIND :: Entity_Kind.Emitter;
     fields: [..]v2i;
@@ -26,9 +33,11 @@ Emitter :: struct {
 World :: struct {
     allocator: *Allocator;
 
+    dt: f32;
     size: v2i;
     entities: [..]Entity;
 }
+
 
 
 //
@@ -88,6 +97,18 @@ recalculate_emitters :: (world: *World) {
     }
 }
 
+update_client_side_predictions :: (world: *World, dt: f32) {
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+
+        if entity.kind == {
+          case .Player;
+            player := down(entity, Player);
+            player.progress_time_in_seconds += dt;
+        }
+    }
+}
+
 
 
 //
@@ -111,6 +132,7 @@ create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position:
     entity.derived            = null;
     
     if entity.kind == {
+      case .Player;  entity.derived = allocate(world.allocator, Player);
       case .Emitter; entity.derived = allocate(world.allocator, Emitter);
     }
 
@@ -126,15 +148,11 @@ get_entity :: (world: *World, pid: Pid) -> *Entity {
     return null;
 }
 
-mark_entity_for_removal :: (world: *World, pid: Pid) {
-    entity := get_entity(world, pid);
-    if entity entity.marked_for_removal = true;
-}
-
 remove_all_marked_entities :: (world: *World) {
     for i := 0; i < world.entities.count; {
         entity := array_get_pointer(*world.entities, i);
         if entity.marked_for_removal {
+            if entity.derived deallocate(world.allocator, entity.derived);
             array_remove_index(*world.entities, i);
         } else {
             ++i;

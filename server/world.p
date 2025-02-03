@@ -10,6 +10,14 @@ Entity :: struct {
     derived: *void;
 }
 
+Player :: struct {
+    KIND :: Entity_Kind.Player;
+    state: Player_State;
+    target_position: v2i;
+    progress_time_in_seconds: f32;
+    aim_direction: Direction;
+}
+
 Emitter :: struct {
     KIND :: Entity_Kind.Emitter;
     fields: [..]v2i;
@@ -22,6 +30,8 @@ World :: struct {
     pid_counter: Pid;    
     entities: [..]Entity;
 }
+
+
 
 //
 // World
@@ -126,6 +136,7 @@ create_entity :: (world: *World, kind: Entity_Kind, position: v2i, rotation: Dir
     entity.derived            = null;
 
     if kind == {
+      case .Player;  entity.derived = allocate(world.allocator, Player);
       case .Emitter; entity.derived = allocate(world.allocator, Emitter);
     }
     
@@ -146,6 +157,7 @@ remove_all_marked_entities :: (world: *World) {
     for i := 0; i < world.entities.count; {
         entity := array_get_pointer(*world.entities, i);
         if entity.marked_for_removal {
+            if entity.derived deallocate(world.allocator, entity.derived);
             array_remove_index(*world.entities, i);
         } else {
             ++i;

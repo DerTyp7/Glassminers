@@ -153,7 +153,7 @@ find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.type == {
-      case .Request_Game_Start; // Ignore
+      case .Request_Game_Start, .Player_Interact; // Ignore
 
       case .Player_Information;
         if msg.player_information.player_pid != client.my_player_pid {
@@ -180,18 +180,24 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         switch_to_state(client, .Ingame);
 
       case .Create_Entity;
-        create_entity_with_pid(*client.world, msg.create_entity.pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
+        create_entity_with_pid(*client.world, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
 
       case .Destroy_Entity;
-        mark_entity_for_removal(*client.world, msg.destroy_entity.pid);
+        entity := get_entity(*client.world, msg.destroy_entity.entity_pid);
+        entity.marked_for_removal = true;
 
       case .Move_Entity;
-        entity := get_entity(*client.world, msg.move_entity.pid);
-        if entity {
-            entity.physical_position = msg.move_entity.position;
-            entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
-            entity.rotation          = msg.move_entity.rotation;
-        }
+        entity := get_entity(*client.world, msg.move_entity.entity_pid);
+        entity.physical_position = msg.move_entity.position;
+        entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
+        entity.rotation          = msg.move_entity.rotation;
+        
+      case .Player_State;
+        entity := get_entity(*client.world, msg.player_state.entity_pid);
+        player := down(entity, Player);
+        player.state = msg.player_state.state;
+        player.target_position = msg.player_state.target_position;
+        player.progress_time_in_seconds = msg.player_state.progress_time_in_seconds;
     }
 }
 
@@ -364,6 +370,9 @@ do_game_tick :: (client: *Client) {
     // Update all emitters based on the data received by the server
     recalculate_emitters(*client.world);
 
+    // Do some soft client side predictions
+    update_client_side_predictions(*client.world, client.window.frame_time);
+
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;
     
@@ -376,7 +385,7 @@ do_game_tick :: (client: *Client) {
         update_camera_matrices(*client.camera, *client.window);
     }
 
-    // Move the player
+    // Forward player input to the server
     {
         velocity: v2i = .{ 0, 0 };
 
@@ -389,9 +398,15 @@ do_game_tick :: (client: *Client) {
             entity := get_entity(*client.world, client.my_entity_pid);
 
             msg := make_message(Move_Entity_Message);
-            msg.move_entity.pid = entity.pid;
+            msg.move_entity.entity_pid = entity.pid;
             msg.move_entity.position.x = entity.physical_position.x + velocity.x;
             msg.move_entity.position.y = entity.physical_position.y + velocity.y;
+            array_add(*outgoing_messages, msg);
+        }
+        
+        if client.window.keys[.Space] & .Pressed {
+            msg := make_message(Player_Interact_Message);
+            msg.player_interact.entity_pid = client.my_entity_pid;
             array_add(*outgoing_messages, msg);
         }
     }
@@ -464,11 +479,6 @@ main :: () -> s32 {
               case .Main_Menu, .Connecting, .Lobby;
                 draw_text(*client, *client.title_font, "GlassMiners", xx client.window.w / 2, xx client.window.h / 4, .Center | .Median, .{ 255, 255, 255, 255 });
                 draw_ui_frame(*client.ui);
-            
-                // nocheckin
-                draw_progress_bar(*client, xx client.window.w / 2, xx client.window.h - 50, 16, value);
-                value = fmodf(value + client.window.frame_time / 10, 1);
-                ge_imm2d_flush(*client.graphics);
             
               case .Ingame;
                 draw_world(*client);

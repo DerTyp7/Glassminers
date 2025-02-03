@@ -6,6 +6,8 @@ Message_Type :: enum {
     Create_Entity      :: 0x5;
     Destroy_Entity     :: 0x6;
     Move_Entity        :: 0x7;
+    Player_State       :: 0x8;
+    Player_Interact    :: 0x9;
 }
 
 Player_Information_Message :: struct {
@@ -18,7 +20,6 @@ Player_Information_Message :: struct {
 
 Player_Disconnect_Message :: struct {
     TYPE :: Message_Type.Player_Disconnect;
-
     player_pid: Pid;
 }
 
@@ -36,7 +37,7 @@ Game_Start_Message :: struct {
 Create_Entity_Message :: struct {
     TYPE :: Message_Type.Create_Entity;
     
-    pid: Pid;
+    entity_pid: Pid;
     kind: Entity_Kind;
     position: v2i;
     rotation: Direction;
@@ -44,16 +45,29 @@ Create_Entity_Message :: struct {
 
 Destroy_Entity_Message :: struct {
     TYPE :: Message_Type.Destroy_Entity;
-
-    pid: Pid;
+    entity_pid: Pid;
 }
 
 Move_Entity_Message :: struct {
     TYPE :: Message_Type.Move_Entity;
     
-    pid: Pid;
+    entity_pid: Pid;
     position: v2i;
     rotation: Direction;
+}
+
+Player_State_Message :: struct {
+    TYPE :: Message_Type.Player_State;
+    
+    entity_pid: Pid;
+    state: Player_State;
+    target_position: v2i;
+    progress_time_in_seconds: f32;
+}
+
+Player_Interact_Message :: struct {
+    TYPE :: Message_Type.Player_Interact;
+    entity_pid: Pid;
 }
 
 Message :: struct {
@@ -67,6 +81,8 @@ Message :: struct {
         create_entity: Create_Entity_Message;
         destroy_entity: Destroy_Entity_Message;
         move_entity: Move_Entity_Message;
+        player_state: Player_State_Message;
+        player_interact: Player_Interact_Message;
     };
 }
 
@@ -100,20 +116,29 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
         serialize_bytes(*packet, message.game_start.size.y);
         
       case .Create_Entity;
-        serialize_bytes(*packet, message.create_entity.pid);
+        serialize_bytes(*packet, message.create_entity.entity_pid);
         serialize_bytes(*packet, message.create_entity.kind);
         serialize_bytes(*packet, message.create_entity.position.x);
         serialize_bytes(*packet, message.create_entity.position.y);
         serialize_bytes(*packet, message.create_entity.rotation);
         
       case .Destroy_Entity;
-        serialize_bytes(*packet, message.destroy_entity.pid);
+        serialize_bytes(*packet, message.destroy_entity.entity_pid);
         
       case .Move_Entity;
-        serialize_bytes(*packet, message.move_entity.pid);
+        serialize_bytes(*packet, message.move_entity.entity_pid);
         serialize_bytes(*packet, message.move_entity.position.x);
         serialize_bytes(*packet, message.move_entity.position.y);
         serialize_bytes(*packet, message.move_entity.rotation);
+        
+      case .Player_State;
+        serialize_bytes(*packet, message.player_state.entity_pid);
+        serialize_bytes(*packet, message.player_state.state);
+        serialize_bytes(*packet, message.player_state.target_position);
+        serialize_bytes(*packet, message.player_state.progress_time_in_seconds);
+
+      case .Player_Interact;
+        serialize_bytes(*packet, message.player_state.entity_pid);
     }
     
     send_reliable_packet(connection, *packet, .Message);
@@ -139,20 +164,29 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
         deserialize_bytes(*connection.incoming_packet, *message.game_start.size.y);
         
       case .Create_Entity;
-        deserialize_bytes(*connection.incoming_packet, *message.create_entity.pid);
+        deserialize_bytes(*connection.incoming_packet, *message.create_entity.entity_pid);
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.kind);
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.position.x);
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.position.y);
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.rotation);
     
       case .Destroy_Entity;
-        deserialize_bytes(*connection.incoming_packet, *message.destroy_entity.pid);
+        deserialize_bytes(*connection.incoming_packet, *message.destroy_entity.entity_pid);
         
       case .Move_Entity;
-        deserialize_bytes(*connection.incoming_packet, *message.move_entity.pid);
+        deserialize_bytes(*connection.incoming_packet, *message.move_entity.entity_pid);
         deserialize_bytes(*connection.incoming_packet, *message.move_entity.position.x);
         deserialize_bytes(*connection.incoming_packet, *message.move_entity.position.y);
         deserialize_bytes(*connection.incoming_packet, *message.move_entity.rotation);
+        
+      case .Player_State;
+        deserialize_bytes(*connection.incoming_packet, *message.player_state.entity_pid);
+        deserialize_bytes(*connection.incoming_packet, *message.player_state.state);
+        deserialize_bytes(*connection.incoming_packet, *message.player_state.target_position);
+        deserialize_bytes(*connection.incoming_packet, *message.player_state.progress_time_in_seconds);
+    
+      case .Player_Interact;
+        deserialize_bytes(*connection.incoming_packet, *message.player_interact.entity_pid);
     }
 }
 
