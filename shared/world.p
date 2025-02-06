@@ -7,7 +7,8 @@ Pid :: u32;
 
 INVALID_PID: Pid : -1;
 
-DIGGING_TIME: f32 : 5;
+DIGGING_TIME:  f32 : 5;
+RECEIVER_TIME: f32 : 5;
 
 Entity_Kind :: enum {
     Inanimate;

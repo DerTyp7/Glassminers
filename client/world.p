@@ -30,6 +30,11 @@ Emitter :: struct {
     fields: [..]v2i;
 }
 
+Receiver :: struct {
+    KIND :: Entity_Kind.Receiver;
+    progress_time_in_seconds: f32;
+}
+
 World :: struct {
     allocator: *Allocator;
 
@@ -90,9 +95,17 @@ recalculate_emitters :: (world: *World) {
             if !position_in_bounds(world, field) break;
             
             blocking := get_entity_at_position(world, field);
-            if blocking != null && blocking.kind != .Player break;
             
-            array_add(*emitter.fields, field);
+            if blocking == null {
+                array_add(*emitter.fields, field);
+            } else if blocking.kind == .Player {
+                array_add(*emitter.fields, field);
+            } else if blocking.kind == .Receiver {
+                array_add(*emitter.fields, field);
+                break;
+            } else {
+                break;
+            }
         }
     }
 }
@@ -132,8 +145,9 @@ create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position:
     entity.derived            = null;
     
     if entity.kind == {
-      case .Player;  entity.derived = allocate(world.allocator, Player);
-      case .Emitter; entity.derived = allocate(world.allocator, Emitter);
+      case .Player;   entity.derived = allocate(world.allocator, Player);
+      case .Emitter;  entity.derived = allocate(world.allocator, Emitter);
+      case .Receiver; entity.derived = allocate(world.allocator, Receiver);
     }
 
     return entity;

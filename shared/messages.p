@@ -8,6 +8,7 @@ Message_Type :: enum {
     Move_Entity        :: 0x7;
     Player_State       :: 0x8;
     Player_Interact    :: 0x9;
+    Receiver_State     :: 0xa;
 }
 
 Player_Information_Message :: struct {
@@ -70,6 +71,12 @@ Player_Interact_Message :: struct {
     entity_pid: Pid;
 }
 
+Receiver_State_Message :: struct {
+    TYPE :: Message_Type.Receiver_State;
+    entity_pid: Pid;
+    progress_time_in_seconds: f32;
+}
+
 Message :: struct {
     type: Message_Type;
 
@@ -83,6 +90,7 @@ Message :: struct {
         move_entity: Move_Entity_Message;
         player_state: Player_State_Message;
         player_interact: Player_Interact_Message;
+        receiver_state: Receiver_State_Message;
     };
 }
 
@@ -139,6 +147,10 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
 
       case .Player_Interact;
         serialize_bytes(*packet, message.player_state.entity_pid);
+        
+      case .Receiver_State;
+        serialize_bytes(*packet, message.receiver_state.entity_pid);
+        serialize_bytes(*packet, message.receiver_state.progress_time_in_seconds);
     }
     
     send_reliable_packet(connection, *packet, .Message);
@@ -187,6 +199,10 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
     
       case .Player_Interact;
         deserialize_bytes(*connection.incoming_packet, *message.player_interact.entity_pid);
+    
+      case .Receiver_State;
+        deserialize_bytes(*connection.incoming_packet, *message.receiver_state.entity_pid);
+        deserialize_bytes(*connection.incoming_packet, *message.receiver_state.progress_time_in_seconds);
     }
 }
 

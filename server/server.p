@@ -274,6 +274,31 @@ do_game_tick :: (server: *Server) {
     recalculate_emitters(*server.world);
 
     //
+    // Update all receivers
+    //
+    for i := 0; i < server.world.entities.count; ++i {
+        entity := array_get_pointer(*server.world.entities, i);
+        if entity.kind == .Receiver {
+            receiver := down(entity, Receiver);
+            
+            previous := receiver.progress_time_in_seconds;
+            
+            if is_emitter_field_at(*server.world, entity.physical_position) {
+                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.frame_time, 0, RECEIVER_TIME);
+            } else {
+                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.frame_time, 0, RECEIVER_TIME);
+            }
+
+            if receiver.progress_time_in_seconds != previous {
+                msg := make_message(Receiver_State_Message);
+                msg.receiver_state.entity_pid = entity.pid;
+                msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
+                array_add(*server.outgoing_messages, msg);
+            }
+        }
+    }
+
+    //
     // Update each player's target position
     //
     for i := 0; i < server.world.entities.count; ++i {

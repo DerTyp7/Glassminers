@@ -198,6 +198,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         player.state = msg.player_state.state;
         player.target_position = msg.player_state.target_position;
         player.progress_time_in_seconds = msg.player_state.progress_time_in_seconds;
+
+      case .Receiver_State;
+        entity := get_entity(*client.world, msg.receiver_state.entity_pid);
+        receiver := down(entity, Receiver);
+        receiver.progress_time_in_seconds = msg.receiver_state.progress_time_in_seconds;
     }
 }
 

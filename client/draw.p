@@ -180,6 +180,8 @@ draw_world :: (client: *Client) {
             draw_text(client, *client.ui_font, label, screen_center.x, screen_center.y, .Center | .Median, .{ 255, 255, 255, 255 });
         }
     }
+
+    progress_bar_scale := round(screen_from_world_scale(client, .{ 0.9, 0.9 }).y * 0.13333);
     
     world :: *client.world;
 
@@ -216,6 +218,18 @@ draw_world :: (client: *Client) {
             }
         }
     }
+
+    //
+    // Draw all receiver states
+    //
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        if entity.kind == .Receiver {
+            receiver := down(entity, Receiver);
+            target_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx entity.visual_position.y });
+            draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, receiver.progress_time_in_seconds / RECEIVER_TIME);
+        }
+    }
     
     //
     // Draw all player states
@@ -232,7 +246,7 @@ draw_world :: (client: *Client) {
             if #complete player.state == {
               case .Idle;
               case .Digging;
-                draw_progress_bar(client, target_position.x, target_position.y, round(target_scale.x * 0.13333), player.progress_time_in_seconds / DIGGING_TIME);
+                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, player.progress_time_in_seconds / DIGGING_TIME);
             }
         }
     }    

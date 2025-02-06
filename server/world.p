@@ -23,6 +23,11 @@ Emitter :: struct {
     fields: [..]v2i;
 }
 
+Receiver :: struct {
+    KIND :: Entity_Kind.Receiver;
+    progress_time_in_seconds: f32;
+}
+
 World :: struct {
     allocator: *Allocator;
 
@@ -106,9 +111,17 @@ recalculate_emitters :: (world: *World) {
             if !position_in_bounds(world, field) break;
             
             blocking := get_entity_at_position(world, field);
-            if blocking != null && blocking.kind != .Player break;
             
-            array_add(*emitter.fields, field);
+            if blocking == null {
+                array_add(*emitter.fields, field);
+            } else if blocking.kind == .Player {
+                array_add(*emitter.fields, field);
+            } else if blocking.kind == .Receiver {
+                array_add(*emitter.fields, field);
+                break;
+            } else {
+                break;
+            }
         }
     }
 }
@@ -136,8 +149,9 @@ create_entity :: (world: *World, kind: Entity_Kind, position: v2i, rotation: Dir
     entity.derived            = null;
 
     if kind == {
-      case .Player;  entity.derived = allocate(world.allocator, Player);
-      case .Emitter; entity.derived = allocate(world.allocator, Emitter);
+      case .Player;   entity.derived = allocate(world.allocator, Player);
+      case .Emitter;  entity.derived = allocate(world.allocator, Emitter);
+      case .Receiver; entity.derived = allocate(world.allocator, Receiver);
     }
     
     ++world.pid_counter;
@@ -166,6 +180,7 @@ remove_all_marked_entities :: (world: *World) {
 }
 
 
+
 //
 // Movement Code
 //
@@ -191,6 +206,29 @@ can_move_to_position :: (world: *World, entity: *Entity, position: v2i) -> bool 
 move_to_position :: (world: *World, entity: *Entity, position: v2i) {
     move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
     recursive_move(world, entity, move_delta);
+}
+
+
+
+//
+// Helpers
+//
+
+is_emitter_field_at :: (world: *World, position: v2i) -> bool {
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        
+        if entity.kind == .Emitter {
+            emitter := down(entity, Emitter);
+            
+            for j := 0; j < emitter.fields.count; ++j {
+                field := array_get(*emitter.fields, j);
+                if field.x == position.x && field.y == position.y return true;
+            }
+        }
+    }
+    
+    return false;
 }
 
 
