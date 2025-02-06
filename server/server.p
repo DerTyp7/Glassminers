@@ -148,7 +148,7 @@ switch_to_state :: (server: *Server, state: Game_State) {
 
 setup_game :: (server: *Server) {
     server.game_seed = 54873543;
-    create_world(*server.world, *server.perm, .{ 32, 5 });
+    create_world(*server.world, *server.perm, .{ 36, 5 });
 
     //
     // Notify the clients about the game seed

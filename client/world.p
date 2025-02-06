@@ -3,6 +3,7 @@ Camera :: struct {
 
     ratio: f32;
     world_to_screen: v2f;
+    size: v2f;
     center: v2f;
 }
 
@@ -59,6 +60,8 @@ screen_from_world_scale :: (client: *Client, world: v2f) -> v2f {
 
 update_camera_matrices :: (camera: *Camera, window: *Window) {
     camera.ratio             = xx window.w / xx window.h;
+    camera.size.y            = camera.DESIRED_VERTICAL_UNITS;
+    camera.size.x            = camera.DESIRED_VERTICAL_UNITS * camera.ratio;
     camera.world_to_screen.y = xx window.h / camera.DESIRED_VERTICAL_UNITS;
     camera.world_to_screen.x = camera.world_to_screen.y;
 }

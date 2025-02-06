@@ -370,6 +370,18 @@ do_lobby_screen :: (client: *Client) {
 }
 
 do_game_tick :: (client: *Client) {
+    clamp_camera_position :: (client: *Client, target_position: v2f) -> v2f {
+        ROOM_OFFSET :: v2f.{ 4, 2 };
+        ROOM_SIZE   :: v2f.{ 9, 5 };
+        
+        room_position := v2f.{ floor(target_position.x / ROOM_SIZE.x) * ROOM_SIZE.x + ROOM_OFFSET.x, 
+                               floor(target_position.y / ROOM_SIZE.y) * ROOM_SIZE.y + ROOM_OFFSET.y };
+        half_size     := v2f.{ floor(client.camera.size.x / 2), floor(client.camera.size.y / 2) };
+        
+        return .{ clamp(room_position.x, half_size.x, xx client.world.size.x - half_size.x - 1),
+                  clamp(room_position.y, half_size.y, xx client.world.size.y - half_size.y - 1) };
+    }
+
     read_incoming_packets(client);
 
     // Update all emitters based on the data received by the server
@@ -383,10 +395,8 @@ do_game_tick :: (client: *Client) {
     
     // Update the camera
     {
-        if client.window.keys[.Arrow_Left]  & .Repeated client.camera.center.x -= 1;
-        if client.window.keys[.Arrow_Right] & .Repeated client.camera.center.x += 1;
-        if client.window.keys[.Arrow_Up]    & .Repeated client.camera.center.y -= 1;
-        if client.window.keys[.Arrow_Down]  & .Repeated client.camera.center.y += 1;
+        player := get_entity(*client.world, client.my_entity_pid);
+        client.camera.center = clamp_camera_position(client, player.visual_position);
         update_camera_matrices(*client.camera, *client.window);
     }
 
