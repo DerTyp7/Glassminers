@@ -71,12 +71,12 @@ generate_world :: (world: *World, seed: s64) {
     //
     // Generate an emitter
     //
-    create_entity(world, .Emitter, .{ 0, 2 }, .North);
+    create_entity(world, .Emitter, .{ 0, 2 }, .East);
     
     //
     // Create a receiver
     //
-    create_entity(world, .Receiver, .{ world.size.x - 1, 2 }, .North);
+    create_entity(world, .Receiver, .{ world.size.x - 1, 2 }, .West);
     
     //
     // Generate some stones

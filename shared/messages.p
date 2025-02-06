@@ -1,14 +1,15 @@
 Message_Type :: enum {
     Player_Information :: 0x1;
-    Player_Disconnect  :: 0x2;
-    Request_Game_Start :: 0x3;
-    Game_Start         :: 0x4;
-    Create_Entity      :: 0x5;
-    Destroy_Entity     :: 0x6;
-    Move_Entity        :: 0x7;
-    Player_State       :: 0x8;
-    Player_Interact    :: 0x9;
-    Receiver_State     :: 0xa;
+    Player_Disconnect;
+    Request_Game_Start;
+    Game_Start;
+    Game_Over;
+    Create_Entity;
+    Destroy_Entity;
+    Move_Entity;
+    Player_State;
+    Player_Interact;
+    Receiver_State;
 }
 
 Player_Information_Message :: struct {
@@ -33,6 +34,11 @@ Game_Start_Message :: struct {
 
     seed: s64;
     size: v2i;
+}
+
+Game_Over_Message :: struct {
+    TYPE :: Message_Type.Game_Over;
+    you_won: bool;
 }
 
 Create_Entity_Message :: struct {
@@ -86,6 +92,7 @@ Message :: struct {
         player_disconnect: Player_Disconnect_Message;
         request_game_start: Request_Game_Start_Message;
         game_start: Game_Start_Message;
+        game_over: Game_Over_Message;
         create_entity: Create_Entity_Message;
         destroy_entity: Destroy_Entity_Message;
         move_entity: Move_Entity_Message;
@@ -123,6 +130,9 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
         serialize_bytes(*packet, message.game_start.seed);
         serialize_bytes(*packet, message.game_start.size.x);
         serialize_bytes(*packet, message.game_start.size.y);
+
+      case .Game_Over;
+        serialize_bytes(*packet, message.game_over.you_won);
         
       case .Create_Entity;
         serialize_bytes(*packet, message.create_entity.entity_pid);
@@ -176,6 +186,9 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
         deserialize_bytes(*connection.incoming_packet, *message.game_start.seed);
         deserialize_bytes(*connection.incoming_packet, *message.game_start.size.x);
         deserialize_bytes(*connection.incoming_packet, *message.game_start.size.y);
+
+      case .Game_Over;
+        deserialize_bytes(*connection.incoming_packet, *message.game_over.you_won);
         
       case .Create_Entity;
         deserialize_bytes(*connection.incoming_packet, *message.create_entity.entity_pid);

@@ -32,6 +32,7 @@ Game_State :: enum {
     Connecting;
     Lobby;
     Ingame;
+    Game_Over;
 }
 
 Remote_Client :: struct {
@@ -55,6 +56,9 @@ Client :: struct {
     ui_font, title_font: Font;
     sprite_atlas: *GE_Texture;
 
+    current_state: Game_State;
+    next_state: Game_State;
+
     //
     // Networking
     //
@@ -68,11 +72,11 @@ Client :: struct {
     //
     // Game Data
     //
-    state: Game_State;
     game_seed: s64;
     world: World;
     camera: Camera;
     my_entity_pid: Pid;
+    won_last_game: bool;
 }
 
 
@@ -99,7 +103,7 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
     if create_client_connection(*client.connection, .UDP, host, port) == .Success {
         send_connection_request_packet(*client.connection, 5);
         client.my_name = copy_string(*client.perm, name);
-        switch_to_state(client, .Connecting);
+        transition_to_state(client, .Connecting);
     } else {
         maybe_shutdown_server(client);
     }
@@ -117,7 +121,7 @@ disconnect_from_server :: (client: *Client) {
     
     array_clear(*client.remote_clients);
     
-    switch_to_state(client, .Main_Menu);
+    transition_to_state(client, .Main_Menu);
 }
 
 start_lobby :: (client: *Client) {
@@ -177,7 +181,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Start;
         client.game_seed = msg.game_start.seed;
         client.world.size = msg.game_start.size;
-        switch_to_state(client, .Ingame);
+        transition_to_state(client, .Ingame);
+        
+      case .Game_Over;
+        client.won_last_game = msg.game_over.you_won;
+        transition_to_state(client, .Game_Over);
 
       case .Create_Entity;
         create_entity_with_pid(*client.world, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
@@ -216,10 +224,10 @@ read_incoming_packets :: (client: *Client) {
           case Packet_Type.Connection_Request; // Ignore
           
           case Packet_Type.Connection_Established;
-            if client.state == .Connecting {
+            if client.current_state == .Connecting {
                 client.my_player_pid = client.connection.incoming_packet.header.sender_client_id;
                 client.connection.info.client_id = client.my_player_pid;
-                switch_to_state(client, .Lobby);
+                transition_to_state(client, .Lobby);
                 
                 msg := make_message(Player_Information_Message);
                 msg.player_information.player_pid = client.my_player_pid;
@@ -239,17 +247,21 @@ read_incoming_packets :: (client: *Client) {
 
 
 
-switch_to_state :: (client: *Client, state: Game_State) {
-    if #complete client.state == {
-      case .Main_Menu;
+transition_to_state :: (client: *Client, state: Game_State) {
+    client.next_state = state;
+}
+
+switch_to_next_state :: (client: *Client) {
+    if #complete client.current_state == {
+      case .Main_Menu, .Game_Over;
 
       case .Connecting;
-        if state != .Lobby {
+        if client.next_state != .Lobby {
             maybe_shutdown_server(client);
         }
 
       case .Lobby;
-        if state != .Ingame {
+        if client.next_state != .Ingame {
             destroy_world(*client.world);
             maybe_shutdown_server(client);
         }
@@ -259,10 +271,10 @@ switch_to_state :: (client: *Client, state: Game_State) {
         maybe_shutdown_server(client);
     }
 
-    client.state = state;
+    client.current_state = client.next_state;
     
-    if #complete client.state == {
-      case .Main_Menu, .Connecting;
+    if #complete client.current_state == {
+      case .Main_Menu, .Connecting, .Ingame, .Game_Over;
       
       case .Lobby;
         // We already create the world here because otherwise we cannot guarantee
@@ -271,8 +283,6 @@ switch_to_state :: (client: *Client, state: Game_State) {
         create_world(*client.world, *client.perm);
         client.camera.center = .{ 4, 2 };
         client.my_entity_pid = INVALID_PID;
-        
-      case .Ingame;
     }
 }
 
@@ -367,6 +377,25 @@ do_lobby_screen :: (client: *Client) {
         ui_pop_window(ui);
         ui_pop_width(ui);
     }
+}
+
+do_game_over_screen :: (client: *Client) {
+    ui :: *client.ui;
+    ui_push_width(ui, .Pixels, 256, 1);
+    ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
+
+    if client.won_last_game {
+        ui_label(ui, true, "You won!");    
+    } else {
+        ui_label(ui, true, "You lost!");
+    }
+    
+    ui_divider(ui, true);
+    if ui_button(ui, "Back to Main Menu!") {
+        disconnect_from_server(client);
+    }
+    ui_pop_window(ui);
+    ui_pop_width(ui);
 }
 
 do_game_tick :: (client: *Client) {
@@ -465,9 +494,11 @@ main :: () -> s32 {
     create_mixer(*client.mixer, 1);
 
     client.remote_clients.allocator = *client.perm;
-    client.state = .Count;
+    client.current_state = .Count;
+    client.next_state    = .Count;
     
-    switch_to_state(*client, .Main_Menu); // Potentially initialize resources
+    transition_to_state(*client, .Main_Menu); // Potentially initialize resources
+    switch_to_next_state(*client);
 
     value: f32 = 0; // nocheckin
 
@@ -484,11 +515,12 @@ main :: () -> s32 {
             update_window(*client.window);
             begin_ui_frame(*client.ui, .{ 128, 24 });
             
-            if #complete client.state == {
+            if #complete client.current_state == {
               case .Main_Menu;  do_main_menu(*client);
               case .Connecting; do_connecting_screen(*client);
               case .Lobby;      do_lobby_screen(*client);
               case .Ingame;     do_game_tick(*client);
+              case .Game_Over;  do_game_over_screen(*client);
             }
         }
         
@@ -498,8 +530,8 @@ main :: () -> s32 {
         {
             ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
             
-            if #complete client.state == {
-              case .Main_Menu, .Connecting, .Lobby;
+            if #complete client.current_state == {
+              case .Main_Menu, .Connecting, .Lobby, .Game_Over;
                 draw_text(*client, *client.title_font, "GlassMiners", xx client.window.w / 2, xx client.window.h / 4, .Center | .Median, .{ 255, 255, 255, 255 });
                 draw_ui_frame(*client.ui);
             
@@ -511,13 +543,15 @@ main :: () -> s32 {
             ge_swap_buffers(*client.graphics);
         }
 
+        if client.current_state != client.next_state switch_to_next_state(*client);
+
         release_temp_allocator(0);
         
         frame_end := os_get_hardware_time();
         os_sleep_to_tick_rate(frame_start, frame_end, 144);
     }
 
-    switch_to_state(*client, .Count); // Shut down all resources that might currently be in use
+    transition_to_state(*client, .Count); // Shut down all resources that might currently be in use
         
     //
     // Destroy the engine

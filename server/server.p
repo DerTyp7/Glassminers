@@ -32,6 +32,7 @@ Remote_Client :: struct {
 Game_State :: enum {
     Lobby;
     Ingame;
+    Game_Over;
 }
 
 Server :: struct {
@@ -40,6 +41,8 @@ Server :: struct {
     //
     perm_pool: Memory_Pool;
     perm: Allocator;
+    current_state: Game_State;
+    next_state: Game_State;
 
     //
     // Networking
@@ -53,7 +56,6 @@ Server :: struct {
     //
     // Game Data
     //
-    state: Game_State;
     game_seed: s64;
     world: World;
     frame_time: f32;
@@ -74,7 +76,7 @@ find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
 }
 
 handle_connection_request :: (server: *Server) {
-    if server.state != .Lobby return; // If we aren't in the lobby, don't accept new clients
+    if server.current_state != .Lobby return; // If we aren't in the lobby, don't accept new clients
 
     // Check if we already have a client connected at this remote, because the client will spam
     // this connection request a few times to combat potential packet loss.
@@ -132,21 +134,24 @@ send_all_outgoing_messages :: (server: *Server) {
     array_clear_without_deallocation(*server.outgoing_messages);    
 }
 
-switch_to_state :: (server: *Server, state: Game_State) {
-    if #complete server.state == {
-      case .Lobby; // Ignore
+transition_to_state :: (server: *Server, state: Game_State) {
+    server.next_state = state;
+}
+
+switch_to_next_state :: (server: *Server) {
+    if #complete server.current_state == {
+      case .Lobby, .Game_Over; // Ignore
       case .Ingame; destroy_world(*server.world);
     }
     
-    server.state = state;
+    server.current_state = server.next_state;
     
-    if #complete server.state == {
-      case .Lobby; // Ignore
-      case .Ingame; setup_game(server);
+    if #complete server.current_state == {
+      case .Lobby, .Game_Over, .Ingame; // Ignore
     }
 }
 
-setup_game :: (server: *Server) {
+create_the_game :: (server: *Server) {
     server.game_seed = 54873543;
     create_world(*server.world, *server.perm, .{ 36, 5 });
 
@@ -222,7 +227,8 @@ do_lobby_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, ~msg);
 
           case .Request_Game_Start;
-            switch_to_state(server, .Ingame);
+            create_the_game(server);
+            transition_to_state(server, .Ingame);
         }    
     }
 
@@ -233,6 +239,8 @@ do_lobby_tick :: (server: *Server) {
 }
 
 do_game_tick :: (server: *Server) {
+    game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
+
     //
     // Handle all incoming messages on player input
     //
@@ -314,6 +322,10 @@ do_game_tick :: (server: *Server) {
                 msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
                 array_add(*server.outgoing_messages, msg);
             }
+
+            if receiver.progress_time_in_seconds >= RECEIVER_TIME {
+                game_state = .Won;
+            }
         }
     }
 
@@ -369,6 +381,13 @@ do_game_tick :: (server: *Server) {
         }
     }
 
+    if game_state != .Keep_Going {
+        msg := make_message(Game_Over_Message);
+        msg.game_over.you_won = game_state == .Won;
+        array_add(*server.outgoing_messages, msg);
+        transition_to_state(server, .Game_Over);
+    }
+
     //
     // Send all updates to clients.
     //
@@ -403,12 +422,14 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         data.state = .Closing;
     }
     
-    server.state = .Count;
+    server.current_state = .Count;
+    server.next_state    = .Count;
     server.client_pid_counter = 1;
     
     logprint("Started the server.");
     
-    switch_to_state(*server, .Lobby);
+    transition_to_state(*server, .Lobby);
+    switch_to_next_state(*server);
     
     while data.state == .Running {
         tick_start := os_get_hardware_time();
@@ -443,16 +464,21 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         //
         // Update the current state
         //
-        if #complete server.state == {
+        if #complete server.current_state == {
           case .Lobby; do_lobby_tick(*server);
           case .Ingame; do_game_tick(*server);
+          case .Game_Over;
         }
+
+        if server.current_state != server.next_state switch_to_next_state(*server);
 
         release_temp_allocator(0);
         
         tick_end := os_get_hardware_time();
         os_sleep_to_tick_rate(tick_start, tick_end, TICK_RATE);
     }
+
+    transition_to_state(*server, .Count); // Shut down all resources that might currently be in use
     
     data.state = .Closing;
     
