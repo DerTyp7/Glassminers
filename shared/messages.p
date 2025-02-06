@@ -69,6 +69,7 @@ Player_State_Message :: struct {
 Player_Interact_Message :: struct {
     TYPE :: Message_Type.Player_Interact;
     entity_pid: Pid;
+    interaction_kind: Interaction_Kind;
 }
 
 Receiver_State_Message :: struct {
@@ -146,7 +147,8 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
         serialize_bytes(*packet, message.player_state.progress_time_in_seconds);
 
       case .Player_Interact;
-        serialize_bytes(*packet, message.player_state.entity_pid);
+        serialize_bytes(*packet, message.player_interact.entity_pid);
+        serialize_bytes(*packet, message.player_interact.interaction_kind);
         
       case .Receiver_State;
         serialize_bytes(*packet, message.receiver_state.entity_pid);
@@ -199,6 +201,7 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
     
       case .Player_Interact;
         deserialize_bytes(*connection.incoming_packet, *message.player_interact.entity_pid);
+        deserialize_bytes(*connection.incoming_packet, *message.player_interact.interaction_kind);
     
       case .Receiver_State;
         deserialize_bytes(*connection.incoming_packet, *message.receiver_state.entity_pid);

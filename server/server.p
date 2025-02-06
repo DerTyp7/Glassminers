@@ -189,7 +189,7 @@ setup_game :: (server: *Server) {
         msg.create_entity.entity_pid = entity.pid;
         msg.create_entity.kind       = entity.kind;
         msg.create_entity.position   = entity.physical_position;
-        msg.create_entity.rotation   = entity.rotation;
+        msg.create_entity.rotation   = entity.physical_rotation;
         array_add(*server.outgoing_messages, msg);
     }
 }
@@ -259,12 +259,31 @@ do_game_tick :: (server: *Server) {
           case .Player_Interact;
             entity := get_entity(*server.world, msg.player_interact.entity_pid);
             player := down(entity, Player);
-            
-            target_entity := get_entity_at_position(*server.world, player.target_position);
-            if target_entity && target_entity.kind == .Stone {
-                player.state = .Digging;
-                player.progress_time_in_seconds = 0;
-            }   
+
+            if #complete msg.player_interact.interaction_kind == {            
+              case .Dig;
+                target_entity := get_entity_at_position(*server.world, player.target_position);
+                if !target_entity break;
+                
+                if target_entity.kind == .Stone {
+                    player.state = .Digging;
+                    player.progress_time_in_seconds = 0;
+                } else if target_entity.kind == .Mirror {
+                    target_entity.physical_rotation = (target_entity.physical_rotation + 1) % Direction.Count;
+                    target_entity.moved_this_frame  = true;
+                }
+                
+              case .Build;
+                if get_entity_at_position(*server.world, player.target_position) == null {
+                    pid, entity := create_entity(*server.world, .Mirror, player.target_position, .North);
+                    msg := make_message(Create_Entity_Message);
+                    msg.create_entity.entity_pid = entity.pid;
+                    msg.create_entity.kind       = entity.kind;
+                    msg.create_entity.position   = entity.physical_position;
+                    msg.create_entity.rotation   = entity.physical_rotation;
+                    array_add(*server.outgoing_messages, msg);
+                }
+            }
         }
     }
 
@@ -338,7 +357,7 @@ do_game_tick :: (server: *Server) {
             msg := make_message(Move_Entity_Message);
             msg.move_entity.entity_pid = entity.pid;
             msg.move_entity.position   = entity.physical_position;
-            msg.move_entity.rotation   = entity.rotation;
+            msg.move_entity.rotation   = entity.physical_rotation;
             array_add(*server.outgoing_messages, msg);
             entity.moved_this_frame = false;
         }

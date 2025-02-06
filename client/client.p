@@ -188,9 +188,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Move_Entity;
         entity := get_entity(*client.world, msg.move_entity.entity_pid);
+        entity.physical_rotation = msg.move_entity.rotation;
         entity.physical_position = msg.move_entity.position;
         entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
-        entity.rotation          = msg.move_entity.rotation;
         
       case .Player_State;
         entity := get_entity(*client.world, msg.player_state.entity_pid);
@@ -422,6 +422,14 @@ do_game_tick :: (client: *Client) {
         if client.window.keys[.Space] & .Pressed {
             msg := make_message(Player_Interact_Message);
             msg.player_interact.entity_pid = client.my_entity_pid;
+            msg.player_interact.interaction_kind = .Dig;
+            array_add(*outgoing_messages, msg);
+        }
+        
+        if client.window.keys[.Shift] & .Pressed {
+            msg := make_message(Player_Interact_Message);
+            msg.player_interact.entity_pid = client.my_entity_pid;
+            msg.player_interact.interaction_kind = .Build;
             array_add(*outgoing_messages, msg);
         }
     }

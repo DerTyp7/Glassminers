@@ -12,7 +12,7 @@ Entity :: struct {
     kind: Entity_Kind;
     marked_for_removal: bool;
 
-    rotation: Direction;    
+    physical_rotation: Direction;    
     physical_position: v2i;
     visual_position: v2f;
 
@@ -80,39 +80,6 @@ destroy_world :: (world: *World) {
     array_clear(*world.entities);
 }
 
-recalculate_emitters :: (world: *World) {
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
-        if entity.kind != .Emitter continue;
-
-        emitter := down(entity, Emitter);
-        emitter.fields.allocator = *temp;
-        array_clear_without_deallocation(*emitter.fields);
-        
-        direction := v2i.{ 1, 0 };
-        field     := entity.physical_position;
-        
-        while true {
-            field.x += direction.x;
-            field.y += direction.y;
-            if !position_in_bounds(world, field) break;
-            
-            blocking := get_entity_at_position(world, field);
-            
-            if blocking == null {
-                array_add(*emitter.fields, field);
-            } else if blocking.kind == .Player {
-                array_add(*emitter.fields, field);
-            } else if blocking.kind == .Receiver {
-                array_add(*emitter.fields, field);
-                break;
-            } else {
-                break;
-            }
-        }
-    }
-}
-
 update_client_side_predictions :: (world: *World, dt: f32) {
     for i := 0; i < world.entities.count; ++i {
         entity := array_get_pointer(*world.entities, i);
@@ -142,7 +109,7 @@ create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position:
     entity.pid                = pid;
     entity.kind               = kind;
     entity.marked_for_removal = false;
-    entity.rotation           = rotation;
+    entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.visual_position    = .{ xx position.x, xx position.y };
     entity.derived            = null;

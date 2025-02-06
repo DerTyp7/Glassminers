@@ -4,7 +4,7 @@ Entity :: struct {
     marked_for_removal: bool;
     moved_this_frame: bool;
 
-    rotation: Direction;
+    physical_rotation: Direction;
     physical_position: v2i;
 
     derived: *void;
@@ -93,38 +93,6 @@ generate_world :: (world: *World, seed: s64) {
     }
 }
 
-recalculate_emitters :: (world: *World) {
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
-        if entity.kind != .Emitter continue;
-
-        emitter := down(entity, Emitter);
-        emitter.fields.allocator = *temp;
-        array_clear_without_deallocation(*emitter.fields);
-        
-        direction := v2i.{ 1, 0 };
-        field     := entity.physical_position;
-        
-        while true {
-            field.x += direction.x;
-            field.y += direction.y;
-            if !position_in_bounds(world, field) break;
-            
-            blocking := get_entity_at_position(world, field);
-            
-            if blocking == null {
-                array_add(*emitter.fields, field);
-            } else if blocking.kind == .Player {
-                array_add(*emitter.fields, field);
-            } else if blocking.kind == .Receiver {
-                array_add(*emitter.fields, field);
-                break;
-            } else {
-                break;
-            }
-        }
-    }
-}
 
 
 //
@@ -144,7 +112,7 @@ create_entity :: (world: *World, kind: Entity_Kind, position: v2i, rotation: Dir
     entity.kind               = kind;
     entity.marked_for_removal = false;
     entity.moved_this_frame   = false;
-    entity.rotation           = rotation;
+    entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.derived            = null;
 

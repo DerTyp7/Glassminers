@@ -201,7 +201,7 @@ draw_world :: (client: *Client) {
     //
     for i := 0; i < world.entities.count; ++i {
         entity := array_get_pointer(*world.entities, i);
-        draw_entity(client, entity.kind, entity.visual_position, entity.rotation);
+        draw_entity(client, entity.kind, entity.visual_position, entity.physical_rotation);
     }
 
     //
@@ -288,7 +288,7 @@ calculate_uv_box_for_entity_kind :: (kind: Entity_Kind, rotation: Direction) -> 
     shift: u32 = rotation;
     
     for i := 0; i < rotated_uvs.Capacity; ++i {
-        rotated_uvs[i] = unrotated_uvs[(i + shift) % unrotated_uvs.Capacity];
+        rotated_uvs[i] = unrotated_uvs[(i -% shift) % unrotated_uvs.Capacity];
     }
     
     return rotated_uvs;
