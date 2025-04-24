@@ -1,4 +1,28 @@
 //
+// Draw Context
+//
+
+create_draw_data :: (client: *Client) {
+    ge_create(*client.graphics, *client.window, *client.perm);
+    client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
+    client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, false });
+    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
+    client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png", .Filter_Nearest | .Wrap_Clamp_To_Edge);
+}
+
+destroy_draw_data :: (client: *Client) {
+    ge_destroy_texture(*client.graphics, client.sprite_atlas);
+    ge_destroy_font(*client.graphics, *client.ui_font);
+    ge_destroy_font(*client.graphics, *client.title_font);
+    ge_destroy_pipeline(*client.graphics, client.ui_pipeline);
+    ge_destroy_pipeline(*client.graphics, client.entity_pipeline);
+    ge_destroy(*client.graphics);
+}
+
+
+
+//
 // UI Module Callbacks
 //
 
@@ -52,8 +76,6 @@ draw_progress_bar :: (client: *Client, x, y: f32, outer_radius: f32, percentage:
         }
     }
 
-    ge_imm2d_blend_mode(*client.graphics, .Default);
-
     segments :: 6;
     background :: GE_Color.{ 100, 100, 100, 200 };
     foreground :: GE_Color.{ 100, 240, 150, 200 };
@@ -88,8 +110,6 @@ draw_progress_bar :: (client: *Client, x, y: f32, box_size: f32, percentage: f32
     foreground :: GE_Color.{ 100, 240, 150, 200 };
 
     gap_size := round(cast(f32) box_size * 0.1);
-
-    // @Incomplete: Set proper pipeline
     
     //
     // Draw the boxes
@@ -169,7 +189,7 @@ draw_world :: (client: *Client) {
     
     world :: *client.world;
 
-    // @Incomplete: Set proper pipeline
+    ge_set_pipeline(*client.graphics, client.entity_pipeline);
     
     //
     // Draw implicit background inanimates
@@ -210,8 +230,10 @@ draw_world :: (client: *Client) {
         entity := array_get_pointer(*world.entities, i);
         if entity.kind == .Receiver {
             receiver := down(entity, Receiver);
-            target_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx entity.visual_position.y });
-            draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, receiver.progress_time_in_seconds / RECEIVER_TIME);
+            if receiver.progress_time_in_seconds > 0 {
+                target_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx entity.visual_position.y });
+                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, receiver.progress_time_in_seconds / RECEIVER_TIME);
+            }
         }
     }
     
@@ -235,6 +257,8 @@ draw_world :: (client: *Client) {
         }
     }    
 
+    ge_set_pipeline(*client.graphics, client.ui_pipeline);
+    
     //
     // Draw the player's name above their entities
     //
@@ -279,12 +303,12 @@ calculate_uv_box_for_entity_kind :: (kind: Entity_Kind, rotation: Direction) -> 
 }
 
 draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector2, foreground: UI_Color, background: UI_Color) {
-    // @Incomplete: Set proper pipeline
+    ge_set_pipeline(*client.graphics, client.ui_pipeline);
     ge_draw_text(*client.graphics, font, text, position.x, position.y, .Left | .Bottom, .{ foreground.r, foreground.g, foreground.b, foreground.a });    
 }
 
 draw_ui_rect :: (client: *Client, rect: UI_Rect, rounding: f32, color: UI_Color) {
-    // @Incomplete: Set proper pipeline
+    ge_set_pipeline(*client.graphics, client.ui_pipeline);
     ge_imm2d_colored_rect(*client.graphics, rect.x0, rect.y0, rect.x1, rect.y1, .{ color.r, color.g, color.b, color.a });
 }
 
@@ -293,4 +317,5 @@ set_ui_scissors :: (client: *Client, rect: UI_Rect) {
 }
 
 clear_ui_scissors :: (client: *Client) {
+    ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w - 1, xx client.window.h - 1 ]);
 }

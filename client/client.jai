@@ -44,7 +44,9 @@ Client :: struct {
 
     ui_font, title_font: Font;
     sprite_atlas: *GE_Texture;
-
+    ui_pipeline: *GE_Pipeline;
+    entity_pipeline: *GE_Pipeline;
+    
     current_state: Game_State;
     next_state: Game_State;
 
@@ -70,7 +72,14 @@ Client :: struct {
 
 
 
-logprint :: (format: string, args: ..Any) {
+Log_Level :: enum {
+    Debug;
+    Warning;
+    Error;
+}
+
+logprint :: (level: Log_Level, format: string, args: ..Any) {
+    print("[%] ", enum_names(Log_Level)[level]);
     print(format, ..args);
     print("\n");
 }
@@ -473,10 +482,7 @@ main :: () -> s32 {
     client.perm = allocator_from_memory_pool(*client.perm_pool);
 
     create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, .Default);
-    ge_create(*client.graphics, *client.window, *client.perm);
-    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
-    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
-    client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png", .Filter_Nearest | .Wrap_Clamp_To_Edge);
+    create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 1);
 
@@ -487,13 +493,13 @@ main :: () -> s32 {
     transition_to_state(*client, .Main_Menu); // Potentially initialize resources
     switch_to_next_state(*client);
 
-    value: f32 = 0; // nocheckin
-
     //
     // Main loop
     //
     while !client.window.should_close {
         frame_start := os_get_hardware_time();
+
+        if client.current_state != client.next_state switch_to_next_state(*client);
         
         //
         // Do one frame
@@ -520,17 +526,14 @@ main :: () -> s32 {
             if #complete client.current_state == {
               case .Main_Menu, .Connecting, .Lobby, .Game_Over;
                 draw_text(*client, *client.title_font, "GlassMiners", xx client.window.w / 2, xx client.window.h / 4, .Center | .Median, .{ 255, 255, 255, 255 });
-                draw_ui_frame(*client.ui);
             
               case .Ingame;
                 draw_world(*client);
-                draw_ui_frame(*client.ui);
             }
              
+            draw_ui_frame(*client.ui);
             ge_swap_buffers(*client.graphics);
         }
-
-        if client.current_state != client.next_state switch_to_next_state(*client);
 
         release_temp_allocator(0);
         
@@ -545,10 +548,7 @@ main :: () -> s32 {
     //
     destroy_mixer(*client.mixer);
     destroy_ui(*client.ui);
-    ge_destroy_texture(*client.graphics, client.sprite_atlas);
-    ge_destroy_font(*client.graphics, *client.ui_font);
-    ge_destroy_font(*client.graphics, *client.title_font);
-    ge_destroy(*client.graphics);
+    destroy_draw_data(*client);
     destroy_window(*client.window);
     destroy_memory_pool(*client.perm_pool);
     destroy_temp_allocator();
