@@ -16,6 +16,7 @@ Player :: struct {
     state: Player_State;
     target_position: v2i;
     progress_time_in_seconds: f32;
+    carrying_item: Entity_Kind;
     aim_direction: Direction;
 }
 
@@ -67,7 +68,7 @@ generate_world :: (world: *World, seed: s64) {
         return position;
     }
 
-    srand(seed);
+    srand(cast(u32) seed); // @Cleanup: Use a proper random number generator
 
     //
     // Generate an emitter
@@ -237,12 +238,4 @@ recursive_move :: (world: *World, entity: *Entity, move_delta: v2i) {
     entity.physical_position.x += move_delta.x;
     entity.physical_position.y += move_delta.y;
     entity.moved_this_frame     = true;
-}
-
-is_pushable_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal;
-}
-
-is_blocking_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal || kind == .Stone || kind == .Emitter || kind == .Receiver || kind == .Mirror;
 }

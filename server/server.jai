@@ -142,7 +142,7 @@ switch_to_next_state :: (server: *Server) {
 }
 
 create_the_game :: (server: *Server) {
-    server.game_seed = 54873543;
+    server.game_seed = cast(s64) os_get_hardware_time();
     create_world(*server.world, *server.perm, .{ 36, 5 });
 
     //
@@ -251,31 +251,51 @@ do_game_tick :: (server: *Server) {
             if entity.kind == .Player {
                 player := down(entity, Player);
                 player.aim_direction = direction_from_vector(move_delta);
-                player.state = .Idle;
-                player.progress_time_in_seconds = 0;
+
+                // Cancel the current action of the player when moving, if appropriate
+                if #complete player.state == {
+                  case .Idle, .Carrying;
+                  case .Digging;
+                    player.state = .Idle;
+                    player.progress_time_in_seconds = 0;
+                }
             }
             
           case .Player_Interact;
             entity := get_entity(*server.world, msg.player_interact.entity_pid);
             player := down(entity, Player);
+            target_entity := get_entity_at_position(*server.world, player.target_position);
 
             if #complete msg.player_interact.interaction_kind == {            
-              case .Dig;
-                target_entity := get_entity_at_position(*server.world, player.target_position);
-                if !target_entity break;
+              case .Primary;
+                if player.state != .Idle || !target_entity break;
                 
                 if target_entity.kind == {
                   case .Stone, .Crystal;
                     player.state = .Digging;
                     player.progress_time_in_seconds = 0;
-                  case .Mirror;
-                    target_entity.physical_rotation = (target_entity.physical_rotation + 1) % Direction.Count;
-                    target_entity.moved_this_frame  = true;
+                  case .Shard;
+                    player.state = .Carrying;
+                    player.carrying_item = target_entity.kind;
+                    target_entity.marked_for_removal = true;
                 }
                 
-              case .Build;
-                if get_entity_at_position(*server.world, player.target_position) == null {
-                    create_entity(*server.world, .Mirror, player.target_position, .North);
+              case .Secondary;
+                if target_entity == null {
+                    // Place a new entity
+                    if #complete player.state == {
+                      case .Digging;
+                      case .Idle;
+                        // @Temporary: Players can currently create mirrors out of thin air...
+                        create_entity(*server.world, .Mirror, player.target_position, .North);
+                      case .Carrying;
+                        create_entity(*server.world, player.carrying_item, player.target_position, .North);
+                        player.state = .Idle;
+                        player.carrying_item = .Inanimate;
+                    }
+                } else if target_entity.kind == .Mirror {
+                    target_entity.physical_rotation = (target_entity.physical_rotation + 1) % Direction.Count;
+                    target_entity.moved_this_frame  = true;                    
                 }
             }
         }
@@ -347,6 +367,7 @@ do_game_tick :: (server: *Server) {
             msg.player_state.state = player.state;
             msg.player_state.target_position = player.target_position;
             msg.player_state.progress_time_in_seconds = player.progress_time_in_seconds;
+            msg.player_state.carrying_item = player.carrying_item;
             array_add(*server.outgoing_messages, msg);
         }
     }

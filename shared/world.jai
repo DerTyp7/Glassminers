@@ -31,11 +31,12 @@ Direction :: enum {
 Player_State :: enum {
     Idle;
     Digging;
+    Carrying;
 }
 
 Interaction_Kind :: enum {
-    Dig;
-    Build;
+    Primary;
+    Secondary;
 }
 
 direction_from_vector :: (vector: v2i) -> Direction {
@@ -90,9 +91,9 @@ recalculate_emitters :: (world: *World) {
             field.y += vector.y;
             if !position_in_bounds(world, field) break;
             
-            blocking := get_entity_at_position(world, field);
+            blocking := get_blocking_entity_at_position(world, field);
             
-            if blocking == null {
+            if blocking == null || blocking.kind == .Player {
                 array_add(*emitter.fields, field);
             } else if blocking.kind == .Mirror {
                 array_add(*emitter.fields, field);
@@ -102,8 +103,6 @@ recalculate_emitters :: (world: *World) {
                 if reflection_success then
                     direction = reflected_direction;
                 else break;
-            } else if blocking.kind == .Player {
-                array_add(*emitter.fields, field);
             } else if blocking.kind == .Receiver {
                 array_add(*emitter.fields, field);
                 break;
@@ -112,4 +111,13 @@ recalculate_emitters :: (world: *World) {
             }
         }
     }
+}
+
+
+is_pushable_entity :: (kind: Entity_Kind) -> bool {
+    return kind == .Player || kind == .Crystal;
+}
+
+is_blocking_entity :: (kind: Entity_Kind) -> bool {
+    return kind == .Player || kind == .Crystal || kind == .Stone || kind == .Emitter || kind == .Receiver || kind == .Mirror;
 }

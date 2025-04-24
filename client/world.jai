@@ -24,6 +24,7 @@ Player :: struct {
     state: Player_State;
     target_position: v2i;
     progress_time_in_seconds: f32;
+    carrying_item: Entity_Kind;
 }
 
 Emitter :: struct {
@@ -157,6 +158,15 @@ get_entity_at_position :: (world: *World, position: v2i) -> *Entity {
     for i := 0; i < world.entities.count; ++i {
         entity := array_get_pointer(*world.entities, i);
         if entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+get_blocking_entity_at_position :: (world: *World, position: v2i) -> *Entity {
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        if is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;

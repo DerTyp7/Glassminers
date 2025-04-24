@@ -202,7 +202,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         player.state = msg.player_state.state;
         player.target_position = msg.player_state.target_position;
         player.progress_time_in_seconds = msg.player_state.progress_time_in_seconds;
-
+        player.carrying_item = msg.player_state.carrying_item;
+        
       case .Receiver_State;
         entity := get_entity(*client.world, msg.receiver_state.entity_pid);
         receiver := down(entity, Receiver);
@@ -299,9 +300,15 @@ do_main_menu :: (client: *Client) {
         port := ui_text_input(ui, "Enter the port", .Integer);
         ui_divider(ui, true);
         
-        if ui_button(ui, "Host!") && name.valid && port.valid {
-            host_server(client, port._int);
-            join_server(client, name._string, "localhost", port._int);
+        if ui_button(ui, "Host!") {
+            // @Temporary: Developer helpers
+            if !name._string.count then { name._string = "Victor"; name.valid = true; }
+            if !port.valid then { port._int = 9876; port.valid = true; }
+            
+            if name.valid && port.valid {
+                host_server(client, port._int);
+                join_server(client, name._string, "localhost", port._int);
+            }
         }
         
         ui_pop_window(ui);
@@ -320,6 +327,11 @@ do_main_menu :: (client: *Client) {
         ui_divider(ui, true);
         
         if ui_button(ui, "Join!") && name.valid && host.valid && port.valid {
+            // @Temporary: Developer helpers
+            if !name._string.count then { name._string = "Victor"; name.valid = true; }
+            if !host._string.count then { host._string = "localhost"; host.valid = true; }
+            if !port.valid then { port._int = 9876; port.valid = true; }
+
             join_server(client, name._string, host._string, port._int);
         }
         
@@ -447,14 +459,14 @@ do_game_tick :: (client: *Client) {
         if client.window.keys[.Space] & .Pressed {
             msg := make_message(Player_Interact_Message);
             msg.player_interact.entity_pid = client.my_entity_pid;
-            msg.player_interact.interaction_kind = .Dig;
+            msg.player_interact.interaction_kind = .Primary;
             array_add(*outgoing_messages, msg);
         }
         
         if client.window.keys[.Shift] & .Pressed {
             msg := make_message(Player_Interact_Message);
             msg.player_interact.entity_pid = client.my_entity_pid;
-            msg.player_interact.interaction_kind = .Build;
+            msg.player_interact.interaction_kind = .Secondary;
             array_add(*outgoing_messages, msg);
         }
     }
@@ -541,8 +553,10 @@ main :: () -> s32 {
         os_sleep_to_tick_rate(frame_start, frame_end, 144);
     }
 
-    transition_to_state(*client, .Count); // Shut down all resources that might currently be in use
-        
+    // Shut down all resources that might currently be in use
+    transition_to_state(*client, .Count);
+    switch_to_next_state(*client);
+    
     //
     // Destroy the engine
     //

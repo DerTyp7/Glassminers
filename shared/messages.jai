@@ -70,6 +70,7 @@ Player_State_Message :: struct {
     state: Player_State;
     target_position: v2i;
     progress_time_in_seconds: f32;
+    carrying_item: Entity_Kind;
 }
 
 Player_Interact_Message :: struct {
@@ -155,7 +156,8 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
         serialize_bytes(*packet, message.player_state.state);
         serialize_bytes(*packet, message.player_state.target_position);
         serialize_bytes(*packet, message.player_state.progress_time_in_seconds);
-
+        serialize_bytes(*packet, message.player_state.carrying_item);
+        
       case .Player_Interact;
         serialize_bytes(*packet, message.player_interact.entity_pid);
         serialize_bytes(*packet, message.player_interact.interaction_kind);
@@ -211,7 +213,8 @@ read_message :: (connection: *Virtual_Connection, message: *Message) {
         deserialize_bytes(*connection.incoming_packet, *message.player_state.state);
         deserialize_bytes(*connection.incoming_packet, *message.player_state.target_position);
         deserialize_bytes(*connection.incoming_packet, *message.player_state.progress_time_in_seconds);
-    
+        deserialize_bytes(*connection.incoming_packet, *message.player_state.carrying_item);
+        
       case .Player_Interact;
         deserialize_bytes(*connection.incoming_packet, *message.player_interact.entity_pid);
         deserialize_bytes(*connection.incoming_packet, *message.player_interact.interaction_kind);

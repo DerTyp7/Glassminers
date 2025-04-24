@@ -158,9 +158,9 @@ draw_world :: (client: *Client) {
         }    
     }
 
-    draw_entity :: (client: *Client, kind: Entity_Kind, visual_position: v2f, rotation: Direction) {
+    draw_entity :: (client: *Client, kind: Entity_Kind, visual_position: v2f, visual_size: v2f, rotation: Direction) {
         screen_center := screen_from_world_position(client, visual_position);
-        screen_size   := screen_from_world_scale(client, .{ 1, 1 });
+        screen_size   := screen_from_world_scale(client, visual_size);
 
         vertices: [4]v2f = .[ .{ screen_center.x - screen_size.x / 2, screen_center.y - screen_size.y / 2 },
                               .{ screen_center.x + screen_size.x / 2, screen_center.y - screen_size.y / 2 },
@@ -196,7 +196,7 @@ draw_world :: (client: *Client) {
     //
     for x := 0; x < client.world.size.x; ++x {
         for y := 0; y < client.world.size.y; ++y {
-            draw_entity(client, .Inanimate, .{ xx x, xx y }, .North);
+            draw_entity(client, .Inanimate, .{ xx x, xx y }, .{ 1, 1 }, .North);
         }
     }
     
@@ -205,7 +205,7 @@ draw_world :: (client: *Client) {
     //
     for i := 0; i < world.entities.count; ++i {
         entity := array_get_pointer(*world.entities, i);
-        draw_entity(client, entity.kind, entity.visual_position, entity.physical_rotation);
+        draw_entity(client, entity.kind, entity.visual_position, .{ 1, 1 }, entity.physical_rotation);
     }
 
     //
@@ -244,15 +244,20 @@ draw_world :: (client: *Client) {
         entity := array_get_pointer(*world.entities, i);
         if entity.kind == .Player {
             player := down(entity, Player);
+
             target_scale := screen_from_world_scale(client, .{ 0.9, 0.9 });
             target_position := screen_from_world_position(client, .{ xx player.target_position.x, xx player.target_position.y });
-
             draw_outlined_rect(client, target_position.x - target_scale.x / 2, target_position.y - target_scale.y / 2, target_position.x + target_scale.x / 2, target_position.y + target_scale.y / 2, 4, .{ 255, 255, 255, 255 });
             
             if #complete player.state == {
               case .Idle;
               case .Digging;
                 draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, player.progress_time_in_seconds / DIGGING_TIME);
+              case .Carrying;
+                world_position := entity.visual_position;
+                world_position.x += 0.25;
+                world_size :: v2f.{ 0.25, 0.25 };
+                draw_entity(client, player.carrying_item, world_position, world_size, .North);
             }
         }
     }    

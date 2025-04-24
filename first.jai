@@ -18,8 +18,8 @@ apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Tar
         options.debug_information = target == .Executable;
 
       case .Release;
-        options.target_backend = .C;
-        options.runtime_features = .None;
+        options.target_backend    = .C;
+        options.runtime_features  = .None;
         options.debug_information = false;
     }
 
