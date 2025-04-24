@@ -40,7 +40,7 @@ build_server :: (mode: Build_Mode, target: Build_Target) {
 }
 
 build_client :: (mode: Build_Mode) {
-    //build_server(mode, .Library);
+    build_server(mode, .Library);
 
     options := compiler_default_workspace_options();
     options.workspace_name    = "Client";

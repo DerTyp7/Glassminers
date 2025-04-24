@@ -2,6 +2,7 @@ Entity :: struct {
     pid: Pid;
     kind: Entity_Kind;
     marked_for_removal: bool;
+    created_this_frame: bool;
     moved_this_frame: bool;
 
     physical_rotation: Direction;
@@ -111,6 +112,7 @@ create_entity :: (world: *World, kind: Entity_Kind, position: v2i, rotation: Dir
     entity.pid                = pid;
     entity.kind               = kind;
     entity.marked_for_removal = false;
+    entity.created_this_frame = true;
     entity.moved_this_frame   = false;
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
@@ -166,6 +168,15 @@ get_entity_at_position :: (world: *World, position: v2i) -> *Entity {
     return null;
 }
 
+get_blocking_entity_at_position :: (world: *World, position: v2i) -> *Entity {
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        if is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
 can_move_to_position :: (world: *World, entity: *Entity, position: v2i) -> bool {
     move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
     return recursive_move_check(world, entity, move_delta);
@@ -210,7 +221,7 @@ recursive_move_check :: (world: *World, entity: *Entity, move_delta: v2i) -> boo
     if !position_in_bounds(world, position) then return false;
 
     // Make sure the space is unoccupied or can be moved away
-    collision := get_entity_at_position(world, position);
+    collision := get_blocking_entity_at_position(world, position);
     if collision != null && (!is_pushable_entity(collision.kind) || !recursive_move_check(world, collision, move_delta)) then return false;
 
     // Success!
@@ -220,7 +231,7 @@ recursive_move_check :: (world: *World, entity: *Entity, move_delta: v2i) -> boo
 recursive_move :: (world: *World, entity: *Entity, move_delta: v2i) {
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
-    collision := get_entity_at_position(world, position);
+    collision := get_blocking_entity_at_position(world, position);
     if collision recursive_move(world, collision, move_delta);
     
     entity.physical_position.x += move_delta.x;
@@ -229,5 +240,9 @@ recursive_move :: (world: *World, entity: *Entity, move_delta: v2i) {
 }
 
 is_pushable_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Crystal;
+    return kind == .Player || kind == .Crystal;
+}
+
+is_blocking_entity :: (kind: Entity_Kind) -> bool {
+    return kind == .Player || kind == .Crystal || kind == .Stone || kind == .Emitter || kind == .Receiver || kind == .Mirror;
 }

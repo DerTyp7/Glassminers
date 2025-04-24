@@ -179,7 +179,8 @@ create_the_game :: (server: *Server) {
     //
     for i := 0; i < server.world.entities.count; ++i {
         entity := array_get_pointer(*server.world.entities, i);
-
+        entity.created_this_frame = false;
+        
         msg := make_message(Create_Entity_Message);
         msg.create_entity.entity_pid = entity.pid;
         msg.create_entity.kind       = entity.kind;
@@ -263,23 +264,18 @@ do_game_tick :: (server: *Server) {
                 target_entity := get_entity_at_position(*server.world, player.target_position);
                 if !target_entity break;
                 
-                if target_entity.kind == .Stone {
+                if target_entity.kind == {
+                  case .Stone, .Crystal;
                     player.state = .Digging;
                     player.progress_time_in_seconds = 0;
-                } else if target_entity.kind == .Mirror {
+                  case .Mirror;
                     target_entity.physical_rotation = (target_entity.physical_rotation + 1) % Direction.Count;
                     target_entity.moved_this_frame  = true;
                 }
                 
               case .Build;
                 if get_entity_at_position(*server.world, player.target_position) == null {
-                    pid, entity := create_entity(*server.world, .Mirror, player.target_position, .North);
-                    msg := make_message(Create_Entity_Message);
-                    msg.create_entity.entity_pid = entity.pid;
-                    msg.create_entity.kind       = entity.kind;
-                    msg.create_entity.position   = entity.physical_position;
-                    msg.create_entity.rotation   = entity.physical_rotation;
-                    array_add(*server.outgoing_messages, msg);
+                    create_entity(*server.world, .Mirror, player.target_position, .North);
                 }
             }
         }
@@ -336,6 +332,11 @@ do_game_tick :: (server: *Server) {
                 if player.progress_time_in_seconds >= DIGGING_TIME {
                     target_entity := get_entity_at_position(*server.world, player.target_position);
                     target_entity.marked_for_removal = true;
+
+                    if target_entity.kind == .Crystal {
+                        create_entity(*server.world, .Shard, target_entity.physical_position, .North);
+                    }
+
                     player.state = .Idle;
                     player.progress_time_in_seconds = 0;
                 }
@@ -355,16 +356,22 @@ do_game_tick :: (server: *Server) {
     //
     for i := 0; i < server.world.entities.count; ++i {
         entity := array_get_pointer(*server.world.entities, i);
-        if entity.moved_this_frame {
+        if entity.created_this_frame && !entity.marked_for_removal {
+            msg := make_message(Create_Entity_Message);
+            msg.create_entity.entity_pid = entity.pid;
+            msg.create_entity.kind       = entity.kind;
+            msg.create_entity.position   = entity.physical_position;
+            msg.create_entity.rotation   = entity.physical_rotation;
+            array_add(*server.outgoing_messages, msg);
+            entity.created_this_frame = false;
+        } else if entity.moved_this_frame {
             msg := make_message(Move_Entity_Message);
             msg.move_entity.entity_pid = entity.pid;
             msg.move_entity.position   = entity.physical_position;
             msg.move_entity.rotation   = entity.physical_rotation;
             array_add(*server.outgoing_messages, msg);
             entity.moved_this_frame = false;
-        }
-        
-        if entity.marked_for_removal {
+        } else if entity.marked_for_removal {
             msg := make_message(Destroy_Entity_Message);
             msg.destroy_entity.entity_pid = entity.pid;
             array_add(*server.outgoing_messages, msg);

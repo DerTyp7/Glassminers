@@ -18,6 +18,7 @@ Entity_Kind :: enum {
     Emitter;
     Receiver;
     Mirror;
+    Shard;
 }
 
 Direction :: enum {
