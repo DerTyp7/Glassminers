@@ -1,26 +1,16 @@
 // Prometheus modules
-#load "basic.p";
-#load "virtual_connection.p";
+#load "basic.jai";
+#load "virtual_connection.jai";
 
 // Shared
-#load "../shared/messages.p";
-#load "../shared/world.p";
+#load "../shared/messages.jai";
+#load "../shared/world.jai";
+#load "../shared/shared.jai";
 
 // Server
-#load "world.p";
+#load "world.jai";
 
 TICK_RATE: f32 : 60;
-
-Shared_Server_Data :: struct {
-    state: enum {
-        Starting;
-        Running;
-        Closing;
-        Closed;
-    };
-
-    requested_port: u16;
-}
 
 Remote_Client :: struct {
     connection: Virtual_Connection;

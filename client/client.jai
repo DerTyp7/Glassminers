@@ -1,31 +1,20 @@
 // Prometheus modules
-#load "basic.p";
-#load "window.p";
-#load "ui.p";
-#load "mixer.p";
-#load "threads.p";
-#load "virtual_connection.p";
-#load "graphics_engine/graphics_engine.p";
+#load "basic.jai";
+#load "window.jai";
+#load "ui.jai";
+#load "mixer.jai";
+#load "threads.jai";
+#load "virtual_connection.jai";
+#load "graphics_engine/graphics_engine.jai";
 
 // Shared
-#load "../shared/messages.p";
-#load "../shared/world.p";
+#load "../shared/messages.jai";
+#load "../shared/world.jai";
+#load "../shared/shared.jai";
 
 // Client
-#load "draw.p";
-#load "world.p";
-
-// @Volatile: Must be in sync with server/server.p
-Shared_Server_Data :: struct {
-    state: enum {
-        Starting;
-        Running;
-        Closing;
-        Closed;
-    };
-
-    requested_port: u16;
-}
+#load "draw.jai";
+#load "world.jai";
 
 Game_State :: enum {
     Main_Menu;
@@ -81,12 +70,10 @@ Client :: struct {
 
 
 
-
 logprint :: (format: string, args: ..Any) {
     print(format, ..args);
     print("\n");
 }
-
 
 
 
@@ -489,8 +476,8 @@ main :: () -> s32 {
     ge_create(*client.graphics, *client.window, *client.perm);
     ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
-    client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png");
-    create_ui(*client.ui, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
+    client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png", .Filter_Nearest | .Wrap_Clamp_To_Edge);
+    create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 1);
 
     client.remote_clients.allocator = *client.perm;

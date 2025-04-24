@@ -6,22 +6,6 @@ draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
     return .{ client, draw_ui_text, draw_ui_rect, set_ui_scissors, clear_ui_scissors };
 }
 
-draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector2, foreground: UI_Color, background: UI_Color) {
-    ge_draw_text(*client.graphics, font, text, position.x, position.y, .Left | .Bottom, .{ foreground.r, foreground.g, foreground.b, foreground.a });    
-}
-
-draw_ui_rect :: (client: *Client, rect: UI_Rect, rounding: f32, color: UI_Color) {
-    ge_imm2d_colored_rect(*client.graphics, rect.x0, rect.y0, rect.x1, rect.y1, .{ color.r, color.g, color.b, color.a });
-}
-
-set_ui_scissors :: (client: *Client, rect: UI_Rect) {
-    ge_imm2d_set_scissors(*client.graphics, .[ rect.x0, rect.y0, rect.x1, rect.y1 ]);
-}
-
-clear_ui_scissors :: (client: *Client) {
-    ge_imm2d_clear_scissors(*client.graphics);
-}
-
 
 
 //
@@ -105,7 +89,7 @@ draw_progress_bar :: (client: *Client, x, y: f32, box_size: f32, percentage: f32
 
     gap_size := round(cast(f32) box_size * 0.1);
 
-    ge_imm2d_blend_mode(*client.graphics, .Default);
+    // @Incomplete: Set proper pipeline
     
     //
     // Draw the boxes
@@ -185,7 +169,7 @@ draw_world :: (client: *Client) {
     
     world :: *client.world;
 
-    ge_imm2d_blend_mode(*client.graphics, .Default);
+    // @Incomplete: Set proper pipeline
     
     //
     // Draw implicit background inanimates
@@ -292,4 +276,21 @@ calculate_uv_box_for_entity_kind :: (kind: Entity_Kind, rotation: Direction) -> 
     }
     
     return rotated_uvs;
+}
+
+draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector2, foreground: UI_Color, background: UI_Color) {
+    // @Incomplete: Set proper pipeline
+    ge_draw_text(*client.graphics, font, text, position.x, position.y, .Left | .Bottom, .{ foreground.r, foreground.g, foreground.b, foreground.a });    
+}
+
+draw_ui_rect :: (client: *Client, rect: UI_Rect, rounding: f32, color: UI_Color) {
+    // @Incomplete: Set proper pipeline
+    ge_imm2d_colored_rect(*client.graphics, rect.x0, rect.y0, rect.x1, rect.y1, .{ color.r, color.g, color.b, color.a });
+}
+
+set_ui_scissors :: (client: *Client, rect: UI_Rect) {
+    ge_set_scissors(*client.graphics, .[ rect.x0, rect.y0, rect.x1, rect.y1 ]);
+}
+
+clear_ui_scissors :: (client: *Client) {
 }
