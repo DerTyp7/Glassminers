@@ -272,10 +272,10 @@ do_game_tick :: (server: *Server) {
                 
                 if target_entity.kind == {
                     // @Incomplete: Allow desruction of built mirrors
-                  case .Bedrock, .Crystal;
+                  case .Bedrock, .Crystal, .Rock;
                     player.state = .Digging;
                     player.progress_time_in_seconds = 0;
-                  case .Shard;
+                  case .Shard, .Stone;
                     player.state = .Carrying;
                     player.carrying_item = target_entity.kind;
                     target_entity.marked_for_removal = true;
@@ -354,8 +354,10 @@ do_game_tick :: (server: *Server) {
                 if player.progress_time_in_seconds >= DIGGING_TIMES[target_entity.kind] {
                     target_entity.marked_for_removal = true;
 
-                    if target_entity.kind == .Crystal {
-                        create_entity(*server.world, .Shard, target_entity.physical_position, .North);
+                    // Generate the resource drop from the farmed entity
+                    if target_entity.kind == {
+                      case .Crystal; create_entity(*server.world, .Shard, target_entity.physical_position, .North);
+                      case .Rock; create_entity(*server.world, .Stone, target_entity.physical_position, .North);
                     }
 
                     player.state = .Idle;

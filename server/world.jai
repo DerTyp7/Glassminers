@@ -69,31 +69,19 @@ generate_world :: (world: *World, seed: s64) {
         return position;
     }
 
+    generate_n_random_entities :: (world: *World, kind: Entity_Kind, n: s64) {
+        for i := 0; i < n; ++i {
+            create_entity(world, kind, random_position(world), .North);
+        }
+    }
+    
     srand(cast(u32) seed); // @Cleanup: Use a proper random number generator
 
-    //
-    // Generate an emitter
-    //
     create_entity(world, .Emitter, .{ 0, 2 }, .East);
-    
-    //
-    // Create a receiver
-    //
     create_entity(world, .Receiver, .{ world.size.x - 1, 2 }, .West);
-    
-    //
-    // Generate some bedrock
-    //
-    for i := 0; i < 15; ++i {
-        create_entity(world, .Bedrock, random_position(world), .North);
-    }
-    
-    //
-    // Generate some crystals
-    //
-    for i := 0; i < 15; ++i {
-        create_entity(world, .Crystal, random_position(world), .North);
-    }
+    generate_n_random_entities(world, .Bedrock, world.size.x * 2);
+    generate_n_random_entities(world, .Rock, world.size.x / 4);
+    generate_n_random_entities(world, .Crystal, world.size.x / 4);
 }
 
 

@@ -16,6 +16,8 @@
 #load "draw.jai";
 #load "world.jai";
 
+// @Incomplete: Support a developer build that bakes all assets into the executable!
+
 Game_State :: enum {
     Main_Menu;
     Connecting;
@@ -441,6 +443,9 @@ do_game_tick :: (client: *Client) {
     {
         velocity: v2i = .{ 0, 0 };
 
+        // @Incomplete: Allow changing the target position without changing the player's position
+        // using the arrow keys?
+        
         if client.window.keys[.A] & .Repeated velocity.x -= 1;
         if client.window.keys[.D] & .Repeated velocity.x += 1;
         if client.window.keys[.W] & .Repeated && velocity.x == 0 velocity.y -= 1;

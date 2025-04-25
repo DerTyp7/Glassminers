@@ -18,6 +18,8 @@ DIGGING_TIMES: [Entity_Kind.Count]f32 : .[
     0, // Receiver
     3, // Mirror
     0, // Shard
+    5, // Rock
+    0, // Stone
 ];
 
 Entity_Kind :: enum {
@@ -29,6 +31,8 @@ Entity_Kind :: enum {
     Receiver;
     Mirror;
     Shard;
+    Rock;
+    Stone;
 }
 
 Direction :: enum {
@@ -125,9 +129,9 @@ recalculate_emitters :: (world: *World) {
 
 
 is_pushable_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal;
+    return kind == .Player || kind == .Crystal || kind == .Rock;
 }
 
 is_blocking_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal || kind == .Bedrock || kind == .Emitter || kind == .Receiver || kind == .Mirror;
+    return kind == .Player || kind == .Crystal || kind == .Bedrock || kind == .Emitter || kind == .Receiver || kind == .Mirror || kind == .Rock;
 }
