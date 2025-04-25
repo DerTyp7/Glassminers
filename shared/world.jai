@@ -7,14 +7,24 @@ Pid :: u32;
 
 INVALID_PID: Pid : -1;
 
-DIGGING_TIME:  f32 : 5;
 RECEIVER_TIME: f32 : 5;
+
+DIGGING_TIMES: [Entity_Kind.Count]f32 : .[
+    0, // Inanimate
+    0, // Player
+    3, // Crystal
+    7, // Bedrock
+    0, // Emitter
+    0, // Receiver
+    3, // Mirror
+    0, // Shard
+];
 
 Entity_Kind :: enum {
     Inanimate;
     Player;
     Crystal;
-    Stone;
+    Bedrock;
     Emitter;
     Receiver;
     Mirror;
@@ -119,5 +129,5 @@ is_pushable_entity :: (kind: Entity_Kind) -> bool {
 }
 
 is_blocking_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal || kind == .Stone || kind == .Emitter || kind == .Receiver || kind == .Mirror;
+    return kind == .Player || kind == .Crystal || kind == .Bedrock || kind == .Emitter || kind == .Receiver || kind == .Mirror;
 }

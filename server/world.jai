@@ -61,6 +61,7 @@ generate_world :: (world: *World, seed: s64) {
     random_position :: (world: *World) -> v2i {
         position := v2i.{ rand() % world.size.x, rand() % world.size.y };
 
+        // @Cleanup: Also check if the position will be required by a player-spawn later on.
         while get_entity_at_position(world, position) != null {
             position = v2i.{ rand() % world.size.x, rand() % world.size.y };
         }
@@ -81,10 +82,10 @@ generate_world :: (world: *World, seed: s64) {
     create_entity(world, .Receiver, .{ world.size.x - 1, 2 }, .West);
     
     //
-    // Generate some stones
+    // Generate some bedrock
     //
     for i := 0; i < 15; ++i {
-        create_entity(world, .Stone, random_position(world), .North);
+        create_entity(world, .Bedrock, random_position(world), .North);
     }
     
     //

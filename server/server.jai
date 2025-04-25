@@ -271,7 +271,8 @@ do_game_tick :: (server: *Server) {
                 if player.state != .Idle || !target_entity break;
                 
                 if target_entity.kind == {
-                  case .Stone, .Crystal;
+                    // @Incomplete: Allow desruction of built mirrors
+                  case .Bedrock, .Crystal;
                     player.state = .Digging;
                     player.progress_time_in_seconds = 0;
                   case .Shard;
@@ -348,9 +349,9 @@ do_game_tick :: (server: *Server) {
             
             if player.state == {
               case .Digging;
+                target_entity := get_entity_at_position(*server.world, player.target_position);
                 player.progress_time_in_seconds += server.frame_time;
-                if player.progress_time_in_seconds >= DIGGING_TIME {
-                    target_entity := get_entity_at_position(*server.world, player.target_position);
+                if player.progress_time_in_seconds >= DIGGING_TIMES[target_entity.kind] {
                     target_entity.marked_for_removal = true;
 
                     if target_entity.kind == .Crystal {

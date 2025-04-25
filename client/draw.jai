@@ -252,7 +252,8 @@ draw_world :: (client: *Client) {
             if #complete player.state == {
               case .Idle;
               case .Digging;
-                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, player.progress_time_in_seconds / DIGGING_TIME);
+                target_entity := get_entity_at_position(*client.world, player.target_position);
+                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, player.progress_time_in_seconds / DIGGING_TIMES[target_entity.kind]);
               case .Carrying;
                 world_position := entity.visual_position;
                 world_position.x += 0.25;
