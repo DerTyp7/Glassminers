@@ -6,9 +6,16 @@ create_draw_data :: (client: *Client) {
     ge_create(*client.graphics, *client.window, *client.perm);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, false });
+
+#if BAKE_ASSETS {
+    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, 13, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, 45, .Ascii);
+    client.sprite_atlas = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLAS.width, BAKED_SPRITE_ATLAS.height, BAKED_SPRITE_ATLAS.channels, BAKED_SPRITE_ATLAS.pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
+} #else {
     ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
     client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png", .Filter_Nearest | .Wrap_Clamp_To_Edge);
+}
 }
 
 destroy_draw_data :: (client: *Client) {

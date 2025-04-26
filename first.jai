@@ -1,5 +1,7 @@
 #load "compiler.jai";
 
+DEVELOPER_OPTIONS := []string.[ "Developer" ];
+
 Build_Mode :: enum {
     Debug;
     Release;
@@ -11,12 +13,14 @@ Build_Target :: enum {
 }
 
 apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Target) {
+    options.user_options = DEVELOPER_OPTIONS;
+
     if #complete mode == {
       case .Debug;
         options.target_backend    = .X64;
         options.runtime_features  = .Bounds_Check | .Cast_Check | .Overflow_Check;
         options.debug_information = target == .Executable;
-
+        
       case .Release;
         options.target_backend    = .C;
         options.runtime_features  = .None;

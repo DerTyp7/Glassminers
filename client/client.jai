@@ -1,4 +1,5 @@
 // Prometheus modules
+#load "compiler.jai";
 #load "basic.jai";
 #load "window.jai";
 #load "ui.jai";
@@ -15,8 +16,9 @@
 // Client
 #load "draw.jai";
 #load "world.jai";
+#load "assets.jai";
 
-// @Incomplete: Support a developer build that bakes all assets into the executable!
+DEVELOPER :: #run compiler_is_user_option_present("Developer");
 
 Game_State :: enum {
     Main_Menu;
