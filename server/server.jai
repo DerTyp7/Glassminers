@@ -206,7 +206,7 @@ do_lobby_tick :: (server: *Server) {
     for i := 0; i < server.incoming_messages.count; ++i {
         msg := array_get_pointer(*server.incoming_messages, i);
 
-        if msg.type == {
+        if msg.msg_type == {
           case .Player_Information;
             // Respond to this specific player by sending all other already-connected clients
             target := find_client_by_pid(server, msg.player_information.player_pid);
@@ -247,7 +247,7 @@ do_game_tick :: (server: *Server) {
     for i := 0; i < server.incoming_messages.count; ++i {
         msg := array_get_pointer(*server.incoming_messages, i);
         
-        if msg.type == {
+        if msg.msg_type == {
           case .Move_Entity;
             entity := get_entity(*server.world, msg.move_entity.entity_pid);
             
@@ -280,7 +280,7 @@ do_game_tick :: (server: *Server) {
                 if player.state != .Idle || !target_entity break;
                 
                 if target_entity.kind == {
-                    // @Incomplete: Allow desruction of built mirrors
+                    // @Incomplete: Allow destruction of built mirrors
                   case .Bedrock, .Crystal, .Rock;
                     player.state = .Digging;
                     player.progress_time_in_seconds = 0;

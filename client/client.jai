@@ -156,7 +156,7 @@ find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
 }
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
-    if #complete msg.type == {
+    if #complete msg.msg_type == {
       case .Request_Game_Start, .Player_Interact; // Ignore
 
       case .Player_Information;
@@ -186,7 +186,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Over;
         client.won_last_game = msg.game_over.you_won;
         transition_to_state(client, .Game_Over);
-        logprint(.Debug, "Game Over!");
         
       case .Create_Entity;
         create_entity_with_pid(*client.world, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
