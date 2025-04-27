@@ -142,12 +142,18 @@ get_blocking_entity_at_position :: (world: *World, position: v2i) -> *Entity {
 
 can_move_to_position :: (world: *World, entity: *Entity, position: v2i) -> bool {
     move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
-    return recursive_move_check(world, entity, move_delta);
+    if move_delta.x != 0 || move_delta.y != 0 {
+        return recursive_move_check(world, entity, move_delta);
+    } else {
+        return true;
+    }
 }
 
 move_to_position :: (world: *World, entity: *Entity, position: v2i) {
     move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
-    recursive_move(world, entity, move_delta);
+    if move_delta.x != 0 || move_delta.y != 0 {
+        recursive_move(world, entity, move_delta);
+    }
 }
 
 
@@ -178,6 +184,8 @@ is_emitter_field_at :: (world: *World, position: v2i) -> bool {
 #file_scope
 
 recursive_move_check :: (world: *World, entity: *Entity, move_delta: v2i) -> bool {
+    assert(move_delta.x != 0 || move_delta.y != 0, "Recursive move check with a delta of 0 leads to an infinite loop!");
+
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
     // Make sure the position is in bounds of the world
@@ -192,6 +200,8 @@ recursive_move_check :: (world: *World, entity: *Entity, move_delta: v2i) -> boo
 }
 
 recursive_move :: (world: *World, entity: *Entity, move_delta: v2i) {
+    assert(move_delta.x != 0 || move_delta.y != 0, "Recursive move with a delta of 0 leads to an infinite loop!");
+
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
     collision := get_blocking_entity_at_position(world, position);
