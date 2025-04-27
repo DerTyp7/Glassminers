@@ -57,9 +57,36 @@ draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignm
 }
 
 
-#if PROGRESS_BAR_AS_CIRCLE {
+draw_filling_boxes :: (client: *Client, x, y: f32, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
+    background :: GE_Color.{ 100, 100, 100, 200 };
 
-draw_progress_bar :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
+    gap_size := round(cast(f32) box_size * 0.1);
+    
+    //
+    // Draw the boxes
+    //
+    for i := 0; i < box_count; ++i {
+        theta := cast(f32) i / cast(f32) box_count;
+        
+        x0 := x + (theta - 0.5) * xx box_count * (box_size + gap_size);
+        x1 := x0 + box_size;
+        y0 := y - box_size / 2;
+        y1 := y + box_size / 2;
+        
+        alpha: f32 = ---;
+        if theta + (cast(f32) 1 / cast(f32) box_count) <= percentage then
+            alpha = 1;
+        else
+            alpha = clamp((percentage - theta) / (cast(f32) 1 / cast(f32) box_count), 0, 1);
+
+        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
+
+        draw_rect(client, x0, y0, x1, y1, background);
+        draw_rect(client, x0, y0, x1, y1, color);
+    }
+}
+
+draw_filling_circle :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
     draw_circle_segment :: (client: *Client, x, y: f32, outer_radius: f32, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
         subsegments :: 4;
         
@@ -109,39 +136,16 @@ draw_progress_bar :: (client: *Client, x, y: f32, outer_radius: f32, percentage:
     }
 }
 
-} #else {
-
 draw_progress_bar :: (client: *Client, x, y: f32, box_size: f32, percentage: f32) {
-    boxes :: 6;
-    background :: GE_Color.{ 100, 100, 100, 200 };
+    box_count :: 6;
     foreground :: GE_Color.{ 100, 240, 150, 200 };
-
-    gap_size := round(cast(f32) box_size * 0.1);
-    
-    //
-    // Draw the boxes
-    //
-    for i := 0; i < boxes; ++i {
-        theta := cast(f32) i / cast(f32) boxes;
-        
-        x0 := x + (theta - 0.5) * xx boxes * (box_size + gap_size);
-        x1 := x0 + box_size;
-        y0 := y - box_size / 2;
-        y1 := y + box_size / 2;
-        
-        alpha: f32 = ---;
-        if theta + (cast(f32) 1 / cast(f32) boxes) <= percentage then
-            alpha = 1;
-        else
-            alpha = clamp((percentage - theta) / (cast(f32) 1 / cast(f32) boxes), 0, 1);
-
-        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
-
-        draw_rect(client, x0, y0, x1, y1, background);
-        draw_rect(client, x0, y0, x1, y1, color);
-    }
+    draw_filling_boxes(client, x, y, box_count, box_size, percentage, foreground);
 }
 
+draw_health_bar :: (client: *Client, x, y: f32, box_size: f32, health, max_health: f32) {
+    box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
+    foreground :: GE_Color.{ 227, 60, 74, 255 };
+    draw_filling_boxes(client, x, y, box_count, box_size, health / max_health, foreground);    
 }
 
 
@@ -267,6 +271,11 @@ draw_world :: (client: *Client) {
                 world_position.x += 0.25;
                 world_size :: v2f.{ 0.25, 0.25 };
                 draw_entity(client, player.carrying_item, world_position, world_size, 0);
+            }
+
+            if entity.health < MAX_HEALTHS[.Player] {
+                screen_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y + 0.55) });
+                draw_health_bar(client, screen_position.x, screen_position.y, progress_bar_scale, entity.health, MAX_HEALTHS[.Player]);
             }
         }
     }    

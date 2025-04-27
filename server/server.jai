@@ -321,7 +321,7 @@ do_lobby_tick :: (server: *Server) {
 }
 
 do_game_tick :: (server: *Server) {
-    damage :: (server: *Server, entity: *Entity, immediate_damage: f32, predicted_change_over_time: f32) {
+    damage :: (server: *Server, entity: *Entity, immediate_damage: f32) {
         entity.health -= immediate_damage;
 
         msg := make_message(Entity_Health_Message);
@@ -375,6 +375,8 @@ do_game_tick :: (server: *Server) {
         entity := array_get_pointer(*server.world.entities, i);
         if entity.kind == .Player {
             player := down(entity, Player);
+
+            damage(server, entity, server.frame_time);
             
             look_vector := vector_from_direction(player.aim_direction);
             player.target_position = .{ entity.physical_position.x + look_vector.x, entity.physical_position.y + look_vector.y };
@@ -382,7 +384,7 @@ do_game_tick :: (server: *Server) {
             if player.state == {
               case .Digging;
                 target_entity := get_entity_at_position(*server.world, player.target_position);
-                damage(server, target_entity, PLAYER_DPS * server.frame_time, PLAYER_DPS);
+                damage(server, target_entity, PLAYER_DPS * server.frame_time);
                 
                 if target_entity.health <= 0 {
                     target_entity.marked_for_removal = true;
