@@ -286,7 +286,7 @@ create_the_game :: (server: *Server) {
     //
     // Generate the base world
     //
-    generate_world(*server.world, server.game_seed);
+    generate_world(*server.world, server.game_seed, server.clients.count);
 
     //
     // Generate one entity for each player and attach it to the player

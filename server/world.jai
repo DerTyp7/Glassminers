@@ -56,23 +56,28 @@ destroy_world :: (world: *World) {
     array_clear(*world.entities);
 }
 
-generate_world :: (world: *World, seed: s64) {
+generate_world :: (world: *World, seed: s64, player_count: s64) {
     rand :: () -> s32 #foreign;
     
-    random_position :: (world: *World) -> v2i {
+    is_blocked_position :: (world: *World, position: v2i, player_count: s64) -> bool {
+        return position.y >= 1 && position.y <= 3 &&
+            position.x >= 2 && position.x <= 2 + player_count + 1;
+    }
+
+    random_position :: (world: *World, player_count: s64) -> v2i {
         position := v2i.{ rand() % world.size.x, rand() % world.size.y };
 
         // @Cleanup: Also check if the position will be required by a player-spawn later on.
-        while get_entity_at_position(world, position) != null {
+        while get_entity_at_position(world, position) != null || is_blocked_position(world, position, player_count) {
             position = v2i.{ rand() % world.size.x, rand() % world.size.y };
         }
         
         return position;
     }
 
-    generate_n_random_entities :: (world: *World, kind: Entity_Kind, n: s64) {
+    generate_n_random_entities :: (world: *World, player_count: s64, kind: Entity_Kind, n: s64) {
         for i := 0; i < n; ++i {
-            create_entity(world, kind, random_position(world), .North);
+            create_entity(world, kind, random_position(world, player_count), .North);
         }
     }
     
@@ -80,9 +85,9 @@ generate_world :: (world: *World, seed: s64) {
 
     create_entity(world, .Emitter, .{ 0, 2 }, .East);
     create_entity(world, .Receiver, .{ world.size.x - 1, 2 }, .West);
-    generate_n_random_entities(world, .Bedrock, world.size.x * 2);
-    generate_n_random_entities(world, .Rock, world.size.x / 4);
-    generate_n_random_entities(world, .Crystal, world.size.x / 4);
+    generate_n_random_entities(world, player_count, .Bedrock, world.size.x * 2);
+    generate_n_random_entities(world, player_count, .Rock, world.size.x / 4);
+    generate_n_random_entities(world, player_count, .Crystal, world.size.x / 4);
 }
 
 
