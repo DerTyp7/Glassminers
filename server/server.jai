@@ -173,6 +173,8 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         entity := get_entity(*server.world, msg.player_move.entity_pid);
         player := down(entity, Player);
 
+        if player.state == .Dead break;
+        
         if can_move_to_position(*server.world, entity, msg.player_move.position) {
             move_to_position(*server.world, entity, msg.player_move.position);
         }
@@ -181,7 +183,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         
         // Cancel the current action of the player when moving, if appropriate
         if #complete player.state == {
-          case .Idle, .Carrying;
+          case .Dead, .Idle, .Carrying;
           case .Digging;
             player.state = .Idle;
         }
@@ -189,6 +191,9 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
       case .Player_Interact;
         entity := get_entity(*server.world, msg.player_interact.entity_pid);
         player := down(entity, Player);
+
+        if player.state == .Dead break;
+
         target_entity := get_entity_at_position(*server.world, player.target_position);
 
         if #complete msg.player_interact.interaction_kind == {            
@@ -209,7 +214,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
             if target_entity == null {
                 // Place a new entity
                 if #complete player.state == {
-                  case .Digging;
+                  case .Dead, .Digging;
                   case .Idle;
                     // @Temporary: Players can currently create mirrors out of thin air...
                     create_entity(*server.world, .Mirror, player.target_position, .North);
@@ -371,32 +376,42 @@ do_game_tick :: (server: *Server) {
     //
     // Update each player
     //
+    player_index := 0; // nocheckin
+    number_of_dead_players := 0;
+    
     for i := 0; i < server.world.entities.count; ++i {
         entity := array_get_pointer(*server.world.entities, i);
         if entity.kind == .Player {
             player := down(entity, Player);
 
-            damage(server, entity, server.frame_time);
+            // nocheckin
+            if player_index == number_of_dead_players then damage(server, entity, server.frame_time * 5);
+            ++player_index;
             
-            look_vector := vector_from_direction(player.aim_direction);
-            player.target_position = .{ entity.physical_position.x + look_vector.x, entity.physical_position.y + look_vector.y };
-            
-            if player.state == {
-              case .Digging;
-                target_entity := get_entity_at_position(*server.world, player.target_position);
-                damage(server, target_entity, PLAYER_DPS * server.frame_time);
+            if entity.health > 0 {
+                look_vector := vector_from_direction(player.aim_direction);
+                player.target_position = .{ entity.physical_position.x + look_vector.x, entity.physical_position.y + look_vector.y };
                 
-                if target_entity.health <= 0 {
-                    target_entity.marked_for_removal = true;
+                if player.state == {
+                  case .Digging;
+                    target_entity := get_entity_at_position(*server.world, player.target_position);
+                    damage(server, target_entity, PLAYER_DPS * server.frame_time);
+                    
+                    if target_entity.health <= 0 {
+                        target_entity.marked_for_removal = true;
 
-                    // Generate the resource drop from the farmed entity
-                    if target_entity.kind == {
-                      case .Crystal; create_entity(*server.world, .Shard, target_entity.physical_position, .North);
-                      case .Rock; create_entity(*server.world, .Stone, target_entity.physical_position, .North);
+                        // Generate the resource drop from the farmed entity
+                        if target_entity.kind == {
+                            case .Crystal; create_entity(*server.world, .Shard, target_entity.physical_position, .North);
+                            case .Rock; create_entity(*server.world, .Stone, target_entity.physical_position, .North);
+                        }
+
+                        player.state = .Idle;
                     }
-
-                    player.state = .Idle;
                 }
+            } else {
+                player.state = .Dead;
+                ++number_of_dead_players;
             }
             
             msg := make_message(Player_State_Message);
@@ -407,7 +422,11 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
         }
     }
-        
+
+    if number_of_dead_players == server.clients.count {
+        game_state = .Lost;
+    }
+    
     //
     // Figure out all updates this frame
     //

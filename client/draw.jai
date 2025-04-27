@@ -57,6 +57,10 @@ draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignm
 }
 
 
+// @Cleanup: Move some of this stuff into #file_scope
+// @Cleanup: Use v2f instead of x, y: f32
+// @Cleanup: Add explicit world / screen space for all draw helpers
+
 draw_filling_boxes :: (client: *Client, x, y: f32, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
     background :: GE_Color.{ 100, 100, 100, 200 };
 
@@ -86,30 +90,30 @@ draw_filling_boxes :: (client: *Client, x, y: f32, box_count: s64, box_size: f32
     }
 }
 
-draw_filling_circle :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
-    draw_circle_segment :: (client: *Client, x, y: f32, outer_radius: f32, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
-        subsegments :: 4;
+draw_circle_segment :: (client: *Client, x, y: f32, outer_radius: f32, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
+    subsegments :: 24;
+    
+    for i := 0; i < subsegments; ++i {
+        range  := theta1 - theta0;
+        seg_t0 := (cast(f32) i / cast(f32) subsegments * range + theta0) * FTAU;
+        seg_t1 := (cast(f32) (i + 1 % subsegments) / cast(f32) subsegments * range + theta0) * FTAU;
         
-        for i := 0; i < subsegments; ++i {
-            range  := theta1 - theta0;
-            seg_t0 := (cast(f32) i / cast(f32) subsegments * range + theta0) * FTAU;
-            seg_t1 := (cast(f32) (i + 1 % subsegments) / cast(f32) subsegments * range + theta0) * FTAU;
-            
-            p0 := v2f.{ x + sinf(seg_t0) * outer_radius, y - cosf(seg_t0) * outer_radius };
-            p1 := v2f.{ x + sinf(seg_t1) * outer_radius, y - cosf(seg_t1) * outer_radius };
-            p2 := v2f.{ x + sinf(seg_t0) * inner_radius, y - cosf(seg_t0) * inner_radius };
-            p3 := v2f.{ x + sinf(seg_t1) * inner_radius, y - cosf(seg_t1) * inner_radius };
-            
-            ge_imm2d_colored_vertex(*client.graphics, p0.x, p0.y, color);
-            ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
-            ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
+        p0 := v2f.{ x + sinf(seg_t0) * outer_radius, y - cosf(seg_t0) * outer_radius };
+        p1 := v2f.{ x + sinf(seg_t1) * outer_radius, y - cosf(seg_t1) * outer_radius };
+        p2 := v2f.{ x + sinf(seg_t0) * inner_radius, y - cosf(seg_t0) * inner_radius };
+        p3 := v2f.{ x + sinf(seg_t1) * inner_radius, y - cosf(seg_t1) * inner_radius };
+        
+        ge_imm2d_colored_vertex(*client.graphics, p0.x, p0.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
 
-            ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
-            ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
-            ge_imm2d_colored_vertex(*client.graphics, p3.x, p3.y, color);
-        }
+        ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p3.x, p3.y, color);
     }
+}
 
+draw_filling_circle :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
     segments :: 6;
     background :: GE_Color.{ 100, 100, 100, 200 };
     foreground :: GE_Color.{ 100, 240, 150, 200 };
@@ -134,6 +138,10 @@ draw_filling_circle :: (client: *Client, x, y: f32, outer_radius: f32, percentag
         draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, background);
         draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, color);
     }
+}
+
+draw_circle :: (client: *Client, x, y: f32, inner_radius, outer_radius: f32, color: GE_Color) {
+    draw_circle_segment(client, x, y, inner_radius, outer_radius, 0, 1, color);
 }
 
 draw_progress_bar :: (client: *Client, x, y: f32, box_size: f32, percentage: f32) {
@@ -197,7 +205,7 @@ draw_world :: (client: *Client) {
         }
     }
 
-    progress_bar_scale := round(screen_from_world_scale(client, .{ 0.9, 0.9 }).y * 0.13333);
+    progress_bar_scale := round(screen_from_world_scale(client, .{ 0, 0.9 * 0.13333 }).y);
     
     world :: *client.world;
 
@@ -263,6 +271,10 @@ draw_world :: (client: *Client) {
             
             if #complete player.state == {
               case .Idle;
+              case .Dead;
+                halo_scale    := round(screen_from_world_scale(client, .{ 0, 0.25 }).y);
+                halo_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) });
+                draw_circle(client, halo_position.x, halo_position.y, halo_scale, halo_scale * 1.2, .{ 255, 238, 116, 255 });
               case .Digging;
                 target_entity := get_entity_at_position(*client.world, player.target_position);
                 draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);

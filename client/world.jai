@@ -23,9 +23,9 @@ Entity :: struct {
 
 Player :: struct {
     KIND :: Entity_Kind.Player;
-    state: Player_State;
+    state: Player_State = .Idle;
     target_position: v2i;
-    carrying_item: Entity_Kind;
+    carrying_item: Entity_Kind = 0;
 }
 
 Emitter :: struct {
@@ -107,9 +107,9 @@ create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position:
     entity.derived            = null;
     
     if entity.kind == {
-      case .Player;   entity.derived = allocate(world.allocator, Player);
-      case .Emitter;  entity.derived = allocate(world.allocator, Emitter);
-      case .Receiver; entity.derived = allocate(world.allocator, Receiver);
+      case .Player;   entity.derived = new(world.allocator, Player);
+      case .Emitter;  entity.derived = new(world.allocator, Emitter);
+      case .Receiver; entity.derived = new(world.allocator, Receiver);
     }
 
     return entity;

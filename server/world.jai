@@ -15,10 +15,10 @@ Entity :: struct {
 
 Player :: struct {
     KIND :: Entity_Kind.Player;
-    state: Player_State;
-    aim_direction: Direction;
-    target_position: v2i;
-    carrying_item: Entity_Kind;
+    state: Player_State = .Idle;
+    aim_direction: Direction = .North;
+    target_position: v2i = .{ 0, 0 };
+    carrying_item: Entity_Kind = 0;
 }
 
 Emitter :: struct {
@@ -111,9 +111,9 @@ create_entity :: (world: *World, kind: Entity_Kind, position: v2i, rotation: Dir
     entity.derived            = null;
 
     if kind == {
-      case .Player;   entity.derived = allocate(world.allocator, Player);
-      case .Emitter;  entity.derived = allocate(world.allocator, Emitter);
-      case .Receiver; entity.derived = allocate(world.allocator, Receiver);
+      case .Player;   entity.derived = new(world.allocator, Player);
+      case .Emitter;  entity.derived = new(world.allocator, Emitter);
+      case .Receiver; entity.derived = new(world.allocator, Receiver);
     }
     
     ++world.pid_counter;

@@ -51,6 +51,8 @@ Client :: struct {
     ui_pipeline: *GE_Pipeline;
     entity_pipeline: *GE_Pipeline;
     
+    epoch_time: f32;
+    
     current_state: Game_State;
     next_state: Game_State;
 
@@ -599,6 +601,7 @@ main :: () -> s32 {
             ge_swap_buffers(*client.graphics);
         }
 
+        client.epoch_time += client.window.frame_time;
         release_temp_allocator(0);
         
         frame_end := os_get_hardware_time();

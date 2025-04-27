@@ -45,6 +45,7 @@ Direction :: enum {
 }
 
 Player_State :: enum {
+    Dead;
     Idle;
     Digging;
     Carrying;
