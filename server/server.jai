@@ -1,6 +1,7 @@
 // Prometheus modules
 #load "basic.jai";
 #load "virtual_connection.jai";
+#load "threads.jai";
 
 // Shared
 #load "../shared/messages.jai";
@@ -51,7 +52,14 @@ Server :: struct {
     frame_time: f32;
 }
 
-logprint :: (format: string, args: ..Any) {
+Log_Level :: enum {
+    Debug;
+    Warning;
+    Error;
+}
+
+logprint :: (level: Log_Level, format: string, args: ..Any) {
+    print("[%] ", enum_names(Log_Level)[level]);
     print(format, ..args);
     print("\n");
 }
@@ -90,14 +98,14 @@ handle_connection_request :: (server: *Server) {
     
     ++server.client_pid_counter;
     
-    logprint("Connected to client '%'.", client.player_pid);
+    logprint(.Debug, "Connected to client '%'.", client.player_pid);
 }
 
 handle_connection_closed :: (server: *Server) {
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
         if client.player_pid == server.connection.incoming_packet.header.sender_client_id {
-            logprint("Disconnected from client '%'.", client.player_pid);
+            logprint(.Debug, "Disconnected from client '%'.", client.player_pid);
 
             // @Cleanup: We should probably also remove the entity here...
             
@@ -117,7 +125,8 @@ send_all_outgoing_messages :: (server: *Server) {
     for j := 0; j < server.clients.count; ++j {
         client := array_get_pointer(*server.clients, j);
         for i := 0; i < server.outgoing_messages.count; ++i {
-            send_reliable_message(*client.connection, array_get_pointer(*server.outgoing_messages, i));
+            message := array_get_pointer(*server.outgoing_messages, i);
+            send_reliable_message(*client.connection, message);
         }
     }
     
@@ -216,7 +225,7 @@ do_lobby_tick :: (server: *Server) {
             
             // Broadcast the message along
             array_add(*server.outgoing_messages, ~msg);
-
+            
           case .Request_Game_Start;
             create_the_game(server);
             transition_to_state(server, .Ingame);
@@ -407,6 +416,7 @@ do_game_tick :: (server: *Server) {
         msg.game_over.you_won = game_state == .Won;
         array_add(*server.outgoing_messages, msg);
         transition_to_state(server, .Game_Over);
+        logprint(.Debug, "Game Over!");
     }
 
     //
@@ -438,21 +448,21 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.outgoing_messages.allocator = *temp;
 
     if create_server_connection(*server.connection, .UDP, data.requested_port) == .Success {
-        data.state = .Running;
+        atomic_store(cast(*s64) *data.state, Server_State.Running);
     } else {
-        data.state = .Closing;
+        atomic_store(cast(*s64) *data.state, Server_State.Closing);
     }
     
     server.current_state = .Count;
     server.next_state    = .Count;
     server.client_pid_counter = 1;
     
-    logprint("Started the server.");
+    logprint(.Debug, "Started the server.");
     
     transition_to_state(*server, .Lobby);
     switch_to_next_state(*server);
     
-    while data.state == .Running {
+    while atomic_load(cast(*s64) *data.state) == Server_State.Running {
         tick_start := os_get_hardware_time();
 
         server.frame_time = 1 / TICK_RATE;
@@ -501,15 +511,15 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
 
     transition_to_state(*server, .Count); // Shut down all resources that might currently be in use
     
-    data.state = .Closing;
+    atomic_store(cast(*s64) *data.state, Server_State.Closing);
     
     destroy_connection(*server.connection);
     array_clear(*server.clients);
     destroy_temp_allocator();
 
-    logprint("Stopped the server.");
+    logprint(.Debug, "Stopped the server.");
     
-    data.state = .Closed;
+    atomic_store(cast(*s64) *data.state, Server_State.Closed);
 
     return 0;
 }

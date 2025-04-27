@@ -308,7 +308,7 @@ calculate_uv_box_for_entity_kind :: (kind: Entity_Kind, rotation: Direction) -> 
     
     shift: u32 = rotation;
     
-    for i := 0; i < rotated_uvs.Capacity; ++i {
+    for i: u32 = 0; i < rotated_uvs.Capacity; ++i {
         rotated_uvs[i] = unrotated_uvs[(i -% shift) % unrotated_uvs.Capacity];
     }
     

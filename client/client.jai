@@ -93,10 +93,10 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
 host_server :: (client: *Client, port: u16) {
     server_entry_point :: (data: *Shared_Server_Data) -> u32 #foreign;
 
-    client.server_data.state          = .Starting;
+    client.server_data.state = .Starting;
     client.server_data.requested_port = port;
     client.server_thread = create_thread(server_entry_point, *client.server_data, false);
-    while client.server_data.state == .Starting {}
+    while atomic_load(cast(*s64) *client.server_data.state) == Server_State.Starting {}
 }
 
 join_server :: (client: *Client, name: string, host: string, port: u16) {
@@ -130,8 +130,8 @@ start_lobby :: (client: *Client) {
 }
 
 maybe_shutdown_server :: (client: *Client) {
-    if client.server_data.state != .Closed {
-        client.server_data.state = .Closing;
+    previous, success := atomic_compare_and_exchange(cast(*s64) *client.server_data.state, Server_State.Running, Server_State.Closing);
+    if success {
         join_thread(*client.server_thread);
     }
 }
@@ -186,7 +186,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Over;
         client.won_last_game = msg.game_over.you_won;
         transition_to_state(client, .Game_Over);
-
+        logprint(.Debug, "Game Over!");
+        
       case .Create_Entity;
         create_entity_with_pid(*client.world, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
 
@@ -225,7 +226,7 @@ read_incoming_packets :: (client: *Client) {
           case Packet_Type.Connection_Request; // Ignore
           
           case Packet_Type.Connection_Established;
-            if client.current_state == .Connecting {
+            if client.next_state == .Connecting {
                 client.my_player_pid = client.connection.incoming_packet.header.sender_client_id;
                 client.connection.info.client_id = client.my_player_pid;
                 transition_to_state(client, .Lobby);
@@ -559,7 +560,7 @@ main :: () -> s32 {
         frame_end := os_get_hardware_time();
         os_sleep_to_tick_rate(frame_start, frame_end, 144);
     }
-
+    
     // Shut down all resources that might currently be in use
     transition_to_state(*client, .Count);
     switch_to_next_state(*client);

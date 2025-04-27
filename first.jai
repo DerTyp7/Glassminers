@@ -1,4 +1,5 @@
 #load "compiler.jai";
+#load "print.jai";
 
 DEVELOPER_OPTIONS := []string.[ "Developer" ];
 
@@ -13,13 +14,13 @@ Build_Target :: enum {
 }
 
 apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Target) {
-    options.user_options = DEVELOPER_OPTIONS;
 
     if #complete mode == {
       case .Debug;
         options.target_backend    = .X64;
         options.runtime_features  = .Bounds_Check | .Cast_Check | .Overflow_Check;
-        options.debug_information = target == .Executable;
+        options.debug_information = target == .Executable || options.target_backend == .C;
+        options.user_options = DEVELOPER_OPTIONS;
         
       case .Release;
         options.target_backend    = .C;
@@ -65,6 +66,7 @@ build_client :: (mode: Build_Mode) {
                 case "release"; build_client(.Release);
                 case "server-debug"; build_server(.Debug, .Executable);
                 case "server-release"; build_server(.Release, .Executable);
+                case; print("Unknown build option, please specify one of: [ 'debug', 'release', 'server-debug', 'server-release' ].\n");
             }
         }
     } else {

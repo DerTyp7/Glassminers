@@ -1,11 +1,11 @@
+Server_State :: enum {
+    Starting;
+    Running;
+    Closing;
+    Closed;
+}
 
 Shared_Server_Data :: struct {
-    state: enum {
-        Starting;
-        Running;
-        Closing;
-        Closed;
-    };
-
+    state: Server_State;
     requested_port: u16;
 }
