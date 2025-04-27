@@ -12,10 +12,11 @@ Entity :: struct {
     kind: Entity_Kind;
     marked_for_removal: bool;
 
-    physical_rotation: Direction;    
     physical_position: v2i;
+    physical_rotation: Direction;    
     visual_position: v2f;
-
+    visual_rotation: f32;
+    
     derived: *void;
 }
 
@@ -113,6 +114,7 @@ create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position:
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.visual_position    = .{ xx position.x, xx position.y };
+    entity.visual_rotation    = visual_from_physical_rotation(rotation);
     entity.derived            = null;
     
     if entity.kind == {

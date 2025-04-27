@@ -7,6 +7,7 @@ Message_Type :: enum {
     Create_Entity;
     Destroy_Entity;
     Move_Entity;
+    Player_Move;
     Player_State;
     Player_Interact;
     Receiver_State;
@@ -59,6 +60,13 @@ Move_Entity_Message :: struct {
     rotation: Direction;
 }
 
+Player_Move_Message :: struct {
+    MSG_TYPE :: Message_Type.Player_Move;
+    entity_pid: Pid;
+    position: v2i;
+    aim_direction: Direction;
+}
+
 Player_State_Message :: struct {
     MSG_TYPE :: Message_Type.Player_State;
     entity_pid: Pid;
@@ -94,6 +102,7 @@ Message :: struct {
         destroy_entity: Destroy_Entity_Message;
         move_entity: Move_Entity_Message;
         player_state: Player_State_Message;
+        player_move: Player_Move_Message;
         player_interact: Player_Interact_Message;
         receiver_state: Receiver_State_Message;
     };
@@ -139,6 +148,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Create_Entity;      result = type_id(Create_Entity_Message);
       case .Destroy_Entity;     result = type_id(Destroy_Entity_Message);
       case .Move_Entity;        result = type_id(Move_Entity_Message); 
+      case .Player_Move;        result = type_id(Player_Move_Message);
       case .Player_State;       result = type_id(Player_State_Message);
       case .Player_Interact;    result = type_id(Player_Interact_Message);
       case .Receiver_State;     result = type_id(Receiver_State_Message);

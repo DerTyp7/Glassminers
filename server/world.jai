@@ -7,17 +7,17 @@ Entity :: struct {
 
     physical_rotation: Direction;
     physical_position: v2i;
-
+    
     derived: *void;
 }
 
 Player :: struct {
     KIND :: Entity_Kind.Player;
     state: Player_State;
+    aim_direction: Direction;
     target_position: v2i;
     progress_time_in_seconds: f32;
     carrying_item: Entity_Kind;
-    aim_direction: Direction;
 }
 
 Emitter :: struct {

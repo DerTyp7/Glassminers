@@ -85,6 +85,19 @@ reflect_direction :: (incoming: Direction, mirror: Direction) -> Direction, bool
         return .Count, false;
 }
 
+visual_from_physical_rotation :: (in: Direction) -> f32 {
+    out: f32 = ---;
+
+    if #complete in == {
+      case .North; out = 0;
+      case .East;  out = 0.25;
+      case .South; out = 0.5;
+      case .West;  out = 0.75;
+    }
+    
+    return out;
+}
+
 
 
 recalculate_emitters :: (world: *World) {

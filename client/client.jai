@@ -157,7 +157,7 @@ find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Request_Game_Start, .Player_Interact; // Ignore
+      case .Request_Game_Start, .Player_Interact, .Player_Move; // Ignore
 
       case .Player_Information;
         if msg.player_information.player_pid != client.my_player_pid {
@@ -196,9 +196,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Move_Entity;
         entity := get_entity(*client.world, msg.move_entity.entity_pid);
-        entity.physical_rotation = msg.move_entity.rotation;
         entity.physical_position = msg.move_entity.position;
+        entity.physical_rotation = msg.move_entity.rotation;
         entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
+        entity.visual_rotation   = visual_from_physical_rotation(entity.physical_rotation);
         
       case .Player_State;
         entity := get_entity(*client.world, msg.player_state.entity_pid);
@@ -443,23 +444,67 @@ do_game_tick :: (client: *Client) {
 
     // Forward player input to the server
     {
-        velocity: v2i = .{ 0, 0 };
-
-        // @Incomplete: Allow changing the target position without changing the player's position
-        // using the arrow keys?
+        send_player_move := false;
+        new_position: v2i = ---;
+        new_aim_direction: Direction = ---;
         
-        if client.window.keys[.A] & .Repeated velocity.x -= 1;
-        if client.window.keys[.D] & .Repeated velocity.x += 1;
-        if client.window.keys[.W] & .Repeated && velocity.x == 0 velocity.y -= 1;
-        if client.window.keys[.S] & .Repeated && velocity.x == 0 velocity.y += 1;
-
-        if velocity.x != 0 || velocity.y != 0 {
+        if client.window.keys[.A] & .Repeated {
             entity := get_entity(*client.world, client.my_entity_pid);
+            new_position.x    = entity.physical_position.x - 1;
+            new_position.y    = entity.physical_position.y;
+            new_aim_direction = .West;
+            send_player_move  = true;
+        }
 
-            msg := make_message(Move_Entity_Message);
-            msg.move_entity.entity_pid = entity.pid;
-            msg.move_entity.position.x = entity.physical_position.x + velocity.x;
-            msg.move_entity.position.y = entity.physical_position.y + velocity.y;
+        if client.window.keys[.D] & .Repeated {
+            entity := get_entity(*client.world, client.my_entity_pid);
+            new_position.x = entity.physical_position.x + 1;
+            new_position.y = entity.physical_position.y;
+            new_aim_direction = .East;
+            send_player_move = true;
+        }
+
+        if client.window.keys[.W] & .Repeated {
+            entity := get_entity(*client.world, client.my_entity_pid);
+            new_position.x = entity.physical_position.x;
+            new_position.y = entity.physical_position.y - 1;
+            new_aim_direction = .North;
+            send_player_move = true;
+        }
+
+        if client.window.keys[.S] & .Repeated {
+            entity := get_entity(*client.world, client.my_entity_pid);
+            new_position.x = entity.physical_position.x;
+            new_position.y = entity.physical_position.y + 1;
+            new_aim_direction = .South;
+            send_player_move = true;
+        }
+
+        if client.window.keys[.Arrow_Left] & .Pressed {
+            new_aim_direction = .West;
+            send_player_move = true;
+        }
+
+        if client.window.keys[.Arrow_Right] & .Pressed {
+            new_aim_direction = .East;
+            send_player_move = true;
+        }
+
+        if client.window.keys[.Arrow_Up] & .Pressed {
+            new_aim_direction = .North;
+            send_player_move = true;
+        }
+
+        if client.window.keys[.Arrow_Down] & .Pressed {
+            new_aim_direction = .South;
+            send_player_move = true;
+        }
+        
+        if send_player_move {
+            msg := make_message(Player_Move_Message);
+            msg.player_move.entity_pid    = client.my_entity_pid;
+            msg.player_move.position      = new_position;
+            msg.player_move.aim_direction = new_aim_direction;
             array_add(*outgoing_messages, msg);
         }
         

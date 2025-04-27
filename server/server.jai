@@ -133,7 +133,9 @@ send_all_outgoing_messages :: (server: *Server) {
 }
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
-    if msg.msg_type == {
+    if #complete msg.msg_type == {
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Player_State, .Receiver_State; // Ignore
+
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
         target := find_client_by_pid(server, msg.player_information.player_pid);
@@ -166,17 +168,23 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
             move_to_position(*server.world, entity, msg.move_entity.position);
         }
         
-        if entity.kind == .Player {
-            player := down(entity, Player);
-            player.aim_direction = direction_from_vector(move_delta);
+        
+      case .Player_Move;
+        entity := get_entity(*server.world, msg.player_move.entity_pid);
+        player := down(entity, Player);
 
-            // Cancel the current action of the player when moving, if appropriate
-            if #complete player.state == {
-                case .Idle, .Carrying;
-                case .Digging;
-                player.state = .Idle;
-                player.progress_time_in_seconds = 0;
-            }
+        if can_move_to_position(*server.world, entity, msg.player_move.position) {
+            move_to_position(*server.world, entity, msg.player_move.position);
+        }
+
+        player.aim_direction = msg.player_move.aim_direction;
+        
+        // Cancel the current action of the player when moving, if appropriate
+        if #complete player.state == {
+          case .Idle, .Carrying;
+          case .Digging;
+            player.state = .Idle;
+            player.progress_time_in_seconds = 0;
         }
         
       case .Player_Interact;
@@ -190,10 +198,10 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
             
             if target_entity.kind == {
                 // @Incomplete: Allow destruction of built mirrors
-                case .Bedrock, .Crystal, .Rock;
+              case .Bedrock, .Crystal, .Rock;
                 player.state = .Digging;
                 player.progress_time_in_seconds = 0;
-                case .Shard, .Stone;
+              case .Shard, .Stone;
                 player.state = .Carrying;
                 player.carrying_item = target_entity.kind;
                 target_entity.marked_for_removal = true;
@@ -203,11 +211,11 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
             if target_entity == null {
                 // Place a new entity
                 if #complete player.state == {
-                    case .Digging;
-                    case .Idle;
+                  case .Digging;
+                  case .Idle;
                     // @Temporary: Players can currently create mirrors out of thin air...
                     create_entity(*server.world, .Mirror, player.target_position, .North);
-                    case .Carrying;
+                  case .Carrying;
                     create_entity(*server.world, player.carrying_item, player.target_position, .North);
                     player.state = .Idle;
                     player.carrying_item = .Inanimate;
