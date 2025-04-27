@@ -1,12 +1,3 @@
-#load "math/Vector.jai";
-
-v2i :: Vector2_Base(s32);
-v2f :: Vector2_Base(f32);
-
-Pid :: u32;
-
-INVALID_PID: Pid : -1;
-
 RECEIVER_TIME_TO_CHARGE: f32 : 5;
 HEALTH_PER_HEART: f32 : 10;
 PLAYER_DPS: f32 : HEALTH_PER_HEART;

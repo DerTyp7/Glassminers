@@ -222,8 +222,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 }
 
 read_incoming_packets :: (client: *Client) {
-    msg: Message = ---;
-    
     while read_packet(*client.connection) {
         update_virtual_connection_information_for_packet(*client.connection, *client.connection.incoming_packet.header);
         
@@ -244,11 +242,25 @@ read_incoming_packets :: (client: *Client) {
           
           case Packet_Type.Connection_Closed;
             disconnect_from_server(client); // Server closed on us
-          
+
+          case Packet_Type.Ping;
+            
           case Packet_Type.Message;
-            read_message(*client.connection, *msg);
-            handle_incoming_message(client, *msg);
+            msg: Message = ---;
+            while read_message(*client.connection, *msg) {
+                handle_incoming_message(client, *msg);
+            }
         }
+    }
+}
+
+handle_server_timeout :: (client: *Client) {
+    if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
+        // @Cleanup: We should probably inform the player on why they were disconnected, by showing
+        // a message in the main menu?
+        disconnect_from_server(client);
+    } else if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
+        send_ping_packet(*client.connection);
     }
 }
 
@@ -275,6 +287,7 @@ switch_to_next_state :: (client: *Client) {
         
       case .Ingame;
         destroy_world(*client.world);
+        disconnect_from_server(client);
         maybe_shutdown_server(client);
     }
 
@@ -311,10 +324,11 @@ do_main_menu :: (client: *Client) {
         ui_divider(ui, true);
         
         if ui_button(ui, "Host!") {
-            // @Temporary: Developer helpers
+#if DEVELOPER {
             if !name._string.count then { name._string = "Victor"; name.valid = true; }
             if !port.valid then { port._int = 9876; port.valid = true; }
-            
+}
+    
             if name.valid && port.valid {
                 host_server(client, port._int);
                 join_server(client, name._string, "localhost", port._int);
@@ -336,13 +350,16 @@ do_main_menu :: (client: *Client) {
         port := ui_text_input(ui, "Enter the port", .Integer);
         ui_divider(ui, true);
         
-        if ui_button(ui, "Join!") && name.valid && host.valid && port.valid {
-            // @Temporary: Developer helpers
-            if !name._string.count then { name._string = "Victor"; name.valid = true; }
+        if ui_button(ui, "Join!") {
+#if DEVELOPER {
+            if !name._string.count then { name._string = "Surreal"; name.valid = true; }
             if !host._string.count then { host._string = "localhost"; host.valid = true; }
             if !port.valid then { port._int = 9876; port.valid = true; }
-
-            join_server(client, name._string, host._string, port._int);
+}
+                
+            if name.valid && host.valid && port.valid {
+                join_server(client, name._string, host._string, port._int);
+            }
         }
         
         ui_pop_window(ui);
@@ -353,7 +370,8 @@ do_main_menu :: (client: *Client) {
 
 do_connecting_screen :: (client: *Client) {
     read_incoming_packets(client);
-
+    handle_server_timeout(client);
+    
     {
         ui :: *client.ui;
         ui_push_width(ui, .Pixels, 256, 1);
@@ -370,6 +388,7 @@ do_connecting_screen :: (client: *Client) {
 
 do_lobby_screen :: (client: *Client) {
     read_incoming_packets(client);
+    handle_server_timeout(client);
 
     {
         ui :: *client.ui;
@@ -430,6 +449,7 @@ do_game_tick :: (client: *Client) {
     }
 
     read_incoming_packets(client);
+    handle_server_timeout(client);
 
     // Update all emitters based on the data received by the server
     recalculate_emitters(*client.world);

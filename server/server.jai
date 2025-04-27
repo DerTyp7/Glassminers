@@ -12,7 +12,7 @@
 // Server
 #load "world.jai";
 
-TICK_RATE: f32 : 60;
+TICK_RATE: f32 : 30;
 
 Remote_Client :: struct {
     connection: Virtual_Connection;
@@ -74,61 +74,27 @@ find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
     return null;
 }
 
-handle_connection_request :: (server: *Server) {
-    if server.current_state != .Lobby return; // If we aren't in the lobby, don't accept new clients
+handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
+    logprint(.Debug, "Disconnected from client '%'.", client.player_pid);
 
-    // Check if we already have a client connected at this remote, because the client will spam
-    // this connection request a few times to combat potential packet loss.
-    for i := 0; i < server.clients.count; ++i {
-        connected_client := array_get_pointer(*server.clients, i);
-        if remote_sockets_equal(*server.connection.remote, *connected_client.connection.remote) {
-            return;
-        }
+    if server.current_state == .Ingame {
+        entity := get_entity(*server.world, client.entity_pid);
+        entity.marked_for_removal = true;
     }
-
-    //
-    // Create a new client on this server
-    //    
-    client := array_push(*server.clients);
-    client.connection = create_udp_remote_client_connection(*server.connection);
-    client.player_pid = server.client_pid_counter;
-    client.entity_pid = INVALID_PID;
-    client.connection.info.client_id = client.player_pid;
+        
+    msg := make_message(Player_Disconnect_Message);
+    msg.player_disconnect.player_pid = client.player_pid;
+    array_add(*server.outgoing_messages, msg);
     
-    send_connection_established_packet(*client.connection, 5);
+    if client.name deallocate_string(*server.perm, *client.name);
     
-    ++server.client_pid_counter;
-    
-    logprint(.Debug, "Connected to client '%'.", client.player_pid);
-}
-
-handle_connection_closed :: (server: *Server) {
-    for i := 0; i < server.clients.count; ++i {
-        client := array_get_pointer(*server.clients, i);
-        if client.player_pid == server.connection.incoming_packet.header.sender_client_id {
-            logprint(.Debug, "Disconnected from client '%'.", client.player_pid);
-
-            // @Cleanup: We should probably also remove the entity here...
-            
-            msg := make_message(Player_Disconnect_Message);
-            msg.player_disconnect.player_pid = client.player_pid;
-            array_add(*server.outgoing_messages, msg);
-            
-            if client.name deallocate_string(*server.perm, *client.name);
-            
-            array_remove_index(*server.clients, i);
-            break;
-        }
-    }
+    array_remove_value_pointer(*server.clients, client);
 }
 
 send_all_outgoing_messages :: (server: *Server) {
     for j := 0; j < server.clients.count; ++j {
         client := array_get_pointer(*server.clients, j);
-        for i := 0; i < server.outgoing_messages.count; ++i {
-            message := array_get_pointer(*server.outgoing_messages, i);
-            send_reliable_message(*client.connection, message);
-        }
+        send_reliable_messages(*client.connection, *server.outgoing_messages);
     }
     
     array_clear_without_deallocation(*server.outgoing_messages);    
@@ -236,21 +202,74 @@ read_incoming_packets :: (server: *Server) {
     while read_packet(*server.connection) {
         if server.connection.incoming_packet.header.packet_type == {
           case Packet_Type.Connection_Request;
-            handle_connection_request(server);
+            if server.current_state != .Lobby break; // If we aren't in the lobby, don't accept new clients
+
+            // Check if we already have a client connected at this remote, because the client will spam
+            // this connection request a few times to combat potential packet loss.
+            already_connected := false;
+            
+            for i := 0; i < server.clients.count; ++i {
+                connected_client := array_get_pointer(*server.clients, i);
+                if remote_sockets_equal(*server.connection.remote, *connected_client.connection.remote) {
+                    already_connected = true;
+                    break;
+                }
+            }
+
+            if already_connected break;
+            
+            //
+            // Create a new client on this server
+            //    
+            client := array_push(*server.clients);
+            client.connection = create_udp_remote_client_connection(*server.connection);
+            client.player_pid = server.client_pid_counter;
+            client.entity_pid = INVALID_PID;
+            client.connection.info.client_id = client.player_pid;
+            
+            send_connection_established_packet(*client.connection, 5);
+            
+            ++server.client_pid_counter;
+            
+            logprint(.Debug, "Connected to client '%'.", client.player_pid);
             
           case Packet_Type.Connection_Closed;
-            handle_connection_closed(server);
+            client := find_client_by_pid(server, server.connection.incoming_packet.header.sender_client_id);
+            if client then handle_client_disconnect(server, client);
           
           case Packet_Type.Ping;
             client := find_client_by_pid(server, server.connection.incoming_packet.header.sender_client_id);
-            if client send_ping_packet(*client.connection);
+            if client then update_virtual_connection_information_for_packet(*client.connection, *server.connection.incoming_packet.header);
             
           case Packet_Type.Message;
-            msg: Message = ---;
-            read_message(*server.connection, *msg);
-            handle_incoming_message(server, *msg);
+            client := find_client_by_pid(server, server.connection.incoming_packet.header.sender_client_id);
+            if client {
+                update_virtual_connection_information_for_packet(*client.connection, *server.connection.incoming_packet.header);
+                
+                msg: Message = ---;
+                while read_message(*server.connection, *msg) {
+                    handle_incoming_message(server, *msg);
+                }
+            }
         }
     }    
+}
+
+handle_client_timeouts :: (server: *Server) {
+    now := os_get_hardware_time();
+
+    for i := 0; i < server.clients.count; {
+        client := array_get_pointer(*server.clients, i);
+
+        if os_convert_hardware_time(now - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
+            handle_client_disconnect(server, client);
+        } else if os_convert_hardware_time(now - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
+            send_ping_packet(*client.connection);
+            ++i;
+        } else {
+            ++i;
+        }
+    }
 }
 
 
@@ -352,6 +371,7 @@ create_the_game :: (server: *Server) {
 
 do_lobby_tick :: (server: *Server) {
     read_incoming_packets(server);
+    handle_client_timeouts(server);
     send_all_outgoing_messages(server);
 }
 
@@ -368,6 +388,7 @@ do_game_tick :: (server: *Server) {
     game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
 
     read_incoming_packets(server);
+    handle_client_timeouts(server);
     
     //
     // Recalculate all emitters

@@ -14,16 +14,17 @@ Build_Target :: enum {
 }
 
 apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Target) {
-
     if #complete mode == {
       case .Debug;
         options.target_backend    = .X64;
+        options.target_subsystem  = .Console;
         options.runtime_features  = .Bounds_Check | .Cast_Check | .Overflow_Check;
         options.debug_information = target == .Executable || options.target_backend == .C;
         options.user_options = DEVELOPER_OPTIONS;
         
       case .Release;
         options.target_backend    = .C;
+        options.target_subsystem  = .Windows;
         options.runtime_features  = .None;
         options.debug_information = false;
     }

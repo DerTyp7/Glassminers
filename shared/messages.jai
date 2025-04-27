@@ -123,19 +123,39 @@ make_message :: ($T: Type) -> Message {
     return msg;
 }
 
+send_reliable_messages :: (connection: *Virtual_Connection, messages: *[..]Message) {
+    packet: Packet = ---;
+    packet.body_size = 0;
+    
+    for i := 0; i < messages.count; ++i {
+        message := array_get_pointer(messages, i);
+
+        if !serialize_message(*packet, message) {
+            send_reliable_packet(connection, *packet, .Message);
+            packet.body_size = 0;
+
+            success := serialize_message(*packet, message);
+            assert(success, "This message did not fit into a single packet!");
+        }
+    }
+
+    if packet.body_size send_reliable_packet(connection, *packet, .Message);
+}
+
 send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
     packet: Packet   = ---;
     packet.body_size = 0;
-
-    serialize(*packet, *message.msg_type, type_info(Message_Type));
-    serialize(*packet, *message.underlying, type_info(message.local_type_id));
+    success := serialize_message(*packet, message);
+    assert(success, "This message did not fit into a single packet!");
     send_reliable_packet(connection, *packet, .Message);
 }
 
-read_message :: (connection: *Virtual_Connection, message: *Message) {
+read_message :: (connection: *Virtual_Connection, message: *Message) -> bool {
+    if connection.incoming_packet.body_read_offset >= connection.incoming_packet.body_size return false;
     deserialize(*connection.incoming_packet, *message.msg_type, type_info(Message_Type));
     message.local_type_id = message_type_to_type_id(message.msg_type);
     deserialize(*connection.incoming_packet, *message.underlying, type_info(message.local_type_id));
+    return true;
 }
 
 
@@ -165,31 +185,59 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
     return result;
 }
 
-serialize :: (packet: *Packet, pointer: *void, type: *Type_Info) {
+serialize :: (packet: *Packet, pointer: *void, type: *Type_Info) -> bool {
+    success := true;
+
     if #complete type.kind == {
       case .Procedure, .Type, .Variadic, .Any, .Pointer, .Slice, .Array, .Void;
         panic("We cannot serialize values of this type from messages!");
+        success = false;
 
       case .Integer, .Boolean, .Floating_Point, .Enum;
-        assert(packet.body_size + type.size_in_bytes <= packet.body.Capacity, "The packet ran out of space.");
-        copy_memory(*packet.body[packet.body_size], pointer, type.size_in_bytes);
-        packet.body_size += type.size_in_bytes;
+        success = packet.body_size + type.size_in_bytes <= packet.body.Capacity;
+        if success {
+            copy_memory(*packet.body[packet.body_size], pointer, type.size_in_bytes);
+            packet.body_size += type.size_in_bytes;
+        }
 
       case .String;
         _string := cast(*string) pointer;
-        assert(packet.body_size + size_of(s64) + _string.count <= packet.body.Capacity, "The packet ran out of space.");
-        copy_memory(*packet.body[packet.body_size], *_string.count, size_of(s64));
-        packet.body_size += size_of(s64);
-        copy_memory(*packet.body[packet.body_size], _string.data, _string.count);
-        packet.body_size += _string.count;
 
+        success = packet.body_size + size_of(s64) + _string.count <= packet.body.Capacity;
+
+        if success {
+            copy_memory(*packet.body[packet.body_size], *_string.count, size_of(s64));
+            packet.body_size += size_of(s64);
+            copy_memory(*packet.body[packet.body_size], _string.data, _string.count);
+            packet.body_size += _string.count;
+        }
+            
       case .Struct;
         _struct := cast(*Type_Info_Struct) type;
+
+        offset_before := packet.body_size;
+        success = true;
+        
         for i := 0; i < _struct.members.count; ++i {
             member := *_struct.members[i];
-            serialize(packet, pointer + member.offset_in_bytes, member.type_info);
+            success &= serialize(packet, pointer + member.offset_in_bytes, member.type_info);
         }
+
+        if !success packet.body_size = offset_before;
     }
+
+    return success;
+}
+
+serialize_message :: (packet: *Packet, message: *Message) -> bool {
+    offset_before := packet.body_size;
+
+    success := serialize(packet, *message.msg_type, type_info(Message_Type)) &&
+        serialize(packet, *message.underlying, type_info(message.local_type_id));
+
+    if !success packet.body_size = offset_before;
+
+    return success;
 }
 
 deserialize :: (packet: *Packet, pointer: *void, type: *Type_Info) {
@@ -212,7 +260,7 @@ deserialize :: (packet: *Packet, pointer: *void, type: *Type_Info) {
         copy_memory(_string.data, *packet.body[packet.body_read_offset], _string.count);
         packet.body_read_offset += _string.count;
 
-        case .Struct;
+      case .Struct;
         _struct := cast(*Type_Info_Struct) type;
         for i := 0; i < _struct.members.count; ++i {
             member := *_struct.members[i];
