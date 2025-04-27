@@ -198,7 +198,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
             
             if target_entity.kind == {
                 // @Incomplete: Allow destruction of built mirrors
-              case .Bedrock, .Crystal, .Rock;
+              case .Bedrock, .Crystal, .Rock, .Mirror;
                 player.state = .Digging;
                 player.progress_time_in_seconds = 0;
               case .Shard, .Stone;
