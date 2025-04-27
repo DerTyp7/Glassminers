@@ -11,7 +11,8 @@ Entity :: struct {
     pid: Pid;
     kind: Entity_Kind;
     marked_for_removal: bool;
-
+    health: f32;
+    
     physical_position: v2i;
     physical_rotation: Direction;    
     visual_position: v2f;
@@ -24,7 +25,6 @@ Player :: struct {
     KIND :: Entity_Kind.Player;
     state: Player_State;
     target_position: v2i;
-    progress_time_in_seconds: f32;
     carrying_item: Entity_Kind;
 }
 
@@ -82,18 +82,6 @@ destroy_world :: (world: *World) {
     array_clear(*world.entities);
 }
 
-update_client_side_predictions :: (world: *World, dt: f32) {
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
-
-        if entity.kind == {
-          case .Player;
-            player := down(entity, Player);
-            player.progress_time_in_seconds += dt;
-        }
-    }
-}
-
 
 
 //
@@ -111,6 +99,7 @@ create_entity_with_pid :: (world: *World, pid: Pid, kind: Entity_Kind, position:
     entity.pid                = pid;
     entity.kind               = kind;
     entity.marked_for_removal = false;
+    entity.health             = MAX_HEALTHS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.visual_position    = .{ xx position.x, xx position.y };

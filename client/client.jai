@@ -200,13 +200,16 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity.physical_rotation = msg.move_entity.rotation;
         entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
         entity.visual_rotation   = visual_from_physical_rotation(entity.physical_rotation);
+
+      case .Entity_Health;
+        entity := get_entity(*client.world, msg.entity_health.entity_pid);
+        entity.health = msg.entity_health.current_health;
         
       case .Player_State;
         entity := get_entity(*client.world, msg.player_state.entity_pid);
         player := down(entity, Player);
         player.state = msg.player_state.state;
         player.target_position = msg.player_state.target_position;
-        player.progress_time_in_seconds = msg.player_state.progress_time_in_seconds;
         player.carrying_item = msg.player_state.carrying_item;
         
       case .Receiver_State;
@@ -428,9 +431,6 @@ do_game_tick :: (client: *Client) {
 
     // Update all emitters based on the data received by the server
     recalculate_emitters(*client.world);
-
-    // Do some soft client side predictions
-    update_client_side_predictions(*client.world, client.window.frame_time);
 
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;

@@ -7,6 +7,7 @@ Message_Type :: enum {
     Create_Entity;
     Destroy_Entity;
     Move_Entity;
+    Entity_Health;
     Player_Move;
     Player_State;
     Player_Interact;
@@ -60,6 +61,12 @@ Move_Entity_Message :: struct {
     rotation: Direction;
 }
 
+Entity_Health_Message :: struct {
+    MSG_TYPE :: Message_Type.Entity_Health;
+    entity_pid: Pid;
+    current_health: f32;
+}
+
 Player_Move_Message :: struct {
     MSG_TYPE :: Message_Type.Player_Move;
     entity_pid: Pid;
@@ -72,7 +79,6 @@ Player_State_Message :: struct {
     entity_pid: Pid;
     state: Player_State;
     target_position: v2i;
-    progress_time_in_seconds: f32;
     carrying_item: Entity_Kind;
 }
 
@@ -101,6 +107,7 @@ Message :: struct {
         create_entity: Create_Entity_Message;
         destroy_entity: Destroy_Entity_Message;
         move_entity: Move_Entity_Message;
+        entity_health: Entity_Health_Message;
         player_state: Player_State_Message;
         player_move: Player_Move_Message;
         player_interact: Player_Interact_Message;
@@ -148,11 +155,11 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Create_Entity;      result = type_id(Create_Entity_Message);
       case .Destroy_Entity;     result = type_id(Destroy_Entity_Message);
       case .Move_Entity;        result = type_id(Move_Entity_Message); 
+      case .Entity_Health;      result = type_id(Entity_Health_Message);
       case .Player_Move;        result = type_id(Player_Move_Message);
       case .Player_State;       result = type_id(Player_State_Message);
       case .Player_Interact;    result = type_id(Player_Interact_Message);
       case .Receiver_State;     result = type_id(Receiver_State_Message);
-      case; panic("Received an unknown message type, cannot convert into a local message type id.");
     }
 
     return result;

@@ -1,10 +1,12 @@
 Entity :: struct {
     pid: Pid;
     kind: Entity_Kind;
+    health: f32;
+
     marked_for_removal: bool;
     created_this_frame: bool;
     moved_this_frame: bool;
-
+    
     physical_rotation: Direction;
     physical_position: v2i;
     
@@ -16,7 +18,6 @@ Player :: struct {
     state: Player_State;
     aim_direction: Direction;
     target_position: v2i;
-    progress_time_in_seconds: f32;
     carrying_item: Entity_Kind;
 }
 
@@ -104,6 +105,7 @@ create_entity :: (world: *World, kind: Entity_Kind, position: v2i, rotation: Dir
     entity.marked_for_removal = false;
     entity.created_this_frame = true;
     entity.moved_this_frame   = false;
+    entity.health             = MAX_HEALTHS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.derived            = null;

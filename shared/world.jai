@@ -7,18 +7,20 @@ Pid :: u32;
 
 INVALID_PID: Pid : -1;
 
-RECEIVER_TIME: f32 : 5;
+RECEIVER_TIME_TO_CHARGE: f32 : 5;
+HEALTH_PER_HEART: f32 : 10;
+PLAYER_DPS: f32 : HEALTH_PER_HEART;
 
-DIGGING_TIMES: [Entity_Kind.Count]f32 : .[
+MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     0, // Inanimate
-    0, // Player
-    3, // Crystal
-    7, // Bedrock
+    30, // Player
+    30, // Crystal
+    70, // Bedrock
     0, // Emitter
     0, // Receiver
-    3, // Mirror
+    30, // Mirror
     0, // Shard
-    5, // Rock
+    50, // Rock
     0, // Stone
 ];
 

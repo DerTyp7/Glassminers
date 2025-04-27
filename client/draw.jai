@@ -240,7 +240,7 @@ draw_world :: (client: *Client) {
             receiver := down(entity, Receiver);
             if receiver.progress_time_in_seconds > 0 {
                 target_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx entity.visual_position.y });
-                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, receiver.progress_time_in_seconds / RECEIVER_TIME);
+                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
             }
         }
     }
@@ -261,7 +261,7 @@ draw_world :: (client: *Client) {
               case .Idle;
               case .Digging;
                 target_entity := get_entity_at_position(*client.world, player.target_position);
-                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, player.progress_time_in_seconds / DIGGING_TIMES[target_entity.kind]);
+                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);
               case .Carrying;
                 world_position := entity.visual_position;
                 world_position.x += 0.25;

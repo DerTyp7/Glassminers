@@ -134,7 +134,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Player_State, .Receiver_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Receiver_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -184,7 +184,6 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
           case .Idle, .Carrying;
           case .Digging;
             player.state = .Idle;
-            player.progress_time_in_seconds = 0;
         }
         
       case .Player_Interact;
@@ -193,21 +192,20 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         target_entity := get_entity_at_position(*server.world, player.target_position);
 
         if #complete msg.player_interact.interaction_kind == {            
-            case .Primary;
+          case .Primary;
             if player.state != .Idle || !target_entity break;
             
             if target_entity.kind == {
                 // @Incomplete: Allow destruction of built mirrors
               case .Bedrock, .Crystal, .Rock, .Mirror;
                 player.state = .Digging;
-                player.progress_time_in_seconds = 0;
               case .Shard, .Stone;
                 player.state = .Carrying;
                 player.carrying_item = target_entity.kind;
                 target_entity.marked_for_removal = true;
             }
             
-            case .Secondary;
+          case .Secondary;
             if target_entity == null {
                 // Place a new entity
                 if #complete player.state == {
@@ -323,6 +321,15 @@ do_lobby_tick :: (server: *Server) {
 }
 
 do_game_tick :: (server: *Server) {
+    damage :: (server: *Server, entity: *Entity, immediate_damage: f32, predicted_change_over_time: f32) {
+        entity.health -= immediate_damage;
+
+        msg := make_message(Entity_Health_Message);
+        msg.entity_health.entity_pid = entity.pid;
+        msg.entity_health.current_health = entity.health;
+        array_add(*server.outgoing_messages, msg);
+    }
+
     game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
 
     read_incoming_packets(server);
@@ -343,9 +350,9 @@ do_game_tick :: (server: *Server) {
             previous := receiver.progress_time_in_seconds;
             
             if is_emitter_field_at(*server.world, entity.physical_position) {
-                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.frame_time, 0, RECEIVER_TIME);
+                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.frame_time, 0, RECEIVER_TIME_TO_CHARGE);
             } else {
-                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.frame_time, 0, RECEIVER_TIME);
+                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.frame_time, 0, RECEIVER_TIME_TO_CHARGE);
             }
 
             if receiver.progress_time_in_seconds != previous {
@@ -355,14 +362,14 @@ do_game_tick :: (server: *Server) {
                 array_add(*server.outgoing_messages, msg);
             }
 
-            if receiver.progress_time_in_seconds >= RECEIVER_TIME {
+            if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
                 game_state = .Won;
             }
         }
     }
 
     //
-    // Update each player's target position
+    // Update each player
     //
     for i := 0; i < server.world.entities.count; ++i {
         entity := array_get_pointer(*server.world.entities, i);
@@ -375,8 +382,9 @@ do_game_tick :: (server: *Server) {
             if player.state == {
               case .Digging;
                 target_entity := get_entity_at_position(*server.world, player.target_position);
-                player.progress_time_in_seconds += server.frame_time;
-                if player.progress_time_in_seconds >= DIGGING_TIMES[target_entity.kind] {
+                damage(server, target_entity, PLAYER_DPS * server.frame_time, PLAYER_DPS);
+                
+                if target_entity.health <= 0 {
                     target_entity.marked_for_removal = true;
 
                     // Generate the resource drop from the farmed entity
@@ -386,7 +394,6 @@ do_game_tick :: (server: *Server) {
                     }
 
                     player.state = .Idle;
-                    player.progress_time_in_seconds = 0;
                 }
             }
             
@@ -394,7 +401,6 @@ do_game_tick :: (server: *Server) {
             msg.player_state.entity_pid = entity.pid;
             msg.player_state.state = player.state;
             msg.player_state.target_position = player.target_position;
-            msg.player_state.progress_time_in_seconds = player.progress_time_in_seconds;
             msg.player_state.carrying_item = player.carrying_item;
             array_add(*server.outgoing_messages, msg);
         }
