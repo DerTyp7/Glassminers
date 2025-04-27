@@ -2,6 +2,7 @@
 #load "basic.jai";
 #load "virtual_connection.jai";
 #load "threads.jai";
+#load "random.jai";
 
 // Shared
 #load "../shared/messages.jai";
@@ -34,7 +35,8 @@ Server :: struct {
     perm: Allocator;
     current_state: Game_State;
     next_state: Game_State;
-
+    random: Random_Generator;
+    
     //
     // Networking
     //
@@ -201,7 +203,6 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
             if player.state != .Idle || !target_entity break;
             
             if target_entity.kind == {
-                // @Incomplete: Allow destruction of built mirrors
               case .Bedrock, .Crystal, .Rock, .Mirror;
                 player.state = .Digging;
               case .Shard, .Stone;
@@ -273,6 +274,8 @@ switch_to_next_state :: (server: *Server) {
 
 create_the_game :: (server: *Server) {
     server.game_seed = cast(s64) os_get_hardware_time();
+    seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
+
     create_world(*server.world, *server.perm, .{ 36, 5 });
 
     //
@@ -286,8 +289,35 @@ create_the_game :: (server: *Server) {
     //
     // Generate the base world
     //
-    generate_world(*server.world, server.game_seed, server.clients.count);
+    {
+        is_blocked_position :: (server: *Server, position: v2i) -> bool {
+            return position.y >= 1 && position.y <= 3 &&
+                position.x >= 2 && position.x <= 2 + server.clients.count + 1;
+        }
 
+        random_position :: (server: *Server) -> v2i {
+            position := v2i.{ random_u64_in(*server.random, 0, server.world.size.x), random_u64_in(*server.random, 0, server.world.size.y) };
+
+            while get_entity_at_position(*server.world, position) != null || is_blocked_position(server, position) {
+                position = .{ random_u64_in(*server.random, 0, server.world.size.x), random_u64_in(*server.random, 0, server.world.size.y) };
+            }
+            
+            return position;
+        }
+
+        generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
+            for i := 0; i < n; ++i {
+                create_entity(*server.world, kind, random_position(server), .North);
+            }
+        }
+
+        create_entity(*server.world, .Emitter, .{ 0, 2 }, .East);
+        create_entity(*server.world, .Receiver, .{ server.world.size.x - 1, 2 }, .West);
+        generate_n_random_entities(server, .Bedrock, server.world.size.x * 2);
+        generate_n_random_entities(server, .Rock, server.world.size.x / 4);
+        generate_n_random_entities(server, .Crystal, server.world.size.x / 4);
+    }
+    
     //
     // Generate one entity for each player and attach it to the player
     //
@@ -385,7 +415,7 @@ do_game_tick :: (server: *Server) {
             player := down(entity, Player);
 
             // nocheckin
-            if player_index == number_of_dead_players then damage(server, entity, server.frame_time * 5);
+            // if player_index == number_of_dead_players then damage(server, entity, server.frame_time);
             ++player_index;
             
             if entity.health > 0 {
