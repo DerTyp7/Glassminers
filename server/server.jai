@@ -40,7 +40,6 @@ Server :: struct {
     //
     connection: Virtual_Connection;
     clients: [..]Remote_Client;
-    incoming_messages: [..]Message;
     outgoing_messages: [..]Message;
     client_pid_counter: Pid;
 
@@ -133,6 +132,117 @@ send_all_outgoing_messages :: (server: *Server) {
     array_clear_without_deallocation(*server.outgoing_messages);    
 }
 
+handle_incoming_message :: (server: *Server, msg: *Message) {
+    if msg.msg_type == {
+      case .Player_Information;
+        // Respond to this specific player by sending all other already-connected clients
+        target := find_client_by_pid(server, msg.player_information.player_pid);
+        for i := 0; i < server.clients.count; ++i {
+            source := array_get_pointer(*server.clients, i);
+            target_msg := make_message(Player_Information_Message);
+            target_msg.player_information.player_pid = source.player_pid;
+            target_msg.player_information.name       = source.name;
+            target_msg.player_information.entity_pid = source.entity_pid;
+            send_reliable_message(*target.connection, *target_msg);
+        }
+        
+        // Store the information locally
+        if target.name deallocate_string(*server.perm, *target.name);
+        target.name = copy_string(*server.perm, msg.player_information.name);
+        
+        // Broadcast the message along
+        array_add(*server.outgoing_messages, ~msg);
+        
+      case .Request_Game_Start;
+        create_the_game(server);
+        transition_to_state(server, .Ingame);
+
+      case .Move_Entity;
+        entity := get_entity(*server.world, msg.move_entity.entity_pid);
+        
+        move_delta := v2i.{ msg.move_entity.position.x - entity.physical_position.x, msg.move_entity.position.y - entity.physical_position.y };
+        
+        if can_move_to_position(*server.world, entity, msg.move_entity.position) {
+            move_to_position(*server.world, entity, msg.move_entity.position);
+        }
+        
+        if entity.kind == .Player {
+            player := down(entity, Player);
+            player.aim_direction = direction_from_vector(move_delta);
+
+            // Cancel the current action of the player when moving, if appropriate
+            if #complete player.state == {
+                case .Idle, .Carrying;
+                case .Digging;
+                player.state = .Idle;
+                player.progress_time_in_seconds = 0;
+            }
+        }
+        
+      case .Player_Interact;
+        entity := get_entity(*server.world, msg.player_interact.entity_pid);
+        player := down(entity, Player);
+        target_entity := get_entity_at_position(*server.world, player.target_position);
+
+        if #complete msg.player_interact.interaction_kind == {            
+            case .Primary;
+            if player.state != .Idle || !target_entity break;
+            
+            if target_entity.kind == {
+                // @Incomplete: Allow destruction of built mirrors
+                case .Bedrock, .Crystal, .Rock;
+                player.state = .Digging;
+                player.progress_time_in_seconds = 0;
+                case .Shard, .Stone;
+                player.state = .Carrying;
+                player.carrying_item = target_entity.kind;
+                target_entity.marked_for_removal = true;
+            }
+            
+            case .Secondary;
+            if target_entity == null {
+                // Place a new entity
+                if #complete player.state == {
+                    case .Digging;
+                    case .Idle;
+                    // @Temporary: Players can currently create mirrors out of thin air...
+                    create_entity(*server.world, .Mirror, player.target_position, .North);
+                    case .Carrying;
+                    create_entity(*server.world, player.carrying_item, player.target_position, .North);
+                    player.state = .Idle;
+                    player.carrying_item = .Inanimate;
+                }
+            } else if target_entity.kind == .Mirror {
+                target_entity.physical_rotation = (target_entity.physical_rotation + 1) % Direction.Count;
+                target_entity.moved_this_frame  = true;                    
+            }
+        }
+    }
+}    
+
+read_incoming_packets :: (server: *Server) {
+    while read_packet(*server.connection) {
+        if server.connection.incoming_packet.header.packet_type == {
+          case Packet_Type.Connection_Request;
+            handle_connection_request(server);
+            
+          case Packet_Type.Connection_Closed;
+            handle_connection_closed(server);
+          
+          case Packet_Type.Ping;
+            client := find_client_by_pid(server, server.connection.incoming_packet.header.sender_client_id);
+            if client send_ping_packet(*client.connection);
+            
+          case Packet_Type.Message;
+            msg: Message = ---;
+            read_message(*server.connection, *msg);
+            handle_incoming_message(server, *msg);
+        }
+    }    
+}
+
+
+
 transition_to_state :: (server: *Server, state: Game_State) {
     server.next_state = state;
 }
@@ -200,117 +310,15 @@ create_the_game :: (server: *Server) {
 }
 
 do_lobby_tick :: (server: *Server) {
-    //
-    // Handle all incoming messages on player information and game info
-    //
-    for i := 0; i < server.incoming_messages.count; ++i {
-        msg := array_get_pointer(*server.incoming_messages, i);
-
-        if msg.msg_type == {
-          case .Player_Information;
-            // Respond to this specific player by sending all other already-connected clients
-            target := find_client_by_pid(server, msg.player_information.player_pid);
-            for i := 0; i < server.clients.count; ++i {
-                source := array_get_pointer(*server.clients, i);
-                target_msg := make_message(Player_Information_Message);
-                target_msg.player_information.player_pid = source.player_pid;
-                target_msg.player_information.name       = source.name;
-                target_msg.player_information.entity_pid = source.entity_pid;
-                send_reliable_message(*target.connection, *target_msg);
-            }
-            
-            // Store the information locally
-            if target.name deallocate_string(*server.perm, *target.name);
-            target.name = copy_string(*server.perm, msg.player_information.name);
-            
-            // Broadcast the message along
-            array_add(*server.outgoing_messages, ~msg);
-            
-          case .Request_Game_Start;
-            create_the_game(server);
-            transition_to_state(server, .Ingame);
-        }    
-    }
-
-    //
-    // Send all updates to clients.
-    //
+    read_incoming_packets(server);
     send_all_outgoing_messages(server);
 }
 
 do_game_tick :: (server: *Server) {
     game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
 
-    //
-    // Handle all incoming messages on player input
-    //
-    for i := 0; i < server.incoming_messages.count; ++i {
-        msg := array_get_pointer(*server.incoming_messages, i);
-        
-        if msg.msg_type == {
-          case .Move_Entity;
-            entity := get_entity(*server.world, msg.move_entity.entity_pid);
-            
-            move_delta := v2i.{ msg.move_entity.position.x - entity.physical_position.x, msg.move_entity.position.y - entity.physical_position.y };
-            
-            if can_move_to_position(*server.world, entity, msg.move_entity.position) {
-                move_to_position(*server.world, entity, msg.move_entity.position);
-            }
-            
-            if entity.kind == .Player {
-                player := down(entity, Player);
-                player.aim_direction = direction_from_vector(move_delta);
-
-                // Cancel the current action of the player when moving, if appropriate
-                if #complete player.state == {
-                  case .Idle, .Carrying;
-                  case .Digging;
-                    player.state = .Idle;
-                    player.progress_time_in_seconds = 0;
-                }
-            }
-            
-          case .Player_Interact;
-            entity := get_entity(*server.world, msg.player_interact.entity_pid);
-            player := down(entity, Player);
-            target_entity := get_entity_at_position(*server.world, player.target_position);
-
-            if #complete msg.player_interact.interaction_kind == {            
-              case .Primary;
-                if player.state != .Idle || !target_entity break;
-                
-                if target_entity.kind == {
-                    // @Incomplete: Allow destruction of built mirrors
-                  case .Bedrock, .Crystal, .Rock;
-                    player.state = .Digging;
-                    player.progress_time_in_seconds = 0;
-                  case .Shard, .Stone;
-                    player.state = .Carrying;
-                    player.carrying_item = target_entity.kind;
-                    target_entity.marked_for_removal = true;
-                }
-                
-              case .Secondary;
-                if target_entity == null {
-                    // Place a new entity
-                    if #complete player.state == {
-                      case .Digging;
-                      case .Idle;
-                        // @Temporary: Players can currently create mirrors out of thin air...
-                        create_entity(*server.world, .Mirror, player.target_position, .North);
-                      case .Carrying;
-                        create_entity(*server.world, player.carrying_item, player.target_position, .North);
-                        player.state = .Idle;
-                        player.carrying_item = .Inanimate;
-                    }
-                } else if target_entity.kind == .Mirror {
-                    target_entity.physical_rotation = (target_entity.physical_rotation + 1) % Direction.Count;
-                    target_entity.moved_this_frame  = true;                    
-                }
-            }
-        }
-    }
-
+    read_incoming_packets(server);
+    
     //
     // Recalculate all emitters
     //
@@ -444,7 +452,6 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     create_memory_pool(*server.perm_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     server.perm = allocator_from_memory_pool(*server.perm_pool);
     server.clients.allocator = *server.perm;
-    server.incoming_messages.allocator = *temp;
     server.outgoing_messages.allocator = *temp;
 
     if create_server_connection(*server.connection, .UDP, data.requested_port) == .Success {
@@ -466,31 +473,6 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         tick_start := os_get_hardware_time();
 
         server.frame_time = 1 / TICK_RATE;
-
-        //
-        // Handle connection packets and read all messages from clients.
-        //
-        {
-            array_clear_without_deallocation(*server.incoming_messages);
-            
-            while read_packet(*server.connection) {
-                if server.connection.incoming_packet.header.packet_type == {
-                  case Packet_Type.Connection_Request;
-                    handle_connection_request(*server);
-                    
-                  case Packet_Type.Connection_Closed;
-                    handle_connection_closed(*server);
-                    
-                  case Packet_Type.Ping;
-                    client := find_client_by_pid(*server, server.connection.incoming_packet.header.sender_client_id);
-                    if client send_ping_packet(*client.connection);
-                    
-                  case Packet_Type.Message;
-                    message := array_push(*server.incoming_messages);
-                    read_message(*server.connection, message);
-                }
-            }
-        }
         
         //
         // Update the current state
