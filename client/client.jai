@@ -12,11 +12,13 @@
 #load "../shared/messages.jai";
 #load "../shared/world.jai";
 #load "../shared/shared.jai";
+#load "../shared/bucket_array.jai";
 
 // Client
 #load "draw.jai";
 #load "world.jai";
 #load "assets.jai";
+
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 
