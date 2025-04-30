@@ -24,6 +24,7 @@ Player :: struct {
 Emitter :: struct {
     KIND :: Entity_Kind.Emitter;
     fields: [..]v2i;
+    time_left_in_seconds: f32 = EMITTER_TIME_TO_DIE;
 }
 
 Receiver :: struct {

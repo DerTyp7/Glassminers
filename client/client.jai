@@ -74,6 +74,7 @@ Client :: struct {
     camera: Camera;
     my_entity_pid: Pid;
     won_last_game: bool;
+    tick_time: f32;
 }
 
 
@@ -213,6 +214,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         player.state = msg.player_state.state;
         player.target_position = msg.player_state.target_position;
         player.carrying_item = msg.player_state.carrying_item;
+
+      case .Emitter_State;
+        entity := get_entity(*client.world, msg.emitter_state.entity_pid);
+        emitter := down(entity, Emitter);
+        emitter.time_left_in_seconds = msg.emitter_state.time_left_in_seconds;
         
       case .Receiver_State;
         entity := get_entity(*client.world, msg.receiver_state.entity_pid);
@@ -448,11 +454,38 @@ do_game_tick :: (client: *Client) {
                   clamp(room_position.y, half_size.y, xx client.world.size.y - half_size.y - 1) };
     }
 
+    client.tick_time = client.window.frame_time;
+    
     read_incoming_packets(client);
     handle_server_timeout(client);
 
-    // Update all emitters based on the data received by the server
-    recalculate_emitters(*client.world);
+    //
+    // Update all local entities based on the information received by the server.
+    // This also does some basic client-side prediction
+    //
+    {
+        for i := 0; i < client.world.entities.count; ++i {
+            entity := array_get_pointer(*client.world.entities, i);
+
+            if entity.kind == {
+              case .Emitter;
+                emitter := down(entity, Emitter);
+                
+                if emitter.time_left_in_seconds > 0 {
+                    emitter.time_left_in_seconds -= client.tick_time;
+                }
+
+                recalculate_emitter(*client.world, entity, emitter);
+
+              case .Receiver;
+                receiver := down(entity, Receiver);
+
+                if receiver.progress_time_in_seconds < RECEIVER_TIME_TO_CHARGE {
+                    receiver.progress_time_in_seconds += client.tick_time;
+                }
+            }
+        }
+    }
 
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;

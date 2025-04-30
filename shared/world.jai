@@ -1,4 +1,6 @@
 RECEIVER_TIME_TO_CHARGE: f32 : 5;
+EMITTER_TIME_TO_DIE: f32 : 30;
+
 HEALTH_PER_HEART: f32 : 10;
 PLAYER_DPS: f32 : HEALTH_PER_HEART;
 
@@ -94,42 +96,38 @@ visual_from_physical_rotation :: (in: Direction) -> f32 {
 
 
 
-recalculate_emitters :: (world: *World) {
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
-        if entity.kind != .Emitter continue;
+recalculate_emitter :: (world: *World, entity: *Entity, emitter: *Emitter) {
+    emitter.fields.allocator = *temp;
+    array_clear_without_deallocation(*emitter.fields);
 
-        emitter := down(entity, Emitter);
-        emitter.fields.allocator = *temp;
-        array_clear_without_deallocation(*emitter.fields);
+    if emitter.time_left_in_seconds <= 0 return;
+    
+    direction := entity.physical_rotation;
+    field     := entity.physical_position;
+    
+    while true {
+        vector := vector_from_direction(direction);
+        field.x += vector.x;
+        field.y += vector.y;
+        if !position_in_bounds(world, field) break;
         
-        direction := entity.physical_rotation;
-        field     := entity.physical_position;
+        blocking := get_blocking_entity_at_position(world, field);
         
-        while true {
-            vector := vector_from_direction(direction);
-            field.x += vector.x;
-            field.y += vector.y;
-            if !position_in_bounds(world, field) break;
+        if blocking == null || blocking.kind == .Player {
+            array_add(*emitter.fields, field);
+        } else if blocking.kind == .Mirror {
+            array_add(*emitter.fields, field);
             
-            blocking := get_blocking_entity_at_position(world, field);
+            reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
             
-            if blocking == null || blocking.kind == .Player {
-                array_add(*emitter.fields, field);
-            } else if blocking.kind == .Mirror {
-                array_add(*emitter.fields, field);
-                
-                reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
-                
-                if reflection_success then
-                    direction = reflected_direction;
-                else break;
-            } else if blocking.kind == .Receiver {
-                array_add(*emitter.fields, field);
-                break;
-            } else {
-                break;
-            }
+            if reflection_success then
+            direction = reflected_direction;
+            else break;
+        } else if blocking.kind == .Receiver {
+            array_add(*emitter.fields, field);
+            break;
+        } else {
+            break;
         }
     }
 }

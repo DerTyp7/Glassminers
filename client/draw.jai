@@ -256,6 +256,20 @@ draw_world :: (client: *Client) {
             }
         }
     }
+
+    //
+    // Draw all emitter states
+    //
+    for i := 0; i < world.entities.count; ++i {
+        entity := array_get_pointer(*world.entities, i);
+        if entity.kind == .Emitter {
+            emitter := down(entity, Emitter);
+            if emitter.time_left_in_seconds > 0 {
+                target_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx entity.visual_position.y });
+                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, emitter.time_left_in_seconds / EMITTER_TIME_TO_DIE);
+            }
+        }
+    }
     
     //
     // Draw all player states

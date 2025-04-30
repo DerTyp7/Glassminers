@@ -50,7 +50,7 @@ Server :: struct {
     //
     game_seed: s64;
     world: World;
-    frame_time: f32;
+    tick_time: f32;
 }
 
 Log_Level :: enum {
@@ -102,7 +102,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Receiver_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -389,12 +389,41 @@ do_game_tick :: (server: *Server) {
 
     read_incoming_packets(server);
     handle_client_timeouts(server);
-    
-    //
-    // Recalculate all emitters
-    //
-    recalculate_emitters(*server.world);
 
+    //
+    // Update all emitters
+    //
+    for i := 0; i < server.world.entities.count; ++i {
+        entity := array_get_pointer(*server.world.entities, i);
+
+        if entity.kind == .Emitter {
+            // @ReduceMessages: We do a simple client-side prediction on the time_left_in_seconds,
+            // so we don't have to send the value every frame, we could only send it if the rate
+            // of change changed or something...
+
+            emitter := down(entity, Emitter);
+            
+            previous := emitter.time_left_in_seconds;
+            
+            if emitter.time_left_in_seconds > 0 {
+                emitter.time_left_in_seconds -= server.tick_time;
+            }
+
+            recalculate_emitter(*server.world, entity, emitter);
+
+            if previous != emitter.time_left_in_seconds {
+                msg := make_message(Emitter_State_Message);
+                msg.emitter_state.entity_pid = entity.pid;
+                msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
+                array_add(*server.outgoing_messages, msg);
+            }
+
+            if emitter.time_left_in_seconds <= 0 {
+                game_state = .Lost;
+            }
+        }
+    }
+    
     //
     // Update all receivers
     //
@@ -403,12 +432,15 @@ do_game_tick :: (server: *Server) {
         if entity.kind == .Receiver {
             receiver := down(entity, Receiver);
             
+            // @ReduceMessages: We do a simple client-side prediction on the progress_time_in_seconds,
+            // so we don't have to send the value every frame, we could only send it if the rate
+            // of change changed or something...
             previous := receiver.progress_time_in_seconds;
             
             if is_emitter_field_at(*server.world, entity.physical_position) {
-                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.frame_time, 0, RECEIVER_TIME_TO_CHARGE);
+                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
             } else {
-                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.frame_time, 0, RECEIVER_TIME_TO_CHARGE);
+                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
             }
 
             if receiver.progress_time_in_seconds != previous {
@@ -436,7 +468,7 @@ do_game_tick :: (server: *Server) {
             player := down(entity, Player);
 
             // nocheckin
-            // if player_index == number_of_dead_players then damage(server, entity, server.frame_time);
+            // if player_index == number_of_dead_players then damage(server, entity, server.tick_time);
             ++player_index;
             
             if entity.health > 0 {
@@ -446,7 +478,7 @@ do_game_tick :: (server: *Server) {
                 if player.state == {
                   case .Digging;
                     target_entity := get_entity_at_position(*server.world, player.target_position);
-                    damage(server, target_entity, PLAYER_DPS * server.frame_time);
+                    damage(server, target_entity, PLAYER_DPS * server.tick_time);
                     
                     if target_entity.health <= 0 {
                         target_entity.marked_for_removal = true;
@@ -558,7 +590,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     while atomic_load(cast(*s64) *data.state) == Server_State.Running {
         tick_start := os_get_hardware_time();
 
-        server.frame_time = 1 / TICK_RATE;
+        server.tick_time = 1 / TICK_RATE;
         
         //
         // Update the current state

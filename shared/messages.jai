@@ -11,6 +11,7 @@ Message_Type :: enum {
     Player_Move;
     Player_State;
     Player_Interact;
+    Emitter_State;
     Receiver_State;
 }
 
@@ -88,6 +89,12 @@ Player_Interact_Message :: struct {
     interaction_kind: Interaction_Kind;
 }
 
+Emitter_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Emitter_State;
+    entity_pid: Pid;
+    time_left_in_seconds: f32;
+}
+
 Receiver_State_Message :: struct {
     MSG_TYPE :: Message_Type.Receiver_State;
     entity_pid: Pid;
@@ -111,6 +118,7 @@ Message :: struct {
         player_state: Player_State_Message;
         player_move: Player_Move_Message;
         player_interact: Player_Interact_Message;
+        emitter_state: Emitter_State_Message;
         receiver_state: Receiver_State_Message;
     };
 }
@@ -179,6 +187,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Player_Move;        result = type_id(Player_Move_Message);
       case .Player_State;       result = type_id(Player_State_Message);
       case .Player_Interact;    result = type_id(Player_Interact_Message);
+      case .Emitter_State;      result = type_id(Emitter_State_Message);
       case .Receiver_State;     result = type_id(Receiver_State_Message);
     }
 
