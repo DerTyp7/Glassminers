@@ -43,118 +43,31 @@ draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
 // HUD Drawing
 //
 
-draw_rect :: (client: *Client, x0, y0, x1, y1: f32, color: GE_Color) {
-    ge_imm2d_colored_rect(*client.graphics, x0, y0, x1, y1, color);
+draw_rect_screen_space :: (client: *Client, c0, c1: v2f, color: GE_Color) {
+    ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, color);
     ge_imm2d_flush(*client.graphics);
 }
 
-draw_outlined_rect :: (client: *Client, x0, y0, x1, y1: f32, thickness: f32, color: GE_Color) {
-    ge_imm2d_colored_rect_outline(*client.graphics, x0, y0, x1, y1, thickness, color);
+draw_outlined_rect_screen_space :: (client: *Client, c0, c1: v2f, thickness: f32, color: GE_Color) {
+    ge_imm2d_colored_rect_outline(*client.graphics, c0.x, c0.y, c1.x, c1.y, thickness, color);
 }
 
-draw_text :: (client: *Client, font: *Font, text: string, x: f32, y: f32, alignment: Text_Alignment, foreground: UI_Color) {
-    ge_draw_text(*client.graphics, font, text, x, y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
+draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: UI_Color) {
+    ge_draw_text(*client.graphics, font, text, position.x, position.y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
 }
 
-
-// @Cleanup: Move some of this stuff into #file_scope
-// @Cleanup: Use v2f instead of x, y: f32
-// @Cleanup: Add explicit world / screen space for all draw helpers
-
-draw_filling_boxes :: (client: *Client, x, y: f32, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
-    background :: GE_Color.{ 100, 100, 100, 200 };
-
-    gap_size := round(cast(f32) box_size * 0.1);
-    
-    //
-    // Draw the boxes
-    //
-    for i := 0; i < box_count; ++i {
-        theta := cast(f32) i / cast(f32) box_count;
-        
-        x0 := x + (theta - 0.5) * xx box_count * (box_size + gap_size);
-        x1 := x0 + box_size;
-        y0 := y - box_size / 2;
-        y1 := y + box_size / 2;
-        
-        alpha: f32 = ---;
-        if theta + (cast(f32) 1 / cast(f32) box_count) <= percentage then
-            alpha = 1;
-        else
-            alpha = clamp((percentage - theta) / (cast(f32) 1 / cast(f32) box_count), 0, 1);
-
-        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
-
-        draw_rect(client, x0, y0, x1, y1, background);
-        draw_rect(client, x0, y0, x1, y1, color);
-    }
+draw_rect_world_space :: (client: *Client, world_c0, world_c1: v2f, color: GE_Color) {
+    screen_c0 := screen_from_world_position(client, world_c0);
+    screen_c1 := screen_from_world_position(client, world_c1);
+    draw_rect_screen_space(client, screen_c0, screen_c1, color);
 }
 
-draw_circle_segment :: (client: *Client, x, y: f32, outer_radius: f32, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
-    subsegments :: 24;
-    
-    for i := 0; i < subsegments; ++i {
-        range  := theta1 - theta0;
-        seg_t0 := (cast(f32) i / cast(f32) subsegments * range + theta0) * FTAU;
-        seg_t1 := (cast(f32) (i + 1 % subsegments) / cast(f32) subsegments * range + theta0) * FTAU;
-        
-        p0 := v2f.{ x + sinf(seg_t0) * outer_radius, y - cosf(seg_t0) * outer_radius };
-        p1 := v2f.{ x + sinf(seg_t1) * outer_radius, y - cosf(seg_t1) * outer_radius };
-        p2 := v2f.{ x + sinf(seg_t0) * inner_radius, y - cosf(seg_t0) * inner_radius };
-        p3 := v2f.{ x + sinf(seg_t1) * inner_radius, y - cosf(seg_t1) * inner_radius };
-        
-        ge_imm2d_colored_vertex(*client.graphics, p0.x, p0.y, color);
-        ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
-        ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
-
-        ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
-        ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
-        ge_imm2d_colored_vertex(*client.graphics, p3.x, p3.y, color);
-    }
+draw_outlined_rect_world_space :: (client: *Client, world_c0, world_c1: v2f, screen_thickness: f32, color: GE_Color) {
+    screen_c0 := screen_from_world_position(client, world_c0);
+    screen_c1 := screen_from_world_position(client, world_c1);
+    draw_outlined_rect_screen_space(client, screen_c0, screen_c1, screen_thickness, color);
 }
 
-draw_filling_circle :: (client: *Client, x, y: f32, outer_radius: f32, percentage: f32) {
-    segments :: 6;
-    background :: GE_Color.{ 100, 100, 100, 200 };
-    foreground :: GE_Color.{ 100, 240, 150, 200 };
-    gap_size :: cast(f32) 0.03; // Percentage of the entire circle
-    inner_radius: f32 = outer_radius * 0.35;
-    
-    //
-    // Draw the circle segments
-    //
-    for i := 0; i < segments; ++i {
-        theta0 := (cast(f32) i / cast(f32) segments);
-        theta1 := (cast(f32) (i + 1 % segments) / cast(f32) segments);
-        
-        alpha: f32 = ---;
-        if theta1 <= percentage then
-            alpha = 1;
-        else
-            alpha = clamp((percentage - theta0) / (theta1 - theta0), 0, 1);
-            
-        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
-
-        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, background);
-        draw_circle_segment(client, x, y, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, color);
-    }
-}
-
-draw_circle :: (client: *Client, x, y: f32, inner_radius, outer_radius: f32, color: GE_Color) {
-    draw_circle_segment(client, x, y, inner_radius, outer_radius, 0, 1, color);
-}
-
-draw_progress_bar :: (client: *Client, x, y: f32, box_size: f32, percentage: f32) {
-    box_count :: 6;
-    foreground :: GE_Color.{ 100, 240, 150, 200 };
-    draw_filling_boxes(client, x, y, box_count, box_size, percentage, foreground);
-}
-
-draw_health_bar :: (client: *Client, x, y: f32, box_size: f32, health, max_health: f32) {
-    box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
-    foreground :: GE_Color.{ 227, 60, 74, 255 };
-    draw_filling_boxes(client, x, y, box_count, box_size, health / max_health, foreground);    
-}
 
 
 //
@@ -163,23 +76,13 @@ draw_health_bar :: (client: *Client, x, y: f32, box_size: f32, health, max_healt
 
 draw_world :: (client: *Client) {
     draw_emitter_field :: (client: *Client, visual_position: v2f, color: GE_Color) {
-        screen_center := screen_from_world_position(client, visual_position);
-        screen_size   := screen_from_world_scale(client, .{ 0.75, 0.75 });
-
-        vertices: [4]v2f = .[ .{ screen_center.x - screen_size.x / 2, screen_center.y - screen_size.y / 2 },
-                              .{ screen_center.x + screen_size.x / 2, screen_center.y - screen_size.y / 2 },
-                              .{ screen_center.x - screen_size.x / 2, screen_center.y + screen_size.y / 2 },
-                              .{ screen_center.x + screen_size.x / 2, screen_center.y + screen_size.y / 2 } ];
-        indices:  [6]s32 = .[ 0, 1, 2, 1, 3, 2 ];
-        
-        for i := 0; i < indices.Capacity; ++i {
-            ge_imm2d_colored_vertex(*client.graphics, vertices[indices[i]].x, vertices[indices[i]].y, color);
-        }    
+        WORLD_HALF_SIZE: f32 : 0.75 / 2;
+        draw_rect_world_space(client, .{ visual_position.x - WORLD_HALF_SIZE, visual_position.y - WORLD_HALF_SIZE }, .{ visual_position.x + WORLD_HALF_SIZE, visual_position.y + WORLD_HALF_SIZE }, color);
     }
 
     draw_entity :: (client: *Client, kind: Entity_Kind, visual_position: v2f, visual_size: v2f, visual_rotation: f32) {
         screen_center := screen_from_world_position(client, visual_position);
-        screen_size   := screen_from_world_scale(client, visual_size);
+        screen_size   := screen_from_world_size(client, visual_size);
 
         vertices: [4]v2f =.[
                 v2_rotate(v2f.{ -screen_size.x / 2, -screen_size.y / 2 }, visual_rotation),
@@ -200,12 +103,16 @@ draw_world :: (client: *Client) {
             screen_center := screen_from_world_position(client, v2f.{ entity.visual_position.x, entity.visual_position.y - 0.55 });
             screen_size   := v2f.{ xx get_string_width_in_pixels(*client.ui_font, label) + 5, xx client.ui_font.line_height };
             
-            draw_rect(client, screen_center.x - screen_size.x / 2, screen_center.y - screen_size.y / 2, screen_center.x + screen_size.x / 2, screen_center.y + screen_size.y / 2, .{ 100, 100, 100, 100 });
-            draw_text(client, *client.ui_font, label, screen_center.x, screen_center.y, .Center | .Median, .{ 255, 255, 255, 255 });
+            draw_rect_screen_space(client, .{ screen_center.x - screen_size.x / 2,
+                                              screen_center.y - screen_size.y / 2 },
+                                           .{ screen_center.x + screen_size.x / 2,
+                                              screen_center.y + screen_size.y / 2 },
+                                   .{ 100, 100, 100, 100 });
+            draw_text_screen_space(client, *client.ui_font, label, screen_center, .Center | .Median, .{ 255, 255, 255, 255 });
         }
     }
 
-    progress_bar_scale := round(screen_from_world_scale(client, .{ 0, 0.9 * 0.13333 }).y);
+    PROGRESS_BAR_WORLD_SIZE: f32 : 0.9 * 0.13333;
     
     world :: *client.world;
 
@@ -251,8 +158,7 @@ draw_world :: (client: *Client) {
         if entity.kind == .Receiver {
             receiver := down(entity, Receiver);
             if receiver.progress_time_in_seconds > 0 {
-                target_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx entity.visual_position.y });
-                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
+                draw_progress_bar_world_space(client, entity.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
             }
         }
     }
@@ -265,8 +171,7 @@ draw_world :: (client: *Client) {
         if entity.kind == .Emitter {
             emitter := down(entity, Emitter);
             if emitter.time_left_in_seconds > 0 {
-                target_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx entity.visual_position.y });
-                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, emitter.time_left_in_seconds / EMITTER_TIME_TO_DIE);
+                draw_progress_bar_world_space(client, entity.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_TIME_TO_DIE);
             }
         }
     }
@@ -279,19 +184,17 @@ draw_world :: (client: *Client) {
         if entity.kind == .Player {
             player := down(entity, Player);
 
-            target_scale := screen_from_world_scale(client, .{ 0.9, 0.9 });
-            target_position := screen_from_world_position(client, .{ xx player.target_position.x, xx player.target_position.y });
-            draw_outlined_rect(client, target_position.x - target_scale.x / 2, target_position.y - target_scale.y / 2, target_position.x + target_scale.x / 2, target_position.y + target_scale.y / 2, 4, .{ 255, 255, 255, 255 });
+            TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
+            draw_outlined_rect_world_space(client, .{ xx player.target_position.x - TARGET_RECT_HALF_SIZE, xx player.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx player.target_position.x + TARGET_RECT_HALF_SIZE, xx player.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
             
             if #complete player.state == {
               case .Idle;
               case .Dead;
-                halo_scale    := round(screen_from_world_scale(client, .{ 0, 0.25 }).y);
-                halo_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) });
-                draw_circle(client, halo_position.x, halo_position.y, halo_scale, halo_scale * 1.2, .{ 255, 238, 116, 255 });
+                draw_circle_world_space(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
               case .Digging;
                 target_entity := get_entity_at_position(*client.world, player.target_position);
-                draw_progress_bar(client, target_position.x, target_position.y, progress_bar_scale, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);
+                draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);
+
               case .Carrying;
                 world_position := entity.visual_position;
                 world_position.x += 0.25;
@@ -300,8 +203,7 @@ draw_world :: (client: *Client) {
             }
 
             if entity.health < MAX_HEALTHS[.Player] {
-                screen_position := screen_from_world_position(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y + 0.55) });
-                draw_health_bar(client, screen_position.x, screen_position.y, progress_bar_scale, entity.health, MAX_HEALTHS[.Player]);
+                draw_health_bar_world_space(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y + 0.55) }, PROGRESS_BAR_WORLD_SIZE, entity.health, MAX_HEALTHS[.Player]);
             }
         }
     }    
@@ -358,4 +260,110 @@ set_ui_scissors :: (client: *Client, rect: UI_Rect) {
 
 clear_ui_scissors :: (client: *Client) {
     ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w - 1, xx client.window.h - 1 ]);
+}
+
+draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
+    background :: GE_Color.{ 100, 100, 100, 200 };
+
+    gap_size := round(cast(f32) box_size * 0.1);
+    
+    for i := 0; i < box_count; ++i {
+        theta := cast(f32) i / cast(f32) box_count;
+        
+        c0 := v2f.{ center.x + (theta - 0.5) * xx box_count * (box_size + gap_size), center.y - box_size / 2};
+        c1 := v2f.{ c0.x + box_size, center.y + box_size / 2 };
+        
+        alpha: f32 = ---;
+        if theta + (cast(f32) 1 / cast(f32) box_count) <= percentage then
+            alpha = 1;
+        else
+            alpha = clamp((percentage - theta) / (cast(f32) 1 / cast(f32) box_count), 0, 1);
+
+        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
+
+        draw_rect_screen_space(client, c0, c1, background);
+        draw_rect_screen_space(client, c0, c1, color);
+    }
+}
+
+draw_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius: f32, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
+    subsegments :: 24;
+    
+    for i := 0; i < subsegments; ++i {
+        range  := theta1 - theta0;
+        seg_t0 := (cast(f32) i / cast(f32) subsegments * range + theta0) * FTAU;
+        seg_t1 := (cast(f32) (i + 1 % subsegments) / cast(f32) subsegments * range + theta0) * FTAU;
+        
+        p0 := v2f.{ center.x + sinf(seg_t0) * outer_radius, center.y - cosf(seg_t0) * outer_radius };
+        p1 := v2f.{ center.x + sinf(seg_t1) * outer_radius, center.y - cosf(seg_t1) * outer_radius };
+        p2 := v2f.{ center.x + sinf(seg_t0) * inner_radius, center.y - cosf(seg_t0) * inner_radius };
+        p3 := v2f.{ center.x + sinf(seg_t1) * inner_radius, center.y - cosf(seg_t1) * inner_radius };
+        
+        ge_imm2d_colored_vertex(*client.graphics, p0.x, p0.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
+
+        ge_imm2d_colored_vertex(*client.graphics, p2.x, p2.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p1.x, p1.y, color);
+        ge_imm2d_colored_vertex(*client.graphics, p3.x, p3.y, color);
+    }
+}
+
+draw_filling_circle_screen_space :: (client: *Client, center: v2f, outer_radius: f32, percentage: f32) {
+    segments :: 6;
+    background :: GE_Color.{ 100, 100, 100, 200 };
+    foreground :: GE_Color.{ 100, 240, 150, 200 };
+    gap_size :: cast(f32) 0.03; // Percentage of the entire circle
+    inner_radius: f32 = outer_radius * 0.35;
+    
+    //
+    // Draw the circle segments
+    //
+    for i := 0; i < segments; ++i {
+        theta0 := (cast(f32) i / cast(f32) segments);
+        theta1 := (cast(f32) (i + 1 % segments) / cast(f32) segments);
+        
+        alpha: f32 = ---;
+        if theta1 <= percentage then
+            alpha = 1;
+        else
+            alpha = clamp((percentage - theta0) / (theta1 - theta0), 0, 1);
+            
+        color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
+
+        draw_circle_segment_screen_space(client, center, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, background);
+        draw_circle_segment_screen_space(client, center, outer_radius, inner_radius, theta0 + gap_size / 2, theta1 - gap_size / 2, color);
+    }
+}
+
+draw_circle_screen_space :: (client: *Client, center: v2f, inner_radius, outer_radius: f32, color: GE_Color) {
+    draw_circle_segment_screen_space(client, center, inner_radius, outer_radius, 0, 1, color);
+}
+
+draw_circle_world_space :: (client: *Client, world_center: v2f, inner_world_radius, outer_world_radius: f32, color: GE_Color) {
+    screen_center := screen_from_world_position(client, world_center);
+    inner_screen_radius := screen_from_world_height(client, inner_world_radius);
+    outer_screen_radius := screen_from_world_height(client, outer_world_radius);
+    draw_circle_screen_space(client, screen_center, inner_screen_radius, outer_screen_radius, color);
+}
+
+draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, percentage: f32) {
+    box_count :: 6;
+    foreground :: GE_Color.{ 100, 240, 150, 200 };
+    draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
+}
+
+draw_progress_bar_world_space :: (client: *Client, world_center: v2f, world_size: f32, percentage: f32) {
+    screen_center := screen_from_world_position(client, world_center);
+    screen_size   := screen_from_world_height(client, world_size);
+    draw_progress_bar_screen_space(client, screen_center, screen_size, percentage);
+}
+
+draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: f32, health, max_health: f32) {
+    screen_center := screen_from_world_position(client, world_center);
+    screen_size   := screen_from_world_height(client, world_size);
+
+    box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
+    foreground :: GE_Color.{ 227, 60, 74, 255 };
+    draw_filling_boxes_screen_space(client, screen_center, box_count, screen_size, health / max_health, foreground);    
 }

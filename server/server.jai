@@ -395,7 +395,6 @@ do_game_tick :: (server: *Server) {
     //
     for i := 0; i < server.world.entities.count; ++i {
         entity := array_get_pointer(*server.world.entities, i);
-
         if entity.kind == .Emitter {
             // @ReduceMessages: We do a simple client-side prediction on the time_left_in_seconds,
             // so we don't have to send the value every frame, we could only send it if the rate

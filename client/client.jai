@@ -645,7 +645,7 @@ main :: () -> s32 {
             
             if #complete client.current_state == {
               case .Main_Menu, .Connecting, .Lobby, .Game_Over;
-                draw_text(*client, *client.title_font, "GlassMiners", xx client.window.w / 2, xx client.window.h / 4, .Center | .Median, .{ 255, 255, 255, 255 });
+                draw_text_screen_space(*client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, .{ 255, 255, 255, 255 });
             
               case .Ingame;
                 draw_world(*client);

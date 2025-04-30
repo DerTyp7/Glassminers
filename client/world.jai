@@ -57,8 +57,12 @@ screen_from_world_position :: (client: *Client, world: v2f) -> v2f {
     return .{ (world.x - client.camera.center.x) * client.camera.world_to_screen.x + xx client.window.w / 2, (world.y - client.camera.center.y) * client.camera.world_to_screen.y + xx client.window.h / 2 };
 }
 
-screen_from_world_scale :: (client: *Client, world: v2f) -> v2f {
+screen_from_world_size :: (client: *Client, world: v2f) -> v2f {
     return .{ world.x * client.camera.world_to_screen.x, world.y * client.camera.world_to_screen.y };
+}
+
+screen_from_world_height :: (client: *Client, height: f32) -> f32 {
+    return height * client.camera.world_to_screen.y;
 }
 
 update_camera_matrices :: (camera: *Camera, window: *Window) {
