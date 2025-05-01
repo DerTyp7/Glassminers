@@ -6,8 +6,8 @@
 
 // Shared
 #load "../shared/messages.jai";
-#load "../shared/world.jai";
 #load "../shared/shared.jai";
+#load "../shared/bucket_array.jai";
 
 // Server
 #load "world.jai";
