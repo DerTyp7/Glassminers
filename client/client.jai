@@ -15,7 +15,7 @@
 
 // Client
 #load "draw.jai";
-#load "world.jai";
+#load "entity.jai";
 #load "assets.jai";
 
 
@@ -79,10 +79,11 @@ Client :: struct {
     // Game Data
     //
     game_seed: s64;
-    world: World;
-    camera: Camera;
-    my_entity_pid: Pid;
+    world_size: v2i;
     tick_time: f32;
+    camera: Camera;
+    entities: [..]Entity;
+    my_entity_pid: Pid;
 }
 
 
@@ -189,7 +190,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Game_Start;
         client.game_seed = msg.game_start.seed;
-        client.world.size = msg.game_start.size;
+        client.world_size = msg.game_start.size;
         transition_to_state(client, .Ingame);
         
       case .Game_Over;
@@ -201,37 +202,37 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         transition_to_state(client, .Game_Over);
         
       case .Create_Entity;
-        create_entity_with_pid(*client.world, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
+        create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
 
       case .Destroy_Entity;
-        entity := get_entity(*client.world, msg.destroy_entity.entity_pid);
+        entity := get_entity(client, msg.destroy_entity.entity_pid);
         entity.marked_for_removal = true;
 
       case .Move_Entity;
-        entity := get_entity(*client.world, msg.move_entity.entity_pid);
+        entity := get_entity(client, msg.move_entity.entity_pid);
         entity.physical_position = msg.move_entity.position;
         entity.physical_rotation = msg.move_entity.rotation;
         entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
         entity.visual_rotation   = visual_from_physical_rotation(entity.physical_rotation);
 
       case .Entity_Health;
-        entity := get_entity(*client.world, msg.entity_health.entity_pid);
+        entity := get_entity(client, msg.entity_health.entity_pid);
         entity.health = msg.entity_health.current_health;
         
       case .Player_State;
-        entity := get_entity(*client.world, msg.player_state.entity_pid);
+        entity := get_entity(client, msg.player_state.entity_pid);
         player := down(entity, Player);
         player.state = msg.player_state.state;
         player.target_position = msg.player_state.target_position;
         player.carrying_item = msg.player_state.carrying_item;
 
       case .Emitter_State;
-        entity := get_entity(*client.world, msg.emitter_state.entity_pid);
+        entity := get_entity(client, msg.emitter_state.entity_pid);
         emitter := down(entity, Emitter);
         emitter.time_left_in_seconds = msg.emitter_state.time_left_in_seconds;
         
       case .Receiver_State;
-        entity := get_entity(*client.world, msg.receiver_state.entity_pid);
+        entity := get_entity(client, msg.receiver_state.entity_pid);
         receiver := down(entity, Receiver);
         receiver.progress_time_in_seconds = msg.receiver_state.progress_time_in_seconds;
     }
@@ -301,12 +302,12 @@ switch_to_next_state :: (client: *Client) {
 
       case .Lobby;
         if client.next_state != .Ingame {
-            destroy_world(*client.world);
+            array_clear(*client.entities);
             maybe_shutdown_server(client);
         }
         
       case .Ingame;
-        destroy_world(*client.world);
+        array_clear(*client.entities);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
     }
@@ -317,10 +318,8 @@ switch_to_next_state :: (client: *Client) {
       case .Main_Menu, .Connecting, .Ingame, .Game_Over;
       
       case .Lobby;
-        // We already create the world here because otherwise we cannot guarantee
-        // the world has been created before the entities arrive from the server (since
-        // our protocol does not guarantee the order in which messages will arrive.
-        create_world(*client.world, *client.perm);
+        // The server will already initialize our game during the lobby...
+        client.entities.allocator = *client.perm;
         client.camera.center = .{ 4, 2 };
         client.my_entity_pid = INVALID_PID;
     }
@@ -467,8 +466,8 @@ do_game_tick :: (client: *Client) {
                                floor(target_position.y / ROOM_SIZE.y) * ROOM_SIZE.y + ROOM_OFFSET.y };
         half_size     := v2f.{ floor(client.camera.size.x / 2), floor(client.camera.size.y / 2) };
         
-        return .{ clamp(room_position.x, half_size.x, xx client.world.size.x - half_size.x - 1),
-                  clamp(room_position.y, half_size.y, xx client.world.size.y - half_size.y - 1) };
+        return .{ clamp(room_position.x, half_size.x, xx client.world_size.x - half_size.x - 1),
+                  clamp(room_position.y, half_size.y, xx client.world_size.y - half_size.y - 1) };
     }
 
     client.tick_time = client.window.frame_time;
@@ -481,8 +480,8 @@ do_game_tick :: (client: *Client) {
     // This also does some basic client-side prediction
     //
     {
-        for i := 0; i < client.world.entities.count; ++i {
-            entity := array_get_pointer(*client.world.entities, i);
+        for i := 0; i < client.entities.count; ++i {
+            entity := array_get_pointer(*client.entities, i);
 
             if entity.kind == {
               case .Emitter;
@@ -492,7 +491,7 @@ do_game_tick :: (client: *Client) {
                     emitter.time_left_in_seconds -= client.tick_time;
                 }
 
-                recalculate_emitter(*client.world, entity, emitter);
+                recalculate_emitter(client, entity, emitter);
             }
         }
     }
@@ -502,45 +501,43 @@ do_game_tick :: (client: *Client) {
     
     // Update the camera
     {
-        player := get_entity(*client.world, client.my_entity_pid);
+        player := get_entity(client, client.my_entity_pid);
         client.camera.center = clamp_camera_position(client, player.visual_position);
         update_camera_matrices(*client.camera, *client.window);
     }
 
     // Forward player input to the server
     {
+        player := get_entity(client, client.my_entity_pid);
+
         send_player_move := false;
-        new_position: v2i = ---;
+        new_position: v2i = player.physical_position;
         new_aim_direction: Direction = ---;
         
         if client.window.keys[.A] & .Repeated {
-            entity := get_entity(*client.world, client.my_entity_pid);
-            new_position.x    = entity.physical_position.x - 1;
-            new_position.y    = entity.physical_position.y;
+            new_position.x    = player.physical_position.x - 1;
+            new_position.y    = player.physical_position.y;
             new_aim_direction = .West;
             send_player_move  = true;
         }
 
         if client.window.keys[.D] & .Repeated {
-            entity := get_entity(*client.world, client.my_entity_pid);
-            new_position.x = entity.physical_position.x + 1;
-            new_position.y = entity.physical_position.y;
+            new_position.x = player.physical_position.x + 1;
+            new_position.y = player.physical_position.y;
             new_aim_direction = .East;
             send_player_move = true;
         }
 
         if client.window.keys[.W] & .Repeated {
-            entity := get_entity(*client.world, client.my_entity_pid);
-            new_position.x = entity.physical_position.x;
-            new_position.y = entity.physical_position.y - 1;
+            new_position.x = player.physical_position.x;
+            new_position.y = player.physical_position.y - 1;
             new_aim_direction = .North;
             send_player_move = true;
         }
 
         if client.window.keys[.S] & .Repeated {
-            entity := get_entity(*client.world, client.my_entity_pid);
-            new_position.x = entity.physical_position.x;
-            new_position.y = entity.physical_position.y + 1;
+            new_position.x = player.physical_position.x;
+            new_position.y = player.physical_position.y + 1;
             new_aim_direction = .South;
             send_player_move = true;
         }
@@ -595,7 +592,7 @@ do_game_tick :: (client: *Client) {
         }
     }
     
-    remove_all_marked_entities(*client.world);
+    remove_all_marked_entities(client);
 }
 
 main :: () -> s32 {

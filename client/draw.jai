@@ -90,7 +90,7 @@ draw_world :: (client: *Client) {
     }
     
     draw_label :: (client: *Client, label: string, entity_pid: Pid) {
-        entity := get_entity(*client.world, entity_pid);
+        entity := get_entity(client, entity_pid);
         if entity {
             screen_center := screen_from_world_position(client, v2f.{ entity.visual_position.x, entity.visual_position.y - 0.55 });
             screen_size   := v2f.{ xx get_string_width_in_pixels(*client.ui_font, label) + 5, xx client.ui_font.line_height };
@@ -105,16 +105,14 @@ draw_world :: (client: *Client) {
     }
 
     PROGRESS_BAR_WORLD_SIZE: f32 : 0.9 * 0.13333;
-    
-    world :: *client.world;
 
     ge_set_pipeline(*client.graphics, client.entity_pipeline);
     
     //
     // Draw implicit background inanimates
     //
-    for x := 0; x < client.world.size.x; ++x {
-        for y := 0; y < client.world.size.y; ++y {
+    for x := 0; x < client.world_size.x; ++x {
+        for y := 0; y < client.world_size.y; ++y {
             draw_sprite_world_space(client, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0);
         }
     }
@@ -122,8 +120,8 @@ draw_world :: (client: *Client) {
     //
     // Draw all entities
     //
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
+    for i := 0; i < client.entities.count; ++i {
+        entity := array_get_pointer(*client.entities, i);
         sprite_index := get_sprite_index_for_entity(entity);
         draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation);
     }
@@ -131,8 +129,8 @@ draw_world :: (client: *Client) {
     //
     // Draw all emitters
     //
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
+    for i := 0; i < client.entities.count; ++i {
+        entity := array_get_pointer(*client.entities, i);
         if entity.kind == .Emitter {
             emitter := down(entity, Emitter);
             
@@ -146,8 +144,8 @@ draw_world :: (client: *Client) {
     //
     // Draw all receiver states
     //
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
+    for i := 0; i < client.entities.count; ++i {
+        entity := array_get_pointer(*client.entities, i);
         if entity.kind == .Receiver {
             receiver := down(entity, Receiver);
             if receiver.progress_time_in_seconds > 0 {
@@ -159,8 +157,8 @@ draw_world :: (client: *Client) {
     //
     // Draw all emitter states
     //
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
+    for i := 0; i < client.entities.count; ++i {
+        entity := array_get_pointer(*client.entities, i);
         if entity.kind == .Emitter {
             emitter := down(entity, Emitter);
             if emitter.time_left_in_seconds > 0 {
@@ -172,8 +170,8 @@ draw_world :: (client: *Client) {
     //
     // Draw all player states
     //
-    for i := 0; i < world.entities.count; ++i {
-        entity := array_get_pointer(*world.entities, i);
+    for i := 0; i < client.entities.count; ++i {
+        entity := array_get_pointer(*client.entities, i);
         if entity.kind == .Player {
             player := down(entity, Player);
 
@@ -185,7 +183,7 @@ draw_world :: (client: *Client) {
               case .Dead;
                 draw_circle_world_space(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
               case .Digging;
-                target_entity := get_entity_at_position(*client.world, player.target_position);
+                target_entity := get_entity_at_position(client, player.target_position);
                 draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);
 
               case .Carrying;
