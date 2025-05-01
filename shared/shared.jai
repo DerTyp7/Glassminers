@@ -5,7 +5,7 @@
 
 v2i :: Vector2_Base(s32);
 v2f :: Vector2_Base(f32);
-Pid :: u32;
+Pid :: u64;
 INVALID_PID: Pid : -1;
 
 Campaign :: enum {
