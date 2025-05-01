@@ -35,18 +35,18 @@ apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Tar
     }
 }
 
-build_server :: (mode: Build_Mode, target: Build_Target) {
+build_server :: (mode: Build_Mode, target: Build_Target) -> bool {
     options := compiler_default_workspace_options();
     options.workspace_name    = "Server";
     options.output_file_path  = "run_tree/server";
     options.source_files      = .[ "server/server.jai" ];
     options.type_information  = true;
     apply_flags(*options, mode, target);
-    compiler_create_and_compile_workspace(*options);    
+    return compiler_create_and_compile_workspace(*options);    
 }
 
 build_client :: (mode: Build_Mode) {
-    build_server(mode, .Library);
+    if !build_server(mode, .Library) return;
 
     options := compiler_default_workspace_options();
     options.workspace_name    = "Client";

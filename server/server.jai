@@ -52,8 +52,7 @@ Server :: struct {
     tick_time: f32;
 
     world_size: v2i;
-    entity_pid_counter: Pid;
-    entities: [..]Entity;
+    entities: Bucket_Array(Entity);
 }
 
 Log_Level :: enum {
@@ -276,7 +275,8 @@ transition_to_state :: (server: *Server, state: Game_State) {
 switch_to_next_state :: (server: *Server) {
     if #complete server.current_state == {
       case .Lobby, .Game_Over; // Ignore
-      case .Ingame; array_clear(*server.entities);
+      case .Ingame;
+        destroy_entity_arrays(server);
     }
     
     server.current_state = server.next_state;
@@ -299,8 +299,7 @@ create_the_game :: (server: *Server) {
         case .Hard;     server.world_size = .{ 72, 5 };
     }
 
-    server.entity_pid_counter = 0;
-    server.entities.allocator = *server.perm;
+    create_entity_arrays(server);
     
     //
     // Notify the clients about the game seed
@@ -384,7 +383,7 @@ do_game_tick :: (server: *Server) {
     // Update all emitters
     //
     for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
+        entity := index_bucket_array(*server.entities, i);
         if entity.kind == .Emitter {
             // @ReduceMessages: Simple client-side prediction
 
@@ -415,7 +414,7 @@ do_game_tick :: (server: *Server) {
     // Update all receivers
     //
     for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
+        entity := index_bucket_array(*server.entities, i);
         if entity.kind == .Receiver {
             // @ReduceMessages: Simple client-side predicition
 
@@ -449,7 +448,7 @@ do_game_tick :: (server: *Server) {
     number_of_dead_players := 0;
     
     for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
+        entity := index_bucket_array(*server.entities, i);
         if entity.kind == .Player {
             player := down(entity, Player);
 

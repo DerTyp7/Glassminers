@@ -121,7 +121,7 @@ draw_world :: (client: *Client) {
     // Draw all entities
     //
     for i := 0; i < client.entities.count; ++i {
-        entity := array_get_pointer(*client.entities, i);
+        entity := index_bucket_array(*client.entities, i);
         sprite_index := get_sprite_index_for_entity(entity);
         draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation);
     }
@@ -130,7 +130,7 @@ draw_world :: (client: *Client) {
     // Draw all emitters
     //
     for i := 0; i < client.entities.count; ++i {
-        entity := array_get_pointer(*client.entities, i);
+        entity := index_bucket_array(*client.entities, i);
         if entity.kind == .Emitter {
             emitter := down(entity, Emitter);
             
@@ -145,7 +145,7 @@ draw_world :: (client: *Client) {
     // Draw all receiver states
     //
     for i := 0; i < client.entities.count; ++i {
-        entity := array_get_pointer(*client.entities, i);
+        entity := index_bucket_array(*client.entities, i);
         if entity.kind == .Receiver {
             receiver := down(entity, Receiver);
             if receiver.progress_time_in_seconds > 0 {
@@ -158,7 +158,7 @@ draw_world :: (client: *Client) {
     // Draw all emitter states
     //
     for i := 0; i < client.entities.count; ++i {
-        entity := array_get_pointer(*client.entities, i);
+        entity := index_bucket_array(*client.entities, i);
         if entity.kind == .Emitter {
             emitter := down(entity, Emitter);
             if emitter.time_left_in_seconds > 0 {
@@ -171,7 +171,7 @@ draw_world :: (client: *Client) {
     // Draw all player states
     //
     for i := 0; i < client.entities.count; ++i {
-        entity := array_get_pointer(*client.entities, i);
+        entity := index_bucket_array(*client.entities, i);
         if entity.kind == .Player {
             player := down(entity, Player);
 

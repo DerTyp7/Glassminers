@@ -33,6 +33,24 @@ Receiver :: struct {
 
 
 //
+// Entity Manager
+//
+
+create_entity_arrays :: (server: *Server) {
+    create_bucket_array(*server.entities, *server.perm);
+}
+
+destroy_entity_arrays :: (server: *Server) {
+    for i := 0; i < server.entities.count; ++i {
+        entity := index_bucket_array(*server.entities, i);
+        if entity.derived deallocate(*server.perm, entity.derived);
+    }
+    destroy_bucket_array(*server.entities);
+}
+
+
+
+//
 // Base Entity
 //
 
@@ -42,8 +60,8 @@ down :: (entity: *Entity, $T: Type) -> *T {
 }
 
 create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: Direction) -> *Entity {
-    entity := array_push(*server.entities);
-    entity.pid                = server.entity_pid_counter;
+    pid, entity := push_bucket_array(*server.entities);
+    entity.pid                = pid;
     entity.kind               = kind;
     entity.marked_for_removal = false;
     entity.health             = MAX_HEALTHS[kind];
@@ -57,33 +75,27 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Receiver; entity.derived = new(*server.perm, Receiver);
     }
 
-    ++server.entity_pid_counter;
-
     msg := make_message(Create_Entity_Message);
     msg.create_entity.entity_pid = entity.pid;
     msg.create_entity.kind       = entity.kind;
     msg.create_entity.position   = entity.physical_position;
     msg.create_entity.rotation   = entity.physical_rotation;
     array_add(*server.outgoing_messages, msg);
-
+    
     return entity;
 }
 
 get_entity :: (server: *Server, pid: Pid) -> *Entity {
-    for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
-        if entity.pid == pid return entity;
-    }
-    
-    return null;
+    // Asserts when the pid does not exist!
+    return query_bucket_array(*server.entities, pid);
 }
 
 physically_remove_all_marked_entities :: (server: *Server) {
     for i := 0; i < server.entities.count; {
-        entity := array_get_pointer(*server.entities, i);
+        entity := index_bucket_array(*server.entities, i);
         if entity.marked_for_removal {
             if entity.derived deallocate(*server.perm, entity.derived);
-            array_remove_index(*server.entities, i);
+            remove_index_from_bucket_array(*server.entities, i);
         } else {
             ++i;
         }
@@ -143,7 +155,7 @@ position_in_bounds :: (server: *Server, position: v2i) -> bool {
 
 get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
+        entity := index_bucket_array(*server.entities, i);
         if entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
@@ -152,7 +164,7 @@ get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
 
 get_blocking_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
+        entity := index_bucket_array(*server.entities, i);
         if is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
@@ -201,7 +213,7 @@ remove_entity :: (server: *Server, entity: *Entity) {
 
 is_emitter_field_at :: (server: *Server, position: v2i) -> bool {
     for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
+        entity := index_bucket_array(*server.entities, i);
         
         if entity.kind == .Emitter {
             emitter := down(entity, Emitter);

@@ -1,3 +1,5 @@
+// @Cleanup: Generational Indices!
+
 Bucket_Array :: struct (T: Type) {
     BUCKET_SIZE          :: 64;
     MIN_INDIRECTION_SIZE :: 8;
@@ -18,6 +20,7 @@ create_bucket_array :: (array: *Bucket_Array($T), allocator: *Allocator) {
     array.allocator   = allocator;
     array.indirection = allocate_array(array.allocator, Indirection, array.MIN_INDIRECTION_SIZE);
     array.buckets     = allocate_array(array.allocator, *array.Bucket, array.MIN_BUCKET_COUNT);
+    for i := 0; i < array.indirection.count; ++i array.indirection[i] = INACTIVE_INDIRECTION;
     for i := 0; i < array.buckets.count; ++i array.buckets[i] = null;
     array.count       = 0;
 }
@@ -95,9 +98,9 @@ push_bucket_array_with_pid :: (array: *Bucket_Array($T), pid: Pid) -> *T {
             new_indirection_size *= 2;
         }
 
-        if new_indirection_size > array.indirections.count {
+        if new_indirection_size > array.indirection.count {
             previous_count := array.indirection.count;
-            array.indirection = reallocate_array(array.allocator, Pid, array.indirection.count * 2);
+            array.indirection = reallocate_array(array.allocator, array.indirection, array.indirection.count * 2);
             for i := previous_count; i < array.indirection.count; ++i {
                 array.indirection[i] = INACTIVE_INDIRECTION;
             }
@@ -106,20 +109,21 @@ push_bucket_array_with_pid :: (array: *Bucket_Array($T), pid: Pid) -> *T {
         
     entry: *T = null;
     
-    bucket_index, index_in_bucket := count / array.BUCKET_SIZE, count % array.BUCKET_SIZE;
+    bucket_index, index_in_bucket := array.count / array.BUCKET_SIZE, array.count % array.BUCKET_SIZE;
 
     if bucket_index >= array.buckets.count {
-        array.buckets = reallocate_array(array.allocator, *Bucket, array.buckets.count * 2);
+        array.buckets = reallocate_array(array.allocator, array.buckets, array.buckets.count * 2);
     }
 
     if array.buckets[bucket_index] == null {
-        array.buckets[bucket_index] = new(array.allocator, Bucket);
+        array.buckets[bucket_index] = new(array.allocator, array.Bucket);
     }
 
     entry = *array.buckets[bucket_index].entries[index_in_bucket];
-    array.buckets[bucket_index].id[index_in_bucket] = pid;
+    array.buckets[bucket_index].pid[index_in_bucket] = pid;
+    array.indirection[pid] = array.count;
 
-    ++count;    
+    ++array.count;    
 
     return entry;
 }
@@ -192,6 +196,10 @@ query_bucket_array :: (array: *Bucket_Array($T), pid: Pid) -> *T {
     assert(pid >= 0 && pid < array.indirection.count, "Bucket Array Pid is out of bounds.");
     assert(array.indirection[pid] != INACTIVE_INDIRECTION, "Bucket Array Pid is unused.");
     return index_bucket_array(array, array.indirection[pid]);
+}
+
+bucket_array_contains :: (array: *Bucket_Array($T), pid: Pid) -> bool {
+    return pid >= 0 && pid < array.indirection.count && array.indirection[pid] != INACTIVE_INDIRECTION;
 }
 
 

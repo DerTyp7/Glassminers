@@ -82,7 +82,7 @@ Client :: struct {
     world_size: v2i;
     tick_time: f32;
     camera: Camera;
-    entities: [..]Entity;
+    entities: Bucket_Array(Entity);
     my_entity_pid: Pid;
 }
 
@@ -302,12 +302,12 @@ switch_to_next_state :: (client: *Client) {
 
       case .Lobby;
         if client.next_state != .Ingame {
-            array_clear(*client.entities);
+            destroy_entity_arrays(client);
             maybe_shutdown_server(client);
         }
         
       case .Ingame;
-        array_clear(*client.entities);
+        destroy_entity_arrays(client);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
     }
@@ -319,7 +319,7 @@ switch_to_next_state :: (client: *Client) {
       
       case .Lobby;
         // The server will already initialize our game during the lobby...
-        client.entities.allocator = *client.perm;
+        create_entity_arrays(client);
         client.camera.center = .{ 4, 2 };
         client.my_entity_pid = INVALID_PID;
     }
@@ -481,7 +481,7 @@ do_game_tick :: (client: *Client) {
     //
     {
         for i := 0; i < client.entities.count; ++i {
-            entity := array_get_pointer(*client.entities, i);
+            entity := index_bucket_array(*client.entities, i);
 
             if entity.kind == {
               case .Emitter;
