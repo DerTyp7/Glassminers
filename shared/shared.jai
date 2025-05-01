@@ -159,45 +159,6 @@ visual_from_physical_rotation :: (in: Direction) -> f32 {
     return out;
 }
 
-
-
-recalculate_emitter :: (world: *World, entity: *Entity, emitter: *Emitter) {
-    emitter.fields.allocator = *temp;
-    array_clear_without_deallocation(*emitter.fields);
-
-    if emitter.time_left_in_seconds <= 0 return;
-    
-    direction := entity.physical_rotation;
-    field     := entity.physical_position;
-    
-    while true {
-        vector := vector_from_direction(direction);
-        field.x += vector.x;
-        field.y += vector.y;
-        if !position_in_bounds(world, field) break;
-        
-        blocking := get_blocking_entity_at_position(world, field);
-        
-        if blocking == null || blocking.kind == .Player {
-            array_add(*emitter.fields, field);
-        } else if blocking.kind == .Mirror {
-            array_add(*emitter.fields, field);
-            
-            reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
-            
-            if reflection_success then
-            direction = reflected_direction;
-            else break;
-        } else if blocking.kind == .Receiver {
-            array_add(*emitter.fields, field);
-            break;
-        } else {
-            break;
-        }
-    }
-}
-
-
 is_pushable_entity :: (kind: Entity_Kind) -> bool {
     return kind == .Player || kind == .Crystal || kind == .Rock;
 }

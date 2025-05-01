@@ -10,7 +10,7 @@
 #load "../shared/bucket_array.jai";
 
 // Server
-#load "world.jai";
+#load "entity.jai";
 
 TICK_RATE: f32 : 30;
 
@@ -49,8 +49,11 @@ Server :: struct {
     // Game Data
     //
     game_seed: s64;
-    world: World;
     tick_time: f32;
+
+    world_size: v2i;
+    entity_pid_counter: Pid;
+    entities: [..]Entity;
 }
 
 Log_Level :: enum {
@@ -78,7 +81,7 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
     logprint(.Debug, "Disconnected from client '%'.", client.player_pid);
 
     if server.current_state == .Ingame {
-        entity := get_entity(*server.world, client.entity_pid);
+        entity := get_entity(server, client.entity_pid);
         entity.marked_for_removal = true;
     }
         
@@ -128,23 +131,23 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         transition_to_state(server, .Ingame);
 
       case .Move_Entity;
-        entity := get_entity(*server.world, msg.move_entity.entity_pid);
+        entity := get_entity(server, msg.move_entity.entity_pid);
         
         move_delta := v2i.{ msg.move_entity.position.x - entity.physical_position.x, msg.move_entity.position.y - entity.physical_position.y };
         
-        if can_move_to_position(*server.world, entity, msg.move_entity.position) {
-            move_to_position(*server.world, entity, msg.move_entity.position);
+        if can_move_to_position(server, entity, msg.move_entity.position) {
+            move_to_position(server, entity, msg.move_entity.position);
         }
         
         
       case .Player_Move;
-        entity := get_entity(*server.world, msg.player_move.entity_pid);
+        entity := get_entity(server, msg.player_move.entity_pid);
         player := down(entity, Player);
 
         if player.state == .Dead break;
         
-        if can_move_to_position(*server.world, entity, msg.player_move.position) {
-            move_to_position(*server.world, entity, msg.player_move.position);
+        if can_move_to_position(server, entity, msg.player_move.position) {
+            move_to_position(server, entity, msg.player_move.position);
         }
 
         player.aim_direction = msg.player_move.aim_direction;
@@ -157,12 +160,12 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         }
         
       case .Player_Interact;
-        entity := get_entity(*server.world, msg.player_interact.entity_pid);
+        entity := get_entity(server, msg.player_interact.entity_pid);
         player := down(entity, Player);
 
         if player.state == .Dead break;
 
-        target_entity := get_entity_at_position(*server.world, player.target_position);
+        target_entity := get_entity_at_position(server, player.target_position);
 
         if #complete msg.player_interact.interaction_kind == {            
           case .Primary;
@@ -184,9 +187,9 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
                   case .Dead, .Digging;
                   case .Idle;
                     // @Temporary: Players can currently create mirrors out of thin air...
-                    create_entity(*server.world, .Mirror, player.target_position, .North);
+                    create_entity(server, .Mirror, player.target_position, .North);
                   case .Carrying;
-                    create_entity(*server.world, player.carrying_item, player.target_position, .North);
+                    create_entity(server, player.carrying_item, player.target_position, .North);
                     player.state = .Idle;
                     player.carrying_item = .Inanimate;
                 }
@@ -274,7 +277,7 @@ transition_to_state :: (server: *Server, state: Game_State) {
 switch_to_next_state :: (server: *Server) {
     if #complete server.current_state == {
       case .Lobby, .Game_Over; // Ignore
-      case .Ingame; destroy_world(*server.world);
+      case .Ingame; array_clear(*server.entities);
     }
     
     server.current_state = server.next_state;
@@ -290,23 +293,22 @@ create_the_game :: (server: *Server) {
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
-    world_size: v2i = ---;
-
     if #complete CAMPAIGN == {
-        case .Tutorial; world_size = .{ 9, 5 };
-        case .Easy;     world_size = .{ 18, 5 };
-        case .Medium;   world_size = .{ 36, 5 };
-        case .Hard;     world_size = .{ 72, 5 };
+        case .Tutorial; server.world_size = .{ 9, 5 };
+        case .Easy;     server.world_size = .{ 18, 5 };
+        case .Medium;   server.world_size = .{ 36, 5 };
+        case .Hard;     server.world_size = .{ 72, 5 };
     }
-    
-    create_world(*server.world, *server.perm, world_size);
 
+    server.entity_pid_counter = 0;
+    server.entities.allocator = *server.perm;
+    
     //
     // Notify the clients about the game seed
     //
     game_start := make_message(Game_Start_Message);
     game_start.game_start.seed = server.game_seed;
-    game_start.game_start.size = server.world.size;
+    game_start.game_start.size = server.world_size;
     array_add(*server.outgoing_messages, game_start);
 
     //
@@ -319,10 +321,10 @@ create_the_game :: (server: *Server) {
         }
 
         random_position :: (server: *Server) -> v2i {
-            position := v2i.{ random_u64_in(*server.random, 0, server.world.size.x), random_u64_in(*server.random, 0, server.world.size.y) };
+            position := v2i.{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
 
-            while get_entity_at_position(*server.world, position) != null || is_blocked_position(server, position) {
-                position = .{ random_u64_in(*server.random, 0, server.world.size.x), random_u64_in(*server.random, 0, server.world.size.y) };
+            while get_entity_at_position(server, position) != null || is_blocked_position(server, position) {
+                position = .{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
             }
             
             return position;
@@ -330,15 +332,15 @@ create_the_game :: (server: *Server) {
 
         generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
             for i := 0; i < n; ++i {
-                create_entity(*server.world, kind, random_position(server), .North);
+                create_entity(server, kind, random_position(server), .North);
             }
         }
 
-        create_entity(*server.world, .Emitter, .{ 0, 2 }, .East);
-        create_entity(*server.world, .Receiver, .{ server.world.size.x - 1, 2 }, .West);
-        generate_n_random_entities(server, .Bedrock, server.world.size.x * 2);
-        generate_n_random_entities(server, .Rock, server.world.size.x / 4);
-        generate_n_random_entities(server, .Crystal, server.world.size.x / 4);
+        create_entity(server, .Emitter, .{ 0, 2 }, .East);
+        create_entity(server, .Receiver, .{ server.world_size.x - 1, 2 }, .West);
+        generate_n_random_entities(server, .Bedrock, server.world_size.x * 2);
+        generate_n_random_entities(server, .Rock, server.world_size.x / 4);
+        generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
     }
     
     //
@@ -346,7 +348,7 @@ create_the_game :: (server: *Server) {
     //
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        pid, entity := create_entity(*server.world, .Player, .{ 3 + i, 2 }, .North);
+        pid, entity := create_entity(server, .Player, .{ 3 + i, 2 }, .North);
 
         client.entity_pid = pid;
         
@@ -360,8 +362,8 @@ create_the_game :: (server: *Server) {
     //
     // Notify the clients about all the created entities
     //
-    for i := 0; i < server.world.entities.count; ++i {
-        entity := array_get_pointer(*server.world.entities, i);
+    for i := 0; i < server.entities.count; ++i {
+        entity := array_get_pointer(*server.entities, i);
         entity.created_this_frame = false;
         
         msg := make_message(Create_Entity_Message);
@@ -397,12 +399,10 @@ do_game_tick :: (server: *Server) {
     //
     // Update all emitters
     //
-    for i := 0; i < server.world.entities.count; ++i {
-        entity := array_get_pointer(*server.world.entities, i);
+    for i := 0; i < server.entities.count; ++i {
+        entity := array_get_pointer(*server.entities, i);
         if entity.kind == .Emitter {
-            // @ReduceMessages: We do a simple client-side prediction on the time_left_in_seconds,
-            // so we don't have to send the value every frame, we could only send it if the rate
-            // of change changed or something...
+            // @ReduceMessages: Simple client-side prediction
 
             emitter := down(entity, Emitter);
             
@@ -412,7 +412,7 @@ do_game_tick :: (server: *Server) {
                 emitter.time_left_in_seconds -= server.tick_time;
             }
 
-            recalculate_emitter(*server.world, entity, emitter);
+            recalculate_emitter(server, entity, emitter);
 
             if previous != emitter.time_left_in_seconds {
                 msg := make_message(Emitter_State_Message);
@@ -430,17 +430,16 @@ do_game_tick :: (server: *Server) {
     //
     // Update all receivers
     //
-    for i := 0; i < server.world.entities.count; ++i {
-        entity := array_get_pointer(*server.world.entities, i);
+    for i := 0; i < server.entities.count; ++i {
+        entity := array_get_pointer(*server.entities, i);
         if entity.kind == .Receiver {
+            // @ReduceMessages: Simple client-side predicition
+
             receiver := down(entity, Receiver);
             
-            // @ReduceMessages: We could implement a simple client-side prediction on the
-            // progress_time_in_seconds, so we don't have to send the value every frame, we could
-            // only send it if the rate of change changed or something...
             previous := receiver.progress_time_in_seconds;
             
-            if is_emitter_field_at(*server.world, entity.physical_position) {
+            if is_emitter_field_at(server, entity.physical_position) {
                 receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
             } else {
                 receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
@@ -465,8 +464,8 @@ do_game_tick :: (server: *Server) {
     player_index := 0; // nocheckin
     number_of_dead_players := 0;
     
-    for i := 0; i < server.world.entities.count; ++i {
-        entity := array_get_pointer(*server.world.entities, i);
+    for i := 0; i < server.entities.count; ++i {
+        entity := array_get_pointer(*server.entities, i);
         if entity.kind == .Player {
             player := down(entity, Player);
 
@@ -480,7 +479,7 @@ do_game_tick :: (server: *Server) {
                 
                 if player.state == {
                   case .Digging;
-                    target_entity := get_entity_at_position(*server.world, player.target_position);
+                    target_entity := get_entity_at_position(server, player.target_position);
                     damage(server, target_entity, PLAYER_DPS * server.tick_time);
                     
                     if target_entity.health <= 0 {
@@ -488,8 +487,8 @@ do_game_tick :: (server: *Server) {
 
                         // Generate the resource drop from the farmed entity
                         if target_entity.kind == {
-                            case .Crystal; create_entity(*server.world, .Shard, target_entity.physical_position, .North);
-                            case .Rock; create_entity(*server.world, .Stone, target_entity.physical_position, .North);
+                            case .Crystal; create_entity(server, .Shard, target_entity.physical_position, .North);
+                            case .Rock; create_entity(server, .Stone, target_entity.physical_position, .North);
                         }
 
                         player.state = .Idle;
@@ -515,9 +514,10 @@ do_game_tick :: (server: *Server) {
     
     //
     // Figure out all updates this frame
+    // @Cleanup: This ought to be removed!
     //
-    for i := 0; i < server.world.entities.count; ++i {
-        entity := array_get_pointer(*server.world.entities, i);
+    for i := 0; i < server.entities.count; ++i {
+        entity := array_get_pointer(*server.entities, i);
         if entity.created_this_frame && !entity.marked_for_removal {
             msg := make_message(Create_Entity_Message);
             msg.create_entity.entity_pid = entity.pid;
@@ -556,7 +556,7 @@ do_game_tick :: (server: *Server) {
     //
     // Finally actually delete all marked entities
     //
-    remove_all_marked_entities(*server.world);
+    remove_all_marked_entities(server);
 }
 
 server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
