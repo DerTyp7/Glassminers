@@ -10,16 +10,25 @@ create_draw_data :: (client: *Client) {
 #if BAKE_ASSETS {
     ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, 13, .Ascii);
     ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, 45, .Ascii);
-    client.sprite_atlas = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLAS.width, BAKED_SPRITE_ATLAS.height, BAKED_SPRITE_ATLAS.channels, BAKED_SPRITE_ATLAS.pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
+    for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
+        client.sprite_atlases[i] = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLASES[i].width, BAKED_SPRITE_ATLASES[i].height, BAKED_SPRITE_ATLASES[i].channels, BAKED_SPRITE_ATLASES[i].pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
+    }
 } #else {
     ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
-    client.sprite_atlas = ge_create_texture_from_file(*client.graphics, "data/sprite_atlas.png", .Filter_Nearest | .Wrap_Clamp_To_Edge);
+
+    for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
+        file_path := tprint("data/sprite_atlas_%.png", i);
+        client.sprite_atlases[i] = ge_create_texture_from_file(*client.graphics, file_path, .Filter_Nearest | .Wrap_Clamp_To_Edge);
+    }
 }
 }
 
 destroy_draw_data :: (client: *Client) {
-    ge_destroy_texture(*client.graphics, client.sprite_atlas);
+    for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
+        ge_destroy_texture(*client.graphics, client.sprite_atlases[i]);
+    }
+
     ge_destroy_font(*client.graphics, *client.ui_font);
     ge_destroy_font(*client.graphics, *client.title_font);
     ge_destroy_pipeline(*client.graphics, client.ui_pipeline);
@@ -79,23 +88,6 @@ draw_world :: (client: *Client) {
         WORLD_HALF_SIZE: f32 : 0.75 / 2;
         draw_rect_world_space(client, .{ visual_position.x - WORLD_HALF_SIZE, visual_position.y - WORLD_HALF_SIZE }, .{ visual_position.x + WORLD_HALF_SIZE, visual_position.y + WORLD_HALF_SIZE }, color);
     }
-
-    draw_entity :: (client: *Client, kind: Entity_Kind, visual_position: v2f, visual_size: v2f, visual_rotation: f32) {
-        screen_center := screen_from_world_position(client, visual_position);
-        screen_size   := screen_from_world_size(client, visual_size);
-
-        vertices: [4]v2f =.[
-                v2_rotate(v2f.{ -screen_size.x / 2, -screen_size.y / 2 }, visual_rotation),
-                v2_rotate(v2f.{ +screen_size.x / 2, -screen_size.y / 2 }, visual_rotation),
-                v2_rotate(v2f.{ +screen_size.x / 2, +screen_size.y / 2 }, visual_rotation),
-                v2_rotate(v2f.{ -screen_size.x / 2, +screen_size.y / 2 }, visual_rotation) ];
-        uvs:      [4]v2f = calculate_uv_box_for_entity_kind(kind);
-        indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
-
-        for i := 0; i < indices.Capacity; ++i {
-            ge_imm2d_textured_vertex(*client.graphics, screen_center.x + vertices[indices[i]].x, screen_center.y + vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, client.sprite_atlas, .{ 255, 255, 255, 255 });
-        }
-    }
     
     draw_label :: (client: *Client, label: string, entity_pid: Pid) {
         entity := get_entity(*client.world, entity_pid);
@@ -123,7 +115,7 @@ draw_world :: (client: *Client) {
     //
     for x := 0; x < client.world.size.x; ++x {
         for y := 0; y < client.world.size.y; ++y {
-            draw_entity(client, .Inanimate, .{ xx x, xx y }, .{ 1, 1 }, 0);
+            draw_sprite_world_space(client, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0);
         }
     }
     
@@ -132,7 +124,8 @@ draw_world :: (client: *Client) {
     //
     for i := 0; i < world.entities.count; ++i {
         entity := array_get_pointer(*world.entities, i);
-        draw_entity(client, entity.kind, entity.visual_position, .{ 1, 1 }, entity.visual_rotation);
+        sprite_index := get_sprite_index_for_entity(entity);
+        draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation);
     }
 
     //
@@ -199,7 +192,8 @@ draw_world :: (client: *Client) {
                 world_position := entity.visual_position;
                 world_position.x += 0.25;
                 world_size :: v2f.{ 0.25, 0.25 };
-                draw_entity(client, player.carrying_item, world_position, world_size, 0);
+                sprite_index := get_sprite_index_for_item(player.carrying_item);
+                draw_sprite_world_space(client, sprite_index, world_position, world_size, 0);
             }
 
             if entity.health < MAX_HEALTHS[.Player] {
@@ -230,18 +224,66 @@ draw_world :: (client: *Client) {
 #file_scope
 
 PROGRESS_BAR_AS_CIRCLE :: false;
-SPRITE_ATLAS_COLUMNS :: 8;
+SPRITES_PER_ATLAS      :: SPRITE_ATLAS_COLUMNS * SPRITE_ATLAS_ROWS;
+SPRITE_ATLAS_COLUMNS   :: 8;
+SPRITE_ATLAS_ROWS      :: 8;
 
-calculate_uv_box_for_entity_kind :: (kind: Entity_Kind) -> [4]v2f {
-    WIDTH: f32 : 1.0 / xx SPRITE_ATLAS_COLUMNS;
+Sprite_Index :: enum {
+    Background;
+    Player;
+    Crystal;
+    Bedrock;
+    Emitter;
+    Receiver;
+    Mirror;
+    Shard;
+    Rock;
+    Stone;
+}
 
-    column := kind % SPRITE_ATLAS_COLUMNS;
-    row    := kind / SPRITE_ATLAS_COLUMNS;
+get_sprite_index_for_item :: (entity: Entity_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
+    index: Sprite_Index = ---;
+
+    if entity == {
+        case .Shard; index = .Shard;
+        case .Stone; index = .Stone;
+    }
+    
+    return index;
+}
+
+get_sprite_index_for_entity :: (entity: *Entity) -> Sprite_Index {
+    index: Sprite_Index = ---;
+
+    if #complete entity.kind == {
+      case .Inanimate; index = .Background;
+      case .Player;    index = .Player;
+      case .Crystal;   index = .Crystal;
+      case .Bedrock;   index = .Bedrock;
+      case .Emitter;   index = .Emitter;
+      case .Receiver;  index = .Receiver;
+      case .Mirror;    index = .Mirror;
+      case .Shard;     index = .Shard;
+      case .Rock;      index = .Rock;
+      case .Stone;     index = .Stone;
+    }
+    
+    return index;
+}
+
+calculate_uv_box_for_index_in_atlas :: (index: s64) -> [4]v2f {
+    WIDTH:  f32 : 1.0 / xx SPRITE_ATLAS_COLUMNS;
+    HEIGHT: f32 : 1.0 / xx SPRITE_ATLAS_ROWS;
+    
+    column := index % SPRITE_ATLAS_COLUMNS;
+    row    := index / SPRITE_ATLAS_COLUMNS;
 
     x0 := xx cast(s64) column * WIDTH;
-    y0 := xx cast(s64) row    * WIDTH;
+    y0 := xx cast(s64) row    * HEIGHT;
+    x1 := x0 + WIDTH;
+    y1 := y0 + HEIGHT;
     
-    return .[ .{ x0, y0 }, .{ x0 + WIDTH, y0 }, .{ x0 + WIDTH, y0 + WIDTH }, .{ x0, y0 + WIDTH } ];
+    return .[ .{ x0, y0 }, .{ x1, y0 }, .{ x1, y1 }, .{ x0, y1 } ];
 }
 
 draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector2, foreground: UI_Color, background: UI_Color) {
@@ -366,4 +408,26 @@ draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: 
     box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
     foreground :: GE_Color.{ 227, 60, 74, 255 };
     draw_filling_boxes_screen_space(client, screen_center, box_count, screen_size, health / max_health, foreground);    
+}
+
+draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, world_rotation: f32) {
+    screen_center := screen_from_world_position(client, world_center);
+    screen_size   := screen_from_world_size(client, world_size);
+
+    atlas_index    := sprite_index / SPRITES_PER_ATLAS;
+    index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
+    
+    vertices: [4]v2f =.[
+        v2_rotate(v2f.{ -screen_size.x / 2, -screen_size.y / 2 }, world_rotation),
+        v2_rotate(v2f.{ +screen_size.x / 2, -screen_size.y / 2 }, world_rotation),
+        v2_rotate(v2f.{ +screen_size.x / 2, +screen_size.y / 2 }, world_rotation),
+        v2_rotate(v2f.{ -screen_size.x / 2, +screen_size.y / 2 }, world_rotation) ];
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas);
+    indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
+    texture := client.sprite_atlases[atlas_index];
+    tint    := GE_Color.{ 255, 255, 255, 255 };
+
+    for i := 0; i < indices.Capacity; ++i {
+        ge_imm2d_textured_vertex(*client.graphics, screen_center.x + vertices[indices[i]].x, screen_center.y + vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
+    }
 }

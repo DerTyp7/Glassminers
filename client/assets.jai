@@ -8,7 +8,7 @@ Baked_Texture :: struct {
 }
 
 #if BAKE_ASSETS {
-    BAKED_SPRITE_ATLAS :: #run bake_texture("run_tree/data/sprite_atlas.png");
+    BAKED_SPRITE_ATLASES :: #run bake_all_sprite_atlases();
     BAKED_FONT :: #run bake_raw_file("run_tree/data/font.ttf");
 }
     
@@ -40,4 +40,15 @@ bake_raw_file :: (file_path: string) -> string {
     print("[ASSET BAKE]: Baked '%'.\n", file_path);
 
     return file_content;
+}
+
+bake_all_sprite_atlases :: () -> [SPRITE_ATLAS_COUNT]Baked_Texture {
+    result: [SPRITE_ATLAS_COUNT]Baked_Texture = ---;
+
+    for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
+        file_path := print_into_allocator(Default_Allocator, "run_tree/data/sprite_atlas_%.png", i);
+        result[i] = bake_texture(file_path);
+    }
+
+    return result;
 }

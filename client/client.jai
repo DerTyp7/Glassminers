@@ -21,6 +21,7 @@
 
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
+SPRITE_ATLAS_COUNT :: 1;
 
 Game_State :: enum {
     Main_Menu;
@@ -49,9 +50,9 @@ Client :: struct {
     perm: Allocator;
 
     ui_font, title_font: Font;
-    sprite_atlas: *GE_Texture;
     ui_pipeline: *GE_Pipeline;
     entity_pipeline: *GE_Pipeline;
+    sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
     
     epoch_time: f32;
     
