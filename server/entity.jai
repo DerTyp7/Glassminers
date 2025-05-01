@@ -1,11 +1,9 @@
 Entity :: struct {
     pid: Pid;
     kind: Entity_Kind;
-    health: f32;
-
     marked_for_removal: bool;
-    created_this_frame: bool;
-    moved_this_frame: bool;
+
+    health: f32;
     
     physical_rotation: Direction;
     physical_position: v2i;
@@ -43,28 +41,32 @@ down :: (entity: *Entity, $T: Type) -> *T {
     return cast(*T) entity.derived;
 }
 
-create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: Direction) -> Pid, *Entity {
-    pid := server.entity_pid_counter;
-
+create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: Direction) -> *Entity {
     entity := array_push(*server.entities);
-    entity.pid                = pid;
+    entity.pid                = server.entity_pid_counter;
     entity.kind               = kind;
     entity.marked_for_removal = false;
-    entity.created_this_frame = true;
-    entity.moved_this_frame   = false;
     entity.health             = MAX_HEALTHS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.derived            = null;
-
+    
     if entity.kind == {
       case .Player;   entity.derived = new(*server.perm, Player);
       case .Emitter;  entity.derived = new(*server.perm, Emitter);
       case .Receiver; entity.derived = new(*server.perm, Receiver);
     }
-    
+
     ++server.entity_pid_counter;
-    return pid, entity;
+
+    msg := make_message(Create_Entity_Message);
+    msg.create_entity.entity_pid = entity.pid;
+    msg.create_entity.kind       = entity.kind;
+    msg.create_entity.position   = entity.physical_position;
+    msg.create_entity.rotation   = entity.physical_rotation;
+    array_add(*server.outgoing_messages, msg);
+
+    return entity;
 }
 
 get_entity :: (server: *Server, pid: Pid) -> *Entity {
@@ -76,7 +78,7 @@ get_entity :: (server: *Server, pid: Pid) -> *Entity {
     return null;
 }
 
-remove_all_marked_entities :: (server: *Server) {
+physically_remove_all_marked_entities :: (server: *Server) {
     for i := 0; i < server.entities.count; {
         entity := array_get_pointer(*server.entities, i);
         if entity.marked_for_removal {
@@ -173,6 +175,24 @@ move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
     }
 }
 
+warp_entity :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
+    entity.physical_position = position;
+    entity.physical_rotation = rotation;
+
+    msg := make_message(Move_Entity_Message);
+    msg.move_entity.entity_pid = entity.pid;
+    msg.move_entity.position = entity.physical_position;
+    msg.move_entity.rotation = entity.physical_rotation;
+    array_add(*server.outgoing_messages, msg);
+}
+
+remove_entity :: (server: *Server, entity: *Entity) {
+    entity.marked_for_removal = true;
+    msg := make_message(Destroy_Entity_Message);
+    msg.destroy_entity.entity_pid = entity.pid;
+    array_add(*server.outgoing_messages, msg);
+}
+
 
 
 //
@@ -223,8 +243,6 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
 
     collision := get_blocking_entity_at_position(server, position);
     if collision recursive_move(server, collision, move_delta);
-    
-    entity.physical_position.x += move_delta.x;
-    entity.physical_position.y += move_delta.y;
-    entity.moved_this_frame     = true;
+
+    warp_entity(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);
 }

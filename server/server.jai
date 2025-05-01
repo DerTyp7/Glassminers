@@ -82,7 +82,7 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
 
     if server.current_state == .Ingame {
         entity := get_entity(server, client.entity_pid);
-        entity.marked_for_removal = true;
+        remove_entity(server, entity);
     }
         
     msg := make_message(Player_Disconnect_Message);
@@ -177,7 +177,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
               case .Shard, .Stone;
                 player.state = .Carrying;
                 player.carrying_item = target_entity.kind;
-                target_entity.marked_for_removal = true;
+                remove_entity(server, target_entity);
             }
             
           case .Secondary;
@@ -194,8 +194,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
                     player.carrying_item = .Inanimate;
                 }
             } else if target_entity.kind == .Mirror {
-                target_entity.physical_rotation = (target_entity.physical_rotation + 1) % Direction.Count;
-                target_entity.moved_this_frame  = true;                    
+                warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
             }
         }
     }
@@ -348,30 +347,15 @@ create_the_game :: (server: *Server) {
     //
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        pid, entity := create_entity(server, .Player, .{ 3 + i, 2 }, .North);
+        entity := create_entity(server, .Player, .{ 3 + i, 2 }, .North);
 
-        client.entity_pid = pid;
+        client.entity_pid = entity.pid;
         
         msg := make_message(Player_Information_Message);
         msg.player_information.player_pid = client.player_pid;
         msg.player_information.name       = client.name;
         msg.player_information.entity_pid = client.entity_pid;
         array_add(*server.outgoing_messages, msg);            
-    }
-
-    //
-    // Notify the clients about all the created entities
-    //
-    for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
-        entity.created_this_frame = false;
-        
-        msg := make_message(Create_Entity_Message);
-        msg.create_entity.entity_pid = entity.pid;
-        msg.create_entity.kind       = entity.kind;
-        msg.create_entity.position   = entity.physical_position;
-        msg.create_entity.rotation   = entity.physical_rotation;
-        array_add(*server.outgoing_messages, msg);
     }
 }
 
@@ -483,7 +467,7 @@ do_game_tick :: (server: *Server) {
                     damage(server, target_entity, PLAYER_DPS * server.tick_time);
                     
                     if target_entity.health <= 0 {
-                        target_entity.marked_for_removal = true;
+                        remove_entity(server, target_entity);
 
                         // Generate the resource drop from the farmed entity
                         if target_entity.kind == {
@@ -511,34 +495,6 @@ do_game_tick :: (server: *Server) {
     if number_of_dead_players == server.clients.count {
         game_state = .Lost;
     }
-    
-    //
-    // Figure out all updates this frame
-    // @Cleanup: This ought to be removed!
-    //
-    for i := 0; i < server.entities.count; ++i {
-        entity := array_get_pointer(*server.entities, i);
-        if entity.created_this_frame && !entity.marked_for_removal {
-            msg := make_message(Create_Entity_Message);
-            msg.create_entity.entity_pid = entity.pid;
-            msg.create_entity.kind       = entity.kind;
-            msg.create_entity.position   = entity.physical_position;
-            msg.create_entity.rotation   = entity.physical_rotation;
-            array_add(*server.outgoing_messages, msg);
-            entity.created_this_frame = false;
-        } else if entity.moved_this_frame {
-            msg := make_message(Move_Entity_Message);
-            msg.move_entity.entity_pid = entity.pid;
-            msg.move_entity.position   = entity.physical_position;
-            msg.move_entity.rotation   = entity.physical_rotation;
-            array_add(*server.outgoing_messages, msg);
-            entity.moved_this_frame = false;
-        } else if entity.marked_for_removal {
-            msg := make_message(Destroy_Entity_Message);
-            msg.destroy_entity.entity_pid = entity.pid;
-            array_add(*server.outgoing_messages, msg);
-        }
-    }
 
     if game_state != .Keep_Going {
         msg := make_message(Game_Over_Message);
@@ -556,7 +512,7 @@ do_game_tick :: (server: *Server) {
     //
     // Finally actually delete all marked entities
     //
-    remove_all_marked_entities(server);
+    physically_remove_all_marked_entities(server);
 }
 
 server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
