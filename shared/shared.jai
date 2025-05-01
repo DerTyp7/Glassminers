@@ -8,6 +8,13 @@ v2f :: Vector2_Base(f32);
 Pid :: u32;
 INVALID_PID: Pid : -1;
 
+Campaign :: enum {
+    Tutorial;
+    Easy;
+    Medium;
+    Hard;
+}
+
 
 
 /* ----------------------------------------------- Shared Data ----------------------------------------------- */

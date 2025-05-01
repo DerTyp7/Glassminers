@@ -36,7 +36,7 @@ Emitter :: struct {
 
 Receiver :: struct {
     KIND :: Entity_Kind.Receiver;
-    progress_time_in_seconds: f32;
+    progress_time_in_seconds: f32 = 0;
 }
 
 World :: struct {

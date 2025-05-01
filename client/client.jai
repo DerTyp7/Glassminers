@@ -30,6 +30,12 @@ Game_State :: enum {
     Game_Over;
 }
 
+Previous_Game_Result :: enum {
+    We_Won;
+    We_Lost;
+    Connection_Lost;
+}
+
 Remote_Client :: struct {
     player_pid: Pid;
     entity_pid: Pid;
@@ -57,7 +63,8 @@ Client :: struct {
     
     current_state: Game_State;
     next_state: Game_State;
-
+    previous_game_result: Previous_Game_Result;
+    
     //
     // Networking
     //
@@ -75,7 +82,6 @@ Client :: struct {
     world: World;
     camera: Camera;
     my_entity_pid: Pid;
-    won_last_game: bool;
     tick_time: f32;
 }
 
@@ -125,8 +131,6 @@ disconnect_from_server :: (client: *Client) {
     }
     
     array_clear(*client.remote_clients);
-    
-    transition_to_state(client, .Main_Menu);
 }
 
 start_lobby :: (client: *Client) {
@@ -189,7 +193,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         transition_to_state(client, .Ingame);
         
       case .Game_Over;
-        client.won_last_game = msg.game_over.you_won;
+        if msg.game_over.you_won {
+            client.previous_game_result = .We_Won;
+        } else {
+            client.previous_game_result = .We_Lost;
+        }
         transition_to_state(client, .Game_Over);
         
       case .Create_Entity;
@@ -251,7 +259,9 @@ read_incoming_packets :: (client: *Client) {
             }
           
           case Packet_Type.Connection_Closed;
-            disconnect_from_server(client); // Server closed on us
+            disconnect_from_server(client);
+            client.previous_game_result = .Connection_Lost;
+            transition_to_state(client, .Game_Over);
 
           case Packet_Type.Ping;
             
@@ -266,9 +276,9 @@ read_incoming_packets :: (client: *Client) {
 
 handle_server_timeout :: (client: *Client) {
     if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
-        // @Cleanup: We should probably inform the player on why they were disconnected, by showing
-        // a message in the main menu?
         disconnect_from_server(client);
+        client.previous_game_result = .Connection_Lost;
+        transition_to_state(client, .Game_Over);
     } else if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
         send_ping_packet(*client.connection);
     }
@@ -390,6 +400,7 @@ do_connecting_screen :: (client: *Client) {
         ui_divider(ui, true);
         if ui_button(ui, "Cancel!") {
             disconnect_from_server(client);
+            transition_to_state(client, .Lobby);
         }
         ui_pop_window(ui);
         ui_pop_width(ui);
@@ -420,6 +431,7 @@ do_lobby_screen :: (client: *Client) {
         ui_divider(ui, true);
         if ui_button(ui, "Disconnect!") {
             disconnect_from_server(client);
+            transition_to_state(client, .Lobby);
         }
         ui_pop_window(ui);
         ui_pop_width(ui);
@@ -431,15 +443,16 @@ do_game_over_screen :: (client: *Client) {
     ui_push_width(ui, .Pixels, 256, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
 
-    if client.won_last_game {
-        ui_label(ui, true, "You won!");    
-    } else {
-        ui_label(ui, true, "You lost!");
+    if client.previous_game_result == {
+        case .We_Won; ui_label(ui, true, "You won!");
+        case .We_Lost; ui_label(ui, true, "You lost!");
+        case .Connection_Lost; ui_label(ui, true, "Connection died!");
     }
     
     ui_divider(ui, true);
     if ui_button(ui, "Back to Main Menu!") {
         disconnect_from_server(client);
+        transition_to_state(client, .Main_Menu);
     }
     ui_pop_window(ui);
     ui_pop_width(ui);
@@ -480,13 +493,6 @@ do_game_tick :: (client: *Client) {
                 }
 
                 recalculate_emitter(*client.world, entity, emitter);
-
-              case .Receiver;
-                receiver := down(entity, Receiver);
-
-                if receiver.progress_time_in_seconds < RECEIVER_TIME_TO_CHARGE {
-                    receiver.progress_time_in_seconds += client.tick_time;
-                }
             }
         }
     }

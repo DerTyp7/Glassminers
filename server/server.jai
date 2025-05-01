@@ -285,10 +285,21 @@ switch_to_next_state :: (server: *Server) {
 }
 
 create_the_game :: (server: *Server) {
+    CAMPAIGN :: Campaign.Tutorial;
+
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
-    create_world(*server.world, *server.perm, .{ 36, 5 });
+    world_size: v2i = ---;
+
+    if #complete CAMPAIGN == {
+        case .Tutorial; world_size = .{ 9, 5 };
+        case .Easy;     world_size = .{ 18, 5 };
+        case .Medium;   world_size = .{ 36, 5 };
+        case .Hard;     world_size = .{ 72, 5 };
+    }
+    
+    create_world(*server.world, *server.perm, world_size);
 
     //
     // Notify the clients about the game seed
@@ -424,9 +435,9 @@ do_game_tick :: (server: *Server) {
         if entity.kind == .Receiver {
             receiver := down(entity, Receiver);
             
-            // @ReduceMessages: We do a simple client-side prediction on the progress_time_in_seconds,
-            // so we don't have to send the value every frame, we could only send it if the rate
-            // of change changed or something...
+            // @ReduceMessages: We could implement a simple client-side prediction on the
+            // progress_time_in_seconds, so we don't have to send the value every frame, we could
+            // only send it if the rate of change changed or something...
             previous := receiver.progress_time_in_seconds;
             
             if is_emitter_field_at(*server.world, entity.physical_position) {
