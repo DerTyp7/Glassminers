@@ -480,9 +480,10 @@ do_game_tick :: (client: *Client) {
     // This also does some basic client-side prediction
     //
     {
-        for i := 0; i < client.entities.count; ++i {
-            entity := index_bucket_array(*client.entities, i);
-
+        for i := 0; i < client.entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*client.entities, i);
+            if !occupied continue;
+            
             if entity.kind == {
               case .Emitter;
                 emitter := down(entity, Emitter);

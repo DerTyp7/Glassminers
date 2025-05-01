@@ -13,6 +13,7 @@ Entity :: struct {
 
 Player :: struct {
     KIND :: Entity_Kind.Player;
+    #using entity: Entity;
     state: Player_State = .Idle;
     aim_direction: Direction = .North;
     target_position: v2i = .{ 0, 0 };
@@ -41,9 +42,9 @@ create_entity_arrays :: (server: *Server) {
 }
 
 destroy_entity_arrays :: (server: *Server) {
-    for i := 0; i < server.entities.count; ++i {
-        entity := index_bucket_array(*server.entities, i);
-        if entity.derived deallocate(*server.perm, entity.derived);
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
+        if occupied && entity.derived then deallocate(*server.perm, entity.derived);
     }
     destroy_bucket_array(*server.entities);
 }
@@ -81,23 +82,23 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     msg.create_entity.position   = entity.physical_position;
     msg.create_entity.rotation   = entity.physical_rotation;
     array_add(*server.outgoing_messages, msg);
-    
+
     return entity;
 }
 
 get_entity :: (server: *Server, pid: Pid) -> *Entity {
-    // Asserts when the pid does not exist!
-    return query_bucket_array(*server.entities, pid);
+    pointer, occupied := query_bucket_array(*server.entities, pid);
+    assert(occupied, "Tried to get a non-existent entity.");
+    return pointer;
 }
 
 physically_remove_all_marked_entities :: (server: *Server) {
-    for i := 0; i < server.entities.count; {
-        entity := index_bucket_array(*server.entities, i);
-        if entity.marked_for_removal {
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
+
+        if occupied && entity.marked_for_removal {
             if entity.derived deallocate(*server.perm, entity.derived);
             remove_index_from_bucket_array(*server.entities, i);
-        } else {
-            ++i;
         }
     }
 }
@@ -154,18 +155,18 @@ position_in_bounds :: (server: *Server, position: v2i) -> bool {
 }
 
 get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
-    for i := 0; i < server.entities.count; ++i {
-        entity := index_bucket_array(*server.entities, i);
-        if entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
+        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
 }
 
 get_blocking_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
-    for i := 0; i < server.entities.count; ++i {
-        entity := index_bucket_array(*server.entities, i);
-        if is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
+        if occupied && is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -212,10 +213,10 @@ remove_entity :: (server: *Server, entity: *Entity) {
 //
 
 is_emitter_field_at :: (server: *Server, position: v2i) -> bool {
-    for i := 0; i < server.entities.count; ++i {
-        entity := index_bucket_array(*server.entities, i);
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
         
-        if entity.kind == .Emitter {
+        if occupied && entity.kind == .Emitter {
             emitter := down(entity, Emitter);
             
             for j := 0; j < emitter.fields.count; ++j {

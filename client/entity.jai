@@ -50,9 +50,9 @@ create_entity_arrays :: (client: *Client) {
 }
 
 destroy_entity_arrays :: (client: *Client) {
-    for i := 0; i < client.entities.count; ++i {
-        entity := index_bucket_array(*client.entities, i);
-        if entity.derived deallocate(*client.perm, entity.derived);
+    for i := 0; i < client.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.entities, i);
+        if occupied && entity.derived deallocate(*client.perm, entity.derived);
     }
     destroy_bucket_array(*client.entities);
 }
@@ -113,13 +113,14 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Emitter;  entity.derived = new(*client.perm, Emitter);
       case .Receiver; entity.derived = new(*client.perm, Receiver);
     }
-    
+
     return entity;
 }
 
 get_entity :: (client: *Client, pid: Pid) -> *Entity {
-    // Asserts when pid does not exist!
-    return query_bucket_array(*client.entities, pid);
+    pointer, occupied := query_bucket_array(*client.entities, pid);
+    assert(occupied, "Tried to get a non-existent entity.");
+    return pointer;
 }
 
 entity_exists :: (client: *Client, pid: Pid) -> bool {
@@ -128,13 +129,13 @@ entity_exists :: (client: *Client, pid: Pid) -> bool {
 }
 
 remove_all_marked_entities :: (client: *Client) {
-    for i := 0; i < client.entities.count; {
-        entity := index_bucket_array(*client.entities, i);
+    for i := 0; i < client.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.entities, i);
+        if !occupied continue;
+        
         if entity.marked_for_removal {
             if entity.derived deallocate(*client.perm, entity.derived);
             remove_index_from_bucket_array(*client.entities, i);
-        } else {
-            ++i;
         }
     }
 }
@@ -191,18 +192,18 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
 }
 
 get_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
-    for i := 0; i < client.entities.count; ++i {
-        entity := index_bucket_array(*client.entities, i);
-        if entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    for i := 0; i < client.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.entities, i);
+        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
 }
 
 get_blocking_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
-    for i := 0; i < client.entities.count; ++i {
-        entity := index_bucket_array(*client.entities, i);
-        if is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    for i := 0; i < client.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.entities, i);
+        if occupied && is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;

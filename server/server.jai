@@ -52,6 +52,7 @@ Server :: struct {
     tick_time: f32;
 
     world_size: v2i;
+
     entities: Bucket_Array(Entity);
 }
 
@@ -382,8 +383,10 @@ do_game_tick :: (server: *Server) {
     //
     // Update all emitters
     //
-    for i := 0; i < server.entities.count; ++i {
-        entity := index_bucket_array(*server.entities, i);
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
+        if !occupied continue;
+        
         if entity.kind == .Emitter {
             // @ReduceMessages: Simple client-side prediction
 
@@ -413,8 +416,10 @@ do_game_tick :: (server: *Server) {
     //
     // Update all receivers
     //
-    for i := 0; i < server.entities.count; ++i {
-        entity := index_bucket_array(*server.entities, i);
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
+        if !occupied continue;
+        
         if entity.kind == .Receiver {
             // @ReduceMessages: Simple client-side predicition
 
@@ -444,17 +449,14 @@ do_game_tick :: (server: *Server) {
     //
     // Update each player
     //
-    player_index := 0; // nocheckin
     number_of_dead_players := 0;
     
-    for i := 0; i < server.entities.count; ++i {
-        entity := index_bucket_array(*server.entities, i);
+    for i := 0; i < server.entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.entities, i);
+        if !occupied continue;
+
         if entity.kind == .Player {
             player := down(entity, Player);
-
-            // nocheckin
-            // if player_index == number_of_dead_players then damage(server, entity, server.tick_time);
-            ++player_index;
             
             if entity.health > 0 {
                 look_vector := vector_from_direction(player.aim_direction);
