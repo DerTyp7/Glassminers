@@ -1,233 +1,170 @@
 Bucket_Array :: struct (T: Type) {
-    INACTIVE_INDIRECTION: Indirection : -1;
-    INACTIVE_PID: Pid : -1;
-
-    BUCKET_SIZE          :: 64;
-    MIN_INDIRECTION_SIZE :: 8;
-    MIN_BUCKET_COUNT     :: 1;
-
-    INDEX_BITS      :: 32;
-    INDEX_MASK      :: 0xffffffffffffffff >> (size_of(Pid) * 8 - INDEX_BITS);
-    GENERATION_BITS :: size_of(Pid) * 8 - INDEX_BITS;
-    GENERATION_MASK :: 0xffffffffffffffff << (size_of(Pid) * 8 - GENERATION_BITS);
+    INITIAL_BUCKET_COUNT: u64 : 8;
+    BUCKET_SIZE : u64 : 64;
+    BUCKET_FULL : u64 : 0;
+    BUCKET_EMPTY: u64 : 0xffffffffffffffff;
     
+    GENERATION_MASK:  u64 : 0xffffffff00000000;
+    GENERATION_SHIFT: u64 : 32;
+
     Bucket :: struct {
-        entries: [BUCKET_SIZE]T = ---;
-        pid: [BUCKET_SIZE]Pid = .[ INACTIVE_PID ];
+        content:     []T  = ---; // Allocated to fit BUCKET_SIZE
+        generations: []u8 = ---; // Allocated to fit BUCKET_SIZE
+        free_mask:   u64  = BUCKET_EMPTY;
+        used:        bool = false;
     }
     
     allocator: *Allocator;
-    indirection: []Indirection;
-    buckets: []*Bucket;
-    generation: s64;
-    count: s64;
+    buckets: []Bucket;
+    first_free_bucket_index: u64;
+    alive_count: s64;
+    slot_count: s64;
 }
 
 create_bucket_array :: (array: *Bucket_Array($T), allocator: *Allocator) {
-    array.allocator   = allocator;
-    array.indirection = allocate_array(array.allocator, Indirection, array.MIN_INDIRECTION_SIZE);
-    array.buckets     = allocate_array(array.allocator, *array.Bucket, array.MIN_BUCKET_COUNT);
-    for i := 0; i < array.indirection.count; ++i array.indirection[i] = array.INACTIVE_INDIRECTION;
-    for i := 0; i < array.buckets.count; ++i array.buckets[i] = null;
-    array.generation  = 0;
-    array.count       = 0;
+    array.allocator = allocator;    
+    array.buckets   = allocate_array(array.allocator, array.Bucket, array.INITIAL_BUCKET_COUNT);
+    for i := 0; i < array.buckets.count; ++i array.buckets[i] = array.Bucket.{};
+    array.first_free_bucket_index = 0;
+    array.alive_count = 0;
+    array.slot_count  = 0;
 }
 
 destroy_bucket_array :: (array: *Bucket_Array($T)) {
-    deallocate_array(array.allocator, *array.indirection);
-
     for i := 0; i < array.buckets.count; ++i {
-        deallocate(array.allocator, array.buckets[i]);
+        if array.buckets[i].used {
+            deallocate_array(array.allocator, *array.buckets[i].generations);
+            deallocate_array(array.allocator, *array.buckets[i].content);
+        }
     }
 
-    deallocate_array(array.allocator, *array.indirection);
+    deallocate_array(array.allocator, *array.buckets);
+    array.first_free_bucket_index = MAX_U64;
+    array.alive_count = 0;
+    array.slot_count  = 0;
 }
 
-push_bucket_array :: (array: *Bucket_Array($T)) -> Pid, *T {
-    //
-    // Find the lowest available pid
-    //
-    pid: Pid = array.INACTIVE_PID;
-
-    {
-        for i := 0; i < array.indirection.count; ++i {
-            if array.indirection[i] == array.INACTIVE_INDIRECTION {
-                pid = make_pid(array, i);
-                break;
-            }
-        }
-
-        if pid == array.INACTIVE_PID {
-            previous_count := array.indirection.count;
-            array.indirection = reallocate_array(array.allocator, array.indirection, array.indirection.count * 2);
-            for i := previous_count; i < array.indirection.count; ++i {
-                array.indirection[i] = array.INACTIVE_INDIRECTION;
-            }
-
-            pid = make_pid(array, previous_count);
-        }
-
-        array.indirection[pid & array.INDEX_MASK] = array.count;
-    }
-
-    //
-    // Allocate an entry in the buckets
-    //
-    entry: *T = null;
-    
-    {
-        bucket_index, index_in_bucket := array.count / array.BUCKET_SIZE, array.count % array.BUCKET_SIZE;
-
-        if bucket_index >= array.buckets.count {
-            previous_count := array.buckets.count;
-            array.buckets = reallocate_array(array.allocator, array.buckets, array.buckets.count * 2);
-            for i := previous_count; i < array.buckets.count; ++i {
-                array.buckets[i] = null;
-            }
-        }
-
-        if array.buckets[bucket_index] == null {
-            array.buckets[bucket_index] = new(array.allocator, array.Bucket);
-        }
-
-        entry = *array.buckets[bucket_index].entries[index_in_bucket];
-        array.buckets[bucket_index].pid[index_in_bucket] = pid;
-
-        ++array.count;
-    }
-
-    return pid, entry;
-}
-
-push_bucket_array_with_pid :: (array: *Bucket_Array($T), pid: Pid) -> *T {
-    {
-        new_indirection_size := array.indirection.count;
-        while (pid & array.INDEX_MASK) >= new_indirection_size {
-            new_indirection_size *= 2;
-        }
-
-        if new_indirection_size > array.indirection.count {
-            previous_count := array.indirection.count;
-            array.indirection = reallocate_array(array.allocator, array.indirection, array.indirection.count * 2);
-            for i := previous_count; i < array.indirection.count; ++i {
-                array.indirection[i] = array.INACTIVE_INDIRECTION;
-            }
-        }
-    }
-        
-    entry: *T = null;
-    
-    bucket_index, index_in_bucket := array.count / array.BUCKET_SIZE, array.count % array.BUCKET_SIZE;
-
-    if bucket_index >= array.buckets.count {
+push_bucket_array :: (array: *Bucket_Array($T)) -> *T, u64 {
+    if array.first_free_bucket_index == MAX_U64 {
+        array.first_free_bucket_index = array.buckets.count;
         array.buckets = reallocate_array(array.allocator, array.buckets, array.buckets.count * 2);
+        for i := array.first_free_bucket_index; i < array.buckets.count; ++i array.buckets[i] = array.Bucket.{};
     }
 
-    if array.buckets[bucket_index] == null {
-        array.buckets[bucket_index] = new(array.allocator, array.Bucket);
+    bucket_index := array.first_free_bucket_index;
+    bucket := *array.buckets[bucket_index];
+
+    if !bucket.used {
+        bucket.used        = true;
+        bucket.free_mask   = array.BUCKET_EMPTY;
+        bucket.generations = allocate_array(array.allocator, u8, array.BUCKET_SIZE);
+        bucket.content     = allocate_array(array.allocator, T, array.BUCKET_SIZE);
+
+        slot_count = (bucket_index + 1) * array.BUCKET_SIZE;
     }
 
-    entry = *array.buckets[bucket_index].entries[index_in_bucket];
-    array.buckets[bucket_index].pid[index_in_bucket] = pid;
-    array.indirection[pid & array.INDEX_MASK] = array.count;
+    assert(bucket.free_mask != array.BUCKET_FULL, "The pushed bucket is somehow full!");
+    index_in_bucket := transmute(u64) lowest_bit_set(bucket.free_mask);
 
-    ++array.count;    
+    pointer := *bucket.content[index_in_bucket];
+    ~pointer = .{ };
+    
+    ++bucket.generations[index_in_bucket];
+    bucket.free_mask &= ^(1 << index_in_bucket);
+    
+    if bucket.free_mask == array.BUCKET_FULL {
+        array.first_free_bucket_index = find_next_free_bucket(array, array.first_free_bucket_index + 1);
+    }
+    
+    index_in_array := bucket_index * array.BUCKET_SIZE + index_in_bucket;
+    assert(index_in_array < array.GENERATION_MASK, "The bucket array grew too large, cannot use generational indices anymore!");
+    pid := index_in_array | (bucket.generations[index_in_bucket] << array.GENERATION_SHIFT);
 
-    return entry;
+    ++array.count;
+    
+    return pointer, pid;
 }
 
-remove_index_from_bucket_array :: (array: *Bucket_Array($T), to_remove_index: Indirection) {
-    assert(to_remove_index >= 0 && to_remove_index < array.count, "Bucket Array Index is out of bounds.");
+query_bucket_array :: (array: *Bucket_Array($T), pid: u64) -> *T, bool {
+    bucket_index, index_in_bucket, occupied := resolve_pid(array, pid);
+    bucket := array.buckets[bucket_index];
+    return *bucket.content[index_in_bucket], occupied;
+}
 
-    //
-    // Clear out the occupation of the entry to-be-removed
-    //
-    to_remove_bucket_index    := to_remove_index / array.BUCKET_SIZE;
-    to_remove_index_in_bucket := to_remove_index % array.BUCKET_SIZE;
+index_bucket_array :: (array: *Bucket_Array($T), index: u64) -> *T, bool {
+    bucket_index    := index / array.BUCKET_SIZE;
+    index_in_bucket := index % array.BUCKET_SIZE;
+    bucket := array.buckets[bucket_index];
+    return *bucket.content[index_in_bucket], !(bucket.free_mask & (1 << index_in_bucket));
+}
 
-    to_remove_pid := array.buckets[to_remove_bucket_index].pid[to_remove_index_in_bucket];
-    array.indirection[to_remove_pid & array.INDEX_MASK] = array.INACTIVE_PID;
-    array.buckets[to_remove_bucket_index].pid[to_remove_index_in_bucket] = array.INACTIVE_PID;
+bucket_array_contains :: (array: *Bucket_Array($T), pid: u64) -> bool {
+    bucket_index, index_in_bucket, occupied := resolve_pid(array, pid);
+    return occupied;
+}
 
-    //
-    // Keep the array continuous by putting the last used entry into the now-free position
-    //
-    if to_remove_index + 1 < array.count {
-        last_bucket_index    := (array.count - 1) / array.BUCKET_SIZE;
-        last_index_in_bucket := (array.count - 1) % array.BUCKET_SIZE;
-
-        last_pid := array.buckets[last_bucket_index].pid[last_index_in_bucket];
-        
-        last_pointer := *array.buckets[last_bucket_index].entries[last_index_in_bucket];
-        to_remove_pointer := *array.buckets[to_remove_bucket_index].entries[to_remove_index_in_bucket];
-
-        ~to_remove_pointer = ~last_pointer;
-        array.indirection[last_pid & array.INDEX_MASK] = to_remove_index;
-        array.buckets[last_bucket_index].pid[last_index_in_bucket] = array.INACTIVE_PID;
-        array.buckets[to_remove_bucket_index].pid[to_remove_index_in_bucket] = last_pid;
-    }
-
+remove_iterator_from_bucket_array :: (array: *Bucket_Array($T), it: *Bucket_Array_Iterator(T)) {
+    bucket := *array.buckets[it.__bucket_index];
+    bucket.free_mask |= 1 << it.__index_in_bucket;
+    maybe_shrink_bucket_array(array, it.__bucket_index);
     --array.count;
-
-    //
-    // Shrink the array if possible
-    //
-    required_buckets := max(cast(s64) ceil(cast(f64) array.count / cast(f64) array.BUCKET_SIZE), array.MIN_BUCKET_COUNT);
-    if required_buckets <= array.buckets.count / 2 {
-        array.buckets = reallocate_array(array.allocator, array.buckets, array.buckets.count / 2);
-    }
-
-    highest_used_pid := array.indirection.count - 1;
-    while highest_used_pid > array.MIN_INDIRECTION_SIZE && array.indirection[highest_used_pid] == array.INACTIVE_PID {
-        --highest_used_pid;
-    }
-    
-    if highest_used_pid < array.indirection.count / 2 {
-        array.indirection = reallocate_array(array.allocator, array.indirection, array.indirection.count / 2);
-    }
 }
 
-remove_pid_from_bucket_array :: (array: *Bucket_Array($T), pid: Pid) {
-    assert(bucket_array_contains(array, pid), "Trying to remove non-existent pid from bucket array.");
-    return remove_index_from_bucket_array(array, array.indirection[pid & array.INDEX_MASK]);
-}
+remove_pid_from_bucket_array :: (array: *Bucket_Array($T), pid: u64) {
+    bucket_index, index_in_bucket, occupied := resolve_pid(array, pid);
 
-index_bucket_array :: (array: *Bucket_Array($T), index: Indirection) -> *T {
-    assert(index < array.count, "Trying to get out-of-bounds index from bucket array.");
-    bucket_index    := index / array.BUCKET_SIZE;
-    index_in_bucket := index % array.BUCKET_SIZE;
-    return *array.buckets[bucket_index].entries[index_in_bucket];
-}
+    assert(occupied == true, "Tried to remove a non-existent pid from a bucket array.");
 
-query_bucket_array :: (array: *Bucket_Array($T), pid: Pid) -> *T {
-    assert(bucket_array_contains(array, pid), "Trying to query non-existent pid from bucket array.");
-    return index_bucket_array(array, array.indirection[pid & array.INDEX_MASK]);
-}
-
-bucket_array_contains :: (array: *Bucket_Array($T), pid: Pid) -> bool {
-    if pid & array.INDEX_MASK >= array.indirection.count return false;
-    if array.indirection[pid & array.INDEX_MASK] == array.INACTIVE_INDIRECTION return false;
-
-    index := array.indirection[pid & array.INDEX_MASK];
-    
-    bucket_index    := index / array.BUCKET_SIZE;
-    index_in_bucket := index % array.BUCKET_SIZE;
-
-    return array.buckets[bucket_index].pid[index_in_bucket] == pid; // Check the generation
+    bucket := *array.buckets[bucket_index];
+    bucket.free_mask |= 1 << index_in_bucket;
+    maybe_shrink_bucket_array(array, bucket_index);
+    --array.count;
 }
 
 
 
 #file_scope
 
-Indirection :: u64;
-
-make_pid :: (array: *Bucket_Array($T), index_into_indirection: s64) -> Pid {
-#if array.GENERATION_BITS > 0 {
-    pid: Pid = index_into_indirection | ((array.generation << array.INDEX_BITS) & array.GENERATION_MASK);
-    ++array.generation;
-    return pid;
-} #else {
-    return index_into_indirection;
+find_next_free_bucket :: (array: *Bucket_Array($T), index: u64) -> u64 {
+    while index < array.buckets.count && array.buckets[index].free_mask == array.BUCKET_FULL {
+        ++index;
+    }
+    return ifx index < array.buckets.count then index else MAX_U64;
 }
+
+resolve_pid :: (array: *Bucket_Array($T), pid: u64) -> u64, u64, bool {
+    generation := (pid & array.GENERATION_MASK) >> array.GENERATION_SHIFT;
+    slot_index := pid & (^array.GENERATION_MASK);
+    
+    bucket_index    := slot_index / array.BUCKET_SIZE;
+    index_in_bucket := slot_index % array.BUCKET_SIZE;
+    if bucket_index < 0 || bucket_index >= array.buckets.count return 0, 0, false;
+
+    return bucket_index, index_in_bucket, !(bucket.free_mask & (1 << index_in_bucket)) && bucket.generations[index_in_bucket] == generation;
+}
+
+maybe_shrink_bucket_array :: (array: *Bucket_Array($T), bucket_index: s64) {
+    bucket := *array.buckets[bucket_index];
+
+    if bucket.free_mask == Bucket_Array(T).BUCKET_EMPTY {
+        array.first_free_bucket_index = min(array.first_free_bucket_index, bucket_index);
+
+        first_shrink_index := array.buckets.count / 2;
+        makes_sense_to_shrink := first_shrink_index > array.INITIAL_BUCKET_COUNT;
+
+        for i := first_shrink_index; i < array.buckets.count; ++i {
+            makes_sense_to_shrink &= array.buckets[i].free_mask == array.BUCKET_EMPTY;
+        }
+
+        if makes_sense_to_shrink {
+            for i := first_shrink_index; i < array.buckets.count; ++i {
+                array.buckets[i].used = false;
+                deallocate_array(array.allocator, *array.buckets[i].generations);
+                deallocate_array(array.allocator, *array.buckets[i].content);
+            }
+            
+            array.buckets = reallocate_array(array.allocator, array.buckets, first_shrink_index);
+            slot_count = array.buckets.count * array.BUCKET_SIZE;
+        }
+    }
 }
