@@ -199,62 +199,55 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
 }    
 
 read_incoming_packets :: (server: *Server) {
-    while read_packet(*server.connection) {
-        if server.connection.incoming_packet.header.packet_type == {
-          case Packet_Type.Connection_Request;
-            if server.current_state != .Lobby break; // If we aren't in the lobby, don't accept new clients
-
-            // Check if we already have a client connected at this remote, because the client will spam
-            // this connection request a few times to combat potential packet loss.
-            already_connected := false;
-            
-            for i := 0; i < server.clients.count; ++i {
-                connected_client := array_get_pointer(*server.clients, i);
-                if remote_sockets_equal(*server.connection.remote, *connected_client.connection.remote) {
-                    already_connected = true;
-                    break;
-                }
-            }
-
-            if already_connected break;
-            
-            //
-            // Create a new client on this server
-            //    
+    if server.current_state == .Lobby {
+        found_client, client_connection := accept_tcp_remote_client_connection(*server.connection);
+        while found_client {
             client := array_push(*server.clients);
-            client.connection = create_udp_remote_client_connection(*server.connection);
+            client.connection = client_connection;
             client.player_pid = server.client_pid_counter;
             client.entity_pid = INVALID_PID;
             client.connection.info.client_id = client.player_pid;
-            
-            send_connection_established_packet(*client.connection, 5);
-            
             ++server.client_pid_counter;
             
             logprint(.Debug, "Connected to client '%'.", client.player_pid);
+
+            found_client, client_connection = accept_tcp_remote_client_connection(*server.connection);
+        }
+    }
+    
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get_pointer(*server.clients, i);
+
+        while read_packet(*client.connection) {
+            packet :: *client.connection.incoming_packet;
             
-          case Packet_Type.Connection_Closed;
-            client := find_client_by_pid(server, server.connection.incoming_packet.header.sender_client_id);
-            if client then handle_client_disconnect(server, client);
-          
-          case Packet_Type.Ping;
-            client := find_client_by_pid(server, server.connection.incoming_packet.header.sender_client_id);
-            if client then update_virtual_connection_information_for_packet(*client.connection, *server.connection.incoming_packet.header);
-            
-          case Packet_Type.Message;
-            client := find_client_by_pid(server, server.connection.incoming_packet.header.sender_client_id);
-            if client {
-                update_virtual_connection_information_for_packet(*client.connection, *server.connection.incoming_packet.header);
+            if packet.header.packet_type == {
+              case Packet_Type.Connection_Request;
+                send_connection_established_packet(*client.connection, 5);
                 
-                msg: Message = ---;
-                while read_message(*server.connection, *msg) {
-                    handle_incoming_message(server, *msg);
+              case Packet_Type.Connection_Closed;
+                client := find_client_by_pid(server, packet.header.sender_client_id);
+                if client then handle_client_disconnect(server, client);
+                
+              case Packet_Type.Ping;
+                client := find_client_by_pid(server, packet.header.sender_client_id);
+                if client then update_virtual_connection_information_for_packet(*client.connection, *packet.header);
+                
+              case Packet_Type.Message;
+                client := find_client_by_pid(server, packet.header.sender_client_id);
+                if client {
+                    update_virtual_connection_information_for_packet(*client.connection, *packet.header);
+                    
+                    msg: Message = ---;
+                    while read_message(packet, *msg) {
+                        handle_incoming_message(server, *msg);
+                    }
                 }
             }
-        }
-    }    
+        }    
+    }
 }
-
+    
 handle_client_timeouts :: (server: *Server) {
     now := os_get_hardware_time();
 
@@ -571,7 +564,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.clients.allocator = *server.perm;
     server.outgoing_messages.allocator = *temp;
 
-    if create_server_connection(*server.connection, .UDP, data.requested_port) == .Success {
+    if create_server_connection(*server.connection, NETWORK_PROTOCOL, data.requested_port) == .Success {
         atomic_store(cast(*s64) *data.state, Server_State.Running);
     } else {
         atomic_store(cast(*s64) *data.state, Server_State.Closing);

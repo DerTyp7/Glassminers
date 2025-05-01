@@ -28,6 +28,27 @@ Shared_Server_Data :: struct {
 
 /* ------------------------------------------------ Networking ------------------------------------------------ */
 
+//
+// The Virtual Connection was intended for use with UDP, but it also supports TCP. I have decided
+// for this game to go with TCP, for the two following reasons:
+//   1. Pretty much all of our information that we send over the network is crucial. That means
+//      that in no case (right now) we'd send "unreliable" packets over our virtual connection.
+//      Therefore, there's no real "advantage" to using UDP.
+//   2. We heavily rely on the order in which messages are sent and received. For example, the
+//      server may create an entity, and then send an item stack state message for that entity.
+//      The client *must* receive the entity creation message first, otherwise it wouldn't know what
+//      to do with the item stack state message (and right now, it would crash).
+//
+// The first point is actually handled by the Virtual Connection Module, where we have our own QoS
+// protocol. I don't suspect that it is better than TCP though, when all packets are supposed to
+// be reliable...
+// The second point is *not* handled by the Virtual Connection. We could build our own, but what's
+// the point really?
+// Instead, we just rely on TCP to send us one stable, ordered stream of packets. The Virtual
+// Connection abstracts the packets over the underlying protocol, so that we don't have to worry
+// about reading packets partially (in the game code).
+//
+NETWORK_PROTOCOL :: Connection_Protocol.TCP;
 NETWORK_TIMEOUT: f32 : 7;
 NETWORK_PING_INTERVAL: f32 : 0.25;
 

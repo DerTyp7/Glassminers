@@ -105,7 +105,7 @@ host_server :: (client: *Client, port: u16) {
 }
 
 join_server :: (client: *Client, name: string, host: string, port: u16) {
-    if create_client_connection(*client.connection, .UDP, host, port) == .Success {
+    if create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port) == .Success {
         send_connection_request_packet(*client.connection, 5);
         client.my_name = copy_string(*client.perm, name);
         transition_to_state(client, .Connecting);
@@ -231,14 +231,16 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
 read_incoming_packets :: (client: *Client) {
     while read_packet(*client.connection) {
-        update_virtual_connection_information_for_packet(*client.connection, *client.connection.incoming_packet.header);
+        packet :: *client.connection.incoming_packet;
         
-        if client.connection.incoming_packet.header.packet_type == {
+        update_virtual_connection_information_for_packet(*client.connection, *packet.header);
+        
+        if packet.header.packet_type == {
           case Packet_Type.Connection_Request; // Ignore
           
           case Packet_Type.Connection_Established;
             if client.next_state == .Connecting {
-                client.my_player_pid = client.connection.incoming_packet.header.sender_client_id;
+                client.my_player_pid = packet.header.sender_client_id;
                 client.connection.info.client_id = client.my_player_pid;
                 transition_to_state(client, .Lobby);
                 
@@ -255,7 +257,7 @@ read_incoming_packets :: (client: *Client) {
             
           case Packet_Type.Message;
             msg: Message = ---;
-            while read_message(*client.connection, *msg) {
+            while read_message(packet, *msg) {
                 handle_incoming_message(client, *msg);
             }
         }

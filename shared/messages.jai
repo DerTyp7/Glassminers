@@ -139,7 +139,7 @@ send_reliable_messages :: (connection: *Virtual_Connection, messages: *[..]Messa
         message := array_get_pointer(messages, i);
 
         if !serialize_message(*packet, message) {
-            send_reliable_packet(connection, *packet, .Message);
+            send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
             packet.body_size = 0;
 
             success := serialize_message(*packet, message);
@@ -147,7 +147,7 @@ send_reliable_messages :: (connection: *Virtual_Connection, messages: *[..]Messa
         }
     }
 
-    if packet.body_size send_reliable_packet(connection, *packet, .Message);
+    if packet.body_size send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
 }
 
 send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
@@ -155,14 +155,14 @@ send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
     packet.body_size = 0;
     success := serialize_message(*packet, message);
     assert(success, "This message did not fit into a single packet!");
-    send_reliable_packet(connection, *packet, .Message);
+    send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
 }
 
-read_message :: (connection: *Virtual_Connection, message: *Message) -> bool {
-    if connection.incoming_packet.body_read_offset >= connection.incoming_packet.body_size return false;
-    deserialize(*connection.incoming_packet, *message.msg_type, type_info(Message_Type));
+read_message :: (packet: *Packet, message: *Message) -> bool {
+    if packet.body_read_offset >= packet.body_size return false;
+    deserialize(packet, *message.msg_type, type_info(Message_Type));
     message.local_type_id = message_type_to_type_id(message.msg_type);
-    deserialize(*connection.incoming_packet, *message.underlying, type_info(message.local_type_id));
+    deserialize(packet, *message.underlying, type_info(message.local_type_id));
     return true;
 }
 
