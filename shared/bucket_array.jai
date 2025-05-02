@@ -35,7 +35,7 @@ destroy_bucket_array :: (array: *Bucket_Array($T)) {
     array.slot_count  = 0;
 }
 
-push_bucket_array :: (array: *Bucket_Array($T)) -> Bucket_Array_Slot, *T {
+push_bucket_array :: (array: *Bucket_Array($T)) -> *T {
     if array.first_free_bucket_index == MAX_U64 {
         grow_bucket_array(array, array.buckets.count + 1);
     }
@@ -57,7 +57,7 @@ push_bucket_array :: (array: *Bucket_Array($T)) -> Bucket_Array_Slot, *T {
     array.slot_count = max(array.slot_count, index_in_array + 1);
     ++array.alive_count;
     
-    return index_in_array, pointer;
+    return pointer;
 }
 
 index_bucket_array :: (array: *Bucket_Array($T), slot: Bucket_Array_Slot) -> *T, bool {
@@ -84,6 +84,10 @@ remove_index_from_bucket_array :: (array: *Bucket_Array($T), slot: Bucket_Array_
     bucket.free_mask |= 1 << index_in_bucket;
     --array.alive_count;
     maybe_shrink_bucket_array(array, bucket_index);
+}
+
+remove_pointer_from_bucket_array :: (array: *Bucket_Array($T), pointer: *T) {
+    
 }
 
 

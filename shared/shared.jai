@@ -82,7 +82,6 @@ HEALTH_PER_HEART: f32 : 10;
 PLAYER_DPS: f32 : HEALTH_PER_HEART;
 
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
-    0,  // Inanimate
     30, // Player
     30, // Crystal
     70, // Bedrock
@@ -95,7 +94,6 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
 ];
 
 Entity_Kind :: enum {
-    Inanimate;
     Player;
     Crystal;
     Bedrock;

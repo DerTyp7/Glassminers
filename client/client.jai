@@ -1,4 +1,4 @@
-// Prometheus modules
+// Jai modules
 #load "compiler.jai";
 #load "basic.jai";
 #load "window.jai";

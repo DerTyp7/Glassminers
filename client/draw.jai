@@ -264,7 +264,6 @@ get_sprite_index_for_entity :: (entity: *Entity) -> Sprite_Index {
     index: Sprite_Index = ---;
 
     if #complete entity.kind == {
-      case .Inanimate; index = .Background;
       case .Player;    index = .Player;
       case .Crystal;   index = .Crystal;
       case .Bedrock;   index = .Bedrock;

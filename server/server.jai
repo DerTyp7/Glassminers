@@ -1,4 +1,5 @@
-// Prometheus modules
+// Jai modules
+#load "compiler.jai";
 #load "basic.jai";
 #load "virtual_connection.jai";
 #load "threads.jai";
@@ -14,6 +15,7 @@
 #load "entity.jai";
 
 TICK_RATE: f32 : 30;
+DEVELOPER :: #run compiler_is_user_option_present("DEVELOPER");
 
 Remote_Client :: struct {
     connection: Virtual_Connection;
@@ -192,7 +194,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
                   case .Carrying;
                     create_entity(server, player.carrying_item, player.target_position, .North);
                     player.state = .Idle;
-                    player.carrying_item = .Inanimate;
+                    player.carrying_item = 0;
                 }
             } else if target_entity.kind == .Mirror {
                 warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
@@ -386,64 +388,58 @@ do_game_tick :: (server: *Server) {
     //
     // Update all emitters
     //
-    for i := 0; i < server.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.entities, i);
+    for i := 0; i < server.emitters.slot_count; ++i {
+        emitter, occupied := index_bucket_array(*server.emitters, i);
         if !occupied continue;
 
-        if entity.kind == .Emitter {
-            // @ReduceMessages: Simple client-side prediction
-            emitter := down(entity, Emitter);
-            previous := emitter.time_left_in_seconds;
-            
-            if emitter.time_left_in_seconds > 0 {
-                emitter.time_left_in_seconds -= server.tick_time;
-            }
+        // @ReduceMessages: Simple client-side prediction
 
-            recalculate_emitter(server, entity, emitter);
+        previous := emitter.time_left_in_seconds;
+        
+        if emitter.time_left_in_seconds > 0 {
+            emitter.time_left_in_seconds -= server.tick_time;
+        }
 
-            if previous != emitter.time_left_in_seconds {
-                msg := make_message(Emitter_State_Message);
-                msg.emitter_state.entity_pid = entity.pid;
-                msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
-                array_add(*server.outgoing_messages, msg);
-            }
+        recalculate_emitter(server, emitter);
 
-            if emitter.time_left_in_seconds <= 0 {
-                game_state = .Lost;
-            }
+        if previous != emitter.time_left_in_seconds {
+            msg := make_message(Emitter_State_Message);
+            msg.emitter_state.entity_pid = emitter.pid;
+            msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
+            array_add(*server.outgoing_messages, msg);
+        }
+
+        if emitter.time_left_in_seconds <= 0 {
+            game_state = .Lost;
         }
     }
     
     //
     // Update all receivers
     //
-    for i := 0; i < server.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.entities, i);
+    for i := 0; i < server.receivers.slot_count; ++i {
+        receiver, occupied := index_bucket_array(*server.receivers, i);
         if !occupied continue;
         
-        if entity.kind == .Receiver {
-            // @ReduceMessages: Simple client-side predicition
+        // @ReduceMessages: Simple client-side predicition
+        
+        previous := receiver.progress_time_in_seconds;
+        
+        if is_emitter_field_at(server, receiver.physical_position) {
+            receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
+        } else {
+            receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
+        }
 
-            receiver := down(entity, Receiver);
-            
-            previous := receiver.progress_time_in_seconds;
-            
-            if is_emitter_field_at(server, entity.physical_position) {
-                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
-            } else {
-                receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
-            }
+        if receiver.progress_time_in_seconds != previous {
+            msg := make_message(Receiver_State_Message);
+            msg.receiver_state.entity_pid = receiver.pid;
+            msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
+            array_add(*server.outgoing_messages, msg);
+        }
 
-            if receiver.progress_time_in_seconds != previous {
-                msg := make_message(Receiver_State_Message);
-                msg.receiver_state.entity_pid = entity.pid;
-                msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
-                array_add(*server.outgoing_messages, msg);
-            }
-
-            if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
-                game_state = .Won;
-            }
+        if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
+            game_state = .Won;
         }
     }
 
@@ -452,46 +448,42 @@ do_game_tick :: (server: *Server) {
     //
     number_of_dead_players := 0;
     
-    for i := 0; i < server.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.entities, i);
+    for i := 0; i < server.players.slot_count; ++i {
+        player, occupied := index_bucket_array(*server.players, i);
         if !occupied continue;
 
-        if entity.kind == .Player {
-            player := down(entity, Player);
+        if player.health > 0 {
+            look_vector := vector_from_direction(player.aim_direction);
+            player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
             
-            if entity.health > 0 {
-                look_vector := vector_from_direction(player.aim_direction);
-                player.target_position = .{ entity.physical_position.x + look_vector.x, entity.physical_position.y + look_vector.y };
+            if player.state == {
+              case .Digging;
+                target_entity := get_entity_at_position(server, player.target_position);
+                damage(server, target_entity, PLAYER_DPS * server.tick_time);
                 
-                if player.state == {
-                  case .Digging;
-                    target_entity := get_entity_at_position(server, player.target_position);
-                    damage(server, target_entity, PLAYER_DPS * server.tick_time);
-                    
-                    if target_entity.health <= 0 {
-                        remove_entity(server, target_entity);
+                if target_entity.health <= 0 {
+                    remove_entity(server, target_entity);
 
-                        // Generate the resource drop from the farmed entity
-                        if target_entity.kind == {
-                            case .Crystal; create_entity(server, .Shard, target_entity.physical_position, .North);
-                            case .Rock; create_entity(server, .Stone, target_entity.physical_position, .North);
-                        }
-
-                        player.state = .Idle;
+                    // Generate the resource drop from the farmed entity
+                    if target_entity.kind == {
+                        case .Crystal; create_entity(server, .Shard, target_entity.physical_position, .North);
+                        case .Rock; create_entity(server, .Stone, target_entity.physical_position, .North);
                     }
+
+                    player.state = .Idle;
                 }
-            } else {
-                player.state = .Dead;
-                ++number_of_dead_players;
             }
-            
-            msg := make_message(Player_State_Message);
-            msg.player_state.entity_pid = entity.pid;
-            msg.player_state.state = player.state;
-            msg.player_state.target_position = player.target_position;
-            msg.player_state.carrying_item = player.carrying_item;
-            array_add(*server.outgoing_messages, msg);
+        } else {
+            player.state = .Dead;
+            ++number_of_dead_players;
         }
+        
+        msg := make_message(Player_State_Message);
+        msg.player_state.entity_pid      = player.pid;
+        msg.player_state.state           = player.state;
+        msg.player_state.target_position = player.target_position;
+        msg.player_state.carrying_item   = player.carrying_item;
+        array_add(*server.outgoing_messages, msg);
     }
 
     if number_of_dead_players == server.clients.count {

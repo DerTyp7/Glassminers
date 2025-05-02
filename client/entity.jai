@@ -183,6 +183,7 @@ recalculate_emitter :: (client: *Client, entity: *Entity, emitter: *Emitter) {
 }
 
 
+
 //
 // Helpers
 //
