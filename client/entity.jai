@@ -29,7 +29,7 @@ Player :: struct {
     #using entity : *Entity = ---;
     state: Player_State = .Idle;
     target_position: v2i;
-    carrying_item: Entity_Kind = 0;
+    carrying_item: Item_Kind = 0;
 }
 
 Emitter :: struct {
@@ -43,12 +43,19 @@ Receiver :: struct {
     progress_time_in_seconds: f32 = 0;
 }
 
+Item_Stack :: struct {
+    #using entity : *Entity = ---;
+    item_kind: Item_Kind = 0;
+    count: s64 = 0;
+}
+
 Entity_Manager :: struct {
     pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
-    players:   Bucket_Array(Player);
-    emitters:  Bucket_Array(Emitter);
-    receivers: Bucket_Array(Receiver);
+    players:     Bucket_Array(Player);
+    emitters:    Bucket_Array(Emitter);
+    receivers:   Bucket_Array(Receiver);
+    item_stacks: Bucket_Array(Item_Stack);
 }
 
 
@@ -64,6 +71,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.players, *client.perm);
     create_bucket_array(*client.emitters, *client.perm);
     create_bucket_array(*client.receivers, *client.perm);
+    create_bucket_array(*client.item_stacks, *client.perm);
 }
 
 destroy_entity_manager :: (client: *Client) {
@@ -72,6 +80,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.players);
     destroy_bucket_array(*client.emitters);
     destroy_bucket_array(*client.receivers);
+    destroy_bucket_array(*client.item_stacks);
 }
 
 
@@ -137,10 +146,11 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     probed_hash_table_add(*client.pid_lookup, pid, entity);
 
     if #complete entity.kind == {
-      case .Player;   make_derived(entity, *client.players);
-      case .Emitter;  make_derived(entity, *client.emitters);
-      case .Receiver; make_derived(entity, *client.receivers);
-      case .Crystal, .Bedrock, .Mirror, .Shard, .Rock, .Stone;
+      case .Player;     make_derived(entity, *client.players);
+      case .Emitter;    make_derived(entity, *client.emitters);
+      case .Receiver;   make_derived(entity, *client.receivers);
+      case .Item_Stack; make_derived(entity, *client.item_stacks);
+      case .Crystal, .Bedrock, .Mirror, .Rock;
         entity.derived = null;
     }
 

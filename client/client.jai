@@ -236,6 +236,12 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.receiver_state.entity_pid);
         receiver := down(entity, Receiver);
         receiver.progress_time_in_seconds = msg.receiver_state.progress_time_in_seconds;
+
+      case .Item_Stack_State;
+        entity := get_entity(client, msg.item_stack_state.entity_pid);
+        item_stack := down(entity, Item_Stack);
+        item_stack.item_kind = msg.item_stack_state.item_kind;
+        item_stack.count     = msg.item_stack_state.count;
     }
 }
 

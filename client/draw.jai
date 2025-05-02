@@ -156,6 +156,19 @@ draw_world :: (client: *Client) {
             draw_progress_bar_world_space(client, receiver.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
         }
     }
+
+    //
+    // Draw all item stack states
+    //
+    for i := 0; i < client.item_stacks.slot_count; ++i {
+        item_stack, occupied := index_bucket_array(*client.item_stacks, i);
+        if !occupied continue;
+
+        if item_stack.count > 1 {
+            screen_center := screen_from_world_position(client, v2f.{ item_stack.visual_position.x + 0.3, item_stack.visual_position.y + 0.3 });
+            draw_text_screen_space(client, *client.ui_font, tprint("%", item_stack.count), screen_center, .Center | .Median, .{ 255, 255, 255, 255 });
+        }
+    }
     
     //
     // Draw all player states
@@ -227,12 +240,12 @@ Sprite_Index :: enum {
     Stone;
 }
 
-get_sprite_index_for_item :: (entity: Entity_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
+get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
     index: Sprite_Index = ---;
 
-    if entity == {
-        case .Shard; index = .Shard;
-        case .Stone; index = .Stone;
+    if item == {
+      case .Shard; index = .Shard;
+      case .Stone; index = .Stone;
     }
     
     return index;
@@ -248,9 +261,10 @@ get_sprite_index_for_entity :: (entity: *Entity) -> Sprite_Index {
       case .Emitter;   index = .Emitter;
       case .Receiver;  index = .Receiver;
       case .Mirror;    index = .Mirror;
-      case .Shard;     index = .Shard;
       case .Rock;      index = .Rock;
-      case .Stone;     index = .Stone;
+      case .Item_Stack;
+        stack := down(entity, Item_Stack);
+        index = get_sprite_index_for_item(stack.item_kind);
     }
     
     return index;

@@ -1,6 +1,6 @@
 Entity :: struct {
     pid: Pid;
-    kind: Entity_Kind;
+    entity_kind: Entity_Kind;
     marked_for_removal: bool;
 
     health: f32;
@@ -20,7 +20,7 @@ Player :: struct {
     state: Player_State      = .Idle;
     aim_direction: Direction = .North;
     target_position: v2i     = .{ 0, 0 };
-    carrying_item: Entity_Kind = 0;
+    carrying_item: Item_Kind = 0;
 }
 
 Emitter :: struct {
@@ -34,13 +34,20 @@ Receiver :: struct {
     progress_time_in_seconds: f32;
 }
 
+Item_Stack :: struct {
+    #using entity : *Entity = ---;
+    item_kind: Item_Kind = 0;
+    count: s64 = 0;
+}
+
 Entity_Manager :: struct {
     pid_counter:  Pid;
     pid_lookup:   Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
-    players:   Bucket_Array(Player);
-    emitters:  Bucket_Array(Emitter);
-    receivers: Bucket_Array(Receiver);
+    players:     Bucket_Array(Player);
+    emitters:    Bucket_Array(Emitter);
+    receivers:   Bucket_Array(Receiver);
+    item_stacks: Bucket_Array(Item_Stack);
 }
 
 
@@ -57,6 +64,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.players, *server.perm);
     create_bucket_array(*server.emitters, *server.perm);
     create_bucket_array(*server.receivers, *server.perm);
+    create_bucket_array(*server.item_stacks, *server.perm);
 }
 
 destroy_entity_manager :: (server: *Server) {
@@ -65,6 +73,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.players);
     destroy_bucket_array(*server.emitters);
     destroy_bucket_array(*server.receivers);
+    destroy_bucket_array(*server.item_stacks);
 }
 
 
@@ -95,7 +104,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     
     slot, entity := push_bucket_array(*server.all_entities);
     entity.pid                = pid;
-    entity.kind               = kind;
+    entity.entity_kind        = kind;
     entity.marked_for_removal = false;
     entity.health             = MAX_HEALTHS[kind];
     entity.physical_rotation  = rotation;
@@ -103,17 +112,18 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
 
     probed_hash_table_add(*server.pid_lookup, pid, entity);
     
-    if #complete entity.kind == {
+    if #complete entity.entity_kind == {
       case .Player;   make_derived(entity, *server.players);
       case .Emitter;  make_derived(entity, *server.emitters);
       case .Receiver; make_derived(entity, *server.receivers);
-      case .Crystal, .Bedrock, .Mirror, .Shard, .Rock, .Stone;
+      case .Item_Stack; make_derived(entity, *server.item_stacks);
+      case .Crystal, .Bedrock, .Mirror, .Rock;
         entity.derived = null;
     }
 
     msg := make_message(Create_Entity_Message);
     msg.create_entity.entity_pid = entity.pid;
-    msg.create_entity.kind       = entity.kind;
+    msg.create_entity.kind       = entity.entity_kind;
     msg.create_entity.position   = entity.physical_position;
     msg.create_entity.rotation   = entity.physical_rotation;
     array_add(*server.outgoing_messages, msg);
@@ -141,12 +151,22 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.players);
     remove_deriveds(*server.emitters);
     remove_deriveds(*server.receivers);
+    remove_deriveds(*server.item_stacks);
     remove_deriveds(*server.all_entities);
+}
+
+damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) {
+    entity.health -= immediate_damage;
+
+    msg := make_message(Entity_Health_Message);
+    msg.entity_health.entity_pid = entity.pid;
+    msg.entity_health.current_health = entity.health;
+    array_add(*server.outgoing_messages, msg);
 }
 
 
 //
-// Emitter
+// Derived Types
 //
 
 recalculate_emitter :: (server: *Server, emitter: *Emitter) {
@@ -166,9 +186,9 @@ recalculate_emitter :: (server: *Server, emitter: *Emitter) {
         
         blocking := get_blocking_entity_at_position(server, field);
         
-        if blocking == null || blocking.kind == .Player {
+        if blocking == null || blocking.entity_kind == .Player {
             array_add(*emitter.fields, field);
-        } else if blocking.kind == .Mirror {
+        } else if blocking.entity_kind == .Mirror {
             array_add(*emitter.fields, field);
             
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
@@ -176,13 +196,65 @@ recalculate_emitter :: (server: *Server, emitter: *Emitter) {
             if reflection_success then
             direction = reflected_direction;
             else break;
-        } else if blocking.kind == .Receiver {
+        } else if blocking.entity_kind == .Receiver {
             array_add(*emitter.fields, field);
             break;
         } else {
             break;
         }
     }
+}
+
+take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
+    --stack.count;
+
+    if stack.count {
+        msg := make_message(Item_Stack_State_Message);
+        msg.item_stack_state.entity_pid = stack.pid;
+        msg.item_stack_state.item_kind  = stack.item_kind;
+        msg.item_stack_state.count      = stack.count;
+        array_add(*server.outgoing_messages, msg);
+    } else {
+        remove_entity(server, stack);
+    }
+
+    return stack.item_kind;
+}
+
+try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind) -> bool {
+    success := false;
+    stack_entity := get_entity_at_position(server, target_position);
+
+    if stack_entity == null {
+        stack_entity = create_entity(server, .Item_Stack, target_position, .North);
+        stack := down(stack_entity, Item_Stack);
+        stack.item_kind = kind;
+        stack.count = 1;
+
+        msg := make_message(Item_Stack_State_Message);
+        msg.item_stack_state.entity_pid = stack.pid;
+        msg.item_stack_state.item_kind  = stack.item_kind;
+        msg.item_stack_state.count      = stack.count;
+        array_add(*server.outgoing_messages, msg);
+
+        success = true;
+    } else if stack_entity.entity_kind == .Item_Stack {
+        stack := down(stack_entity, Item_Stack);
+
+        if stack.item_kind == kind {
+            ++stack.count;
+
+            msg := make_message(Item_Stack_State_Message);
+            msg.item_stack_state.entity_pid = stack.pid;
+            msg.item_stack_state.item_kind  = stack.item_kind;
+            msg.item_stack_state.count      = stack.count;
+            array_add(*server.outgoing_messages, msg);
+
+            success = true;
+        }
+    }
+
+    return success;
 }
 
 
@@ -198,7 +270,7 @@ position_in_bounds :: (server: *Server, position: v2i) -> bool {
 get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -207,7 +279,7 @@ get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
 get_blocking_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && is_blocking_entity(entity.entity_kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -281,7 +353,7 @@ recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i) -> b
 
     // Make sure the space is unoccupied or can be moved away
     collision := get_blocking_entity_at_position(server, position);
-    if collision != null && (!is_pushable_entity(collision.kind) || !recursive_move_check(server, collision, move_delta)) then return false;
+    if collision != null && (!is_pushable_entity(collision.entity_kind) || !recursive_move_check(server, collision, move_delta)) then return false;
 
     // Success!
     return true;

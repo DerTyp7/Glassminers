@@ -117,8 +117,6 @@ maybe_shrink_bucket_array :: (array: *Bucket_Array($T), bucket_index: u64) {
     bucket := *array.buckets[bucket_index];
 
     if bucket.free_mask == Bucket_Array(T).BUCKET_EMPTY {
-        array.first_free_bucket_index = min(array.first_free_bucket_index, bucket_index);
-
         first_shrink_index := array.buckets.count / 2;
         makes_sense_to_shrink := true;
 
@@ -130,5 +128,7 @@ maybe_shrink_bucket_array :: (array: *Bucket_Array($T), bucket_index: u64) {
             array.buckets = reallocate_array(array.allocator, array.buckets, first_shrink_index);
             array.slot_count = array.buckets.count * array.BUCKET_SIZE; // @Speed: This slot count can probably be set to something lower...
         }
+
+        array.first_free_bucket_index = find_next_free_bucket(array, 0);
     }
 }

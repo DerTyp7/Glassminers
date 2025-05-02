@@ -88,10 +88,14 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     0,  // Emitter
     0,  // Receiver
     30, // Mirror
-    0,  // Shard
     50, // Rock
-    0,  // Stone
+    0,  // Item Stack
 ];
+
+Item_Kind :: enum {
+    Shard;
+    Stone;
+}
 
 Entity_Kind :: enum {
     Player;
@@ -100,9 +104,8 @@ Entity_Kind :: enum {
     Emitter;
     Receiver;
     Mirror;
-    Shard;
     Rock;
-    Stone;
+    Item_Stack;
 }
 
 Direction :: enum {

@@ -108,7 +108,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -174,30 +174,29 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
           case .Primary;
             if player.state != .Idle || !target_entity break;
             
-            if target_entity.kind == {
+            if target_entity.entity_kind == {
               case .Bedrock, .Crystal, .Rock, .Mirror;
                 player.state = .Digging;
-              case .Shard, .Stone;
+              case .Item_Stack;
                 player.state = .Carrying;
-                player.carrying_item = target_entity.kind;
-                remove_entity(server, target_entity);
+                player.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
             }
             
           case .Secondary;
-            if target_entity == null {
-                // Place a new entity
-                if #complete player.state == {
-                  case .Dead, .Digging;
-                  case .Idle;
-                    // @Temporary: Players can currently create mirrors out of thin air...
+            if #complete player.state == {
+              case .Dead, .Digging;
+              case .Idle;
+                // @Temporary: Players can currently create mirrors out of thin air...
+                if target_entity == null {
                     create_entity(server, .Mirror, player.target_position, .North);
-                  case .Carrying;
-                    create_entity(server, player.carrying_item, player.target_position, .North);
+                } else if target_entity.entity_kind == .Mirror {
+                    warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
+                }
+              case .Carrying;
+                if try_to_put_item(server, player.target_position, player.carrying_item) {
                     player.state = .Idle;
                     player.carrying_item = 0;
                 }
-            } else if target_entity.kind == .Mirror {
-                warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
             }
         }
     }
@@ -371,15 +370,6 @@ do_lobby_tick :: (server: *Server) {
 }
 
 do_game_tick :: (server: *Server) {
-    damage :: (server: *Server, entity: *Entity, immediate_damage: f32) {
-        entity.health -= immediate_damage;
-
-        msg := make_message(Entity_Health_Message);
-        msg.entity_health.entity_pid = entity.pid;
-        msg.entity_health.current_health = entity.health;
-        array_add(*server.outgoing_messages, msg);
-    }
-
     game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
 
     read_incoming_packets(server);
@@ -459,15 +449,15 @@ do_game_tick :: (server: *Server) {
             if player.state == {
               case .Digging;
                 target_entity := get_entity_at_position(server, player.target_position);
-                damage(server, target_entity, PLAYER_DPS * server.tick_time);
+                damage_entity(server, target_entity, PLAYER_DPS * server.tick_time);
                 
                 if target_entity.health <= 0 {
                     remove_entity(server, target_entity);
 
                     // Generate the resource drop from the farmed entity
-                    if target_entity.kind == {
-                        case .Crystal; create_entity(server, .Shard, target_entity.physical_position, .North);
-                        case .Rock; create_entity(server, .Stone, target_entity.physical_position, .North);
+                    if target_entity.entity_kind == {
+                      case .Crystal; try_to_put_item(server, target_entity.physical_position, .Shard);
+                      case .Rock; try_to_put_item(server, target_entity.physical_position, .Stone);
                     }
 
                     player.state = .Idle;
