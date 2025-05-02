@@ -40,6 +40,10 @@ Item_Stack :: struct {
     count: s64 = 0;
 }
 
+Dragon :: struct {
+    #using entity : *Entity = ---;
+}
+
 Entity_Manager :: struct {
     pid_counter:  Pid;
     pid_lookup:   Probed_Hash_Table(Pid, *Entity);
@@ -48,6 +52,7 @@ Entity_Manager :: struct {
     emitters:    Bucket_Array(Emitter);
     receivers:   Bucket_Array(Receiver);
     item_stacks: Bucket_Array(Item_Stack);
+    dragons:     Bucket_Array(Dragon);
 }
 
 
@@ -65,6 +70,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.emitters, *server.perm);
     create_bucket_array(*server.receivers, *server.perm);
     create_bucket_array(*server.item_stacks, *server.perm);
+    create_bucket_array(*server.dragons, *server.perm);
 }
 
 destroy_entity_manager :: (server: *Server) {
@@ -74,6 +80,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.emitters);
     destroy_bucket_array(*server.receivers);
     destroy_bucket_array(*server.item_stacks);
+    destroy_bucket_array(*server.dragons);
 }
 
 
@@ -113,10 +120,11 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     probed_hash_table_add(*server.pid_lookup, pid, entity);
     
     if #complete entity.entity_kind == {
-      case .Player;   make_derived(entity, *server.players);
-      case .Emitter;  make_derived(entity, *server.emitters);
-      case .Receiver; make_derived(entity, *server.receivers);
+      case .Player;     make_derived(entity, *server.players);
+      case .Emitter;    make_derived(entity, *server.emitters);
+      case .Receiver;   make_derived(entity, *server.receivers);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
+      case .Dragon;     make_derived(entity, *server.dragons);
       case .Crystal, .Bedrock, .Mirror, .Rock;
         entity.derived = null;
     }
@@ -152,6 +160,7 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.emitters);
     remove_deriveds(*server.receivers);
     remove_deriveds(*server.item_stacks);
+    remove_deriveds(*server.dragons);
     remove_deriveds(*server.all_entities);
 }
 

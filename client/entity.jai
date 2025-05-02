@@ -14,7 +14,7 @@ Entity :: struct {
     health: f32;
     
     physical_position: v2i;
-    physical_rotation: Direction;    
+    physical_rotation: Direction;
     visual_position: v2f;
     visual_rotation: f32;
     
@@ -49,6 +49,10 @@ Item_Stack :: struct {
     count: s64 = 0;
 }
 
+Dragon :: struct {
+    #using entity : *Entity = ---;
+}
+
 Entity_Manager :: struct {
     pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
@@ -56,6 +60,7 @@ Entity_Manager :: struct {
     emitters:    Bucket_Array(Emitter);
     receivers:   Bucket_Array(Receiver);
     item_stacks: Bucket_Array(Item_Stack);
+    dragons:     Bucket_Array(Dragon);
 }
 
 
@@ -72,6 +77,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.emitters, *client.perm);
     create_bucket_array(*client.receivers, *client.perm);
     create_bucket_array(*client.item_stacks, *client.perm);
+    create_bucket_array(*client.dragons, *client.perm);
 }
 
 destroy_entity_manager :: (client: *Client) {
@@ -81,6 +87,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.emitters);
     destroy_bucket_array(*client.receivers);
     destroy_bucket_array(*client.item_stacks);
+    destroy_bucket_array(*client.dragons);
 }
 
 
@@ -150,6 +157,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Emitter;    make_derived(entity, *client.emitters);
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
+      case .Dragon;     make_derived(entity, *client.dragons);
       case .Crystal, .Bedrock, .Mirror, .Rock;
         entity.derived = null;
     }
@@ -177,6 +185,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.players);
     remove_deriveds(*client.emitters);
     remove_deriveds(*client.receivers);
+    remove_deriveds(*client.dragons);
     remove_deriveds(*client.all_entities);
 }
 

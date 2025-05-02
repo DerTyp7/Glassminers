@@ -342,8 +342,9 @@ create_the_game :: (server: *Server) {
         create_entity(server, .Emitter, .{ 0, 2 }, .East);
         create_entity(server, .Receiver, .{ server.world_size.x - 1, 2 }, .West);
         generate_n_random_entities(server, .Bedrock, server.world_size.x * 2);
-        generate_n_random_entities(server, .Rock, server.world_size.x / 4);
+        generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
+        generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
     }
     
     //
@@ -433,6 +434,33 @@ do_game_tick :: (server: *Server) {
         }
     }
 
+    //
+    // Update all dragons
+    //
+    for i := 0; i < server.dragons.slot_count; ++i {
+        dragon, occupied := index_bucket_array(*server.dragons, i);
+        if !occupied continue;
+
+        nearest_player: *Player = null;
+        nearest_distance: s32 = MAX_S32;
+        
+        for j := 0; j < server.players.slot_count; ++j {
+            player, occupied := index_bucket_array(*server.players, j);
+            if !occupied continue;
+
+            distance := (player.physical_position.x - dragon.physical_position.x) + (player.physical_position.y - dragon.physical_position.y);
+            if distance < nearest_distance {
+                nearest_player = player;
+                nearest_distance = distance;
+            }
+        }
+        
+        if nearest_player {
+            rotation := direction_from_vector(.{ nearest_player.physical_position.x - dragon.physical_position.x, nearest_player.physical_position.y - dragon.physical_position.y });
+            warp_entity(server, dragon, dragon.physical_position, rotation);
+        }
+    }
+    
     //
     // Update each player
     //

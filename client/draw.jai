@@ -113,7 +113,7 @@ draw_world :: (client: *Client) {
     //
     for x := 0; x < client.world_size.x; ++x {
         for y := 0; y < client.world_size.y; ++y {
-            draw_sprite_world_space(client, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0);
+            draw_sprite_world_space(client, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, false);
         }
     }
     
@@ -124,8 +124,8 @@ draw_world :: (client: *Client) {
         entity, occupied := index_bucket_array(*client.all_entities, i);
         if !occupied continue;
         
-        sprite_index := get_sprite_index_for_entity(entity);
-        draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation);
+        sprite_index, horizontally_mirrored := get_sprite_index_for_entity(entity);
+        draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, horizontally_mirrored);
     }
 
     //
@@ -193,7 +193,7 @@ draw_world :: (client: *Client) {
             world_position.x += 0.25;
             world_size :: v2f.{ 0.25, 0.25 };
             sprite_index := get_sprite_index_for_item(player.carrying_item);
-            draw_sprite_world_space(client, sprite_index, world_position, world_size, 0);
+            draw_sprite_world_space(client, sprite_index, world_position, world_size, 0, false);
         }
 
         if player.health < MAX_HEALTHS[.Player] {
@@ -238,6 +238,7 @@ Sprite_Index :: enum {
     Shard;
     Rock;
     Stone;
+    Red_Dragon;
 }
 
 get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
@@ -251,9 +252,10 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
     return index;
 }
 
-get_sprite_index_for_entity :: (entity: *Entity) -> Sprite_Index {
+get_sprite_index_for_entity :: (entity: *Entity) -> Sprite_Index, bool {
     index: Sprite_Index = ---;
-
+    horizontally_mirrored := false;
+    
     if #complete entity.kind == {
       case .Player;    index = .Player;
       case .Crystal;   index = .Crystal;
@@ -265,12 +267,15 @@ get_sprite_index_for_entity :: (entity: *Entity) -> Sprite_Index {
       case .Item_Stack;
         stack := down(entity, Item_Stack);
         index = get_sprite_index_for_item(stack.item_kind);
+      case .Dragon;    index = .Red_Dragon;
+        dragon := down(entity, Dragon);
+        horizontally_mirrored = dragon.physical_rotation == .East;
     }
     
-    return index;
+    return index, horizontally_mirrored;
 }
 
-calculate_uv_box_for_index_in_atlas :: (index: s64) -> [4]v2f {
+calculate_uv_box_for_index_in_atlas :: (index: s64, horizontally_mirrored: bool) -> [4]v2f {
     WIDTH:  f32 : 1.0 / xx SPRITE_ATLAS_COLUMNS;
     HEIGHT: f32 : 1.0 / xx SPRITE_ATLAS_ROWS;
     
@@ -281,6 +286,12 @@ calculate_uv_box_for_index_in_atlas :: (index: s64) -> [4]v2f {
     y0 := xx cast(s64) row    * HEIGHT;
     x1 := x0 + WIDTH;
     y1 := y0 + HEIGHT;
+
+    if horizontally_mirrored {
+        tmp := x0;
+        x0 = x1;
+        x1 = tmp;
+    }
     
     return .[ .{ x0, y0 }, .{ x1, y0 }, .{ x1, y1 }, .{ x0, y1 } ];
 }
@@ -409,7 +420,7 @@ draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: 
     draw_filling_boxes_screen_space(client, screen_center, box_count, screen_size, health / max_health, foreground);    
 }
 
-draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, world_rotation: f32) {
+draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, world_rotation: f32, horizontally_mirrored: bool) {
     screen_center := screen_from_world_position(client, world_center);
     screen_size   := screen_from_world_size(client, world_size);
 
@@ -421,7 +432,8 @@ draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_c
         v2_rotate(v2f.{ +screen_size.x / 2, -screen_size.y / 2 }, world_rotation),
         v2_rotate(v2f.{ +screen_size.x / 2, +screen_size.y / 2 }, world_rotation),
         v2_rotate(v2f.{ -screen_size.x / 2, +screen_size.y / 2 }, world_rotation) ];
-    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas);
+    
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
     indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
     texture := client.sprite_atlases[atlas_index];
     tint    := GE_Color.{ 255, 255, 255, 255 };

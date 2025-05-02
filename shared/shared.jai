@@ -90,6 +90,7 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     30, // Mirror
     50, // Rock
     0,  // Item Stack
+    50, // Dragon,
 ];
 
 Item_Kind :: enum {
@@ -106,6 +107,7 @@ Entity_Kind :: enum {
     Mirror;
     Rock;
     Item_Stack;
+    Dragon;
 }
 
 Direction :: enum {
