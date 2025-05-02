@@ -3,6 +3,7 @@
 #load "virtual_connection.jai";
 #load "threads.jai";
 #load "random.jai";
+#load "hash_table.jai";
 
 // Shared
 #load "../shared/messages.jai";
@@ -53,7 +54,7 @@ Server :: struct {
 
     world_size: v2i;
 
-    entities: Bucket_Array(Entity);
+    #using em: Entity_Manager;
 }
 
 Log_Level :: enum {
@@ -63,7 +64,7 @@ Log_Level :: enum {
 }
 
 logprint :: (level: Log_Level, format: string, args: ..Any) {
-    print("[%] ", enum_names(Log_Level)[level]);
+    print("[SERVER][%] ", enum_names(Log_Level)[level]);
     print(format, ..args);
     print("\n");
 }
@@ -274,10 +275,12 @@ transition_to_state :: (server: *Server, state: Game_State) {
 }
 
 switch_to_next_state :: (server: *Server) {
+    logprint(.Debug, "Switching from '%' to '%'...", server.current_state, server.next_state);
+
     if #complete server.current_state == {
       case .Lobby, .Game_Over; // Ignore
       case .Ingame;
-        destroy_entity_arrays(server);
+        destroy_entity_manager(server);
     }
     
     server.current_state = server.next_state;
@@ -300,7 +303,7 @@ create_the_game :: (server: *Server) {
         case .Hard;     server.world_size = .{ 72, 5 };
     }
 
-    create_entity_arrays(server);
+    create_entity_manager(server);
     
     //
     // Notify the clients about the game seed
@@ -386,12 +389,10 @@ do_game_tick :: (server: *Server) {
     for i := 0; i < server.entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.entities, i);
         if !occupied continue;
-        
+
         if entity.kind == .Emitter {
             // @ReduceMessages: Simple client-side prediction
-
             emitter := down(entity, Emitter);
-            
             previous := emitter.time_left_in_seconds;
             
             if emitter.time_left_in_seconds > 0 {

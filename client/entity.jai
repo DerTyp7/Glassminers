@@ -39,21 +39,25 @@ Receiver :: struct {
     progress_time_in_seconds: f32 = 0;
 }
 
+Entity_Manager :: struct {
+    pid_lookup: Probed_Hash_Table(Pid, *Entity);
+    entities: Bucket_Array(Entity);
+}
+
 
 
 //
 // Entity Manager
 //
 
-create_entity_arrays :: (client: *Client) {
+create_entity_manager :: (client: *Client) {
+    client.pid_lookup.allocator = *client.perm;
+    probed_hash_table_create(*client.pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.entities, *client.perm);
 }
 
-destroy_entity_arrays :: (client: *Client) {
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
-        if occupied && entity.derived deallocate(*client.perm, entity.derived);
-    }
+destroy_entity_manager :: (client: *Client) {
+    probed_hash_table_destroy(*client.pid_lookup);
     destroy_bucket_array(*client.entities);
 }
 
@@ -95,9 +99,7 @@ down :: (entity: *Entity, $T: Type) -> *T {
 }
 
 create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, position: v2i, rotation: Direction) -> *Entity {
-    assert(!entity_exists(client, pid), "An entity with the requested id already exists.");
-
-    entity := push_bucket_array_with_pid(*client.entities, pid);
+    slot, entity := push_bucket_array(*client.entities);
     entity.pid                = pid;
     entity.kind               = kind;
     entity.marked_for_removal = false;
@@ -107,6 +109,8 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.visual_position    = .{ xx position.x, xx position.y };
     entity.visual_rotation    = visual_from_physical_rotation(rotation);
     entity.derived            = null;
+
+    probed_hash_table_add(*client.pid_lookup, pid, entity);
     
     if entity.kind == {
       case .Player;   entity.derived = new(*client.perm, Player);
@@ -118,14 +122,10 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
 }
 
 get_entity :: (client: *Client, pid: Pid) -> *Entity {
-    pointer, occupied := query_bucket_array(*client.entities, pid);
-    assert(occupied, "Tried to get a non-existent entity.");
-    return pointer;
-}
-
-entity_exists :: (client: *Client, pid: Pid) -> bool {
-    // Returns null when pid does not exist!
-    return bucket_array_contains(*client.entities, pid);
+    pointer := probed_hash_table_query(*client.pid_lookup, pid);
+    assert(pointer != null, "Tried to get a non-existent entity.");
+    entity := ~pointer;
+    return entity;
 }
 
 remove_all_marked_entities :: (client: *Client) {
@@ -203,7 +203,7 @@ get_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
 get_blocking_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
     for i := 0; i < client.entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.entities, i);
-        if occupied && is_blocking_entity(entity.kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y && is_blocking_entity(entity.kind) return entity;
     }
     
     return null;

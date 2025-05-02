@@ -5,7 +5,7 @@
 
 v2i :: Vector2_Base(s32);
 v2f :: Vector2_Base(f32);
-Pid :: u64;
+Pid :: u32;
 INVALID_PID: Pid : -1;
 
 Campaign :: enum {
@@ -13,6 +13,18 @@ Campaign :: enum {
     Easy;
     Medium;
     Hard;
+}
+
+pid_hash :: (pid: Pid) -> u64 {
+    hash: u32 = ---;
+    hash = ((pid >> 16) ^ pid) * 0x45d9f3b;
+    hash = ((pid >> 16) ^ pid) * 0x45d9f3b;
+    hash = ((pid >> 16) ^ pid);
+    return hash;
+}
+
+pids_equal :: (lhs, rhs: Pid) -> bool {
+    return lhs == rhs;
 }
 
 

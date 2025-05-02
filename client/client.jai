@@ -2,6 +2,7 @@
 #load "compiler.jai";
 #load "basic.jai";
 #load "window.jai";
+#load "hash_table.jai";
 #load "ui.jai";
 #load "mixer.jai";
 #load "threads.jai";
@@ -82,8 +83,8 @@ Client :: struct {
     world_size: v2i;
     tick_time: f32;
     camera: Camera;
-    entities: Bucket_Array(Entity);
     my_entity_pid: Pid;
+    #using em: Entity_Manager;
 }
 
 
@@ -95,7 +96,7 @@ Log_Level :: enum {
 }
 
 logprint :: (level: Log_Level, format: string, args: ..Any) {
-    print("[%] ", enum_names(Log_Level)[level]);
+    print("[CLIENT][%] ", enum_names(Log_Level)[level]);
     print(format, ..args);
     print("\n");
 }
@@ -292,6 +293,8 @@ transition_to_state :: (client: *Client, state: Game_State) {
 }
 
 switch_to_next_state :: (client: *Client) {
+    logprint(.Debug, "Switching from '%' to '%'...", client.current_state, client.next_state);
+
     if #complete client.current_state == {
       case .Main_Menu, .Game_Over;
 
@@ -302,12 +305,12 @@ switch_to_next_state :: (client: *Client) {
 
       case .Lobby;
         if client.next_state != .Ingame {
-            destroy_entity_arrays(client);
+            destroy_entity_manager(client);
             maybe_shutdown_server(client);
         }
         
       case .Ingame;
-        destroy_entity_arrays(client);
+        destroy_entity_manager(client);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
     }
@@ -319,7 +322,7 @@ switch_to_next_state :: (client: *Client) {
       
       case .Lobby;
         // The server will already initialize our game during the lobby...
-        create_entity_arrays(client);
+        create_entity_manager(client);
         client.camera.center = .{ 4, 2 };
         client.my_entity_pid = INVALID_PID;
     }
@@ -608,7 +611,7 @@ main :: () -> s32 {
     create_memory_pool(*client.perm_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     client.perm = allocator_from_memory_pool(*client.perm_pool);
 
-    window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default; // nocheckin
+    window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
     create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_mode);
     create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);

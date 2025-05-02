@@ -13,7 +13,6 @@ Entity :: struct {
 
 Player :: struct {
     KIND :: Entity_Kind.Player;
-    #using entity: Entity;
     state: Player_State = .Idle;
     aim_direction: Direction = .North;
     target_position: v2i = .{ 0, 0 };
@@ -31,21 +30,27 @@ Receiver :: struct {
     progress_time_in_seconds: f32;
 }
 
+Entity_Manager :: struct {
+    pid_counter:  Pid;
+    pid_lookup:   Probed_Hash_Table(Pid, *Entity);
+    entities: Bucket_Array(Entity);
+}
+
 
 
 //
 // Entity Manager
 //
 
-create_entity_arrays :: (server: *Server) {
+create_entity_manager :: (server: *Server) {
+    server.pid_counter = 0;
+    server.pid_lookup.allocator = *server.perm;
+    probed_hash_table_create(*server.pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*server.entities, *server.perm);
 }
 
-destroy_entity_arrays :: (server: *Server) {
-    for i := 0; i < server.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.entities, i);
-        if occupied && entity.derived then deallocate(*server.perm, entity.derived);
-    }
+destroy_entity_manager :: (server: *Server) {
+    probed_hash_table_destroy(*server.pid_lookup);
     destroy_bucket_array(*server.entities);
 }
 
@@ -61,7 +66,9 @@ down :: (entity: *Entity, $T: Type) -> *T {
 }
 
 create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: Direction) -> *Entity {
-    pid, entity := push_bucket_array(*server.entities);
+    pid := ++server.pid_counter;
+    
+    slot, entity := push_bucket_array(*server.entities);
     entity.pid                = pid;
     entity.kind               = kind;
     entity.marked_for_removal = false;
@@ -69,6 +76,8 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.derived            = null;
+
+    probed_hash_table_add(*server.pid_lookup, pid, entity);
     
     if entity.kind == {
       case .Player;   entity.derived = new(*server.perm, Player);
@@ -87,9 +96,10 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
 }
 
 get_entity :: (server: *Server, pid: Pid) -> *Entity {
-    pointer, occupied := query_bucket_array(*server.entities, pid);
-    assert(occupied, "Tried to get a non-existent entity.");
-    return pointer;
+    pointer := probed_hash_table_query(*server.pid_lookup, pid);
+    assert(pointer != null, "Tried to get a non-existent entity.");
+    entity := ~pointer;
+    return entity;
 }
 
 physically_remove_all_marked_entities :: (server: *Server) {
@@ -215,10 +225,10 @@ remove_entity :: (server: *Server, entity: *Entity) {
 is_emitter_field_at :: (server: *Server, position: v2i) -> bool {
     for i := 0; i < server.entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.entities, i);
-        
-        if occupied && entity.kind == .Emitter {
+        if !occupied continue;
+
+        if entity.kind == .Emitter {
             emitter := down(entity, Emitter);
-            
             for j := 0; j < emitter.fields.count; ++j {
                 field := array_get(*emitter.fields, j);
                 if field.x == position.x && field.y == position.y return true;
