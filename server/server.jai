@@ -448,7 +448,7 @@ do_game_tick :: (server: *Server) {
             player, occupied := index_bucket_array(*server.players, j);
             if !occupied continue;
 
-            distance := (player.physical_position.x - dragon.physical_position.x) + (player.physical_position.y - dragon.physical_position.y);
+            distance := abs(player.physical_position.x - dragon.physical_position.x) + abs(player.physical_position.y - dragon.physical_position.y);
             if distance < nearest_distance {
                 nearest_player = player;
                 nearest_distance = distance;
