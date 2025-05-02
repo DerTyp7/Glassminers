@@ -483,20 +483,15 @@ do_game_tick :: (client: *Client) {
     // This also does some basic client-side prediction
     //
     {
-        for i := 0; i < client.entities.slot_count; ++i {
-            entity, occupied := index_bucket_array(*client.entities, i);
+        for i := 0; i < client.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*client.emitters, i);
             if !occupied continue;
             
-            if entity.kind == {
-              case .Emitter;
-                emitter := down(entity, Emitter);
-                
-                if emitter.time_left_in_seconds > 0 {
-                    emitter.time_left_in_seconds -= client.tick_time;
-                }
-
-                recalculate_emitter(client, entity, emitter);
+            if emitter.time_left_in_seconds > 0 {
+                emitter.time_left_in_seconds -= client.tick_time;
             }
+
+            recalculate_emitter(client, emitter);
         }
     }
 
@@ -596,7 +591,7 @@ do_game_tick :: (client: *Client) {
         }
     }
     
-    remove_all_marked_entities(client);
+    physically_remove_all_marked_entities(client);
 }
 
 main :: () -> s32 {

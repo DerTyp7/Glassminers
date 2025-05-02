@@ -19,29 +19,36 @@ Entity :: struct {
     visual_rotation: f32;
     
     derived: *void;
+
+#if DEVELOPER {
+    derived_type_id: Type;
+}
 }
 
 Player :: struct {
-    KIND :: Entity_Kind.Player;
+    #using entity : *Entity = ---;
     state: Player_State = .Idle;
     target_position: v2i;
     carrying_item: Entity_Kind = 0;
 }
 
 Emitter :: struct {
-    KIND :: Entity_Kind.Emitter;
+    #using entity : *Entity = ---;
     fields: [..]v2i;
     time_left_in_seconds: f32 = EMITTER_TIME_TO_DIE;
 }
 
 Receiver :: struct {
-    KIND :: Entity_Kind.Receiver;
+    #using entity : *Entity = ---;
     progress_time_in_seconds: f32 = 0;
 }
 
 Entity_Manager :: struct {
     pid_lookup: Probed_Hash_Table(Pid, *Entity);
-    entities: Bucket_Array(Entity);
+    all_entities: Bucket_Array(Entity);
+    players:   Bucket_Array(Player);
+    emitters:  Bucket_Array(Emitter);
+    receivers: Bucket_Array(Receiver);
 }
 
 
@@ -53,12 +60,18 @@ Entity_Manager :: struct {
 create_entity_manager :: (client: *Client) {
     client.pid_lookup.allocator = *client.perm;
     probed_hash_table_create(*client.pid_lookup, 128, pid_hash, pids_equal);
-    create_bucket_array(*client.entities, *client.perm);
+    create_bucket_array(*client.all_entities, *client.perm);
+    create_bucket_array(*client.players, *client.perm);
+    create_bucket_array(*client.emitters, *client.perm);
+    create_bucket_array(*client.receivers, *client.perm);
 }
 
 destroy_entity_manager :: (client: *Client) {
     probed_hash_table_destroy(*client.pid_lookup);
-    destroy_bucket_array(*client.entities);
+    destroy_bucket_array(*client.all_entities);
+    destroy_bucket_array(*client.players);
+    destroy_bucket_array(*client.emitters);
+    destroy_bucket_array(*client.receivers);
 }
 
 
@@ -94,12 +107,24 @@ update_camera_matrices :: (camera: *Camera, window: *Window) {
 //
 
 down :: (entity: *Entity, $T: Type) -> *T {
-    assert(entity.kind == T.KIND && entity.derived != null, "Invalid down() cast on entity.");
+#if DEVELOPER {
+    assert(entity.derived_type_id == type_id(T)/* && entity.derived != null*/, "Invalid down() cast on entity.");
+}
     return cast(*T) entity.derived;
 }
 
 create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, position: v2i, rotation: Direction) -> *Entity {
-    slot, entity := push_bucket_array(*client.entities);
+    make_derived :: (entity: *Entity, array: *Bucket_Array($T)) {
+        derived := push_bucket_array(array);
+        derived.entity = entity;
+        entity.derived = derived;
+
+#if DEVELOPER {
+    entity.derived_type_id = type_id(T);
+}
+    }
+
+    entity := push_bucket_array(*client.all_entities);
     entity.pid                = pid;
     entity.kind               = kind;
     entity.marked_for_removal = false;
@@ -108,14 +133,15 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.physical_position  = position;
     entity.visual_position    = .{ xx position.x, xx position.y };
     entity.visual_rotation    = visual_from_physical_rotation(rotation);
-    entity.derived            = null;
 
     probed_hash_table_add(*client.pid_lookup, pid, entity);
-    
-    if entity.kind == {
-      case .Player;   entity.derived = new(*client.perm, Player);
-      case .Emitter;  entity.derived = new(*client.perm, Emitter);
-      case .Receiver; entity.derived = new(*client.perm, Receiver);
+
+    if #complete entity.kind == {
+      case .Player;   make_derived(entity, *client.players);
+      case .Emitter;  make_derived(entity, *client.emitters);
+      case .Receiver; make_derived(entity, *client.receivers);
+      case .Crystal, .Bedrock, .Mirror, .Shard, .Rock, .Stone;
+        entity.derived = null;
     }
 
     return entity;
@@ -128,16 +154,20 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
     return entity;
 }
 
-remove_all_marked_entities :: (client: *Client) {
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
-        if !occupied continue;
-        
-        if entity.marked_for_removal {
-            if entity.derived deallocate(*client.perm, entity.derived);
-            remove_index_from_bucket_array(*client.entities, i);
+physically_remove_all_marked_entities :: (client: *Client) {
+    remove_deriveds :: (array: *Bucket_Array($T)) {
+        for i := 0; i < array.slot_count; ++i {
+            derived, occupied := index_bucket_array(array, i);
+            if occupied && derived.marked_for_removal {
+                remove_index_from_bucket_array(array, i);
+            }
         }
     }
+    
+    remove_deriveds(*client.players);
+    remove_deriveds(*client.emitters);
+    remove_deriveds(*client.receivers);
+    remove_deriveds(*client.all_entities);
 }
 
 
@@ -146,14 +176,14 @@ remove_all_marked_entities :: (client: *Client) {
 // Emitter
 //
 
-recalculate_emitter :: (client: *Client, entity: *Entity, emitter: *Emitter) {
+recalculate_emitter :: (client: *Client, emitter: *Emitter) {
     emitter.fields.allocator = *temp;
     array_clear_without_deallocation(*emitter.fields);
 
     if emitter.time_left_in_seconds <= 0 return;
     
-    direction := entity.physical_rotation;
-    field     := entity.physical_position;
+    direction := emitter.physical_rotation;
+    field     := emitter.physical_position;
     
     while true {
         vector := vector_from_direction(direction);
@@ -193,8 +223,8 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
 }
 
 get_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
         if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
@@ -202,8 +232,8 @@ get_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
 }
 
 get_blocking_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
         if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y && is_blocking_entity(entity.kind) return entity;
     }
     

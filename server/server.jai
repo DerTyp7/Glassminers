@@ -15,7 +15,7 @@
 #load "entity.jai";
 
 TICK_RATE: f32 : 30;
-DEVELOPER :: #run compiler_is_user_option_present("DEVELOPER");
+DEVELOPER :: #run compiler_is_user_option_present("Developer");
 
 Remote_Client :: struct {
     connection: Virtual_Connection;

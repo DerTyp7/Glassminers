@@ -120,8 +120,8 @@ draw_world :: (client: *Client) {
     //
     // Draw all entities
     //
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
         if !occupied continue;
         
         sprite_index := get_sprite_index_for_entity(entity);
@@ -131,82 +131,60 @@ draw_world :: (client: *Client) {
     //
     // Draw all emitters
     //
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
+    for i := 0; i < client.emitters.slot_count; ++i {
+        emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        if entity.kind == .Emitter {
-            emitter := down(entity, Emitter);
-            
-            for j := 0; j < emitter.fields.count; ++j {
-                field := array_get(*emitter.fields, j);
-                draw_emitter_field(client, .{ xx field.x, xx field.y }, .{ 255, 255, 255, 150 });
-            }
+        for j := 0; j < emitter.fields.count; ++j {
+            field := array_get(*emitter.fields, j);
+            draw_emitter_field(client, .{ xx field.x, xx field.y }, .{ 255, 255, 255, 150 });
+        }
+
+        if emitter.time_left_in_seconds > 0 {
+            draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_TIME_TO_DIE);
         }
     }
 
     //
     // Draw all receiver states
     //
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
+    for i := 0; i < client.receivers.slot_count; ++i {
+        receiver, occupied := index_bucket_array(*client.receivers, i);
         if !occupied continue;
 
-        if entity.kind == .Receiver {
-            receiver := down(entity, Receiver);
-            if receiver.progress_time_in_seconds > 0 {
-                draw_progress_bar_world_space(client, entity.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
-            }
-        }
-    }
-
-    //
-    // Draw all emitter states
-    //
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
-        if !occupied continue;
-
-        if entity.kind == .Emitter {
-            emitter := down(entity, Emitter);
-            if emitter.time_left_in_seconds > 0 {
-                draw_progress_bar_world_space(client, entity.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_TIME_TO_DIE);
-            }
+        if receiver.progress_time_in_seconds > 0 {
+            draw_progress_bar_world_space(client, receiver.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
         }
     }
     
     //
     // Draw all player states
     //
-    for i := 0; i < client.entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.entities, i);
+    for i := 0; i < client.players.slot_count; ++i {
+        player, occupied := index_bucket_array(*client.players, i);
         if !occupied continue;
 
-        if entity.kind == .Player {
-            player := down(entity, Player);
+        TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
+        draw_outlined_rect_world_space(client, .{ xx player.target_position.x - TARGET_RECT_HALF_SIZE, xx player.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx player.target_position.x + TARGET_RECT_HALF_SIZE, xx player.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
+        
+        if #complete player.state == {
+          case .Idle;
+          case .Dead;
+            draw_circle_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
+          case .Digging;
+            target_entity := get_entity_at_position(client, player.target_position);
+            draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);
 
-            TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
-            draw_outlined_rect_world_space(client, .{ xx player.target_position.x - TARGET_RECT_HALF_SIZE, xx player.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx player.target_position.x + TARGET_RECT_HALF_SIZE, xx player.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
-            
-            if #complete player.state == {
-              case .Idle;
-              case .Dead;
-                draw_circle_world_space(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
-              case .Digging;
-                target_entity := get_entity_at_position(client, player.target_position);
-                draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);
+          case .Carrying;
+            world_position := player.visual_position;
+            world_position.x += 0.25;
+            world_size :: v2f.{ 0.25, 0.25 };
+            sprite_index := get_sprite_index_for_item(player.carrying_item);
+            draw_sprite_world_space(client, sprite_index, world_position, world_size, 0);
+        }
 
-              case .Carrying;
-                world_position := entity.visual_position;
-                world_position.x += 0.25;
-                world_size :: v2f.{ 0.25, 0.25 };
-                sprite_index := get_sprite_index_for_item(player.carrying_item);
-                draw_sprite_world_space(client, sprite_index, world_position, world_size, 0);
-            }
-
-            if entity.health < MAX_HEALTHS[.Player] {
-                draw_health_bar_world_space(client, .{ xx entity.visual_position.x, xx (entity.visual_position.y + 0.55) }, PROGRESS_BAR_WORLD_SIZE, entity.health, MAX_HEALTHS[.Player]);
-            }
+        if player.health < MAX_HEALTHS[.Player] {
+            draw_health_bar_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y + 0.55) }, PROGRESS_BAR_WORLD_SIZE, player.health, MAX_HEALTHS[.Player]);
         }
     }    
 
