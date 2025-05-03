@@ -124,7 +124,7 @@ draw_world :: (client: *Client) {
         entity, occupied := index_bucket_array(*client.all_entities, i);
         if !occupied continue;
         
-        sprite_index, horizontally_mirrored := get_sprite_index_for_entity(entity);
+        sprite_index, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
         draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, horizontally_mirrored);
     }
 
@@ -234,9 +234,14 @@ Sprite_Index :: enum {
     Emitter;
     Receiver;
     Mirror;
-    Player;
-    Reserved_0;
+    Player_Idle_0;
+    Player_Idle_1;
     Red_Dragon;
+}
+
+get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index) -> Sprite_Index {
+    frame_index := cast(s64) round(client.epoch_time / frame_time) % frames.count;
+    return frames[frame_index];
 }
 
 get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
@@ -250,12 +255,12 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
     return index;
 }
 
-get_sprite_index_for_entity :: (entity: *Entity) -> Sprite_Index, bool {
+get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, bool {
     index: Sprite_Index = ---;
     horizontally_mirrored := false;
     
     if #complete entity.kind == {
-      case .Player;    index = .Player;
+      case .Player;    index = get_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_0, .Player_Idle_1 ]);
       case .Crystal;   index = .Crystal;
       case .Bedrock;   index = .Bedrock;
       case .Emitter;   index = .Emitter;
