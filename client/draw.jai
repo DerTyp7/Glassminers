@@ -84,9 +84,14 @@ draw_outlined_rect_world_space :: (client: *Client, world_c0, world_c1: v2f, scr
 //
 
 draw_world :: (client: *Client) {
-    draw_emitter_field :: (client: *Client, visual_position: v2f, color: GE_Color) {
+    draw_beam :: (client: *Client, beam: *Beam_Data, color: GE_Color) {
         WORLD_HALF_SIZE: f32 : 0.75 / 2;
-        draw_rect_world_space(client, .{ visual_position.x - WORLD_HALF_SIZE, visual_position.y - WORLD_HALF_SIZE }, .{ visual_position.x + WORLD_HALF_SIZE, visual_position.y + WORLD_HALF_SIZE }, color);
+
+        for i := 0; i < beam.fields.count; ++i {
+            field := array_get_pointer(*beam.fields, i);
+            visual_position := v2f.{ xx field.x, xx field.y };
+            draw_rect_world_space(client, .{ visual_position.x - WORLD_HALF_SIZE, visual_position.y - WORLD_HALF_SIZE }, .{ visual_position.x + WORLD_HALF_SIZE, visual_position.y + WORLD_HALF_SIZE }, color);
+        }
     }
     
     draw_label :: (client: *Client, label: string, entity_pid: Pid) {
@@ -113,7 +118,7 @@ draw_world :: (client: *Client) {
     //
     for x := 0; x < client.world_size.x; ++x {
         for y := 0; y < client.world_size.y; ++y {
-            draw_sprite_world_space(client, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, false);
+            draw_sprite_world_space(client, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
         }
     }
     
@@ -124,8 +129,8 @@ draw_world :: (client: *Client) {
         entity, occupied := index_bucket_array(*client.all_entities, i);
         if !occupied continue;
         
-        sprite_index, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
-        draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, horizontally_mirrored);
+        sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
+        draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, tint, horizontally_mirrored);
     }
 
     //
@@ -135,10 +140,7 @@ draw_world :: (client: *Client) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        for j := 0; j < emitter.fields.count; ++j {
-            field := array_get(*emitter.fields, j);
-            draw_emitter_field(client, .{ xx field.x, xx field.y }, .{ 255, 255, 255, 150 });
-        }
+        draw_beam(client, *emitter.beam_data, .{ 255, 255, 255, 150 });
 
         if emitter.time_left_in_seconds > 0 {
             draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_TIME_TO_DIE);
@@ -164,6 +166,8 @@ draw_world :: (client: *Client) {
         dragon, occupied := index_bucket_array(*client.dragons, i);
         if !occupied continue;
 
+        draw_beam(client, *dragon.beam_data, .{ 255, 209, 104, 150 });
+        
         if dragon.health < MAX_HEALTHS[dragon.entity_kind] {
             draw_health_bar_world_space(client, dragon.visual_position, PROGRESS_BAR_WORLD_SIZE, dragon.health, MAX_HEALTHS[dragon.entity_kind]);
         }
@@ -205,7 +209,7 @@ draw_world :: (client: *Client) {
             world_position.x += 0.25;
             world_size :: v2f.{ 0.25, 0.25 };
             sprite_index := get_sprite_index_for_item(player.carrying_item);
-            draw_sprite_world_space(client, sprite_index, world_position, world_size, 0, false);
+            draw_sprite_world_space(client, sprite_index, world_position, world_size, 0, .{ 255, 255, 255, 255 }, false);
         }
 
         if player.health < MAX_HEALTHS[.Player] {
@@ -267,8 +271,9 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
     return index;
 }
 
-get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, bool {
+get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, GE_Color, bool {
     index: Sprite_Index = ---;
+    tint: GE_Color = .{ 255, 255, 255, 255 };
     horizontally_mirrored := false;
     
     if #complete entity.entity_kind == {
@@ -284,10 +289,17 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         index = get_sprite_index_for_item(stack.item_kind);
       case .Dragon;    index = .Red_Dragon;
         dragon := down(entity, Dragon);
+        
+        if #complete dragon.state == {
+          case .Idle;
+          case .Attacking; tint = .{ 255, 0, 0, 255 };
+          case .Recovering; tint = .{ 100, 140, 155, 255 };
+        }
+
         horizontally_mirrored = dragon.physical_rotation == .East;
     }
     
-    return index, horizontally_mirrored;
+    return index, tint, horizontally_mirrored;
 }
 
 calculate_uv_box_for_index_in_atlas :: (index: s64, horizontally_mirrored: bool) -> [4]v2f {
@@ -435,7 +447,7 @@ draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: 
     draw_filling_boxes_screen_space(client, screen_center, box_count, screen_size, health / max_health, foreground);    
 }
 
-draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, world_rotation: f32, horizontally_mirrored: bool) {
+draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, world_rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
     screen_center := screen_from_world_position(client, world_center);
     screen_size   := screen_from_world_size(client, world_size);
 
@@ -451,7 +463,6 @@ draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_c
     uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
     indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
     texture := client.sprite_atlases[atlas_index];
-    tint    := GE_Color.{ 255, 255, 255, 255 };
 
     for i := 0; i < indices.Capacity; ++i {
         ge_imm2d_textured_vertex(*client.graphics, screen_center.x + vertices[indices[i]].x, screen_center.y + vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);

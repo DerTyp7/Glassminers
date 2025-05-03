@@ -108,7 +108,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -383,22 +383,7 @@ do_game_tick :: (server: *Server) {
         emitter, occupied := index_bucket_array(*server.emitters, i);
         if !occupied continue;
 
-        // @ReduceMessages: Simple client-side prediction
-
-        previous := emitter.time_left_in_seconds;
-        
-        if emitter.time_left_in_seconds > 0 {
-            emitter.time_left_in_seconds -= server.tick_time;
-        }
-
-        recalculate_emitter(server, emitter);
-
-        if previous != emitter.time_left_in_seconds {
-            msg := make_message(Emitter_State_Message);
-            msg.emitter_state.entity_pid = emitter.pid;
-            msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
-            array_add(*server.outgoing_messages, msg);
-        }
+        update_emitter(server, emitter);
 
         if emitter.time_left_in_seconds <= 0 {
             game_state = .Lost;
@@ -441,30 +426,7 @@ do_game_tick :: (server: *Server) {
         dragon, occupied := index_bucket_array(*server.dragons, i);
         if !occupied continue;
 
-        if is_emitter_field_at(server, dragon.physical_position) {
-            damage_entity(server, dragon, 5 * server.tick_time);
-
-            if dragon.health <= 0 remove_entity(server, dragon);
-        }
-        
-        nearest_player: *Player = null;
-        nearest_distance: s32 = MAX_S32;
-        
-        for j := 0; j < server.players.slot_count; ++j {
-            player, occupied := index_bucket_array(*server.players, j);
-            if !occupied continue;
-
-            distance := abs(player.physical_position.x - dragon.physical_position.x) + abs(player.physical_position.y - dragon.physical_position.y);
-            if distance < nearest_distance {
-                nearest_player = player;
-                nearest_distance = distance;
-            }
-        }
-        
-        if nearest_player {
-            rotation := direction_from_vector(.{ nearest_player.physical_position.x - dragon.physical_position.x, nearest_player.physical_position.y - dragon.physical_position.y });
-            warp_entity(server, dragon, dragon.physical_position, rotation);
-        }
+        update_dragon(server, dragon);
     }
     
     //

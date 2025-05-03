@@ -247,6 +247,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         item_stack := down(entity, Item_Stack);
         item_stack.item_kind = msg.item_stack_state.item_kind;
         item_stack.count     = msg.item_stack_state.count;
+
+      case .Dragon_State;
+        entity := get_entity(client, msg.dragon_state.entity_pid);
+        dragon := down(entity, Dragon);
+        dragon.state = msg.dragon_state.state;
     }
 }
 
@@ -498,11 +503,14 @@ do_game_tick :: (client: *Client) {
             emitter, occupied := index_bucket_array(*client.emitters, i);
             if !occupied continue;
             
-            if emitter.time_left_in_seconds > 0 {
-                emitter.time_left_in_seconds -= client.tick_time;
-            }
+            update_emitter(client, emitter);
+        }
 
-            recalculate_emitter(client, emitter);
+        for i := 0; i < client.dragons.slot_count; ++i {
+            dragon, occupied := index_bucket_array(*client.dragons, i);
+            if !occupied continue;
+
+            update_dragon(client, dragon);
         }
     }
 

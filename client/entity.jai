@@ -7,6 +7,10 @@ Camera :: struct {
     center: v2f;
 }
 
+Beam_Data :: struct {
+    fields: [..]v2i;
+}
+
 Entity :: struct {
     pid: Pid;
     entity_kind: Entity_Kind;
@@ -34,7 +38,7 @@ Player :: struct {
 
 Emitter :: struct {
     #using entity : *Entity = ---;
-    fields: [..]v2i;
+    beam_data: Beam_Data = ---;
     time_left_in_seconds: f32 = EMITTER_TIME_TO_DIE;
 }
 
@@ -51,6 +55,8 @@ Item_Stack :: struct {
 
 Dragon :: struct {
     #using entity : *Entity = ---;
+    beam_data: Beam_Data = ---;
+    state: Dragon_State = .Idle;
 }
 
 Entity_Manager :: struct {
@@ -195,39 +201,25 @@ physically_remove_all_marked_entities :: (client: *Client) {
 // Emitter
 //
 
-recalculate_emitter :: (client: *Client, emitter: *Emitter) {
-    emitter.fields.allocator = *temp;
-    array_clear_without_deallocation(*emitter.fields);
+update_emitter :: (client: *Client, emitter: *Emitter) {
+    clear_beam_data(*emitter.beam_data);
 
+    if emitter.time_left_in_seconds > 0 {
+        emitter.time_left_in_seconds -= client.tick_time;
+    }
+    
     if emitter.time_left_in_seconds <= 0 return;
-    
-    direction := emitter.physical_rotation;
-    field     := emitter.physical_position;
-    
-    while true {
-        vector := vector_from_direction(direction);
-        field.x += vector.x;
-        field.y += vector.y;
-        if !position_in_bounds(client, field) break;
-        
-        blocking := get_blocking_entity_at_position(client, field, is_beam_blocking_entity);
-        
-        if blocking == null {
-            array_add(*emitter.fields, field);
-        } else if blocking.entity_kind == .Mirror {
-            array_add(*emitter.fields, field);
-            
-            reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
-            
-            if reflection_success then
-            direction = reflected_direction;
-            else break;
-        } else if blocking.entity_kind == .Receiver {
-            array_add(*emitter.fields, field);
-            break;
-        } else {
-            break;
-        }
+
+    recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
+}
+
+update_dragon :: (client: *Client, dragon: *Dragon) {
+    clear_beam_data(*dragon.beam_data);
+
+    if #complete dragon.state == {
+      case .Idle, .Recovering;
+      case .Attacking;
+        recalculate_beam(client, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, DRAGON_BEAM_LENGTH);
     }
 }
 
@@ -257,4 +249,35 @@ get_blocking_entity_at_position :: (client: *Client, position: v2i, lambda: (kin
     }
     
     return null;
+}
+
+clear_beam_data :: (data: *Beam_Data) {
+    array_clear_without_deallocation(*data.fields);
+    data.fields.allocator = *temp;
+}
+
+recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction: Direction, max_length: s64) {
+    while beam.fields.count < max_length {
+        vector := vector_from_direction(direction);
+        position.x += vector.x;
+        position.y += vector.y;
+        if !position_in_bounds(client, position) break;
+        
+        blocking := get_blocking_entity_at_position(client, position, is_beam_blocking_entity);
+        
+        if blocking == null {
+            array_add(*beam.fields, position);
+        } else if blocking.entity_kind == .Mirror {
+            array_add(*beam.fields, position);
+            
+            reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
+            
+            if reflection_success then direction = reflected_direction; else break;
+        } else if blocking.entity_kind == .Receiver {
+            array_add(*beam.fields, position);
+            break;
+        } else {
+            break;
+        }
+    }
 }

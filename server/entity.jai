@@ -1,3 +1,7 @@
+Beam_Data :: struct {
+    fields: [..]v2i;
+}
+
 Entity :: struct {
     pid: Pid;
     entity_kind: Entity_Kind;
@@ -25,7 +29,7 @@ Player :: struct {
 
 Emitter :: struct {
     #using entity : *Entity  = ---;
-    fields: [..]v2i;
+    beam_data: Beam_Data = ---;
     time_left_in_seconds: f32 = EMITTER_TIME_TO_DIE;
 }
 
@@ -42,6 +46,10 @@ Item_Stack :: struct {
 
 Dragon :: struct {
     #using entity : *Entity = ---;
+    beam_data: Beam_Data = ---;
+    state: Dragon_State;
+    attack_t: f32 = 0; // How long this current attack will continue to last
+    recovering_t: f32 = 0;
 }
 
 Entity_Manager :: struct {
@@ -178,38 +186,91 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) {
 // Derived Types
 //
 
-recalculate_emitter :: (server: *Server, emitter: *Emitter) {
-    emitter.fields.allocator = *temp;
-    array_clear_without_deallocation(*emitter.fields);
+update_emitter :: (server: *Server, emitter: *Emitter) {
+    clear_beam_data(*emitter.beam_data);
 
-    if emitter.time_left_in_seconds <= 0 return;
+    // @ReduceMessages: Simple client-side prediction
+
+    previous := emitter.time_left_in_seconds;
     
-    direction := emitter.physical_rotation;
-    field     := emitter.physical_position;
+    if emitter.time_left_in_seconds > 0 {
+        emitter.time_left_in_seconds -= server.tick_time;
+    }
+
+    if previous != emitter.time_left_in_seconds {
+        msg := make_message(Emitter_State_Message);
+        msg.emitter_state.entity_pid = emitter.pid;
+        msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
+        array_add(*server.outgoing_messages, msg);
+    }
     
-    while true {
-        vector := vector_from_direction(direction);
-        field.x += vector.x;
-        field.y += vector.y;
-        if !position_in_bounds(server, field) break;
+    if emitter.time_left_in_seconds > 0 {
+        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
+    }
+}
+
+update_dragon :: (server: *Server, dragon: *Dragon) {
+    send_update :: (server: *Server, dragon: *Dragon) {
+        msg := make_message(Dragon_State_Message);
+        msg.dragon_state.entity_pid = dragon.pid;
+        msg.dragon_state.state = dragon.state;
+        array_add(*server.outgoing_messages, msg);
+    }
+
+    clear_beam_data(*dragon.beam_data);
+
+    if is_emitter_field_at(server, dragon.physical_position) {
+        damage_entity(server, dragon, 5 * server.tick_time);
+
+        if dragon.health <= 0 remove_entity(server, dragon);
+    }
+
+    if #complete dragon.state == {
+      case .Idle;
+        nearest_player: *Player = null;
+        nearest_distance: s32 = MAX_S32;
         
-        blocking := get_blocking_entity_at_position(server, field, is_beam_blocking_entity);
+        for j := 0; j < server.players.slot_count; ++j {
+            player, occupied := index_bucket_array(*server.players, j);
+            if !occupied continue;
+
+            distance := abs(player.physical_position.x - dragon.physical_position.x) + abs(player.physical_position.y - dragon.physical_position.y);
+            if distance < nearest_distance {
+                nearest_player = player;
+                nearest_distance = distance;
+            }
+        }
         
-        if blocking == null {
-            array_add(*emitter.fields, field);
-        } else if blocking.entity_kind == .Mirror {
-            array_add(*emitter.fields, field);
-            
-            reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
-            
-            if reflection_success then
-            direction = reflected_direction;
-            else break;
-        } else if blocking.entity_kind == .Receiver {
-            array_add(*emitter.fields, field);
-            break;
-        } else {
-            break;
+        if nearest_player {
+            delta := v2i.{ nearest_player.physical_position.x - dragon.physical_position.x, nearest_player.physical_position.y - dragon.physical_position.y };
+
+            if delta.x == 0 || delta.y == 0 {
+                rotation := direction_from_vector(delta);
+                warp_entity(server, dragon, dragon.physical_position, rotation);
+
+                if (delta.x == 0 && abs(delta.y) <= DRAGON_BEAM_LENGTH) ||
+                    (delta.y == 0 && abs(delta.x) <= DRAGON_BEAM_LENGTH) {
+                        dragon.state = .Attacking;
+                        dragon.attack_t = DRAGON_ATTACK_TIME;
+                        send_update(server, dragon);
+                    }
+            }
+        }
+
+      case .Attacking;
+        recalculate_beam(server, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, DRAGON_BEAM_LENGTH);
+        dragon.attack_t -= server.tick_time;
+        if dragon.attack_t <= 0 {
+            dragon.state = .Recovering;
+            dragon.recovering_t = DRAGON_RECOVER_TIME;
+            send_update(server, dragon);
+        }
+        
+      case .Recovering;
+        dragon.recovering_t -= server.tick_time;
+        if dragon.recovering_t <= 0 {
+            dragon.state = .Idle;
+            send_update(server, dragon);
         }
     }
 }
@@ -339,8 +400,8 @@ is_emitter_field_at :: (server: *Server, position: v2i) -> bool {
         emitter, occupied := index_bucket_array(*server.emitters, i);
         if !occupied continue;
 
-        for j := 0; j < emitter.fields.count; ++j {
-            field := array_get(*emitter.fields, j);
+        for j := 0; j < emitter.beam_data.fields.count; ++j {
+            field := array_get(*emitter.beam_data.fields, j);
             if field.x == position.x && field.y == position.y return true;
         }
     }
@@ -377,4 +438,35 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
     if collision recursive_move(server, collision, move_delta);
 
     warp_entity(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);
+}
+
+clear_beam_data :: (data: *Beam_Data) {
+    array_clear_without_deallocation(*data.fields);
+    data.fields.allocator = *temp;
+}
+
+recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction: Direction, max_length: s64) {
+    while beam.fields.count < max_length {
+        vector := vector_from_direction(direction);
+        position.x += vector.x;
+        position.y += vector.y;
+        if !position_in_bounds(server, position) break;
+        
+        blocking := get_blocking_entity_at_position(server, position, is_beam_blocking_entity);
+        
+        if blocking == null {
+            array_add(*beam.fields, position);
+        } else if blocking.entity_kind == .Mirror {
+            array_add(*beam.fields, position);
+            
+            reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
+            
+            if reflection_success then direction = reflected_direction; else break;
+        } else if blocking.entity_kind == .Receiver {
+            array_add(*beam.fields, position);
+            break;
+        } else {
+            break;
+        }
+    }
 }
