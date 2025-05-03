@@ -50,6 +50,7 @@ Dragon :: struct {
     state: Dragon_State;
     attack_t: f32 = 0; // How long this current attack will continue to last
     recovering_t: f32 = 0;
+    damaged_entities_this_attack: [..]Pid; // @Leak when the entity is destroyed
 }
 
 Entity_Manager :: struct {
@@ -174,7 +175,8 @@ physically_remove_all_marked_entities :: (server: *Server) {
 
 damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) {
     entity.health -= immediate_damage;
-
+    entity.health = max(entity.health, 0);
+    
     msg := make_message(Entity_Health_Message);
     msg.entity_health.entity_pid = entity.pid;
     msg.entity_health.current_health = entity.health;
@@ -222,13 +224,17 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
     if is_emitter_field_at(server, dragon.physical_position) {
         damage_entity(server, dragon, 5 * server.tick_time);
 
-        if dragon.health <= 0 remove_entity(server, dragon);
+        if dragon.health <= 0 remove_entity(server, dragon); // @Cleanup: Move into damage_entity
     }
 
     if #complete dragon.state == {
       case .Idle;
         nearest_player: *Player = null;
         nearest_distance: s32 = MAX_S32;
+
+        // @Cleanup: If there's a player in los, we want to attack, no matter where the
+        // nearest player actually is. The nearest player should only be used for looking
+        // while idle.
         
         for j := 0; j < server.players.slot_count; ++j {
             player, occupied := index_bucket_array(*server.players, j);
@@ -252,6 +258,8 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
                     (delta.y == 0 && abs(delta.x) <= DRAGON_BEAM_LENGTH) {
                         dragon.state = .Attacking;
                         dragon.attack_t = DRAGON_ATTACK_TIME;
+                        array_clear(*dragon.damaged_entities_this_attack);
+                        dragon.damaged_entities_this_attack.allocator = *server.perm;
                         send_update(server, dragon);
                     }
             }
@@ -260,6 +268,16 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
       case .Attacking;
         recalculate_beam(server, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, DRAGON_BEAM_LENGTH);
         dragon.attack_t -= server.tick_time;
+
+        for i := 0; i < dragon.beam_data.fields.count; ++i {
+            field := array_get(*dragon.beam_data.fields, i);
+            entity := get_blocking_entity_at_position(server, field, is_living_entity);
+            if entity && !array_contains(*dragon.damaged_entities_this_attack, entity.pid) {
+                damage_entity(server, entity, HEALTH_PER_HEART);
+                array_add(*dragon.damaged_entities_this_attack, entity.pid);
+            }
+        }
+        
         if dragon.attack_t <= 0 {
             dragon.state = .Recovering;
             dragon.recovering_t = DRAGON_RECOVER_TIME;

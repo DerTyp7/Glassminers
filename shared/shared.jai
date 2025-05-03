@@ -215,3 +215,17 @@ is_beam_blocking_entity :: (kind: Entity_Kind) -> bool {
 
     return result;
 }
+
+is_living_entity :: (kind: Entity_Kind) -> bool {
+    result: bool = ---;
+
+    if #complete kind == {
+      case .Player, .Dragon;
+        result = true;
+
+      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Item_Stack;
+        result = false;
+    }
+
+    return result;    
+}

@@ -344,7 +344,7 @@ create_the_game :: (server: *Server) {
         generate_n_random_entities(server, .Bedrock, server.world_size.x * 2);
         generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
-        generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
+        generate_n_random_entities(server, .Dragon,  server.world_size.x / 2);
     }
     
     //
@@ -447,7 +447,7 @@ do_game_tick :: (server: *Server) {
                 target_entity := get_entity_at_position(server, player.target_position);
                 damage_entity(server, target_entity, PLAYER_DPS * server.tick_time);
                 
-                if target_entity.health <= 0 {
+                if target_entity.health <= 0 { // @Cleanup: Move into damage_entity
                     remove_entity(server, target_entity);
 
                     // Generate the resource drop from the farmed entity
@@ -460,7 +460,7 @@ do_game_tick :: (server: *Server) {
                 }
             }
         } else {
-            player.state = .Dead;
+            player.state = .Dead; // @Cleanup: Move into damage_entity?
             ++number_of_dead_players;
         }
         
