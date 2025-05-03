@@ -9,7 +9,7 @@ Camera :: struct {
 
 Entity :: struct {
     pid: Pid;
-    kind: Entity_Kind;
+    entity_kind: Entity_Kind;
     marked_for_removal: bool;
     health: f32;
     
@@ -142,7 +142,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
 
     entity := push_bucket_array(*client.all_entities);
     entity.pid                = pid;
-    entity.kind               = kind;
+    entity.entity_kind        = kind;
     entity.marked_for_removal = false;
     entity.health             = MAX_HEALTHS[kind];
     entity.physical_rotation  = rotation;
@@ -152,7 +152,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
 
     probed_hash_table_add(*client.pid_lookup, pid, entity);
 
-    if #complete entity.kind == {
+    if #complete entity.entity_kind == {
       case .Player;     make_derived(entity, *client.players);
       case .Emitter;    make_derived(entity, *client.emitters);
       case .Receiver;   make_derived(entity, *client.receivers);
@@ -210,11 +210,11 @@ recalculate_emitter :: (client: *Client, emitter: *Emitter) {
         field.y += vector.y;
         if !position_in_bounds(client, field) break;
         
-        blocking := get_blocking_entity_at_position(client, field);
+        blocking := get_blocking_entity_at_position(client, field, is_beam_blocking_entity);
         
-        if blocking == null || blocking.kind == .Player {
+        if blocking == null {
             array_add(*emitter.fields, field);
-        } else if blocking.kind == .Mirror {
+        } else if blocking.entity_kind == .Mirror {
             array_add(*emitter.fields, field);
             
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
@@ -222,7 +222,7 @@ recalculate_emitter :: (client: *Client, emitter: *Emitter) {
             if reflection_success then
             direction = reflected_direction;
             else break;
-        } else if blocking.kind == .Receiver {
+        } else if blocking.entity_kind == .Receiver {
             array_add(*emitter.fields, field);
             break;
         } else {
@@ -250,10 +250,10 @@ get_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
     return null;
 }
 
-get_blocking_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
+get_blocking_entity_at_position :: (client: *Client, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y && is_blocking_entity(entity.kind) return entity;
+        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y && lambda(entity.entity_kind) return entity;
     }
     
     return null;

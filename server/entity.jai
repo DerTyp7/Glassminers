@@ -193,9 +193,9 @@ recalculate_emitter :: (server: *Server, emitter: *Emitter) {
         field.y += vector.y;
         if !position_in_bounds(server, field) break;
         
-        blocking := get_blocking_entity_at_position(server, field);
+        blocking := get_blocking_entity_at_position(server, field, is_beam_blocking_entity);
         
-        if blocking == null || blocking.entity_kind == .Player {
+        if blocking == null {
             array_add(*emitter.fields, field);
         } else if blocking.entity_kind == .Mirror {
             array_add(*emitter.fields, field);
@@ -285,10 +285,10 @@ get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     return null;
 }
 
-get_blocking_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
+get_blocking_entity_at_position :: (server: *Server, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && is_blocking_entity(entity.entity_kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && lambda(entity.entity_kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -361,7 +361,7 @@ recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i) -> b
     if !position_in_bounds(server, position) then return false;
 
     // Make sure the space is unoccupied or can be moved away
-    collision := get_blocking_entity_at_position(server, position);
+    collision := get_blocking_entity_at_position(server, position, is_move_blocking_entity);
     if collision != null && (!is_pushable_entity(collision.entity_kind) || !recursive_move_check(server, collision, move_delta)) then return false;
 
     // Success!
@@ -373,7 +373,7 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
 
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
-    collision := get_blocking_entity_at_position(server, position);
+    collision := get_blocking_entity_at_position(server, position, is_move_blocking_entity);
     if collision recursive_move(server, collision, move_delta);
 
     warp_entity(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);

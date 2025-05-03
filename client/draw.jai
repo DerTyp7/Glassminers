@@ -158,6 +158,18 @@ draw_world :: (client: *Client) {
     }
 
     //
+    // Draw all dragon states
+    //
+    for i := 0; i < client.dragons.slot_count; ++i {
+        dragon, occupied := index_bucket_array(*client.dragons, i);
+        if !occupied continue;
+
+        if dragon.health < MAX_HEALTHS[dragon.entity_kind] {
+            draw_health_bar_world_space(client, dragon.visual_position, PROGRESS_BAR_WORLD_SIZE, dragon.health, MAX_HEALTHS[dragon.entity_kind]);
+        }
+    }
+
+    //
     // Draw all item stack states
     //
     for i := 0; i < client.item_stacks.slot_count; ++i {
@@ -186,7 +198,7 @@ draw_world :: (client: *Client) {
             draw_circle_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
           case .Digging;
             target_entity := get_entity_at_position(client, player.target_position);
-            draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.kind]);
+            draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.entity_kind]);
 
           case .Carrying;
             world_position := player.visual_position;
@@ -197,7 +209,7 @@ draw_world :: (client: *Client) {
         }
 
         if player.health < MAX_HEALTHS[.Player] {
-            draw_health_bar_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y + 0.55) }, PROGRESS_BAR_WORLD_SIZE, player.health, MAX_HEALTHS[.Player]);
+            draw_health_bar_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y + 0.55) }, PROGRESS_BAR_WORLD_SIZE, player.health, MAX_HEALTHS[player.entity_kind]);
         }
     }    
 
@@ -259,7 +271,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     index: Sprite_Index = ---;
     horizontally_mirrored := false;
     
-    if #complete entity.kind == {
+    if #complete entity.entity_kind == {
       case .Player;    index = get_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_0, .Player_Idle_1 ]);
       case .Crystal;   index = .Crystal;
       case .Bedrock;   index = .Bedrock;

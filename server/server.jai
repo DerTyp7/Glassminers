@@ -441,6 +441,12 @@ do_game_tick :: (server: *Server) {
         dragon, occupied := index_bucket_array(*server.dragons, i);
         if !occupied continue;
 
+        if is_emitter_field_at(server, dragon.physical_position) {
+            damage_entity(server, dragon, 5 * server.tick_time);
+
+            if dragon.health <= 0 remove_entity(server, dragon);
+        }
+        
         nearest_player: *Player = null;
         nearest_distance: s32 = MAX_S32;
         

@@ -178,6 +178,30 @@ is_pushable_entity :: (kind: Entity_Kind) -> bool {
     return kind == .Player || kind == .Crystal || kind == .Rock;
 }
 
-is_blocking_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal || kind == .Bedrock || kind == .Emitter || kind == .Receiver || kind == .Mirror || kind == .Rock;
+is_move_blocking_entity :: (kind: Entity_Kind) -> bool {
+    result: bool = ---;
+
+    if #complete kind == {
+      case .Player, .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Dragon;
+        result = true;
+
+      case .Item_Stack;
+        result = false;
+    }
+
+    return result;
+}
+
+is_beam_blocking_entity :: (kind: Entity_Kind) -> bool {
+    result: bool = ---;
+
+    if #complete kind == {
+      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock;
+        result = true;
+
+      case .Player, .Dragon, .Item_Stack;
+        result = false;
+    }
+
+    return result;
 }
