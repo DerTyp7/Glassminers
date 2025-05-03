@@ -25,6 +25,9 @@ Player :: struct {
     aim_direction: Direction = .North;
     target_position: v2i     = .{ 0, 0 };
     carrying_item: Item_Kind = 0;
+
+    received_input: Player_Input_Message = ---;
+    received_input_this_tick: bool = false;
 }
 
 Emitter :: struct {
@@ -218,6 +221,94 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
 //
 // Derived Types
 //
+
+update_player :: (server: *Server, player: *Player) {
+    //
+    // Handle input from the client
+    //
+    if player.received_input_this_tick && player.state != .Dead {
+        // Handle movement
+        cancel_current_action := player.aim_direction != player.received_input.aim_direction || player.physical_position.x != player.received_input.position.x || player.physical_position.y != player.received_input.position.y;
+
+        if cancel_current_action {
+            if #complete player.state == {
+              case .Dead, .Idle, .Carrying;
+              case .Digging;
+                player.state = .Idle;
+            }
+        }
+
+        if can_move_to_position(server, player, player.received_input.position) {
+            move_to_position(server, player, player.received_input.position);
+        }
+        
+        player.aim_direction = player.received_input.aim_direction;
+
+        // Handle interaction
+        target_entity := get_entity_at_position(server, player.target_position);
+
+        if #complete player.received_input.interaction_kind == {            
+          case .None;
+
+          case .Primary;
+            if player.state != .Idle || !target_entity break;
+            
+            if target_entity.entity_kind == {
+                case .Bedrock, .Crystal, .Rock, .Mirror;
+                player.state = .Digging;
+                case .Item_Stack;
+                player.state = .Carrying;
+                player.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
+            }
+            
+          case .Secondary;
+            if #complete player.state == {
+                case .Dead, .Digging;
+                case .Idle;
+                // @Temporary: Players can currently create mirrors out of thin air...
+                if target_entity == null {
+                    create_entity(server, .Mirror, player.target_position, .North);
+                } else if target_entity.entity_kind == .Mirror {
+                    warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
+                }
+                case .Carrying;
+                if try_to_put_item(server, player.target_position, player.carrying_item) {
+                    player.state = .Idle;
+                    player.carrying_item = 0;
+                }
+            }
+        }
+
+    }
+
+    player.received_input_this_tick = false;
+
+    //
+    // Update the local entity
+    //
+    look_vector := vector_from_direction(player.aim_direction);
+    player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
+    
+    if player.state == {
+      case .Digging;
+        target_entity := get_entity_at_position(server, player.target_position);
+        if damage_entity(server, target_entity, PLAYER_DPS * server.tick_time) {
+            player.state = .Idle;
+        }
+    }
+
+    //
+    // Send out the new player state
+    // @NetworkTraffic: Only send this message if anything changed about the player
+    //
+    msg := make_message(Player_State_Message);
+    msg.player_state.entity_pid      = player.pid;
+    msg.player_state.state           = player.state;
+    msg.player_state.aim_direction   = player.aim_direction;
+    msg.player_state.target_position = player.target_position;
+    msg.player_state.carrying_item   = player.carrying_item;
+    array_add(*server.outgoing_messages, msg);
+}
 
 update_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);

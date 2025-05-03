@@ -135,6 +135,7 @@ Dragon_State :: enum {
 }
 
 Interaction_Kind :: enum {
+    None;
     Primary;
     Secondary;
 }

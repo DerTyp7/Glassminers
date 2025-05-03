@@ -108,7 +108,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -132,73 +132,16 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
       case .Request_Game_Start;
         create_the_game(server);
         transition_to_state(server, .Ingame);
-
-      case .Move_Entity;
-        entity := get_entity(server, msg.move_entity.entity_pid);
         
-        move_delta := v2i.{ msg.move_entity.position.x - entity.physical_position.x, msg.move_entity.position.y - entity.physical_position.y };
-        
-        if can_move_to_position(server, entity, msg.move_entity.position) {
-            move_to_position(server, entity, msg.move_entity.position);
-        }
-        
-        
-      case .Player_Move;
-        entity := get_entity(server, msg.player_move.entity_pid);
+      case .Player_Input;
+        entity := get_entity(server, msg.player_input.entity_pid);
         player := down(entity, Player);
 
-        if player.state == .Dead break;
-        
-        if can_move_to_position(server, entity, msg.player_move.position) {
-            move_to_position(server, entity, msg.player_move.position);
-        }
-
-        player.aim_direction = msg.player_move.aim_direction;
-        
-        // Cancel the current action of the player when moving, if appropriate
-        if #complete player.state == {
-          case .Dead, .Idle, .Carrying;
-          case .Digging;
-            player.state = .Idle;
-        }
-        
-      case .Player_Interact;
-        entity := get_entity(server, msg.player_interact.entity_pid);
-        player := down(entity, Player);
-
-        if player.state == .Dead break;
-
-        target_entity := get_entity_at_position(server, player.target_position);
-
-        if #complete msg.player_interact.interaction_kind == {            
-          case .Primary;
-            if player.state != .Idle || !target_entity break;
-            
-            if target_entity.entity_kind == {
-              case .Bedrock, .Crystal, .Rock, .Mirror;
-                player.state = .Digging;
-              case .Item_Stack;
-                player.state = .Carrying;
-                player.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
-            }
-            
-          case .Secondary;
-            if #complete player.state == {
-              case .Dead, .Digging;
-              case .Idle;
-                // @Temporary: Players can currently create mirrors out of thin air...
-                if target_entity == null {
-                    create_entity(server, .Mirror, player.target_position, .North);
-                } else if target_entity.entity_kind == .Mirror {
-                    warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
-                }
-              case .Carrying;
-                if try_to_put_item(server, player.target_position, player.carrying_item) {
-                    player.state = .Idle;
-                    player.carrying_item = 0;
-                }
-            }
-        }
+        // We want to ensure a deterministic order in which entities are updated on the server.
+        // Players are just normal entities that are updated at a specific time during the tick,
+        // so just remember the player input for later.
+        player.received_input = msg.player_input;
+        player.received_input_this_tick = true;
     }
 }    
 
@@ -438,27 +381,9 @@ do_game_tick :: (server: *Server) {
         player, occupied := index_bucket_array(*server.players, i);
         if !occupied continue;
 
-        look_vector := vector_from_direction(player.aim_direction);
-        player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
-        
-        if player.state == {
-          case .Digging;
-            target_entity := get_entity_at_position(server, player.target_position);
-            if damage_entity(server, target_entity, PLAYER_DPS * server.tick_time) {
-                player.state = .Idle;
-            }
+        update_player(server, player);
 
-          case .Dead;
-            ++number_of_dead_players;
-        }
-
-        // @NetworkTraffic: Only send this message if anything changed about the player
-        msg := make_message(Player_State_Message);
-        msg.player_state.entity_pid      = player.pid;
-        msg.player_state.state           = player.state;
-        msg.player_state.target_position = player.target_position;
-        msg.player_state.carrying_item   = player.carrying_item;
-        array_add(*server.outgoing_messages, msg);
+        if player.state == .Dead ++number_of_dead_players;
     }
 
     if number_of_dead_players == server.clients.count {

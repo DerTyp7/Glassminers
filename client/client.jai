@@ -173,7 +173,7 @@ find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Request_Game_Start, .Player_Interact, .Player_Move; // Ignore
+      case .Request_Game_Start, .Player_Input; // Ignore
 
       case .Player_Information;
         if msg.player_information.player_pid != client.my_player_pid {
@@ -228,9 +228,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Player_State;
         entity := get_entity(client, msg.player_state.entity_pid);
         player := down(entity, Player);
-        player.state = msg.player_state.state;
+        player.state           = msg.player_state.state;
+        player.aim_direction   = msg.player_state.aim_direction;
         player.target_position = msg.player_state.target_position;
-        player.carrying_item = msg.player_state.carrying_item;
+        player.carrying_item   = msg.player_state.carrying_item;
 
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);
@@ -526,79 +527,54 @@ do_game_tick :: (client: *Client) {
 
     // Forward player input to the server
     {
-        player := get_entity(client, client.my_entity_pid);
+        player_entity := get_entity(client, client.my_entity_pid);
+        player := down(player_entity, Player);
 
-        send_player_move := false;
-        new_position: v2i = player.physical_position;
-        new_aim_direction: Direction = ---;
+        read_any_input := false;
+        
+        input: Player_Input_Message = ---;
+        input.entity_pid       = client.my_entity_pid;
+        input.position         = player.physical_position;
+        input.aim_direction    = player.aim_direction;
+        input.interaction_kind = .None;
         
         if client.window.keys[.A] & .Repeated {
-            new_position.x    = player.physical_position.x - 1;
-            new_position.y    = player.physical_position.y;
-            new_aim_direction = .West;
-            send_player_move  = true;
+            input.position.x    = player.physical_position.x - 1;
+            input.position.y    = player.physical_position.y;
+            input.aim_direction = .West;
+            read_any_input = true;
         }
 
         if client.window.keys[.D] & .Repeated {
-            new_position.x = player.physical_position.x + 1;
-            new_position.y = player.physical_position.y;
-            new_aim_direction = .East;
-            send_player_move = true;
+            input.position.x    = player.physical_position.x + 1;
+            input.position.y    = player.physical_position.y;
+            input.aim_direction = .East;
+            read_any_input = true;
         }
 
         if client.window.keys[.W] & .Repeated {
-            new_position.x = player.physical_position.x;
-            new_position.y = player.physical_position.y - 1;
-            new_aim_direction = .North;
-            send_player_move = true;
+            input.position.x    = player.physical_position.x;
+            input.position.y    = player.physical_position.y - 1;
+            input.aim_direction = .North;
+            read_any_input = true;
         }
 
         if client.window.keys[.S] & .Repeated {
-            new_position.x = player.physical_position.x;
-            new_position.y = player.physical_position.y + 1;
-            new_aim_direction = .South;
-            send_player_move = true;
+            input.position.x    = player.physical_position.x;
+            input.position.y    = player.physical_position.y + 1;
+            input.aim_direction = .South;
+            read_any_input = true;
         }
 
-        if client.window.keys[.Arrow_Left] & .Pressed {
-            new_aim_direction = .West;
-            send_player_move = true;
-        }
-
-        if client.window.keys[.Arrow_Right] & .Pressed {
-            new_aim_direction = .East;
-            send_player_move = true;
-        }
-
-        if client.window.keys[.Arrow_Up] & .Pressed {
-            new_aim_direction = .North;
-            send_player_move = true;
-        }
-
-        if client.window.keys[.Arrow_Down] & .Pressed {
-            new_aim_direction = .South;
-            send_player_move = true;
-        }
+        if client.window.keys[.Arrow_Left]  & .Pressed { input.aim_direction = .West; read_any_input = true; }
+        if client.window.keys[.Arrow_Right] & .Pressed { input.aim_direction = .East; read_any_input = true; }
+        if client.window.keys[.Arrow_Up]    & .Pressed { input.aim_direction = .North; read_any_input = true; }
+        if client.window.keys[.Arrow_Down]  & .Pressed { input.aim_direction = .South; read_any_input = true; }
+        if client.window.keys[.Space] & .Pressed       { input.interaction_kind = .Primary; read_any_input = true; }
+        if client.window.keys[.Shift] & .Pressed       { input.interaction_kind = .Secondary; read_any_input = true; }
         
-        if send_player_move {
-            msg := make_message(Player_Move_Message);
-            msg.player_move.entity_pid    = client.my_entity_pid;
-            msg.player_move.position      = new_position;
-            msg.player_move.aim_direction = new_aim_direction;
-            array_add(*outgoing_messages, msg);
-        }
-        
-        if client.window.keys[.Space] & .Pressed {
-            msg := make_message(Player_Interact_Message);
-            msg.player_interact.entity_pid = client.my_entity_pid;
-            msg.player_interact.interaction_kind = .Primary;
-            array_add(*outgoing_messages, msg);
-        }
-        
-        if client.window.keys[.Shift] & .Pressed {
-            msg := make_message(Player_Interact_Message);
-            msg.player_interact.entity_pid = client.my_entity_pid;
-            msg.player_interact.interaction_kind = .Secondary;
+        if read_any_input {
+            msg := make_message_from(input);
             array_add(*outgoing_messages, msg);
         }
     }

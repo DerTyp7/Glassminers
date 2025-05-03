@@ -8,9 +8,8 @@ Message_Type :: enum {
     Destroy_Entity;
     Move_Entity;
     Entity_Health;
-    Player_Move;
     Player_State;
-    Player_Interact;
+    Player_Input;
     Emitter_State;
     Receiver_State;
     Item_Stack_State;
@@ -70,24 +69,20 @@ Entity_Health_Message :: struct {
     current_health: f32;
 }
 
-Player_Move_Message :: struct {
-    MSG_TYPE :: Message_Type.Player_Move;
-    entity_pid: Pid;
-    position: v2i;
-    aim_direction: Direction;
-}
-
 Player_State_Message :: struct {
     MSG_TYPE :: Message_Type.Player_State;
     entity_pid: Pid;
     state: Player_State;
+    aim_direction: Direction;
     target_position: v2i;
     carrying_item: Item_Kind;
 }
 
-Player_Interact_Message :: struct {
-    MSG_TYPE :: Message_Type.Player_Interact;
+Player_Input_Message :: struct {
+    MSG_TYPE :: Message_Type.Player_Input;
     entity_pid: Pid;
+    position: v2i;
+    aim_direction: Direction;
     interaction_kind: Interaction_Kind;
 }
 
@@ -131,8 +126,7 @@ Message :: struct {
         move_entity: Move_Entity_Message;
         entity_health: Entity_Health_Message;
         player_state: Player_State_Message;
-        player_move: Player_Move_Message;
-        player_interact: Player_Interact_Message;
+        player_input: Player_Input_Message;
         emitter_state: Emitter_State_Message;
         receiver_state: Receiver_State_Message;
         item_stack_state: Item_Stack_State_Message;
@@ -145,6 +139,12 @@ make_message :: ($T: Type) -> Message {
     msg: Message = ---;
     msg.msg_type = T.MSG_TYPE;
     msg.local_type_id = type_id(T);
+    return msg;
+}
+
+make_message_from :: (underlying: $T) -> Message {
+    msg := make_message(T);
+    copy_memory(*msg.underlying, *underlying, size_of(T));
     return msg;
 }
 
@@ -201,9 +201,8 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Destroy_Entity;     result = type_id(Destroy_Entity_Message);
       case .Move_Entity;        result = type_id(Move_Entity_Message); 
       case .Entity_Health;      result = type_id(Entity_Health_Message);
-      case .Player_Move;        result = type_id(Player_Move_Message);
       case .Player_State;       result = type_id(Player_State_Message);
-      case .Player_Interact;    result = type_id(Player_Interact_Message);
+      case .Player_Input;       result = type_id(Player_Input_Message);
       case .Emitter_State;      result = type_id(Emitter_State_Message);
       case .Receiver_State;     result = type_id(Receiver_State_Message);
       case .Item_Stack_State;   result = type_id(Item_Stack_State_Message);
