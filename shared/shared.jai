@@ -17,8 +17,8 @@ Campaign :: enum {
 
 pid_hash :: (pid: Pid) -> u64 {
     hash: u32 = ---;
-    hash = ((pid >> 16) ^ pid) * 0x45d9f3b;
-    hash = ((pid >> 16) ^ pid) * 0x45d9f3b;
+    hash = ((pid >> 16) ^ pid) *% 0x45d9f3b;
+    hash = ((pid >> 16) ^ pid) *% 0x45d9f3b;
     hash = ((pid >> 16) ^ pid);
     return hash;
 }
@@ -68,8 +68,13 @@ Shared_Server_Data :: struct {
 // about reading packets partially (in the game code).
 //
 NETWORK_PROTOCOL :: Connection_Protocol.TCP;
-NETWORK_TIMEOUT: f32 : 7;
 NETWORK_PING_INTERVAL: f32 : 0.25;
+
+#if DEVELOPER {
+    NETWORK_TIMEOUT: f32 : 180; // Just to make debugging one endpoint easier
+} #else {
+    NETWORK_TIMEOUT: f32 : 7;
+}
 
 
 

@@ -158,13 +158,15 @@ send_reliable_messages :: (connection: *Virtual_Connection, messages: *[..]Messa
         if !serialize_message(*packet, message) {
             send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
             packet.body_size = 0;
-
+            
             success := serialize_message(*packet, message);
             assert(success, "This message did not fit into a single packet!");
         }
     }
 
-    if packet.body_size send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
+    if packet.body_size {
+        send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
+    }
 }
 
 send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {

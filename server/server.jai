@@ -235,16 +235,16 @@ switch_to_next_state :: (server: *Server) {
 }
 
 create_the_game :: (server: *Server) {
-    CAMPAIGN :: Campaign.Tutorial;
+    CAMPAIGN :: Campaign.Medium;
 
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
     if #complete CAMPAIGN == {
-        case .Tutorial; server.world_size = .{ 9, 5 };
-        case .Easy;     server.world_size = .{ 18, 5 };
-        case .Medium;   server.world_size = .{ 36, 5 };
-        case .Hard;     server.world_size = .{ 72, 5 };
+      case .Tutorial; server.world_size = .{ 9, 5 };
+      case .Easy;     server.world_size = .{ 18, 5 };
+      case .Medium;   server.world_size = .{ 36, 5 };
+      case .Hard;     server.world_size = .{ 72, 5 };
     }
 
     create_entity_manager(server);

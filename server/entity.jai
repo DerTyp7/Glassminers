@@ -157,7 +157,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     msg.create_entity.position   = entity.physical_position;
     msg.create_entity.rotation   = entity.physical_rotation;
     array_add(*server.outgoing_messages, msg);
-
+    
     return entity;
 }
 

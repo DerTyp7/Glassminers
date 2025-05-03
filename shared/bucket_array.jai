@@ -14,7 +14,7 @@ Bucket_Array :: struct (T: Type) {
     }
     
     allocator: *Allocator;
-    buckets: []Bucket;
+    buckets: []*Bucket;
     first_free_bucket_index: u64;
     alive_count: s64;
     slot_count: s64;
@@ -41,7 +41,7 @@ push_bucket_array :: (array: *Bucket_Array($T)) -> *T {
     }
 
     bucket_index := array.first_free_bucket_index;
-    bucket := *array.buckets[bucket_index];
+    bucket := array.buckets[bucket_index];
     index_in_bucket := transmute(u64) lowest_bit_set(bucket.free_mask);
 
     pointer := *bucket.content[index_in_bucket];
@@ -63,7 +63,7 @@ push_bucket_array :: (array: *Bucket_Array($T)) -> *T {
 index_bucket_array :: (array: *Bucket_Array($T), slot: Bucket_Array_Slot) -> *T, bool {
     bucket_index    := slot / array.BUCKET_SIZE;
     index_in_bucket := slot % array.BUCKET_SIZE;
-    bucket := *array.buckets[bucket_index];
+    bucket := array.buckets[bucket_index];
     return *bucket.content[index_in_bucket], !(bucket.free_mask & (1 << index_in_bucket));
 }
 
@@ -72,7 +72,7 @@ bucket_array_slot_occupied :: (array: *Bucket_Array($T), slot: Bucket_Array_Slot
     index_in_bucket := slot % array.BUCKET_SIZE;
     if bucket_index >= array.buckets.count return false;
 
-    bucket := *array.buckets[bucket_index];
+    bucket := array.buckets[bucket_index];
     return !(bucket.free_mask & (1 << index_in_bucket));
 }
 
@@ -80,14 +80,10 @@ remove_index_from_bucket_array :: (array: *Bucket_Array($T), slot: Bucket_Array_
     assert(bucket_array_slot_occupied(array, slot), "Attempted to remove a slot from the bucket array that was already free.");
     bucket_index    := slot / array.BUCKET_SIZE;
     index_in_bucket := slot % array.BUCKET_SIZE;
-    bucket := *array.buckets[bucket_index];
+    bucket := array.buckets[bucket_index];
     bucket.free_mask |= 1 << index_in_bucket;
     --array.alive_count;
     maybe_shrink_bucket_array(array, bucket_index);
-}
-
-remove_pointer_from_bucket_array :: (array: *Bucket_Array($T), pointer: *T) {
-    
 }
 
 
@@ -108,13 +104,15 @@ grow_bucket_array :: (array: *Bucket_Array($T), reserved_bucket_count: s64) {
     while new_bucket_count < reserved_bucket_count new_bucket_count *= 2;
     
     array.buckets = reallocate_array(array.allocator, array.buckets, new_bucket_count);
-    for i := previous_bucket_count; i < array.buckets.count; ++i array.buckets[i] = array.Bucket.{};
+    for i := previous_bucket_count; i < array.buckets.count; ++i {
+        array.buckets[i] = new(array.allocator, array.Bucket);
+    }
 
     array.first_free_bucket_index = min(array.first_free_bucket_index, previous_bucket_count);
 }
 
 maybe_shrink_bucket_array :: (array: *Bucket_Array($T), bucket_index: u64) {
-    bucket := *array.buckets[bucket_index];
+    bucket := array.buckets[bucket_index];
 
     if bucket.free_mask == Bucket_Array(T).BUCKET_EMPTY {
         first_shrink_index := array.buckets.count / 2;
@@ -125,6 +123,10 @@ maybe_shrink_bucket_array :: (array: *Bucket_Array($T), bucket_index: u64) {
         }
 
         if makes_sense_to_shrink {
+            for i := first_shrink_index; i < array.buckets.count; ++i {
+                deallocate(array.allocator, array.buckets[i]);
+            }
+
             array.buckets = reallocate_array(array.allocator, array.buckets, first_shrink_index);
             array.slot_count = array.buckets.count * array.BUCKET_SIZE; // @Speed: This slot count can probably be set to something lower...
         }
