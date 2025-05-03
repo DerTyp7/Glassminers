@@ -349,37 +349,37 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
     if #complete dragon.state == {
       case .Idle;
-        nearest_player: *Player = null;
-        nearest_distance: s32 = MAX_S32;
-
-        // @Cleanup: We want to ensure we have line of sight when checking for the nearest player
+        target_player: *Player = null;
+        target_distance: s32 = MAX_S32;
         
         for j := 0; j < server.players.slot_count; ++j {
             player, occupied := index_bucket_array(*server.players, j);
             if !occupied continue;
-
+            
+            if !has_line_of_sight(server, dragon, player.physical_position) continue;
+            
             distance := abs(player.physical_position.x - dragon.physical_position.x) + abs(player.physical_position.y - dragon.physical_position.y);
-            if distance < nearest_distance {
-                nearest_player = player;
-                nearest_distance = distance;
+            if distance < target_distance {
+                target_player = player;
+                target_distance = distance;
             }
         }
         
-        if nearest_player {
-            delta := v2i.{ nearest_player.physical_position.x - dragon.physical_position.x, nearest_player.physical_position.y - dragon.physical_position.y };
+        if target_player {
+            delta := v2i.{ target_player.physical_position.x - dragon.physical_position.x, target_player.physical_position.y - dragon.physical_position.y };
 
-            if delta.x == 0 || delta.y == 0 {
-                rotation := direction_from_vector(delta);
-                warp_entity(server, dragon, dragon.physical_position, rotation);
+            rotation := direction_from_vector(delta);
+            warp_entity(server, dragon, dragon.physical_position, rotation);
 
-                if (delta.x == 0 && abs(delta.y) <= DRAGON_BEAM_LENGTH) ||
-                    (delta.y == 0 && abs(delta.x) <= DRAGON_BEAM_LENGTH) {
-                        dragon.state = .Attacking;
-                        dragon.attack_t = DRAGON_ATTACK_TIME;
-                        array_clear(*dragon.damaged_entities_this_attack);
-                        dragon.damaged_entities_this_attack.allocator = *server.perm;
-                        send_update(server, dragon);
-                    }
+            if target_distance <= DRAGON_BEAM_LENGTH {
+                // The target player is actually in reach for the dragon's beam. Since we are
+                // checking for line-of-sight, we know the beam can actually reach the player
+                // like this.
+                dragon.state = .Attacking;
+                dragon.attack_t = DRAGON_ATTACK_TIME;
+                array_clear(*dragon.damaged_entities_this_attack);
+                dragon.damaged_entities_this_attack.allocator = *server.perm;
+                send_update(server, dragon);
             }
         }
 
@@ -579,6 +579,27 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
 clear_beam_data :: (data: *Beam_Data) {
     array_clear_without_deallocation(*data.fields);
     data.fields.allocator = *temp;
+}
+
+has_line_of_sight :: (server: *Server, entity: *Entity, target: v2i) -> bool {
+    delta := v2i.{ target.x - entity.physical_position.x, target.y - entity.physical_position.y };
+
+    if delta.x != 0 && delta.y != 0 return false; // There's no clean line between the target and the entity
+
+    // Normalize the delta so that one coordinate has magnitude 1, and the other coordinate has
+    // magnitude 0.
+    delta.x /= abs(delta.x + delta.y);
+    delta.y /= abs(delta.x + delta.y);
+    
+    position := v2i.{ entity.physical_position.x + delta.x, entity.physical_position.y + delta.y };
+
+    while position.x != target.x || position.y != target.y {
+        if get_blocking_entity_at_position(server, position, is_los_blocking_entity) return false;
+        position.x += delta.x;
+        position.y += delta.y;
+    }
+    
+    return true;
 }
 
 recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction: Direction, max_length: s64) {
