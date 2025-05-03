@@ -173,14 +173,45 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.all_entities);
 }
 
-damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) {
+damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bool {
+    has_died := false;
+
     entity.health -= immediate_damage;
     entity.health = max(entity.health, 0);
-    
-    msg := make_message(Entity_Health_Message);
-    msg.entity_health.entity_pid = entity.pid;
-    msg.entity_health.current_health = entity.health;
-    array_add(*server.outgoing_messages, msg);
+
+    if entity.health > 0 {
+        //
+        // Send information about the entity health to all clients
+        //
+        msg := make_message(Entity_Health_Message);
+        msg.entity_health.entity_pid = entity.pid;
+        msg.entity_health.current_health = entity.health;
+        array_add(*server.outgoing_messages, msg);
+    } else {
+        //
+        // Handle the entity dying
+        //
+        if entity.entity_kind == {
+          case .Player;
+            player := down(entity, Player);
+            player.state = .Dead;
+
+          case .Crystal;
+            remove_entity(server, entity);
+            try_to_put_item(server, entity.physical_position, .Shard);
+
+          case .Rock;
+            remove_entity(server, entity);
+            try_to_put_item(server, entity.physical_position, .Stone);
+            
+          case;
+            remove_entity(server, entity);
+        }
+
+        has_died = true;
+    }
+
+    return has_died;
 }
 
 
@@ -191,7 +222,7 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) {
 update_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
 
-    // @ReduceMessages: Simple client-side prediction
+    // @NetworkTraffic: Simple client-side prediction
 
     previous := emitter.time_left_in_seconds;
     
@@ -223,8 +254,6 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
     if is_emitter_field_at(server, dragon.physical_position) {
         damage_entity(server, dragon, 5 * server.tick_time);
-
-        if dragon.health <= 0 remove_entity(server, dragon); // @Cleanup: Move into damage_entity
     }
 
     if #complete dragon.state == {
@@ -232,9 +261,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
         nearest_player: *Player = null;
         nearest_distance: s32 = MAX_S32;
 
-        // @Cleanup: If there's a player in los, we want to attack, no matter where the
-        // nearest player actually is. The nearest player should only be used for looking
-        // while idle.
+        // @Cleanup: We want to ensure we have line of sight when checking for the nearest player
         
         for j := 0; j < server.players.slot_count; ++j {
             player, occupied := index_bucket_array(*server.players, j);

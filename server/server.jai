@@ -397,7 +397,7 @@ do_game_tick :: (server: *Server) {
         receiver, occupied := index_bucket_array(*server.receivers, i);
         if !occupied continue;
         
-        // @ReduceMessages: Simple client-side predicition
+        // @NetworkTraffic: Simple client-side predicition
         
         previous := receiver.progress_time_in_seconds;
         
@@ -438,32 +438,21 @@ do_game_tick :: (server: *Server) {
         player, occupied := index_bucket_array(*server.players, i);
         if !occupied continue;
 
-        if player.health > 0 {
-            look_vector := vector_from_direction(player.aim_direction);
-            player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
-            
-            if player.state == {
-              case .Digging;
-                target_entity := get_entity_at_position(server, player.target_position);
-                damage_entity(server, target_entity, PLAYER_DPS * server.tick_time);
-                
-                if target_entity.health <= 0 { // @Cleanup: Move into damage_entity
-                    remove_entity(server, target_entity);
-
-                    // Generate the resource drop from the farmed entity
-                    if target_entity.entity_kind == {
-                      case .Crystal; try_to_put_item(server, target_entity.physical_position, .Shard);
-                      case .Rock; try_to_put_item(server, target_entity.physical_position, .Stone);
-                    }
-
-                    player.state = .Idle;
-                }
+        look_vector := vector_from_direction(player.aim_direction);
+        player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
+        
+        if player.state == {
+          case .Digging;
+            target_entity := get_entity_at_position(server, player.target_position);
+            if damage_entity(server, target_entity, PLAYER_DPS * server.tick_time) {
+                player.state = .Idle;
             }
-        } else {
-            player.state = .Dead; // @Cleanup: Move into damage_entity?
+
+          case .Dead;
             ++number_of_dead_players;
         }
-        
+
+        // @NetworkTraffic: Only send this message if anything changed about the player
         msg := make_message(Player_State_Message);
         msg.player_state.entity_pid      = player.pid;
         msg.player_state.state           = player.state;

@@ -213,7 +213,7 @@ draw_world :: (client: *Client) {
         }
 
         if player.health < MAX_HEALTHS[.Player] {
-            draw_health_bar_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y + 0.55) }, PROGRESS_BAR_WORLD_SIZE, player.health, MAX_HEALTHS[player.entity_kind]);
+            draw_health_bar_world_space(client, player.visual_position, PROGRESS_BAR_WORLD_SIZE, player.health, MAX_HEALTHS[player.entity_kind]);
         }
     }    
 
