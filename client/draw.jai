@@ -259,7 +259,8 @@ Sprite_Index :: enum {
     Mirror;
     Player_Idle_0;
     Player_Idle_1;
-    Red_Dragon;
+    Dragon_Idle_0;
+    Dragon_Idle_1;
 }
 
 get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index) -> Sprite_Index {
@@ -294,12 +295,13 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
       case .Item_Stack;
         stack := down(entity, Item_Stack);
         index = get_sprite_index_for_item(stack.item_kind);
-      case .Dragon;    index = .Red_Dragon;
+      case .Dragon;
+        index = get_time_animated_sprite_index(client, 0.5, .[ .Dragon_Idle_0, .Dragon_Idle_1 ]);;
         dragon := down(entity, Dragon);
         
         if #complete dragon.state == {
           case .Idle;
-          case .Attacking; tint = .{ 255, 0, 0, 255 };
+          case .Attacking;  tint = .{ 255, 0, 0, 255 };
           case .Recovering; tint = .{ 100, 140, 155, 255 };
         }
 
