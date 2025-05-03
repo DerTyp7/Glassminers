@@ -9,6 +9,12 @@
 #load "virtual_connection.jai";
 #load "graphics_engine/graphics_engine.jai";
 
+#if DEVELOPER {
+    // For sprite altas reordering
+    #library "stb/stb_image_write";
+    #load "stb/stb_image_write.jai";
+}
+    
 // Shared
 #load "../shared/messages.jai";
 #load "../shared/shared.jai";
@@ -21,7 +27,6 @@
 
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
-SPRITE_ATLAS_COUNT :: 1;
 
 Game_State :: enum {
     Main_Menu;

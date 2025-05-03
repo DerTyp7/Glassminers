@@ -223,21 +223,19 @@ draw_world :: (client: *Client) {
 #file_scope
 
 PROGRESS_BAR_AS_CIRCLE :: false;
-SPRITES_PER_ATLAS      :: SPRITE_ATLAS_COLUMNS * SPRITE_ATLAS_ROWS;
-SPRITE_ATLAS_COLUMNS   :: 8;
-SPRITE_ATLAS_ROWS      :: 8;
 
 Sprite_Index :: enum {
     Background;
-    Player;
-    Crystal;
     Bedrock;
+    Crystal;
+    Rock;
+    Shard;
+    Stone;
     Emitter;
     Receiver;
     Mirror;
-    Shard;
-    Rock;
-    Stone;
+    Player;
+    Reserved_0;
     Red_Dragon;
 }
 
