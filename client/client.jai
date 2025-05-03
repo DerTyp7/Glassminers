@@ -232,7 +232,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         player.aim_direction   = msg.player_state.aim_direction;
         player.target_position = msg.player_state.target_position;
         player.carrying_item   = msg.player_state.carrying_item;
-
+        if player.state != .Resurrecting && msg.player_state.state == .Resurrecting then player.resurrection_t  = 0;
+        
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);
         emitter := down(entity, Emitter);
@@ -507,6 +508,13 @@ do_game_tick :: (client: *Client) {
             update_emitter(client, emitter);
         }
 
+        for i := 0; i < client.players.slot_count; ++i {
+            player, occupied := index_bucket_array(*client.players, i);
+            if !occupied continue;
+
+            update_player(client, player);
+        }
+        
         for i := 0; i < client.dragons.slot_count; ++i {
             dragon, occupied := index_bucket_array(*client.dragons, i);
             if !occupied continue;

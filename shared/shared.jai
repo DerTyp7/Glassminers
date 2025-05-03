@@ -78,6 +78,8 @@ NETWORK_PING_INTERVAL: f32 : 0.25;
 RECEIVER_TIME_TO_CHARGE: f32 : 5;
 EMITTER_TIME_TO_DIE: f32 : 180;
 
+RESURRECTION_TIME: f32 : 5;
+
 DRAGON_BEAM_LENGTH :: 3;
 DRAGON_ATTACK_TIME:  f32 : 2;
 DRAGON_RECOVER_TIME: f32 : 5;
@@ -126,6 +128,7 @@ Player_State :: enum {
     Idle;
     Digging;
     Carrying;
+    Resurrecting;
 }
 
 Dragon_State :: enum {

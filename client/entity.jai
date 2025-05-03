@@ -35,6 +35,7 @@ Player :: struct {
     aim_direction: Direction;
     target_position: v2i;
     carrying_item: Item_Kind = 0;
+    resurrection_t: f32 = 0;
 }
 
 Emitter :: struct {
@@ -212,6 +213,13 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     if emitter.time_left_in_seconds <= 0 return;
 
     recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
+}
+
+update_player :: (client: *Client, player: *Player) {
+    if player.state == .Resurrecting {
+        player.resurrection_t += client.tick_time / RESURRECTION_TIME;
+        logprint(.Debug, "Resurrecting");
+    }
 }
 
 update_dragon :: (client: *Client, dragon: *Dragon) {

@@ -27,10 +27,15 @@ Entity :: struct {
 Player :: struct {
     #using entity : *Entity  = ---;
     state: Player_State      = .Idle;
+
     aim_direction: Direction = .North;
     target_position: v2i     = .{ 0, 0 };
-    carrying_item: Item_Kind = 0;
 
+    carrying_item: Item_Kind = 0;
+    
+    resurrection_pid: Pid    = INVALID_PID;
+    resurrection_t: f32      = 0; // Between 0 and 1
+    
     received_input: Player_Input_Message = ---;
     received_input_this_tick: bool = false;
 }
@@ -222,6 +227,15 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
     return has_died;
 }
 
+set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
+    entity.health = health;
+    msg := make_message(Entity_Health_Message);
+    msg.entity_health.entity_pid = entity.pid;
+    msg.entity_health.current_health = entity.health;
+    array_add(*server.outgoing_messages, msg);
+}
+
+
 
 //
 // Derived Types
@@ -238,7 +252,7 @@ update_player :: (server: *Server, player: *Player) {
         if cancel_current_action {
             if #complete player.state == {
               case .Dead, .Idle, .Carrying;
-              case .Digging;
+              case .Digging, .Resurrecting;
                 player.state = .Idle;
             }
         }
@@ -259,31 +273,37 @@ update_player :: (server: *Server, player: *Player) {
             if player.state != .Idle || !target_entity break;
             
             if target_entity.entity_kind == {
-                case .Bedrock, .Crystal, .Rock, .Mirror;
+              case .Bedrock, .Crystal, .Rock, .Mirror;
                 player.state = .Digging;
-                case .Item_Stack;
+              case .Item_Stack;
                 player.state = .Carrying;
                 player.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
             }
             
           case .Secondary;
             if #complete player.state == {
-                case .Dead, .Digging;
-                case .Idle;
-                // @Temporary: Players can currently create mirrors out of thin air...
+              case .Dead, .Digging, .Resurrecting;
+              case .Idle;
                 if target_entity == null {
+                    // @Temporary: Players can currently create mirrors out of thin air...
                     create_entity(server, .Mirror, player.target_position, .North);
                 } else if target_entity.entity_kind == .Mirror {
                     warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
+                } else if target_entity.entity_kind == .Player {
+                    other_player := down(target_entity, Player);
+                    if other_player.state == .Dead {
+                        player.state = .Resurrecting;
+                        player.resurrection_pid = other_player.pid;
+                        player.resurrection_t = 0;
+                    }
                 }
-                case .Carrying;
+              case .Carrying;
                 if try_to_put_item(server, player.target_position, player.carrying_item) {
                     player.state = .Idle;
                     player.carrying_item = 0;
                 }
             }
         }
-
     }
 
     player.received_input_this_tick = false;
@@ -298,6 +318,20 @@ update_player :: (server: *Server, player: *Player) {
       case .Digging;
         target_entity := get_entity_at_position(server, player.target_position);
         if damage_entity(server, target_entity, PLAYER_DPS * server.tick_time) {
+            player.state = .Idle;
+        }
+
+      case .Resurrecting;
+        player.resurrection_t += server.tick_time / RESURRECTION_TIME;
+
+        if player.resurrection_t >= 1 {
+            other_entity := get_entity(server, player.resurrection_pid);
+            if other_entity {
+                other_player := down(other_entity, Player);
+                other_player.state = .Idle; // This might be one frame late, depending on which order 'player' and 'other_player' are in the player list... But I'd say that's fine for now.
+                set_entity_health(server, other_player, MAX_HEALTHS[other_player.entity_kind]);
+            }
+
             player.state = .Idle;
         }
     }

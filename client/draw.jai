@@ -193,13 +193,17 @@ draw_world :: (client: *Client) {
         player, occupied := index_bucket_array(*client.players, i);
         if !occupied continue;
 
-        TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
-        draw_outlined_rect_world_space(client, .{ xx player.target_position.x - TARGET_RECT_HALF_SIZE, xx player.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx player.target_position.x + TARGET_RECT_HALF_SIZE, xx player.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
-        
+        if player.pid == client.my_entity_pid {
+            TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
+            draw_outlined_rect_world_space(client, .{ xx player.target_position.x - TARGET_RECT_HALF_SIZE, xx player.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx player.target_position.x + TARGET_RECT_HALF_SIZE, xx player.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
+        }
+            
         if #complete player.state == {
           case .Idle;
+
           case .Dead;
             draw_circle_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
+
           case .Digging;
             target_entity := get_entity_at_position(client, player.target_position);
             draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.entity_kind]);
@@ -210,9 +214,12 @@ draw_world :: (client: *Client) {
             world_size :: v2f.{ 0.25, 0.25 };
             sprite_index := get_sprite_index_for_item(player.carrying_item);
             draw_sprite_world_space(client, sprite_index, world_position, world_size, 0, .{ 255, 255, 255, 255 }, false);
+
+          case .Resurrecting;
+            draw_progress_bar_world_space(client, .{ xx player.target_position.x, xx player.target_position.y }, PROGRESS_BAR_WORLD_SIZE, player.resurrection_t);
         }
 
-        if player.health < MAX_HEALTHS[.Player] {
+        if player.state != .Dead && player.health < MAX_HEALTHS[.Player] {
             draw_health_bar_world_space(client, player.visual_position, PROGRESS_BAR_WORLD_SIZE, player.health, MAX_HEALTHS[player.entity_kind]);
         }
     }    
