@@ -163,6 +163,10 @@ vector_from_direction :: (direction: Direction) -> v2i {
     return result;
 }
 
+opposite_direction :: (in: Direction) -> Direction {
+    return (in + 2) % Direction.Count;
+}
+
 reflect_direction :: (incoming: Direction, mirror: Direction) -> Direction, bool {
     if incoming == (mirror + 2) % Direction.Count then
         return (incoming + 3) % Direction.Count, true;

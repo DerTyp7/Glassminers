@@ -1,5 +1,10 @@
 Beam_Data :: struct {
-    fields: [..]v2i;
+    Field :: struct {
+        #using position: v2i;
+        incoming_direction: Direction;
+    }
+
+    fields: [..]Field;
 }
 
 Entity :: struct {
@@ -343,7 +348,8 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
     clear_beam_data(*dragon.beam_data);
 
-    if is_emitter_field_at(server, dragon.physical_position) {
+    lit_up, _ := is_emitter_field_at(server, dragon.physical_position);
+    if lit_up {
         damage_entity(server, dragon, 5 * server.tick_time);
     }
 
@@ -531,18 +537,18 @@ remove_entity :: (server: *Server, entity: *Entity) {
 // Helpers
 //
 
-is_emitter_field_at :: (server: *Server, position: v2i) -> bool {
+is_emitter_field_at :: (server: *Server, position: v2i) -> bool, Direction {
     for i := 0; i < server.emitters.slot_count; ++i {
         emitter, occupied := index_bucket_array(*server.emitters, i);
         if !occupied continue;
 
         for j := 0; j < emitter.beam_data.fields.count; ++j {
             field := array_get(*emitter.beam_data.fields, j);
-            if field.x == position.x && field.y == position.y return true;
+            if field.x == position.x && field.y == position.y return true, field.incoming_direction;
         }
     }
     
-    return false;
+    return false, ---;
 }
 
 
@@ -612,15 +618,15 @@ recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction
         blocking := get_blocking_entity_at_position(server, position, is_beam_blocking_entity);
         
         if blocking == null {
-            array_add(*beam.fields, position);
+            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
         } else if blocking.entity_kind == .Mirror {
-            array_add(*beam.fields, position);
+            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
             
             if reflection_success then direction = reflected_direction; else break;
         } else if blocking.entity_kind == .Receiver {
-            array_add(*beam.fields, position);
+            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             break;
         } else {
             break;

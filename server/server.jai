@@ -343,8 +343,9 @@ do_game_tick :: (server: *Server) {
         // @NetworkTraffic: Simple client-side predicition
         
         previous := receiver.progress_time_in_seconds;
-        
-        if is_emitter_field_at(server, receiver.physical_position) {
+
+        lit_up, incoming_direction := is_emitter_field_at(server, receiver.physical_position);
+        if lit_up && incoming_direction == opposite_direction(receiver.physical_rotation) {
             receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
         } else {
             receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
@@ -373,7 +374,7 @@ do_game_tick :: (server: *Server) {
     }
     
     //
-    // Update each player
+    // Update all players
     //
     number_of_dead_players := 0;
     
