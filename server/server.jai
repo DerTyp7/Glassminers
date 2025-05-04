@@ -132,7 +132,6 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         
       case .Request_Game_Start;
         server.campaign = msg.request_game_start.campaign;
-        create_the_game(server);
         server.next_state = .Ingame;
         
       case .Player_Input;
@@ -220,25 +219,33 @@ switch_to_next_state :: (server: *Server) {
     logprint(.Debug, "Switching from '%' to '%'...", server.current_state, server.next_state);
 
     if #complete server.current_state == {
-      case .Lobby, .Game_Over; // Ignore
+      case .Lobby; // Ignore
       case .Ingame;
+        destroy_entity_manager(server);
+        reset_allocator(*server.world_allocator);
+
+      case .Game_Over;
+        // Give the clients time to cleanly disconnect from the server, see:
+        // https://stackoverflow.com/questions/3757289/when-is-tcp-option-so-linger-0-required
         for i := 0; i < server.clients.count; ++i {
             client := array_get(*server.clients, i);
             destroy_connection(*client.connection);
         }
         array_clear(*server.clients);
-        destroy_entity_manager(server);
-        reset_allocator(*server.world_allocator);
     }
     
     server.current_state = server.next_state;
     
     if #complete server.current_state == {
-      case .Lobby, .Game_Over, .Ingame; // Ignore
+      case .Lobby, .Game_Over; // Ignore
+        
+      case .Ingame;
+        create_the_game(server);
     }
 }
 
 create_the_game :: (server: *Server) {
+    reset_allocator(*server.world_allocator);
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
@@ -428,13 +435,15 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.engine_allocator = allocator_from_memory_pool(*server.engine_pool);
     create_memory_pool(*server.world_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     server.world_allocator = allocator_from_memory_pool(*server.world_pool);
-    server.clients.allocator = *server.world_allocator;
+    server.clients.allocator = *server.engine_allocator;
     server.outgoing_messages.allocator = *temp;
 
-    if create_server_connection(*server.connection, NETWORK_PROTOCOL, data.requested_port) == .Success {
-        atomic_store(cast(*s64) *data.state, Server_State.Running);
+    result := create_server_connection(*server.connection, NETWORK_PROTOCOL, data.requested_port);
+    if result == .Success {
+        atomic_store(*data.state, Server_State.Running);
     } else {
-        atomic_store(cast(*s64) *data.state, Server_State.Closing);
+        logprint(.Error, "Failed to open the server connection: '%'. Shutting down!", result);
+        atomic_store(*data.state, Server_State.Closing);
     }
     
     server.current_state = .Count;
@@ -446,10 +455,12 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.next_state = .Lobby;
     switch_to_next_state(*server);
     
-    while atomic_load(cast(*s64) *data.state) == Server_State.Running {
+    while atomic_load(*data.state) == Server_State.Running {
         tick_start := os_get_hardware_time();
 
         server.tick_time = 1 / TICK_RATE;
+
+        if server.current_state != server.next_state switch_to_next_state(*server);
         
         //
         // Update the current state
@@ -457,10 +468,8 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         if #complete server.current_state == {
           case .Lobby; do_lobby_tick(*server);
           case .Ingame; do_game_tick(*server);
-          case .Game_Over;
+          case .Game_Over; atomic_store(*data.state, Server_State.Closed);
         }
-
-        if server.current_state != server.next_state switch_to_next_state(*server);
 
         release_temp_allocator(0);
         
@@ -471,7 +480,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.next_state = .Count; // Shut down all resources that might currently be in use
     switch_to_next_state(*server);
     
-    atomic_store(cast(*s64) *data.state, Server_State.Closing);
+    atomic_store(*data.state, Server_State.Closing);
     
     destroy_connection(*server.connection);
     destroy_memory_pool(*server.world_pool);
@@ -480,7 +489,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
 
     logprint(.Debug, "Stopped the server.");
     
-    atomic_store(cast(*s64) *data.state, Server_State.Closed);
+    atomic_store(*data.state, Server_State.Closed);
 
     return 0;
 }
@@ -488,5 +497,6 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
 main :: () -> u32 {
     data: Shared_Server_Data;
     data.requested_port = 9876;
+    data.state          = .Starting;
     return server_entry_point(*data);
 }

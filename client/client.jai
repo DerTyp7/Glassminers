@@ -322,12 +322,14 @@ switch_to_next_state :: (client: *Client) {
 
       case .Connecting;
         if client.next_state != .Lobby {
+            disconnect_from_server(client);
             maybe_shutdown_server(client);
         }
 
       case .Lobby;
         if client.next_state != .Ingame {
             destroy_entity_manager(client);
+            disconnect_from_server(client);
             maybe_shutdown_server(client);
             reset_allocator(*client.world_allocator);
         }
