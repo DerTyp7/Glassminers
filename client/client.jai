@@ -200,13 +200,18 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             }
         } else if msg.player_information.entity_pid != INVALID_PID {
             client.my_entity_pid = msg.player_information.entity_pid;
+
+            // Calculate the initial camera position to avoid lerping the first few frames...
+            player := get_entity(client, client.my_entity_pid);
+            update_camera_matrices(*client.camera, *client.window); // Initialize the camera size
+            client.camera.center = calculate_camera_target_position(client, player.physical_position);
         }
     
       case .Player_Disconnect;
         remove_client_by_pid(client, msg.player_disconnect.player_pid);
 
       case .Game_Start;
-        client.game_seed = msg.game_start.seed;
+        client.game_seed  = msg.game_start.seed;
         client.world_size = msg.game_start.size;
         client.next_state = .Ingame;
         
@@ -344,13 +349,7 @@ switch_to_next_state :: (client: *Client) {
     client.current_state = client.next_state;
     
     if #complete client.current_state == {
-      case .Main_Menu, .Connecting, .Game_Over;
-
-      case .Ingame;
-        // Calculate the initial camera position to avoid lerping the first few frames...
-        player := get_entity(client, client.my_entity_pid);
-        update_camera_matrices(*client.camera, *client.window); // Initialize the camera size
-        client.camera.center = calculate_camera_target_position(client, player.physical_position);
+      case .Main_Menu, .Connecting, .Ingame, .Game_Over;
         
       case .Lobby;
         // The server will already initialize our game during the lobby...

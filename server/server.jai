@@ -19,9 +19,9 @@ DEVELOPER :: #run compiler_is_user_option_present("Developer");
 
 Remote_Client :: struct {
     connection: Virtual_Connection;
-    player_pid: Pid;
-    entity_pid: Pid;
-    name: string;
+    player_pid: Pid = INVALID_PID;
+    entity_pid: Pid = INVALID_PID;
+    name: string = "";
 }
 
 Game_State :: enum {
@@ -128,7 +128,11 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         target.name = copy_string(*server.world_allocator, msg.player_information.name);
         
         // Broadcast the message along
-        array_add(*server.outgoing_messages, ~msg);
+        broadcasted_msg := make_message(Player_Information_Message);
+        broadcasted_msg.player_information.player_pid = target.player_pid;
+        broadcasted_msg.player_information.name       = target.name;
+        broadcasted_msg.player_information.entity_pid = target.entity_pid;
+        array_add(*server.outgoing_messages, broadcasted_msg);
         
       case .Request_Game_Start;
         server.campaign = msg.request_game_start.campaign;
@@ -267,6 +271,21 @@ create_the_game :: (server: *Server) {
     array_add(*server.outgoing_messages, game_start);
 
     //
+    // Generate one entity for each player and attach it to the player
+    //
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get_pointer(*server.clients, i);
+        entity := create_entity(server, .Player, .{ 3 + i, 2 }, .North);
+        client.entity_pid = entity.pid;
+        
+        msg := make_message(Player_Information_Message);
+        msg.player_information.player_pid = client.player_pid;
+        msg.player_information.name       = client.name;
+        msg.player_information.entity_pid = client.entity_pid;
+        array_add(*server.outgoing_messages, msg);            
+    }
+
+    //
     // Generate the base world
     //
     {
@@ -298,22 +317,6 @@ create_the_game :: (server: *Server) {
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
         generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
         generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
-    }
-    
-    //
-    // Generate one entity for each player and attach it to the player
-    //
-    for i := 0; i < server.clients.count; ++i {
-        client := array_get_pointer(*server.clients, i);
-        entity := create_entity(server, .Player, .{ 3 + i, 2 }, .North);
-
-        client.entity_pid = entity.pid;
-        
-        msg := make_message(Player_Information_Message);
-        msg.player_information.player_pid = client.player_pid;
-        msg.player_information.name       = client.name;
-        msg.player_information.entity_pid = client.entity_pid;
-        array_add(*server.outgoing_messages, msg);            
     }
 }
 
