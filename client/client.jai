@@ -220,8 +220,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.move_entity.entity_pid);
         entity.physical_position = msg.move_entity.position;
         entity.physical_rotation = msg.move_entity.rotation;
-        entity.visual_position   = .{ xx entity.physical_position.x, xx entity.physical_position.y };
-        entity.visual_rotation   = visual_from_physical_rotation(entity.physical_rotation);
 
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
@@ -500,23 +498,22 @@ do_game_tick :: (client: *Client) {
     {
         for i := 0; i < client.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*client.emitters, i);
-            if !occupied continue;
-            
-            update_emitter(client, emitter);
+            if occupied then update_emitter(client, emitter);
         }
 
         for i := 0; i < client.players.slot_count; ++i {
             player, occupied := index_bucket_array(*client.players, i);
-            if !occupied continue;
-
-            update_player(client, player);
+            if occupied then update_player(client, player);
         }
         
         for i := 0; i < client.dragons.slot_count; ++i {
             dragon, occupied := index_bucket_array(*client.dragons, i);
-            if !occupied continue;
+            if occupied then update_dragon(client, dragon);
+        }
 
-            update_dragon(client, dragon);
+        for i := 0; i < client.all_entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*client.all_entities, i);
+            if occupied then interpolate_location(client, entity, entity.entity_kind == .Player);
         }
     }
 

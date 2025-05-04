@@ -93,7 +93,8 @@ HEALTH_PER_HEART: f32 : 10;
 PLAYER_DPS: f32 : HEALTH_PER_HEART;
 
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
-    30, // Player
+    // 30, // Player
+    100, // Player
     30, // Crystal
     70, // Bedrock
     0,  // Emitter

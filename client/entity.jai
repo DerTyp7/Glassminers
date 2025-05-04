@@ -202,8 +202,25 @@ physically_remove_all_marked_entities :: (client: *Client) {
 
 
 //
-// Emitter
+// Derived Types
 //
+
+interpolate_location :: (client: *Client, entity: *Entity, snap_rotation: bool) {
+    {
+        speed := client.tick_time * 20;
+        target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
+        entity.visual_position.x = lerp(entity.visual_position.x, target_position.x, speed);
+        entity.visual_position.y = lerp(entity.visual_position.y, target_position.y, speed);
+    }
+        
+    if snap_rotation {
+        entity.visual_rotation = visual_from_physical_rotation(entity.physical_rotation);
+    } else {
+        speed := client.tick_time * 20;
+        target_rotation := visual_from_physical_rotation(entity.physical_rotation);
+        entity.visual_rotation = lerp_with_wrap(entity.visual_rotation, target_rotation, speed, 0, 1);
+    }
+}
 
 update_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
