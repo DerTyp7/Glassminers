@@ -285,6 +285,7 @@ create_the_game :: (server: *Server) {
         generate_n_random_entities(server, .Bedrock, server.world_size.x * 2);
         generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
+        generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
         generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
     }
     

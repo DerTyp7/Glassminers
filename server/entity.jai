@@ -41,7 +41,7 @@ Player :: struct {
 Emitter :: struct {
     #using entity : *Entity  = ---;
     beam_data: Beam_Data = ---;
-    time_left_in_seconds: f32 = EMITTER_TIME_TO_DIE;
+    time_left_in_seconds: f32 = EMITTER_MAX_TIME;
 }
 
 Receiver :: struct {
@@ -145,7 +145,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Receiver;   make_derived(entity, *server.receivers);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Dragon;     make_derived(entity, *server.dragons);
-      case .Crystal, .Bedrock, .Mirror, .Rock;
+      case .Crystal, .Bedrock, .Mirror, .Rock, .Coal;
         entity.derived = null;
     }
 
@@ -214,6 +214,10 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
           case .Rock;
             remove_entity(server, entity);
             try_to_put_item(server, entity.physical_position, .Stone);
+
+          case .Coal;
+            remove_entity(server, entity);
+            try_to_put_item(server, entity.physical_position, .Coal);
             
           case;
             remove_entity(server, entity);
@@ -271,7 +275,7 @@ update_player :: (server: *Server, player: *Player) {
             if player.state != .Idle || !target_entity break;
             
             if target_entity.entity_kind == {
-              case .Bedrock, .Crystal, .Rock, .Mirror;
+              case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
                 player.state = .Digging;
               case .Item_Stack;
                 player.state = .Carrying;
@@ -295,8 +299,14 @@ update_player :: (server: *Server, player: *Player) {
                         player.resurrection_t = 0;
                     }
                 }
+                
               case .Carrying;
-                if try_to_put_item(server, player.target_position, player.carrying_item) {
+                if target_entity && target_entity.entity_kind == .Emitter {
+                    emitter := down(target_entity, Emitter);
+                    emitter.time_left_in_seconds = clamp(emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME, 0, EMITTER_MAX_TIME);
+                    player.state = .Idle;
+                    player.carrying_item = 0;
+                } else  if try_to_put_item(server, player.target_position, player.carrying_item) {
                     player.state = .Idle;
                     player.carrying_item = 0;
                 }

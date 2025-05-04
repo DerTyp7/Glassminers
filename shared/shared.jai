@@ -84,7 +84,8 @@ VISUAL_ROOM_SIZE   :: v2f.{ 5, 5 };
 VISUAL_ROOM_OFFSET :: v2f.{ #run floor(VISUAL_ROOM_SIZE.x / 2), #run floor(VISUAL_ROOM_SIZE.y / 2) };
 
 RECEIVER_TIME_TO_CHARGE: f32 : 5;
-EMITTER_TIME_TO_DIE: f32 : 180;
+EMITTER_MAX_TIME: f32 : 180;
+COAL_EMITTER_CHARGE_TIME: f32 : 60;
 
 RESURRECTION_TIME: f32 : 5;
 
@@ -104,12 +105,14 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     30, // Mirror
     50, // Rock
     0,  // Item Stack
-    50, // Dragon,
+    50, // Dragon
+    40, // Coal
 ];
 
 Item_Kind :: enum {
     Shard;
     Stone;
+    Coal;
 }
 
 Entity_Kind :: enum {
@@ -122,6 +125,7 @@ Entity_Kind :: enum {
     Rock;
     Item_Stack;
     Dragon;
+    Coal;
 }
 
 Direction :: enum {
@@ -208,7 +212,7 @@ is_move_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Player, .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Dragon;
+      case .Player, .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Dragon, .Coal;
         result = true;
 
       case .Item_Stack;
@@ -222,7 +226,7 @@ is_beam_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock;
+      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Coal;
         result = true;
 
       case .Player, .Dragon, .Item_Stack;
@@ -236,7 +240,7 @@ is_los_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Player, .Dragon;
+      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Player, .Dragon, .Coal;
         result = true;
 
       case .Item_Stack;
@@ -253,7 +257,7 @@ is_living_entity :: (kind: Entity_Kind) -> bool {
       case .Player, .Dragon;
         result = true;
 
-      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Item_Stack;
+      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Item_Stack, .Coal;
         result = false;
     }
 

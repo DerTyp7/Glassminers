@@ -40,7 +40,7 @@ Player :: struct {
 Emitter :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
-    time_left_in_seconds: f32 = EMITTER_TIME_TO_DIE;
+    time_left_in_seconds: f32 = EMITTER_MAX_TIME;
 }
 
 Receiver :: struct {
@@ -168,7 +168,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
       case .Dragon;     make_derived(entity, *client.dragons);
-      case .Crystal, .Bedrock, .Mirror, .Rock;
+      case .Crystal, .Bedrock, .Mirror, .Rock, .Coal;
         entity.derived = null;
     }
 

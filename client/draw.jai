@@ -143,7 +143,7 @@ draw_world :: (client: *Client) {
         draw_beam(client, *emitter.beam_data, .{ 255, 255, 255, 150 });
 
         if emitter.time_left_in_seconds > 0 {
-            draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_TIME_TO_DIE);
+            draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
         }
     }
 
@@ -277,6 +277,8 @@ Sprite_Index :: enum {
     Dragon_Spitting_Fire;
     Dragon_Recovering_0;
     Dragon_Recovering_1;
+    Coal_Block;
+    Coal_Item;
 }
 
 get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32) -> Sprite_Index {
@@ -291,9 +293,10 @@ get_epoch_time_animated_sprite_index :: (client: *Client, frame_time: f32, frame
 get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
     index: Sprite_Index = ---;
 
-    if item == {
+    if #complete item == {
       case .Shard; index = .Shard;
       case .Stone; index = .Stone;
+      case .Coal; index = .Coal_Item;
     }
     
     return index;
@@ -369,6 +372,8 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         }
 
         horizontally_mirrored = dragon.physical_rotation == .East;
+
+        case .Coal; index = .Coal_Block;
     }
     
     return index, tint, horizontally_mirrored;
