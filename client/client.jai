@@ -24,6 +24,7 @@
 #load "draw.jai";
 #load "entity.jai";
 #load "assets.jai";
+#load "hud.jai";
 
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
@@ -91,6 +92,7 @@ Client :: struct {
     world_size: v2i;
     tick_time: f32;
     camera: Camera;
+    hud: Hud;
     my_entity_pid: Pid;
     #using em: Entity_Manager;
 }
@@ -549,6 +551,11 @@ do_game_tick :: (client: *Client) {
         update_camera_matrices(*client.camera, *client.window);
     }
 
+    // Update the hud
+    {
+        update_hud(client);
+    }
+
     // Forward player input to the server
     {
         player_entity := get_entity(client, client.my_entity_pid);
@@ -561,42 +568,44 @@ do_game_tick :: (client: *Client) {
         input.position         = player.physical_position;
         input.aim_direction    = player.physical_rotation;
         input.interaction_kind = .None;
-        
-        if client.window.keys[.A] & .Repeated {
-            input.position.x    = player.physical_position.x - 1;
-            input.position.y    = player.physical_position.y;
-            input.aim_direction = .West;
-            read_any_input = true;
-        }
 
-        if client.window.keys[.D] & .Repeated {
-            input.position.x    = player.physical_position.x + 1;
-            input.position.y    = player.physical_position.y;
-            input.aim_direction = .East;
-            read_any_input = true;
-        }
+        if client.hud.state == .Disabled {
+            if client.window.keys[.A] & .Repeated {
+                input.position.x    = player.physical_position.x - 1;
+                input.position.y    = player.physical_position.y;
+                input.aim_direction = .West;
+                read_any_input = true;
+            }
 
-        if client.window.keys[.W] & .Repeated {
-            input.position.x    = player.physical_position.x;
-            input.position.y    = player.physical_position.y - 1;
-            input.aim_direction = .North;
-            read_any_input = true;
-        }
+            if client.window.keys[.D] & .Repeated {
+                input.position.x    = player.physical_position.x + 1;
+                input.position.y    = player.physical_position.y;
+                input.aim_direction = .East;
+                read_any_input = true;
+            }
 
-        if client.window.keys[.S] & .Repeated {
-            input.position.x    = player.physical_position.x;
-            input.position.y    = player.physical_position.y + 1;
-            input.aim_direction = .South;
-            read_any_input = true;
-        }
+            if client.window.keys[.W] & .Repeated {
+                input.position.x    = player.physical_position.x;
+                input.position.y    = player.physical_position.y - 1;
+                input.aim_direction = .North;
+                read_any_input = true;
+            }
 
-        if client.window.keys[.Arrow_Left]  & .Pressed { input.aim_direction = .West; read_any_input = true; }
-        if client.window.keys[.Arrow_Right] & .Pressed { input.aim_direction = .East; read_any_input = true; }
-        if client.window.keys[.Arrow_Up]    & .Pressed { input.aim_direction = .North; read_any_input = true; }
-        if client.window.keys[.Arrow_Down]  & .Pressed { input.aim_direction = .South; read_any_input = true; }
-        if client.window.keys[.Space] & .Pressed       { input.interaction_kind = .Primary; read_any_input = true; }
-        if client.window.keys[.Shift] & .Pressed       { input.interaction_kind = .Secondary; read_any_input = true; }
-        
+            if client.window.keys[.S] & .Repeated {
+                input.position.x    = player.physical_position.x;
+                input.position.y    = player.physical_position.y + 1;
+                input.aim_direction = .South;
+                read_any_input = true;
+            }
+
+            if client.window.keys[.Arrow_Left]  & .Pressed { input.aim_direction = .West; read_any_input = true; }
+            if client.window.keys[.Arrow_Right] & .Pressed { input.aim_direction = .East; read_any_input = true; }
+            if client.window.keys[.Arrow_Up]    & .Pressed { input.aim_direction = .North; read_any_input = true; }
+            if client.window.keys[.Arrow_Down]  & .Pressed { input.aim_direction = .South; read_any_input = true; }
+            if client.window.keys[.Space] & .Pressed       { input.interaction_kind = .Primary; read_any_input = true; }
+            if client.window.keys[.Shift] & .Pressed       { input.interaction_kind = .Secondary; read_any_input = true; }
+        }
+            
         if read_any_input {
             msg := make_message_from(input);
             array_add(*outgoing_messages, msg);
@@ -681,8 +690,10 @@ main :: (args: []string) -> s32 {
             
               case .Ingame;
                 draw_world(*client);
+                draw_hud(*client);
+                ge_imm2d_flush(*client.graphics);
             }
-             
+
             draw_ui_frame(*client.ui);
             ge_swap_buffers(*client.graphics);
         }

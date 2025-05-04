@@ -155,6 +155,14 @@ Interaction_Kind :: enum {
     Secondary;
 }
 
+Crafting_Recipe :: enum {
+    None;
+    // @Temporary obviously
+    Mirror;
+    Dragon;
+    Crystal;
+}
+
 direction_from_vector :: (vector: v2i) -> Direction {
     if vector.x == 0 && vector.y == 0 {
         return .North;

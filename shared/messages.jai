@@ -84,6 +84,7 @@ Player_Input_Message :: struct {
     position: v2i;
     aim_direction: Direction;
     interaction_kind: Interaction_Kind;
+    crafting_recipe: Crafting_Recipe;
 }
 
 Emitter_State_Message :: struct {
