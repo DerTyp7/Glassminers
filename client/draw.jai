@@ -1,3 +1,37 @@
+Sprite_Index :: enum {
+    Background;
+    Bedrock;
+    Crystal;
+    Rock;
+    Shard;
+    Stone;
+    Emitter;
+    Receiver;
+    Mirror;
+    Player_Idle_Side_0;
+    Player_Idle_Side_1;
+    Player_Idle_Back_0;
+    Player_Idle_Back_1;
+    Player_Idle_Front_0;
+    Player_Idle_Front_1;
+    Player_Walk_Side_0;
+    Player_Walk_Side_1;
+    Player_Walk_Side_2;
+    Player_Walk_Back_0;
+    Player_Walk_Back_1;
+    Player_Walk_Back_2;
+    Player_Walk_Front_0;
+    Player_Walk_Front_1;
+    Player_Walk_Front_2;
+    Dragon_Idle_0;
+    Dragon_Idle_1;
+    Dragon_Spitting_Fire;
+    Dragon_Recovering_0;
+    Dragon_Recovering_1;
+    Coal_Block;
+    Coal_Item;
+}
+
 //
 // Draw Context
 //
@@ -36,12 +70,6 @@ destroy_draw_data :: (client: *Client) {
     ge_destroy(*client.graphics);
 }
 
-
-
-//
-// UI Module Callbacks
-//
-
 draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
     return .{ client, draw_ui_text, draw_ui_rect, set_ui_scissors, clear_ui_scissors };
 }
@@ -49,7 +77,7 @@ draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
 
 
 //
-// HUD Drawing
+// Screen Space Drawing
 //
 
 draw_rect_screen_space :: (client: *Client, c0, c1: v2f, color: GE_Color) {
@@ -67,18 +95,6 @@ draw_outlined_rect_screen_space :: (client: *Client, c0, c1: v2f, thickness: f32
 
 draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: UI_Color) {
     ge_draw_text(*client.graphics, font, text, position.x, position.y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
-}
-
-draw_rect_world_space :: (client: *Client, world_c0, world_c1: v2f, color: GE_Color) {
-    screen_c0 := screen_from_world_position(client, world_c0);
-    screen_c1 := screen_from_world_position(client, world_c1);
-    draw_rect_screen_space(client, screen_c0, screen_c1, color);
-}
-
-draw_outlined_rect_world_space :: (client: *Client, world_c0, world_c1: v2f, screen_thickness: f32, color: GE_Color) {
-    screen_c0 := screen_from_world_position(client, world_c0);
-    screen_c1 := screen_from_world_position(client, world_c1);
-    draw_outlined_rect_screen_space(client, screen_c0, screen_c1, screen_thickness, color);
 }
 
 draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
@@ -184,17 +200,54 @@ draw_circle_screen_space :: (client: *Client, center: v2f, inner_radius, outer_r
     draw_circle_segment_screen_space(client, center, inner_radius, outer_radius, 0, 1, color);
 }
 
+draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, percentage: f32) {
+    box_count :: 6;
+    foreground :: GE_Color.{ 100, 240, 150, 200 };
+    draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
+}
+
+draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
+    atlas_index    := sprite_index / SPRITES_PER_ATLAS;
+    index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
+    
+    vertices: [4]v2f =.[
+        v2_rotate(v2f.{ -screen_size.x / 2, -screen_size.y / 2 }, rotation),
+        v2_rotate(v2f.{ +screen_size.x / 2, -screen_size.y / 2 }, rotation),
+        v2_rotate(v2f.{ +screen_size.x / 2, +screen_size.y / 2 }, rotation),
+        v2_rotate(v2f.{ -screen_size.x / 2, +screen_size.y / 2 }, rotation) ];
+    
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
+    indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
+    texture := client.sprite_atlases[atlas_index];
+
+    for i := 0; i < indices.Capacity; ++i {
+        ge_imm2d_textured_vertex(*client.graphics, screen_center.x + vertices[indices[i]].x, screen_center.y + vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
+    }
+}
+
+
+
+//
+// World Space Drawing
+//
+
+draw_rect_world_space :: (client: *Client, world_c0, world_c1: v2f, color: GE_Color) {
+    screen_c0 := screen_from_world_position(client, world_c0);
+    screen_c1 := screen_from_world_position(client, world_c1);
+    draw_rect_screen_space(client, screen_c0, screen_c1, color);
+}
+
+draw_outlined_rect_world_space :: (client: *Client, world_c0, world_c1: v2f, screen_thickness: f32, color: GE_Color) {
+    screen_c0 := screen_from_world_position(client, world_c0);
+    screen_c1 := screen_from_world_position(client, world_c1);
+    draw_outlined_rect_screen_space(client, screen_c0, screen_c1, screen_thickness, color);
+}
+
 draw_circle_world_space :: (client: *Client, world_center: v2f, inner_world_radius, outer_world_radius: f32, color: GE_Color) {
     screen_center := screen_from_world_position(client, world_center);
     inner_screen_radius := screen_from_world_height(client, inner_world_radius);
     outer_screen_radius := screen_from_world_height(client, outer_world_radius);
     draw_circle_screen_space(client, screen_center, inner_screen_radius, outer_screen_radius, color);
-}
-
-draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, percentage: f32) {
-    box_count :: 6;
-    foreground :: GE_Color.{ 100, 240, 150, 200 };
-    draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
 }
 
 draw_progress_bar_world_space :: (client: *Client, world_center: v2f, world_size: f32, percentage: f32) {
@@ -212,26 +265,10 @@ draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: 
     draw_filling_boxes_screen_space(client, screen_center, box_count, screen_size, health / max_health, foreground);    
 }
 
-draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, world_rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
+draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
     screen_center := screen_from_world_position(client, world_center);
     screen_size   := screen_from_world_size(client, world_size);
-
-    atlas_index    := sprite_index / SPRITES_PER_ATLAS;
-    index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
-    
-    vertices: [4]v2f =.[
-        v2_rotate(v2f.{ -screen_size.x / 2, -screen_size.y / 2 }, world_rotation),
-        v2_rotate(v2f.{ +screen_size.x / 2, -screen_size.y / 2 }, world_rotation),
-        v2_rotate(v2f.{ +screen_size.x / 2, +screen_size.y / 2 }, world_rotation),
-        v2_rotate(v2f.{ -screen_size.x / 2, +screen_size.y / 2 }, world_rotation) ];
-    
-    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
-    indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
-    texture := client.sprite_atlases[atlas_index];
-
-    for i := 0; i < indices.Capacity; ++i {
-        ge_imm2d_textured_vertex(*client.graphics, screen_center.x + vertices[indices[i]].x, screen_center.y + vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
-    }
+    draw_sprite_screen_space(client, sprite_index, screen_center, screen_size, rotation, tint, horizontally_mirrored);
 }
 
 
@@ -402,40 +439,6 @@ draw_world :: (client: *Client) {
 #file_scope
 
 PROGRESS_BAR_AS_CIRCLE :: false;
-
-Sprite_Index :: enum {
-    Background;
-    Bedrock;
-    Crystal;
-    Rock;
-    Shard;
-    Stone;
-    Emitter;
-    Receiver;
-    Mirror;
-    Player_Idle_Side_0;
-    Player_Idle_Side_1;
-    Player_Idle_Back_0;
-    Player_Idle_Back_1;
-    Player_Idle_Front_0;
-    Player_Idle_Front_1;
-    Player_Walk_Side_0;
-    Player_Walk_Side_1;
-    Player_Walk_Side_2;
-    Player_Walk_Back_0;
-    Player_Walk_Back_1;
-    Player_Walk_Back_2;
-    Player_Walk_Front_0;
-    Player_Walk_Front_1;
-    Player_Walk_Front_2;
-    Dragon_Idle_0;
-    Dragon_Idle_1;
-    Dragon_Spitting_Fire;
-    Dragon_Recovering_0;
-    Dragon_Recovering_1;
-    Coal_Block;
-    Coal_Item;
-}
 
 get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32) -> Sprite_Index {
     frame_index := cast(s64) floor(time / frame_time) % frames.count;
