@@ -73,7 +73,6 @@ Player_State_Message :: struct {
     MSG_TYPE :: Message_Type.Player_State;
     entity_pid: Pid;
     state: Player_State;
-    aim_direction: Direction;
     target_position: v2i;
     carrying_item: Item_Kind;
 }

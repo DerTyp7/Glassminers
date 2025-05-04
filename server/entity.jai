@@ -27,8 +27,6 @@ Entity :: struct {
 Player :: struct {
     #using entity : *Entity  = ---;
     state: Player_State      = .Idle;
-
-    aim_direction: Direction = .North;
     target_position: v2i     = .{ 0, 0 };
 
     carrying_item: Item_Kind = 0;
@@ -247,7 +245,7 @@ update_player :: (server: *Server, player: *Player) {
     //
     if player.received_input_this_tick && player.state != .Dead {
         // Handle movement
-        cancel_current_action := player.aim_direction != player.received_input.aim_direction || player.physical_position.x != player.received_input.position.x || player.physical_position.y != player.received_input.position.y;
+        cancel_current_action := player.physical_rotation != player.received_input.aim_direction || player.physical_position.x != player.received_input.position.x || player.physical_position.y != player.received_input.position.y;
 
         if cancel_current_action {
             if #complete player.state == {
@@ -261,7 +259,7 @@ update_player :: (server: *Server, player: *Player) {
             move_to_position(server, player, player.received_input.position);
         }
         
-        player.aim_direction = player.received_input.aim_direction;
+        update_physical_location(server, player, player.physical_position, player.received_input.aim_direction);
 
         // Handle interaction
         target_entity := get_entity_at_position(server, player.target_position);
@@ -311,7 +309,7 @@ update_player :: (server: *Server, player: *Player) {
     //
     // Update the local entity
     //
-    look_vector := vector_from_direction(player.aim_direction);
+    look_vector := vector_from_direction(player.physical_rotation);
     player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
     
     if player.state == {
@@ -343,7 +341,6 @@ update_player :: (server: *Server, player: *Player) {
     msg := make_message(Player_State_Message);
     msg.player_state.entity_pid      = player.pid;
     msg.player_state.state           = player.state;
-    msg.player_state.aim_direction   = player.aim_direction;
     msg.player_state.target_position = player.target_position;
     msg.player_state.carrying_item   = player.carrying_item;
     array_add(*server.outgoing_messages, msg);
@@ -548,14 +545,18 @@ move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
 }
 
 update_physical_location :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
+    something_changed := position.x != entity.physical_position.x || position.y != entity.physical_position.y || rotation != entity.physical_rotation;
+
     entity.physical_position = position;
     entity.physical_rotation = rotation;
 
-    msg := make_message(Move_Entity_Message);
-    msg.move_entity.entity_pid = entity.pid;
-    msg.move_entity.position = entity.physical_position;
-    msg.move_entity.rotation = entity.physical_rotation;
-    array_add(*server.outgoing_messages, msg);
+    if something_changed {
+        msg := make_message(Move_Entity_Message);
+        msg.move_entity.entity_pid = entity.pid;
+        msg.move_entity.position = entity.physical_position;
+        msg.move_entity.rotation = entity.physical_rotation;
+        array_add(*server.outgoing_messages, msg);
+    }
 }
 
 remove_entity :: (server: *Server, entity: *Entity) {

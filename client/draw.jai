@@ -292,7 +292,10 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     horizontally_mirrored := false;
     
     if #complete entity.entity_kind == {
-      case .Player;    index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_0, .Player_Idle_1 ]);
+      case .Player;
+        index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_0, .Player_Idle_1 ]);
+        horizontally_mirrored = entity.physical_rotation == .East;
+        
       case .Crystal;   index = .Crystal;
       case .Bedrock;   index = .Bedrock;
       case .Emitter;   index = .Emitter;

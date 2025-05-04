@@ -32,7 +32,6 @@ Entity :: struct {
 Player :: struct {
     #using entity : *Entity = ---;
     state: Player_State = .Idle;
-    aim_direction: Direction;
     target_position: v2i;
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;

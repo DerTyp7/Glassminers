@@ -231,7 +231,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.player_state.entity_pid);
         player := down(entity, Player);
         player.state           = msg.player_state.state;
-        player.aim_direction   = msg.player_state.aim_direction;
         player.target_position = msg.player_state.target_position;
         player.carrying_item   = msg.player_state.carrying_item;
         if player.state != .Resurrecting && msg.player_state.state == .Resurrecting then player.resurrection_t  = 0;
@@ -541,7 +540,7 @@ do_game_tick :: (client: *Client) {
         input: Player_Input_Message = ---;
         input.entity_pid       = client.my_entity_pid;
         input.position         = player.physical_position;
-        input.aim_direction    = player.aim_direction;
+        input.aim_direction    = player.physical_rotation;
         input.interaction_kind = .None;
         
         if client.window.keys[.A] & .Repeated {
