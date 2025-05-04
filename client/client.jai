@@ -591,7 +591,16 @@ do_game_tick :: (client: *Client) {
     physically_remove_all_marked_entities(client);
 }
 
-main :: () -> s32 {
+main :: (args: []string) -> s32 {
+#if DEVELOPER {
+    print("Args: %\n", args);
+
+    if args.count >= 2 && args[1] == "-reorder_sprite_atlases" {
+        reorder_sprite_atlases();
+        return 0;
+    }
+}
+
     //
     // Start up the engine
     //

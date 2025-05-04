@@ -257,8 +257,12 @@ Sprite_Index :: enum {
     Emitter;
     Receiver;
     Mirror;
-    Player_Idle_0;
-    Player_Idle_1;
+    Player_Idle_Side_0;
+    Player_Idle_Side_1;
+    Player_Idle_Back_0;
+    Player_Idle_Back_1;
+    Player_Idle_Front_0;
+    Player_Idle_Front_1;
     Dragon_Idle_0;
     Dragon_Idle_1;
     Dragon_Spitting_Fire;
@@ -293,9 +297,16 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     
     if #complete entity.entity_kind == {
       case .Player;
-        index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_0, .Player_Idle_1 ]);
-        horizontally_mirrored = entity.physical_rotation == .East;
-        
+        if #complete entity.physical_rotation == {
+          case .North;
+            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_Back_0, .Player_Idle_Back_1 ]);
+          case .South;
+            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_Front_0, .Player_Idle_Front_1 ]);
+          case .East, .West;
+            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_Side_0, .Player_Idle_Side_1 ]);
+            horizontally_mirrored = entity.physical_rotation == .East;
+        }
+            
       case .Crystal;   index = .Crystal;
       case .Bedrock;   index = .Bedrock;
       case .Emitter;   index = .Emitter;

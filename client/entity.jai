@@ -205,7 +205,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
 // Derived Types
 //
 
-interpolate_location :: (client: *Client, entity: *Entity, snap_rotation: bool) {
+interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
     {
         speed := client.tick_time * 20;
         target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
@@ -213,8 +213,12 @@ interpolate_location :: (client: *Client, entity: *Entity, snap_rotation: bool) 
         entity.visual_position.y = lerp(entity.visual_position.y, target_position.y, speed);
     }
         
-    if snap_rotation {
-        entity.visual_rotation = visual_from_physical_rotation(entity.physical_rotation);
+    if disable_visual_rotation {
+        // This is a hack, but for certain entities (e.g. players) we have sprites for the all
+        // the different physical rotations (because these are from different "perspectives").
+        // For those sprites, we don't actually want to rotate them visually, because the sprites
+        // themselves are "rotated"...
+        entity.visual_rotation = 0;
     } else {
         speed := client.tick_time * 20;
         target_rotation := visual_from_physical_rotation(entity.physical_rotation);

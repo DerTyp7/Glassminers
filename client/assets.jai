@@ -33,24 +33,36 @@ Baked_Texture :: struct {
             Emitter;
             Receiver;
             Mirror;
-            Player;
-            Reserved_0;
-            Red_Dragon;
+            Player_Idle_0;
+            Player_Idle_1;
+            Dragon_Idle_0;
+            Dragon_Idle_1;
+            Dragon_Spitting_Fire;
+            Dragon_Recovering_0;
+            Dragon_Recovering_1;
         }
 
         New_Order: []Old_Order : .[
-                .Background,
-                .Bedrock,
-                .Crystal,
-                .Rock,
-                .Shard,
-                .Stone,
-                .Emitter,
-                .Receiver,
-                .Mirror,
-                .Player,
-                .Count, // Reserved
-                .Red_Dragon,
+            .Background,
+            .Bedrock,
+            .Crystal,
+            .Rock,
+            .Shard,
+            .Stone,
+            .Emitter,
+            .Receiver,
+            .Mirror,
+            .Player_Idle_0,
+            .Player_Idle_1,
+            .Count,
+            .Count,
+            .Count,
+            .Count,
+            .Dragon_Idle_0,
+            .Dragon_Idle_1,
+            .Dragon_Spitting_Fire,
+            .Dragon_Recovering_0,
+            .Dragon_Recovering_1,
         ];
         
         Sprite :: struct {
