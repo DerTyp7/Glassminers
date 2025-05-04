@@ -59,6 +59,7 @@ Dragon :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
     state: Dragon_State = .Idle;
+    state_t: f32 = 0;
 }
 
 Entity_Manager :: struct {
@@ -232,6 +233,8 @@ update_dragon :: (client: *Client, dragon: *Dragon) {
       case .Attacking;
         recalculate_beam(client, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, DRAGON_BEAM_LENGTH);
     }
+
+    dragon.state_t += client.tick_time;
 }
 
 

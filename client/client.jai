@@ -255,7 +255,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Dragon_State;
         entity := get_entity(client, msg.dragon_state.entity_pid);
         dragon := down(entity, Dragon);
+        if dragon.state != msg.dragon_state.state then dragon.state_t = 0;
         dragon.state = msg.dragon_state.state;
+        
     }
 }
 

@@ -261,11 +261,18 @@ Sprite_Index :: enum {
     Player_Idle_1;
     Dragon_Idle_0;
     Dragon_Idle_1;
+    Dragon_Spitting_Fire;
+    Dragon_Recovering_0;
+    Dragon_Recovering_1;
 }
 
-get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index) -> Sprite_Index {
-    frame_index := cast(s64) round(client.epoch_time / frame_time) % frames.count;
+get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32) -> Sprite_Index {
+    frame_index := cast(s64) floor(time / frame_time) % frames.count;
     return frames[frame_index];
+}
+
+get_epoch_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index) -> Sprite_Index {
+    return get_time_animated_sprite_index(client, frame_time, frames, client.epoch_time);
 }
 
 get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
@@ -285,7 +292,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     horizontally_mirrored := false;
     
     if #complete entity.entity_kind == {
-      case .Player;    index = get_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_0, .Player_Idle_1 ]);
+      case .Player;    index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_0, .Player_Idle_1 ]);
       case .Crystal;   index = .Crystal;
       case .Bedrock;   index = .Bedrock;
       case .Emitter;   index = .Emitter;
@@ -296,13 +303,17 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         stack := down(entity, Item_Stack);
         index = get_sprite_index_for_item(stack.item_kind);
       case .Dragon;
-        index = get_time_animated_sprite_index(client, 0.5, .[ .Dragon_Idle_0, .Dragon_Idle_1 ]);;
         dragon := down(entity, Dragon);
         
         if #complete dragon.state == {
           case .Idle;
-          case .Attacking;  tint = .{ 255, 0, 0, 255 };
-          case .Recovering; tint = .{ 100, 140, 155, 255 };
+            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Dragon_Idle_0, .Dragon_Idle_1 ]);
+            
+          case .Attacking;
+            index = .Dragon_Spitting_Fire;
+
+          case .Recovering;
+            index = get_time_animated_sprite_index(client, DRAGON_RECOVER_TIME / 2, .[ .Dragon_Recovering_0, .Dragon_Recovering_1 ], dragon.state_t);
         }
 
         horizontally_mirrored = dragon.physical_rotation == .East;
