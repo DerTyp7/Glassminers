@@ -288,7 +288,7 @@ update_player :: (server: *Server, player: *Player) {
                     // @Temporary: Players can currently create mirrors out of thin air...
                     create_entity(server, .Mirror, player.target_position, .North);
                 } else if target_entity.entity_kind == .Mirror {
-                    warp_entity(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
+                    update_physical_location(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
                 } else if target_entity.entity_kind == .Player {
                     other_player := down(target_entity, Player);
                     if other_player.state == .Dead {
@@ -409,7 +409,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
             delta := v2i.{ target_player.physical_position.x - dragon.physical_position.x, target_player.physical_position.y - dragon.physical_position.y };
 
             rotation := direction_from_vector(delta);
-            warp_entity(server, dragon, dragon.physical_position, rotation);
+            update_physical_location(server, dragon, dragon.physical_position, rotation);
 
             if target_distance <= DRAGON_BEAM_LENGTH {
                 // The target player is actually in reach for the dragon's beam. Since we are
@@ -547,7 +547,7 @@ move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
     }
 }
 
-warp_entity :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
+update_physical_location :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
     entity.physical_position = position;
     entity.physical_rotation = rotation;
 
@@ -613,7 +613,7 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
     collision := get_blocking_entity_at_position(server, position, is_move_blocking_entity);
     if collision recursive_move(server, collision, move_delta);
 
-    warp_entity(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);
+    update_physical_location(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);
 }
 
 clear_beam_data :: (data: *Beam_Data) {
