@@ -114,6 +114,7 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
 
 
 host_server :: (client: *Client, port: u16) {
+    logprint(.Debug, "Hosting server '%'...", port);
     server_entry_point :: (data: *Shared_Server_Data) -> u32 #foreign;
 
     client.server_data.state = .Starting;
@@ -123,6 +124,8 @@ host_server :: (client: *Client, port: u16) {
 }
 
 join_server :: (client: *Client, name: string, host: string, port: u16) {
+    logprint(.Debug, "Joining server '%:%'...", host, port);
+
     if create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port) == .Success {
         send_connection_request_packet(*client.connection, 5);
         client.my_name    = copy_string(*client.engine_allocator, name);
@@ -133,6 +136,8 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
 }
 
 disconnect_from_server :: (client: *Client) {
+    logprint(.Debug, "Disconnecting from the server...");
+
     send_connection_closed_packet(*client.connection, 5);
     destroy_connection(*client.connection);
     maybe_shutdown_server(client);
