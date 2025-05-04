@@ -86,6 +86,7 @@ Client :: struct {
     //
     world_pool: Memory_Pool;
     world_allocator: Allocator;
+    requested_campaign: Campaign = .Tutorial; // Lobby screen
     game_seed: s64;
     world_size: v2i;
     tick_time: f32;
@@ -144,6 +145,7 @@ disconnect_from_server :: (client: *Client) {
 
 start_lobby :: (client: *Client) {
     msg := make_message(Request_Game_Start_Message);
+    msg.request_game_start.campaign = client.requested_campaign;
     send_reliable_message(*client.connection, *msg);
 }
 
@@ -443,8 +445,17 @@ do_lobby_screen :: (client: *Client) {
             rc := array_get_pointer(*client.remote_clients, i);
             ui_label(ui, false, rc.name);
         }
-
+        
         ui_divider(ui, true);
+        if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Campaign)[client.requested_campaign]) {
+            for i := 0; i < Campaign.Count; ++i {
+                if ui_button(ui, enum_names(Campaign)[i]) {
+                    client.requested_campaign = i;
+                }
+            }
+        }
+        ui_pop_dropdown(ui);
+
         if ui_button(ui, "Start!") {
             start_lobby(client);
         }
@@ -604,8 +615,6 @@ do_game_tick :: (client: *Client) {
 
 main :: (args: []string) -> s32 {
 #if DEVELOPER {
-    print("Args: %\n", args);
-
     if args.count >= 2 && args[1] == "-reorder_sprite_atlases" {
         reorder_sprite_atlases();
         return 0;

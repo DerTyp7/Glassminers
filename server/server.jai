@@ -51,6 +51,7 @@ Server :: struct {
     //
     // Game Data
     //
+    campaign: Campaign = .Tutorial;
     world_pool: Memory_Pool;
     world_allocator: Allocator;
     game_seed: s64;
@@ -130,6 +131,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         array_add(*server.outgoing_messages, ~msg);
         
       case .Request_Game_Start;
+        server.campaign = msg.request_game_start.campaign;
         create_the_game(server);
         server.next_state = .Ingame;
         
@@ -233,12 +235,10 @@ switch_to_next_state :: (server: *Server) {
 }
 
 create_the_game :: (server: *Server) {
-    CAMPAIGN :: Campaign.Medium;
-
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
-    if #complete CAMPAIGN == {
+    if #complete server.campaign == {
       case .Tutorial; server.world_size = .{ 9, 5 };
       case .Easy;     server.world_size = .{ 18, 5 };
       case .Medium;   server.world_size = .{ 36, 5 };

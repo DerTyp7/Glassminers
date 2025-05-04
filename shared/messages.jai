@@ -30,6 +30,7 @@ Player_Disconnect_Message :: struct {
 
 Request_Game_Start_Message :: struct {
     MSG_TYPE :: Message_Type.Request_Game_Start;
+    campaign: Campaign;
 }
 
 Game_Start_Message :: struct {
