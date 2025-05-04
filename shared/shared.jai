@@ -80,6 +80,9 @@ NETWORK_PING_INTERVAL: f32 : 0.25;
 
 /* -------------------------------------------------- World -------------------------------------------------- */
 
+VISUAL_ROOM_SIZE   :: v2f.{ 5, 5 };
+VISUAL_ROOM_OFFSET :: v2f.{ #run floor(VISUAL_ROOM_SIZE.x / 2), #run floor(VISUAL_ROOM_SIZE.y / 2) };
+
 RECEIVER_TIME_TO_CHARGE: f32 : 5;
 EMITTER_TIME_TO_DIE: f32 : 180;
 

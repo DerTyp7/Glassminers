@@ -333,13 +333,17 @@ switch_to_next_state :: (client: *Client) {
     client.current_state = client.next_state;
     
     if #complete client.current_state == {
-      case .Main_Menu, .Connecting, .Ingame, .Game_Over;
-      
+      case .Main_Menu, .Connecting, .Game_Over;
+
+      case .Ingame;
+        // Calculate the initial camera position to avoid lerping the first few frames...
+        player := get_entity(client, client.my_entity_pid);
+        update_camera_matrices(*client.camera, *client.window); // Initialize the camera size
+        client.camera.center = calculate_camera_target_position(client, player.physical_position);
+        
       case .Lobby;
         // The server will already initialize our game during the lobby...
-        logprint(.Debug, "Clearing the world allocator...");
         create_entity_manager(client);
-        client.camera.center = .{ 4, 2 };
         client.my_entity_pid = INVALID_PID;
     }
 }
@@ -473,19 +477,26 @@ do_game_over_screen :: (client: *Client) {
     ui_pop_width(ui);
 }
 
-do_game_tick :: (client: *Client) {
-    clamp_camera_position :: (client: *Client, target_position: v2f) -> v2f {
-        ROOM_OFFSET :: v2f.{ 4, 2 };
-        ROOM_SIZE   :: v2f.{ 9, 5 };
-        
-        room_position := v2f.{ floor(target_position.x / ROOM_SIZE.x) * ROOM_SIZE.x + ROOM_OFFSET.x, 
-                               floor(target_position.y / ROOM_SIZE.y) * ROOM_SIZE.y + ROOM_OFFSET.y };
-        half_size     := v2f.{ floor(client.camera.size.x / 2), floor(client.camera.size.y / 2) };
-        
-        return .{ clamp(room_position.x, half_size.x, xx client.world_size.x - half_size.x - 1),
-                  clamp(room_position.y, half_size.y, xx client.world_size.y - half_size.y - 1) };
-    }
+calculate_camera_target_position :: (client: *Client, target_center_position: v2i) -> v2f {
+    room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
+                           floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
+    
+    half_size     := v2f.{ floor(client.camera.size.x / 2), floor(client.camera.size.y / 2) };
+    
+    target_camera_position := v2f.{ clamp(room_position.x, half_size.x, xx client.world_size.x - half_size.x - 1),
+                                    clamp(room_position.y, half_size.y, xx client.world_size.y - half_size.y - 1) };
+    
+    return target_camera_position;
+}
 
+calculate_camera_position :: (client: *Client, current_camera_position: v2f, target_center_position: v2i) -> v2f {
+    target_camera_position := calculate_camera_target_position(client, target_center_position);
+    speed := 10 * client.tick_time;
+    return .{ lerp(current_camera_position.x, target_camera_position.x, speed),
+              lerp(current_camera_position.y, target_camera_position.y, speed) };
+}
+
+do_game_tick :: (client: *Client) {
     client.tick_time = client.window.frame_time;
     
     read_incoming_packets(client);
@@ -523,7 +534,7 @@ do_game_tick :: (client: *Client) {
     // Update the camera
     {
         player := get_entity(client, client.my_entity_pid);
-        client.camera.center = clamp_camera_position(client, player.visual_position);
+        client.camera.center = calculate_camera_position(client, client.camera.center, .{ xx player.physical_position.x, xx player.physical_position.y });
         update_camera_matrices(*client.camera, *client.window);
     }
 
