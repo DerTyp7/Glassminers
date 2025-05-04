@@ -85,14 +85,14 @@ Entity_Manager :: struct {
 
 create_entity_manager :: (server: *Server) {
     server.pid_counter = 0;
-    server.pid_lookup.allocator = *server.perm;
+    server.pid_lookup.allocator = *server.world_allocator;
     probed_hash_table_create(*server.pid_lookup, 128, pid_hash, pids_equal);
-    create_bucket_array(*server.all_entities, *server.perm);
-    create_bucket_array(*server.players, *server.perm);
-    create_bucket_array(*server.emitters, *server.perm);
-    create_bucket_array(*server.receivers, *server.perm);
-    create_bucket_array(*server.item_stacks, *server.perm);
-    create_bucket_array(*server.dragons, *server.perm);
+    create_bucket_array(*server.all_entities, *server.world_allocator);
+    create_bucket_array(*server.players, *server.world_allocator);
+    create_bucket_array(*server.emitters, *server.world_allocator);
+    create_bucket_array(*server.receivers, *server.world_allocator);
+    create_bucket_array(*server.item_stacks, *server.world_allocator);
+    create_bucket_array(*server.dragons, *server.world_allocator);
 }
 
 destroy_entity_manager :: (server: *Server) {
@@ -418,7 +418,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
                 dragon.state = .Attacking;
                 dragon.attack_t = DRAGON_ATTACK_TIME;
                 array_clear(*dragon.damaged_entities_this_attack);
-                dragon.damaged_entities_this_attack.allocator = *server.perm;
+                dragon.damaged_entities_this_attack.allocator = *server.world_allocator;
                 send_update(server, dragon);
             }
         }

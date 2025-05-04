@@ -34,8 +34,8 @@ Server :: struct {
     //
     // Engine structure
     //
-    perm_pool: Memory_Pool;
-    perm: Allocator;
+    engine_pool: Memory_Pool;
+    engine_allocator: Allocator;
     current_state: Game_State;
     next_state: Game_State;
     random: Random_Generator;
@@ -51,11 +51,11 @@ Server :: struct {
     //
     // Game Data
     //
+    world_pool: Memory_Pool;
+    world_allocator: Allocator;
     game_seed: s64;
     tick_time: f32;
-
     world_size: v2i;
-
     #using em: Entity_Manager;
 }
 
@@ -92,7 +92,7 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
     msg.player_disconnect.player_pid = client.player_pid;
     array_add(*server.outgoing_messages, msg);
     
-    if client.name deallocate_string(*server.perm, *client.name);
+    if client.name deallocate_string(*server.world_allocator, *client.name);
     
     array_remove_value_pointer(*server.clients, client);
 }
@@ -123,15 +123,15 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         }
         
         // Store the information locally
-        if target.name deallocate_string(*server.perm, *target.name);
-        target.name = copy_string(*server.perm, msg.player_information.name);
+        if target.name deallocate_string(*server.world_allocator, *target.name);
+        target.name = copy_string(*server.world_allocator, msg.player_information.name);
         
         // Broadcast the message along
         array_add(*server.outgoing_messages, ~msg);
         
       case .Request_Game_Start;
         create_the_game(server);
-        transition_to_state(server, .Ingame);
+        server.next_state = .Ingame;
         
       case .Player_Input;
         entity := get_entity(server, msg.player_input.entity_pid);
@@ -214,17 +214,15 @@ handle_client_timeouts :: (server: *Server) {
 
 
 
-transition_to_state :: (server: *Server, state: Game_State) {
-    server.next_state = state;
-}
-
 switch_to_next_state :: (server: *Server) {
     logprint(.Debug, "Switching from '%' to '%'...", server.current_state, server.next_state);
 
     if #complete server.current_state == {
       case .Lobby, .Game_Over; // Ignore
       case .Ingame;
+        array_clear(*server.clients);
         destroy_entity_manager(server);
+        reset_allocator(*server.world_allocator);
     }
     
     server.current_state = server.next_state;
@@ -396,7 +394,7 @@ do_game_tick :: (server: *Server) {
         msg := make_message(Game_Over_Message);
         msg.game_over.you_won = game_state == .Won;
         array_add(*server.outgoing_messages, msg);
-        transition_to_state(server, .Game_Over);
+        server.next_state = .Game_Over;
         logprint(.Debug, "Game Over!");
     }
 
@@ -422,9 +420,11 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     create_temp_allocator(128 * Memory_Unit.Megabytes);
 
     server: Server;
-    create_memory_pool(*server.perm_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
-    server.perm = allocator_from_memory_pool(*server.perm_pool);
-    server.clients.allocator = *server.perm;
+    create_memory_pool(*server.engine_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
+    server.engine_allocator = allocator_from_memory_pool(*server.engine_pool);
+    create_memory_pool(*server.world_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
+    server.world_allocator = allocator_from_memory_pool(*server.world_pool);
+    server.clients.allocator = *server.world_allocator;
     server.outgoing_messages.allocator = *temp;
 
     if create_server_connection(*server.connection, NETWORK_PROTOCOL, data.requested_port) == .Success {
@@ -439,7 +439,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     
     logprint(.Debug, "Started the server.");
     
-    transition_to_state(*server, .Lobby);
+    server.next_state = .Lobby;
     switch_to_next_state(*server);
     
     while atomic_load(cast(*s64) *data.state) == Server_State.Running {
@@ -464,12 +464,14 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         os_sleep_to_tick_rate(tick_start, tick_end, TICK_RATE);
     }
 
-    transition_to_state(*server, .Count); // Shut down all resources that might currently be in use
+    server.next_state = .Count; // Shut down all resources that might currently be in use
+    switch_to_next_state(*server);
     
     atomic_store(cast(*s64) *data.state, Server_State.Closing);
     
     destroy_connection(*server.connection);
-    array_clear(*server.clients);
+    destroy_memory_pool(*server.world_pool);
+    destroy_memory_pool(*server.engine_pool);
     destroy_temp_allocator();
 
     logprint(.Debug, "Stopped the server.");

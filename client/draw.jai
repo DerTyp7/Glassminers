@@ -3,7 +3,7 @@
 //
 
 create_draw_data :: (client: *Client) {
-    ge_create(*client.graphics, *client.window, *client.perm);
+    ge_create(*client.graphics, *client.window, *client.engine_allocator);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, false });
 

@@ -57,8 +57,8 @@ Client :: struct {
     ui: UI;
     mixer: Mixer;
 
-    perm_pool: Memory_Pool;
-    perm: Allocator;
+    engine_pool: Memory_Pool;
+    engine_allocator: Allocator;
 
     ui_font, title_font: Font;
     ui_pipeline: *GE_Pipeline;
@@ -84,6 +84,8 @@ Client :: struct {
     //
     // Game Data
     //
+    world_pool: Memory_Pool;
+    world_allocator: Allocator;
     game_seed: s64;
     world_size: v2i;
     tick_time: f32;
@@ -120,8 +122,8 @@ host_server :: (client: *Client, port: u16) {
 join_server :: (client: *Client, name: string, host: string, port: u16) {
     if create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port) == .Success {
         send_connection_request_packet(*client.connection, 5);
-        client.my_name = copy_string(*client.perm, name);
-        transition_to_state(client, .Connecting);
+        client.my_name    = copy_string(*client.engine_allocator, name);
+        client.next_state = .Connecting;
     } else {
         maybe_shutdown_server(client);
     }
@@ -131,10 +133,10 @@ disconnect_from_server :: (client: *Client) {
     send_connection_closed_packet(*client.connection, 5);
     destroy_connection(*client.connection);
     maybe_shutdown_server(client);
-    deallocate_string(*client.perm, *client.my_name);
+    deallocate_string(*client.engine_allocator, *client.my_name);
     
     for i := 0; i < client.remote_clients.count; ++i {
-        deallocate_string(*client.perm, *array_get_pointer(*client.remote_clients, i).name);
+        deallocate_string(*client.world_allocator, *array_get_pointer(*client.remote_clients, i).name);
     }
     
     array_clear(*client.remote_clients);
@@ -156,7 +158,7 @@ remove_client_by_pid :: (client: *Client, pid: Pid) {
     for i := 0; i < client.remote_clients.count; ++i {
         rc := array_get_pointer(*client.remote_clients, i);
         if rc.player_pid == pid {
-            deallocate_string(*client.perm, *rc.name);
+            deallocate_string(*client.world_allocator, *rc.name);
             array_remove_index(*client.remote_clients, i);
         }        
     }
@@ -182,7 +184,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             if rc == null {
                 rc            = array_push(*client.remote_clients);
                 rc.player_pid = msg.player_information.player_pid;
-                rc.name       = copy_string(*client.perm, msg.player_information.name);
+                rc.name       = copy_string(*client.world_allocator, msg.player_information.name);
                 rc.entity_pid = msg.player_information.entity_pid;
             } else if msg.player_information.entity_pid != INVALID_PID {
                 rc.entity_pid = msg.player_information.entity_pid;
@@ -197,7 +199,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Start;
         client.game_seed = msg.game_start.seed;
         client.world_size = msg.game_start.size;
-        transition_to_state(client, .Ingame);
+        client.next_state = .Ingame;
         
       case .Game_Over;
         if msg.game_over.you_won {
@@ -205,7 +207,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         } else {
             client.previous_game_result = .We_Lost;
         }
-        transition_to_state(client, .Game_Over);
+        client.next_state = .Game_Over;
         
       case .Create_Entity;
         create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
@@ -270,7 +272,7 @@ read_incoming_packets :: (client: *Client) {
             if client.next_state == .Connecting {
                 client.my_player_pid = packet.header.sender_client_id;
                 client.connection.info.client_id = client.my_player_pid;
-                transition_to_state(client, .Lobby);
+                client.next_state = .Lobby;
                 
                 msg := make_message(Player_Information_Message);
                 msg.player_information.player_pid = client.my_player_pid;
@@ -279,9 +281,8 @@ read_incoming_packets :: (client: *Client) {
             }
           
           case Packet_Type.Connection_Closed;
-            disconnect_from_server(client);
             client.previous_game_result = .Connection_Lost;
-            transition_to_state(client, .Game_Over);
+            client.next_state = .Game_Over;
 
           case Packet_Type.Ping;
             
@@ -296,19 +297,14 @@ read_incoming_packets :: (client: *Client) {
 
 handle_server_timeout :: (client: *Client) {
     if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
-        disconnect_from_server(client);
         client.previous_game_result = .Connection_Lost;
-        transition_to_state(client, .Game_Over);
+        client.next_state = .Game_Over;
     } else if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
         send_ping_packet(*client.connection);
     }
 }
 
 
-
-transition_to_state :: (client: *Client, state: Game_State) {
-    client.next_state = state;
-}
 
 switch_to_next_state :: (client: *Client) {
     logprint(.Debug, "Switching from '%' to '%'...", client.current_state, client.next_state);
@@ -325,12 +321,14 @@ switch_to_next_state :: (client: *Client) {
         if client.next_state != .Ingame {
             destroy_entity_manager(client);
             maybe_shutdown_server(client);
+            reset_allocator(*client.world_allocator);
         }
         
       case .Ingame;
         destroy_entity_manager(client);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
+        reset_allocator(*client.world_allocator);
     }
 
     client.current_state = client.next_state;
@@ -340,6 +338,7 @@ switch_to_next_state :: (client: *Client) {
       
       case .Lobby;
         // The server will already initialize our game during the lobby...
+        logprint(.Debug, "Clearing the world allocator...");
         create_entity_manager(client);
         client.camera.center = .{ 4, 2 };
         client.my_entity_pid = INVALID_PID;
@@ -419,8 +418,7 @@ do_connecting_screen :: (client: *Client) {
         ui_label(ui, false, "...");
         ui_divider(ui, true);
         if ui_button(ui, "Cancel!") {
-            disconnect_from_server(client);
-            transition_to_state(client, .Lobby);
+            client.next_state = .Main_Menu;
         }
         ui_pop_window(ui);
         ui_pop_width(ui);
@@ -450,8 +448,7 @@ do_lobby_screen :: (client: *Client) {
         
         ui_divider(ui, true);
         if ui_button(ui, "Disconnect!") {
-            disconnect_from_server(client);
-            transition_to_state(client, .Lobby);
+            client.next_state = .Main_Menu;
         }
         ui_pop_window(ui);
         ui_pop_width(ui);
@@ -471,8 +468,7 @@ do_game_over_screen :: (client: *Client) {
     
     ui_divider(ui, true);
     if ui_button(ui, "Back to Main Menu!") {
-        disconnect_from_server(client);
-        transition_to_state(client, .Main_Menu);
+        client.next_state = .Main_Menu;
     }
     ui_pop_window(ui);
     ui_pop_width(ui);
@@ -606,20 +602,20 @@ main :: () -> s32 {
     create_temp_allocator(128 * Memory_Unit.Megabytes);
     
     client: Client;
-    create_memory_pool(*client.perm_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
-    client.perm = allocator_from_memory_pool(*client.perm_pool);
-
+    create_memory_pool(*client.engine_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
+    client.engine_allocator = allocator_from_memory_pool(*client.engine_pool);
+    create_memory_pool(*client.world_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
+    client.world_allocator = allocator_from_memory_pool(*client.world_pool);
+    
     window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
     create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_mode);
     create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 1);
 
-    client.remote_clients.allocator = *client.perm;
+    client.remote_clients.allocator = *client.world_allocator;
     client.current_state = .Count;
-    client.next_state    = .Count;
-    
-    transition_to_state(*client, .Main_Menu); // Potentially initialize resources
+    client.next_state    = .Main_Menu;
     switch_to_next_state(*client);
 
     //
@@ -672,7 +668,7 @@ main :: () -> s32 {
     }
     
     // Shut down all resources that might currently be in use
-    transition_to_state(*client, .Count);
+    client.next_state = .Count;
     switch_to_next_state(*client);
     
     //
@@ -682,7 +678,8 @@ main :: () -> s32 {
     destroy_ui(*client.ui);
     destroy_draw_data(*client);
     destroy_window(*client.window);
-    destroy_memory_pool(*client.perm_pool);
+    destroy_memory_pool(*client.world_pool);
+    destroy_memory_pool(*client.engine_pool);
     destroy_temp_allocator();
     return 0;
 }

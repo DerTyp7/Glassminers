@@ -78,17 +78,19 @@ Entity_Manager :: struct {
 //
 
 create_entity_manager :: (client: *Client) {
-    client.pid_lookup.allocator = *client.perm;
+    logprint(.Debug, "Creating the entity manager...");
+    client.pid_lookup.allocator = *client.world_allocator;
     probed_hash_table_create(*client.pid_lookup, 128, pid_hash, pids_equal);
-    create_bucket_array(*client.all_entities, *client.perm);
-    create_bucket_array(*client.players, *client.perm);
-    create_bucket_array(*client.emitters, *client.perm);
-    create_bucket_array(*client.receivers, *client.perm);
-    create_bucket_array(*client.item_stacks, *client.perm);
-    create_bucket_array(*client.dragons, *client.perm);
+    create_bucket_array(*client.all_entities, *client.world_allocator);
+    create_bucket_array(*client.players, *client.world_allocator);
+    create_bucket_array(*client.emitters, *client.world_allocator);
+    create_bucket_array(*client.receivers, *client.world_allocator);
+    create_bucket_array(*client.item_stacks, *client.world_allocator);
+    create_bucket_array(*client.dragons, *client.world_allocator);
 }
 
 destroy_entity_manager :: (client: *Client) {
+    logprint(.Debug, "Clearing the entity manager...");
     probed_hash_table_destroy(*client.pid_lookup);
     destroy_bucket_array(*client.all_entities);
     destroy_bucket_array(*client.players);
