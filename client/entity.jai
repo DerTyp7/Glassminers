@@ -78,7 +78,6 @@ Entity_Manager :: struct {
 //
 
 create_entity_manager :: (client: *Client) {
-    logprint(.Debug, "Creating the entity manager...");
     client.pid_lookup.allocator = *client.world_allocator;
     probed_hash_table_create(*client.pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.all_entities, *client.world_allocator);
@@ -90,7 +89,6 @@ create_entity_manager :: (client: *Client) {
 }
 
 destroy_entity_manager :: (client: *Client) {
-    logprint(.Debug, "Clearing the entity manager...");
     probed_hash_table_destroy(*client.pid_lookup);
     destroy_bucket_array(*client.all_entities);
     destroy_bucket_array(*client.players);
@@ -241,7 +239,6 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
 update_player :: (client: *Client, player: *Player) {
     if player.state == .Resurrecting {
         player.resurrection_t += client.tick_time / RESURRECTION_TIME;
-        logprint(.Debug, "Resurrecting");
     }
 }
 

@@ -222,6 +222,10 @@ switch_to_next_state :: (server: *Server) {
     if #complete server.current_state == {
       case .Lobby, .Game_Over; // Ignore
       case .Ingame;
+        for i := 0; i < server.clients.count; ++i {
+            client := array_get(*server.clients, i);
+            destroy_connection(*client.connection);
+        }
         array_clear(*server.clients);
         destroy_entity_manager(server);
         reset_allocator(*server.world_allocator);
