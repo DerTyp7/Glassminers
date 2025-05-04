@@ -233,7 +233,7 @@ switch_to_next_state :: (server: *Server) {
 }
 
 create_the_game :: (server: *Server) {
-    CAMPAIGN :: Campaign.Tutorial;
+    CAMPAIGN :: Campaign.Medium;
 
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
@@ -286,7 +286,6 @@ create_the_game :: (server: *Server) {
         generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
         generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
-        create_entity(server, .Dragon, .{ server.world_size.x / 2, server.world_size.y / 2 }, .North);
     }
     
     //

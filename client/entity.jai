@@ -157,8 +157,8 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.health             = MAX_HEALTHS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
-    entity.visual_position    = .{ xx position.x, xx position.y };
-    entity.visual_rotation    = visual_from_physical_rotation(rotation);
+    entity.visual_position    = .{ xx entity.physical_position.x, xx entity.physical_position.y };
+    entity.visual_rotation    = visual_from_physical_rotation(entity.physical_rotation);
 
     probed_hash_table_add(*client.pid_lookup, pid, entity);
 
@@ -207,7 +207,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
 
 interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
     {
-        speed := client.tick_time * 20;
+        speed := client.tick_time * 10;
         target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
         entity.visual_position.x = lerp(entity.visual_position.x, target_position.x, speed);
         entity.visual_position.y = lerp(entity.visual_position.y, target_position.y, speed);

@@ -263,6 +263,15 @@ Sprite_Index :: enum {
     Player_Idle_Back_1;
     Player_Idle_Front_0;
     Player_Idle_Front_1;
+    Player_Walk_Side_0;
+    Player_Walk_Side_1;
+    Player_Walk_Side_2;
+    Player_Walk_Back_0;
+    Player_Walk_Back_1;
+    Player_Walk_Back_2;
+    Player_Walk_Front_0;
+    Player_Walk_Front_1;
+    Player_Walk_Front_2;
     Dragon_Idle_0;
     Dragon_Idle_1;
     Dragon_Spitting_Fire;
@@ -291,21 +300,50 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
 }
 
 get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, GE_Color, bool {
+    entity_is_moving :: (entity: *Entity) -> bool {
+        EPSILON: f32 : 0.01;
+        target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
+        return abs(entity.visual_position.x - target_position.x) > EPSILON ||
+            abs(entity.visual_position.y - target_position.y) > EPSILON;
+    }
+
     index: Sprite_Index = ---;
     tint: GE_Color = .{ 255, 255, 255, 255 };
     horizontally_mirrored := false;
     
     if #complete entity.entity_kind == {
       case .Player;
-        if #complete entity.physical_rotation == {
-          case .North;
-            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_Back_0, .Player_Idle_Back_1 ]);
-          case .South;
-            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_Front_0, .Player_Idle_Front_1 ]);
-          case .East, .West;
-            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Player_Idle_Side_0, .Player_Idle_Side_1 ]);
-            horizontally_mirrored = entity.physical_rotation == .East;
+        frames: []Sprite_Index = ---;
+        frame_time: f32 = ---;
+
+        if entity_is_moving(entity) {
+            if #complete entity.physical_rotation == {
+              case .North;
+                frames = .[ .Player_Walk_Back_0, .Player_Walk_Back_1, .Player_Walk_Back_2 ];
+                frame_time = 0.2;
+              case .South;
+                frames = .[ .Player_Walk_Front_0, .Player_Walk_Front_1, .Player_Walk_Front_2 ];
+                frame_time = 0.2;
+              case .East, .West;
+                frames = .[ .Player_Walk_Side_0, .Player_Walk_Side_1, .Player_Walk_Side_2 ];
+                frame_time = 0.2;
+            }
+        } else {
+            if #complete entity.physical_rotation == {
+              case .North;
+                frames = .[ .Player_Idle_Back_0, .Player_Idle_Back_1 ];
+                frame_time = 0.5;
+              case .South;
+                frames = .[ .Player_Idle_Front_0, .Player_Idle_Front_1 ];
+                frame_time = 0.5;
+              case .East, .West;
+                frames = .[ .Player_Idle_Side_0, .Player_Idle_Side_1 ];
+                frame_time = 0.5;
+            }
         }
+            
+        horizontally_mirrored = entity.physical_rotation == .East;
+        index = get_epoch_time_animated_sprite_index(client, frame_time, frames);
             
       case .Crystal;   index = .Crystal;
       case .Bedrock;   index = .Bedrock;

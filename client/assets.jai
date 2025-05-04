@@ -33,8 +33,12 @@ Baked_Texture :: struct {
             Emitter;
             Receiver;
             Mirror;
-            Player_Idle_0;
-            Player_Idle_1;
+            Player_Idle_Side_0;
+            Player_Idle_Side_1;
+            Player_Idle_Back_0;
+            Player_Idle_Back_1;
+            Player_Idle_Front_0;
+            Player_Idle_Front_1;
             Dragon_Idle_0;
             Dragon_Idle_1;
             Dragon_Spitting_Fire;
@@ -52,8 +56,17 @@ Baked_Texture :: struct {
             .Emitter,
             .Receiver,
             .Mirror,
-            .Player_Idle_0,
-            .Player_Idle_1,
+            .Player_Idle_Side_0,
+            .Player_Idle_Side_1,
+            .Player_Idle_Back_0,
+            .Player_Idle_Back_1,
+            .Player_Idle_Front_0,
+                .Player_Idle_Front_1,
+            .Count,
+            .Count,
+            .Count,
+            .Count,
+            .Count,
             .Count,
             .Count,
             .Count,
