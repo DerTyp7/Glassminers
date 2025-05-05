@@ -5,6 +5,7 @@ Hud :: struct {
     #using data: union {
         crafting_menu: struct {
             recipes: []Crafting_Recipe;
+            animation_t: []f32;
             selected_recipe: s64;
         };
     };
@@ -23,7 +24,7 @@ update_hud :: (client: *Client) {
     //
     if client.window.keys[.C] & .Pressed {
         hud.state = .Crafting_Menu;
-        hud.crafting_menu.recipes = RECIPES;
+        set_available_crafting_recipes(client, RECIPES);
     } else if !client.window.keys[.C] & .Down && hud.state == .Crafting_Menu {
         hud.state = .Disabled;
     }
@@ -67,11 +68,19 @@ draw_hud :: (client: *Client) {
         
         for i := 0; i < hud.crafting_menu.recipes.count; ++i {
             recipe := hud.crafting_menu.recipes[i];
-
+            
             theta0 := cast(f32) i * theta_per_recipe + padding_per_recipe / 2;
             theta1 := cast(f32) (i + 1) * theta_per_recipe - padding_per_recipe / 2;
 
-            draw_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, .{ 40, 50, 60, 180 });
+            background_color := ge_mix_colors(.{ 40, 50, 60, 180 }, .{ 50, 89, 128, 180 }, client.hud.crafting_menu.animation_t[i]);
+            draw_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, background_color);
+
+            if hud.crafting_menu.selected_recipe == i {
+                draw_outlined_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
+                client.hud.crafting_menu.animation_t[i] = clamp(client.hud.crafting_menu.animation_t[i] + 5 * client.tick_time, 0, 1);
+            } else {
+                client.hud.crafting_menu.animation_t[i] = clamp(client.hud.crafting_menu.animation_t[i] - 3 * client.tick_time, 0, 1);
+            }
 
             sprite_index: Sprite_Index = ---;
             
@@ -82,17 +91,24 @@ draw_hud :: (client: *Client) {
               case .Crystal; sprite_index = .Crystal;
             }
 
-            theta     := (theta0 + theta1) * 0.5 * FTAU;
-            radius    := (inner_radius + outer_radius) * 0.5;
-            item_size := v2f.{ (outer_radius - inner_radius) * 0.9, (outer_radius - inner_radius) * 0.9 };
+            theta       := (theta0 + theta1) * 0.5 * FTAU;
+            radius      := (inner_radius + outer_radius) * 0.5;
+            item_scale  := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
+            item_size   := v2f.{ (outer_radius - inner_radius) * item_scale, (outer_radius - inner_radius) * item_scale };
             item_center := v2f.{ screen_center.x + sinf(theta) * radius, screen_center.y - cosf(theta) * radius };
             draw_sprite_screen_space(client, sprite_index, item_center, item_size, 0, .{ 255, 255, 255, 255 }, false);
 
-            if hud.crafting_menu.selected_recipe == i {
-                draw_outlined_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
-            }
         }
     }
+}
+
+set_available_crafting_recipes :: (client: *Client, recipes: []Crafting_Recipe) {
+    deallocate_array(*client.world_allocator, *client.hud.crafting_menu.recipes);
+    deallocate_array(*client.world_allocator, *client.hud.crafting_menu.animation_t);
+    client.hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipes.count);
+    client.hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipes.count);
+    copy_memory(client.hud.crafting_menu.recipes.data, recipes.data, recipes.count * size_of(Crafting_Recipe));
+    clear_memory(client.hud.crafting_menu.animation_t.data, recipes.count * size_of(f32));
 }
 
 
