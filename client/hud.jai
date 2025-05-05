@@ -1,6 +1,7 @@
 Hud :: struct {
     state: Hud_State;
-
+    crafting_recipe_input_this_frame: Crafting_Recipe;
+    
     #using data: union {
         crafting_menu: struct {
             recipes: []Crafting_Recipe;
@@ -12,6 +13,11 @@ Hud :: struct {
 update_hud :: (client: *Client) {
     hud :: *client.hud;
 
+    //
+    // Clear out persistent state
+    //
+    hud.crafting_recipe_input_this_frame = .None;
+    
     //
     // Toggle the active state
     //
@@ -29,12 +35,17 @@ update_hud :: (client: *Client) {
       case .Disabled;
 
       case .Crafting_Menu;
-        if client.window.keys[.W] & .Repeated || client.window.keys[.Arrow_Left] & .Repeated {
+        if client.window.keys[.A] & .Repeated || client.window.keys[.W] & .Repeated || client.window.keys[.Arrow_Left] & .Repeated || client.window.keys[.Arrow_Up] & .Repeated {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe - 1 + hud.crafting_menu.recipes.count) % hud.crafting_menu.recipes.count;
         }
 
-        if client.window.keys[.D] & .Repeated || client.window.keys[.Arrow_Right] & .Repeated {
+        if client.window.keys[.D] & .Repeated || client.window.keys[.S] & .Repeated || client.window.keys[.Arrow_Right] & .Repeated || client.window.keys[.Arrow_Down] & .Repeated {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe + 1) % hud.crafting_menu.recipes.count;
+        }
+
+        if client.window.keys[.Enter] & .Pressed {
+            hud.crafting_recipe_input_this_frame = hud.crafting_menu.recipes[hud.crafting_menu.selected_recipe];
+            hud.state = .Disabled;
         }
     }
 }

@@ -326,6 +326,168 @@ do_lobby_tick :: (server: *Server) {
     send_all_outgoing_messages(server);
 }
 
+get_available_resources_for_player :: (server: *Server, player: *Player) -> [..]Item_Kind {
+    result: [..]Item_Kind;
+    result.allocator = *temp;
+
+    if player.state == .Carrying && player.carrying_item != .Count {
+        array_add(*result, player.carrying_item);
+    }
+
+    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, player.physical_position);
+    if standing_on {
+        item_stack := down(standing_on, Item_Stack);
+
+        for i := 0; i < item_stack.count; ++i {
+            array_add(*result, item_stack.item_kind);
+        }
+    }
+    
+    return result;
+}
+
+consume_resources_from_player :: (server: *Server, player: *Player, resources: []Item_Kind) {
+    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, player.physical_position);
+    item_stack: *Item_Stack = null;
+
+    if standing_on {
+        item_stack = down(standing_on, Item_Stack);
+    }
+        
+    for i := 0; i < resources.count; ++i {
+        resource := resources[i];
+
+        if player.state == .Carrying && player.carrying_item == resource {
+            player.carrying_item = .Count;
+            player.state = .Idle;
+        } else if item_stack && item_stack.item_kind == resource && item_stack.count {
+            take_item_from_stack(server, item_stack);            
+        } else {
+            panic("Tried to consume resources from the player that they don't have.");
+        }
+    }
+}
+
+available_resources_fulfill :: (available: [..]Item_Kind, required: []Item_Kind) -> bool {
+    copy := array_copy(*available, *temp);
+
+    all_requirements_met := true;
+
+    for i := 0; i < required.count; ++i {
+        item_found := false;
+
+        for j := 0; j < copy.count; ++j {
+            if array_get(*copy, j) == required[i] {
+                item_found = true;
+                array_remove_index(*copy, j);
+                break;
+            }
+        }
+
+        all_requirements_met &= item_found;
+    }
+    
+    return all_requirements_met;
+}
+
+maybe_craft_recipe :: (server: *Server, player: *Player, result_entity: Entity_Kind, required_resources: []Item_Kind) -> bool {
+    // First check that the player has the necessary resources available
+    available_resources := get_available_resources_for_player(server, player);
+    if !available_resources_fulfill(available_resources, required_resources) return false;
+    
+    // Then check the target position is actually empty
+    target_entity := get_entity_at_position(server, player.target_position);
+    if target_entity return false;
+
+    // Actually commit to crafting.
+    consume_resources_from_player(server, player, required_resources);
+    create_entity(server, result_entity, player.target_position, .North);
+    return true;
+}
+
+handle_player_input :: (server: *Server, player: *Player) {
+    //
+    // Handle movement
+    //
+    {
+        cancel_current_action := player.physical_rotation != player.received_input.aim_direction || player.physical_position.x != player.received_input.position.x || player.physical_position.y != player.received_input.position.y;
+
+        if cancel_current_action {
+            if #complete player.state == {
+              case .Dead, .Idle, .Carrying;
+              case .Digging, .Resurrecting;
+                player.state = .Idle;
+            }
+        }
+
+        if can_move_to_position(server, player, player.received_input.position) {
+            move_to_position(server, player, player.received_input.position);
+        }
+        
+        update_physical_location(server, player, player.physical_position, player.received_input.aim_direction);
+    }
+        
+    //
+    // Handle interaction
+    //
+    if #complete player.received_input.interaction_kind == {            
+      case .None;
+
+      case .Primary;
+        target_entity := get_entity_at_position(server, player.target_position);
+
+        if player.state != .Idle || !target_entity break;
+        
+        if target_entity.entity_kind == {
+          case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
+            player.state = .Digging;
+          case .Item_Stack;
+            player.state = .Carrying;
+            player.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
+        }
+        
+      case .Secondary;
+        target_entity := get_entity_at_position(server, player.target_position);
+
+        if #complete player.state == {
+          case .Dead, .Digging, .Resurrecting;
+          case .Idle;
+            if target_entity == null {
+            } else if target_entity.entity_kind == .Mirror {
+                update_physical_location(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
+            } else if target_entity.entity_kind == .Player {
+                other_player := down(target_entity, Player);
+                if other_player.state == .Dead {
+                    player.state = .Resurrecting;
+                    player.resurrection_pid = other_player.pid;
+                    player.resurrection_t = 0;
+                }
+            }
+            
+          case .Carrying;
+            if target_entity && target_entity.entity_kind == .Emitter {
+                emitter := down(target_entity, Emitter);
+                emitter.time_left_in_seconds = clamp(emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME, 0, EMITTER_MAX_TIME);
+                player.state = .Idle;
+                player.carrying_item = 0;
+            } else  if try_to_put_item(server, player.target_position, player.carrying_item) {
+                player.state = .Idle;
+                player.carrying_item = 0;
+            }
+        }
+    }
+    
+    //
+    // Handle crafting
+    //
+    if #complete player.received_input.crafting_recipe == {
+      case .None; // Ignore
+      case .Mirror; maybe_craft_recipe(server, player, .Mirror, .[ .Shard ]);
+      case .Dragon; maybe_craft_recipe(server, player, .Dragon, .[ .Stone, .Coal ]);
+      case .Crystal; maybe_craft_recipe(server, player, .Crystal, .[ .Shard, .Shard ]);
+    }
+}
+
 do_game_tick :: (server: *Server) {
     game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
 
@@ -394,6 +556,9 @@ do_game_tick :: (server: *Server) {
     for i := 0; i < server.players.slot_count; ++i {
         player, occupied := index_bucket_array(*server.players, i);
         if !occupied continue;
+
+        if player.received_input_this_tick && player.state != .Dead then handle_player_input(server, player);
+        player.received_input_this_tick = false;
 
         update_player(server, player);
 

@@ -29,7 +29,7 @@ Player :: struct {
     state: Player_State      = .Idle;
     target_position: v2i     = .{ 0, 0 };
 
-    carrying_item: Item_Kind = 0;
+    carrying_item: Item_Kind = .Count;
     
     resurrection_pid: Pid    = INVALID_PID;
     resurrection_t: f32      = 0; // Between 0 and 1
@@ -244,81 +244,6 @@ set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
 //
 
 update_player :: (server: *Server, player: *Player) {
-    //
-    // Handle input from the client
-    //
-    if player.received_input_this_tick && player.state != .Dead {
-        // Handle movement
-        cancel_current_action := player.physical_rotation != player.received_input.aim_direction || player.physical_position.x != player.received_input.position.x || player.physical_position.y != player.received_input.position.y;
-
-        if cancel_current_action {
-            if #complete player.state == {
-              case .Dead, .Idle, .Carrying;
-              case .Digging, .Resurrecting;
-                player.state = .Idle;
-            }
-        }
-
-        if can_move_to_position(server, player, player.received_input.position) {
-            move_to_position(server, player, player.received_input.position);
-        }
-        
-        update_physical_location(server, player, player.physical_position, player.received_input.aim_direction);
-
-        // Handle interaction
-        target_entity := get_entity_at_position(server, player.target_position);
-
-        if #complete player.received_input.interaction_kind == {            
-          case .None;
-
-          case .Primary;
-            if player.state != .Idle || !target_entity break;
-            
-            if target_entity.entity_kind == {
-              case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
-                player.state = .Digging;
-              case .Item_Stack;
-                player.state = .Carrying;
-                player.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
-            }
-            
-          case .Secondary;
-            if #complete player.state == {
-              case .Dead, .Digging, .Resurrecting;
-              case .Idle;
-                if target_entity == null {
-                    // @Temporary: Players can currently create mirrors out of thin air...
-                    create_entity(server, .Mirror, player.target_position, .North);
-                } else if target_entity.entity_kind == .Mirror {
-                    update_physical_location(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
-                } else if target_entity.entity_kind == .Player {
-                    other_player := down(target_entity, Player);
-                    if other_player.state == .Dead {
-                        player.state = .Resurrecting;
-                        player.resurrection_pid = other_player.pid;
-                        player.resurrection_t = 0;
-                    }
-                }
-                
-              case .Carrying;
-                if target_entity && target_entity.entity_kind == .Emitter {
-                    emitter := down(target_entity, Emitter);
-                    emitter.time_left_in_seconds = clamp(emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME, 0, EMITTER_MAX_TIME);
-                    player.state = .Idle;
-                    player.carrying_item = 0;
-                } else  if try_to_put_item(server, player.target_position, player.carrying_item) {
-                    player.state = .Idle;
-                    player.carrying_item = 0;
-                }
-            }
-        }
-    }
-
-    player.received_input_this_tick = false;
-
-    //
-    // Update the local entity
-    //
     look_vector := vector_from_direction(player.physical_rotation);
     player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
     
@@ -524,6 +449,15 @@ get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
         if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+get_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity {
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;

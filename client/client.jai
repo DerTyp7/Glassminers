@@ -567,14 +567,15 @@ do_game_tick :: (client: *Client) {
         player_entity := get_entity(client, client.my_entity_pid);
         player := down(player_entity, Player);
 
-        read_any_input := false;
+        read_any_input := client.hud.crafting_recipe_input_this_frame != .None;
         
         input: Player_Input_Message = ---;
         input.entity_pid       = client.my_entity_pid;
         input.position         = player.physical_position;
         input.aim_direction    = player.physical_rotation;
         input.interaction_kind = .None;
-
+        input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
+        
         if client.hud.state == .Disabled {
             if client.window.keys[.A] & .Repeated {
                 input.position.x    = player.physical_position.x - 1;
