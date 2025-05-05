@@ -1,0 +1,46 @@
+#
+# Inanimates
+#
+Background  data/sprites/inanimates/background.png
+Bedrock     data/sprites/inanimates/bedrock.png
+Crystal     data/sprites/inanimates/crystal.png
+Rock        data/sprites/inanimates/rock.png
+Shard       data/sprites/inanimates/shard.png
+Stone       data/sprites/inanimates/stone.png
+Emitter     data/sprites/inanimates/emitter.png
+Receiver    data/sprites/inanimates/receiver.png
+Mirror      data/sprites/inanimates/mirror.png
+Emitter     data/sprites/inanimates/emitter.png
+Receiver    data/sprites/inanimates/receiver.png
+Coal_Block  data/sprites/inanimates/coal-block.png
+Coal_Item   data/sprites/inanimates/coal-item.png
+
+#
+# Player
+#
+
+Player_Idle_Side_0   data/sprites/player/player-idle-side-0.png
+Player_Idle_Side_1   data/sprites/player/player-idle-side-1.png
+Player_Idle_Back_0   data/sprites/player/player-idle-back-0.png
+Player_Idle_Back_1   data/sprites/player/player-idle-back-1.png
+Player_Idle_Front_0  data/sprites/player/player-idle-front-0.png
+Player_Idle_Front_1  data/sprites/player/player-idle-front-1.png
+Player_Walk_Side_0   data/sprites/player/player-walk-side-0.png
+Player_Walk_Side_1   data/sprites/player/player-walk-side-1.png
+Player_Walk_Side_2   data/sprites/player/player-walk-side-2.png
+Player_Walk_Back_0   data/sprites/player/player-walk-back-0.png
+Player_Walk_Back_1   data/sprites/player/player-walk-back-1.png
+Player_Walk_Back_2   data/sprites/player/player-walk-back-2.png
+Player_Walk_Front_0  data/sprites/player/player-walk-front-0.png
+Player_Walk_Front_1  data/sprites/player/player-walk-front-1.png
+Player_Walk_Front_2  data/sprites/player/player-walk-front-2.png
+
+#
+# Dragon
+#
+
+Dragon_Idle_0         data/sprites/dragon/dragon-idle-0.png
+Dragon_Idle_1         data/sprites/dragon/dragon-idle-1.png
+Dragon_Spitting_Fire  data/sprites/dragon/dragon-spitting-fire.png
+Dragon_Recovering_0   data/sprites/dragon/dragon-recovering-0.png
+Dragon_Recovering_1   data/sprites/dragon/dragon-recovering-1.png
