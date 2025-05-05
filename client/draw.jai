@@ -2,9 +2,11 @@ Sprite_Index :: enum {
     Background;
     Bedrock;
     Crystal;
-    Rock;
     Shard;
+    Rock;
     Stone;
+    Coal_Block;
+    Coal_Item;
     Emitter;
     Receiver;
     Mirror;
@@ -28,8 +30,6 @@ Sprite_Index :: enum {
     Dragon_Spitting_Fire;
     Dragon_Recovering_0;
     Dragon_Recovering_1;
-    Coal_Block;
-    Coal_Item;
 }
 
 //

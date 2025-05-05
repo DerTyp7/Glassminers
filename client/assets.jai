@@ -1,13 +1,16 @@
 SPRITES_PER_ATLAS      :: SPRITE_ATLAS_COLUMNS * SPRITE_ATLAS_ROWS;
 SPRITE_ATLAS_WIDTH     :: 128;
 SPRITE_ATLAS_HEIGHT    :: 128;
+SPRITE_ATLAS_CHANNELS  :: 4;
 SPRITE_ATLAS_COLUMNS   :: 8;
 SPRITE_ATLAS_ROWS      :: 8;
 SPRITE_ATLAS_COUNT     :: 1;
+SPRITE_WIDTH           :: SPRITE_ATLAS_WIDTH / SPRITE_ATLAS_COLUMNS;
+SPRITE_HEIGHT          :: SPRITE_ATLAS_HEIGHT / SPRITE_ATLAS_ROWS;
 
 BAKE_ASSETS :: !DEVELOPER;
 
-Baked_Texture :: struct {
+Texture_Data :: struct {
     width:    u32;
     height:   u32;
     channels: u32;
@@ -22,6 +25,185 @@ Baked_Texture :: struct {
 
 
 #if DEVELOPER {
+
+    pack_sprite_atlases :: () -> bool {
+        find_sprite_index_from_name :: (name: string) -> s64, bool {
+            enum_info := cast(*Type_Info_Enum) type_info(Sprite_Index);
+
+            for i := 0; i < enum_info.members.count; ++i {
+                member := *enum_info.members[i];
+
+                if member.display_name == name {
+                    return member.integral_value, true;
+                }
+            }
+
+            return 0, false;
+        }
+        
+        Entry :: struct {
+            ident: string;
+            sprite_index: s64;
+            filepath: string;
+            texture: Texture_Data;
+        }
+
+        entries: [..]Entry;
+        defer {
+            for i := 0; i < entries.count; ++i free_texture_data(*array_get(*entries, i).texture);
+            array_clear(*entries);
+        };
+        
+        original_file_content, success := read_entire_file(Default_Allocator, "data/sprite-pack.txt");
+        defer free_file_content(Default_Allocator, *original_file_content);
+
+        highest_sprite_index: s64 = 0;
+        
+        //
+        // Parse the Sprite Pack file
+        //
+        {
+            if !success {
+                logprint(.Error, "Failed to open the sprite-pack file!");
+                return false;
+            }
+
+            file_content := original_file_content;
+            
+            line_number := 0;
+            while file_content.count {
+                ++line_number;
+                line: string = read_next_line(*file_content);
+
+                {
+                    pound_index, pound_found := search_string(line, #char "#");
+                    if pound_found {
+                        line = substring_view(line, 0, pound_index);
+                    }
+
+                    line = trim_string_view(line);
+
+                    if !line.count continue;
+                }
+
+                space_index, space_found := search_string(line, #char " ");
+                if !space_found {
+                    logprint(.Error, "The sprite-pack file is erroneous on line %: A sprite name and a file path, with a space between them were expected.");
+                    success = false;
+                    continue;
+                }
+
+                entry := array_push(*entries);
+                entry.ident    = trim_string_view(substring_view(line, 0, space_index));
+                entry.filepath = trim_string_view(substring_view(line, space_index + 1, line.count));
+
+                found_sprite_index: bool = ---;
+                entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
+                if !found_sprite_index {
+                    logprint(.Error, "The sprite ident '%' is not known in the system.", entry.ident);
+                    success = true;
+                }
+
+                highest_sprite_index = max(entry.sprite_index, highest_sprite_index);
+            }
+        }
+
+        if !success return false;
+
+        //
+        // Load all required sprite images into memory
+        //
+        {
+            for i := 0; i < entries.count; ++i {
+                entry := array_get_pointer(*entries, i);
+
+                found_sprite: bool = ---;
+                entry.texture, found_sprite = load_texture_data(entry.filepath);
+
+                if !found_sprite {
+                    logprint(.Error, "The source sprite file '%' does not exist!", entry.filepath);
+                    success = false;
+                } else  if entry.texture.channels != SPRITE_ATLAS_CHANNELS || entry.texture.width != SPRITE_WIDTH || entry.texture.height != SPRITE_HEIGHT {
+                    logprint(.Error, "Each source sprite file was expected to be '%x%' with % channels, but '%' was '%x%' with % channels.", SPRITE_WIDTH, SPRITE_HEIGHT, SPRITE_ATLAS_CHANNELS, entry.filepath, entry.texture.width, entry.texture.height, entry.texture.channels);
+                    success = false;
+                }
+            }
+        }
+
+        if !success return false;
+
+        //
+        // Put all entries into the sprite atlases
+        //
+        {
+            //
+            // Prepare the atlases
+            //
+            atlas_count := cast(s64) ceil(cast(f64) highest_sprite_index / cast(f64) SPRITES_PER_ATLAS);
+
+            if atlas_count != SPRITE_ATLAS_COUNT {
+                logprint(.Error, "The SPRITE_ATLAS_COUNT constant is no longer correct... Victor needs to change it!");
+                success = false;
+            }
+
+            atlases := allocate_array(Default_Allocator, Texture_Data, atlas_count);
+
+            for i := 0; i < atlases.count; ++i {
+                atlas := *atlases[i];
+                atlas.width    = SPRITE_ATLAS_WIDTH;
+                atlas.height   = SPRITE_ATLAS_HEIGHT;
+                atlas.channels = SPRITE_ATLAS_CHANNELS;
+                atlas.pixels   = allocate_string(Default_Allocator, atlas.width * atlas.height * atlas.channels);
+            }
+
+            //
+            // Build the atlases
+            //
+            for i := 0; i < entries.count; ++i {
+                entry := array_get_pointer(*entries, i);
+                atlas_index := entry.sprite_index / SPRITES_PER_ATLAS;
+                index_in_atlas := entry.sprite_index % SPRITES_PER_ATLAS;
+
+                row    := index_in_atlas / SPRITE_ATLAS_COLUMNS;
+                column := index_in_atlas % SPRITE_ATLAS_COLUMNS;
+
+                atlas := *atlases[atlas_index];
+
+                for h := 0; h < entry.texture.height; ++h {
+                    y := row * entry.texture.height + h;
+                    x := column * entry.texture.width;
+
+                    copy_memory(*atlas.pixels[(y * atlas.width + x) * entry.texture.channels], *entry.texture.pixels[h * entry.texture.width * entry.texture.channels], entry.texture.width * entry.texture.channels);
+                }
+            }
+            
+            //
+            // Export and free each atlas
+            //
+            for i := 0; i < atlases.count; ++i {
+                atlas := *atlases[i];
+
+                filepath := print_into_allocator(Default_Allocator, "data/sprite_atlas_%.png\0", i);
+
+                result := stbi_write_png(filepath.data, atlas.width, atlas.height, atlas.channels, atlas.pixels.data, atlas.width * atlas.channels);
+
+                if result == 0 {
+                    logprint(.Error, "Failed to export the sprite atlas '%'.", filepath);
+                    success = false;
+                }
+                
+                deallocate_string(Default_Allocator, *atlas.pixels);
+                deallocate_string(Default_Allocator, *filepath);
+            }
+
+            deallocate_array(Default_Allocator, *atlases);
+        }
+        
+        return success;
+    }
+
+
+/*
     reorder_sprite_atlases :: () {
         Old_Order :: enum { // A copy of the Sprite_Index enum
             Background;
@@ -158,46 +340,58 @@ Baked_Texture :: struct {
             }
         }
     }
+*/
 }
+
+
     
 #file_scope
 
-bake_texture :: (file_path: string) -> Baked_Texture {
-    file_content, success := read_entire_file(Default_Allocator, file_path);
+load_texture_data :: (filepath: string) -> Texture_Data, bool {
+    file_content, success := read_entire_file(Default_Allocator, filepath);
     if !success {
-        print("[ASSET BAKE]: Failed to bake the texture '%': The file does not exist.\n", file_path);
-        print("[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator));
-        return .{ };
+        return .{ }, false;
     }
-
+        
     width, height, channels_in_file: s32 = ---;
     buffer := stbi_load_from_memory(file_content.data, file_content.count, *width, *height, *channels_in_file, 0);
     buffer_size_in_bytes := width * height * channels_in_file;
 
-    print("[ASSET BAKE]: Baked '%'.\n", file_path);
-    
-    return .{ width, height, channels_in_file, .{ buffer_size_in_bytes, buffer } };
+    return .{ width, height, channels_in_file, .{ buffer_size_in_bytes, buffer } }, true;
 }
 
-bake_raw_file :: (file_path: string) -> string {
-    file_content, success := read_entire_file(Default_Allocator, file_path);
+free_texture_data :: (data: *Texture_Data) {
+    free(data.pixels.data);
+}
+
+bake_texture :: (filepath: string) -> Texture_Data {
+    texture, success := load_texture_data(filepath);
+
     if !success {
-        print("[ASSET BAKE]: Failed to bake the raw file '%': The file does not exist.\n", file_path);
-        return "";
+        print("[ASSET BAKE]: Failed to bake the texture '%': The file does not exist.\n", filepath);
+        print("[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator));
     }
 
-    print("[ASSET BAKE]: Baked '%'.\n", file_path);
-
-    return file_content;
+    return texture;
 }
 
-bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Baked_Texture {
-    result: [SPRITE_ATLAS_COUNT]Baked_Texture = ---;
+bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Data {
+    result: [SPRITE_ATLAS_COUNT]Texture_Data = ---;
 
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
-        file_path := print_into_allocator(Default_Allocator, "%/sprite_atlas_%.png", directory, i);
-        result[i] = bake_texture(file_path);
+        filepath := print_into_allocator(Default_Allocator, "%/sprite_atlas_%.png", directory, i);
+        result[i] = bake_texture(filepath);
     }
 
     return result;
+}
+
+bake_raw_file :: (filepath: string) -> string {
+    file_content, success := read_entire_file(Default_Allocator, filepath);
+    if !success {
+        print("[ASSET BAKE]: Failed to bake the raw file '%': The file does not exist.\n", filepath);
+        return "";
+    }
+
+    return file_content;
 }

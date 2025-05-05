@@ -630,19 +630,16 @@ do_game_tick :: (client: *Client) {
 }
 
 main :: (args: []string) -> s32 {
-#if DEVELOPER {
-    if args.count >= 2 && args[1] == "-reorder_sprite_atlases" {
-        reorder_sprite_atlases();
-        return 0;
-    }
-}
-
     //
     // Start up the engine
     //
     set_working_directory_to_executable_path();
     os_enable_high_resolution_timer();
     create_temp_allocator(128 * Memory_Unit.Megabytes);
+
+#if DEVELOPER {
+    if !pack_sprite_atlases() return -1;
+}
     
     client: Client;
     create_memory_pool(*client.engine_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
