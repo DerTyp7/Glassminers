@@ -22,10 +22,7 @@ Texture_Data :: struct {
     BAKED_FONT :: #run bake_raw_file("run_tree/data/font.ttf");
 }
 
-
-
 #if DEVELOPER {
-
     pack_sprite_atlases :: () -> bool {
         find_sprite_index_from_name :: (name: string) -> s64, bool {
             enum_info := cast(*Type_Info_Enum) type_info(Sprite_Index);
@@ -48,14 +45,17 @@ Texture_Data :: struct {
             texture: Texture_Data;
         }
 
+        start := os_get_hardware_time();
+        arena: Memory_Arena;
+        create_memory_arena(*arena, 1 * Memory_Unit.Megabytes, 1 * Memory_Unit.Megabytes, false);
+        allocator: Allocator = allocator_from_memory_arena(*arena);
+        
         entries: [..]Entry;
         defer {
             for i := 0; i < entries.count; ++i free_texture_data(*array_get(*entries, i).texture);
-            array_clear(*entries);
         };
         
-        original_file_content, success := read_entire_file(Default_Allocator, "data/sprite-pack.txt");
-        defer free_file_content(Default_Allocator, *original_file_content);
+        original_file_content, success := read_entire_file(*allocator, "data/sprite-pack.txt");
 
         highest_sprite_index: s64 = 0;
         
@@ -118,7 +118,7 @@ Texture_Data :: struct {
                 entry := array_get_pointer(*entries, i);
 
                 found_sprite: bool = ---;
-                entry.texture, found_sprite = load_texture_data(entry.filepath);
+                entry.texture, found_sprite = load_texture_data(*allocator, entry.filepath);
 
                 if !found_sprite {
                     logprint(.Error, "The source sprite file '%' does not exist!", entry.filepath);
@@ -146,14 +146,14 @@ Texture_Data :: struct {
                 success = false;
             }
 
-            atlases := allocate_array(Default_Allocator, Texture_Data, atlas_count);
+            atlases := allocate_array(*allocator, Texture_Data, atlas_count);
 
             for i := 0; i < atlases.count; ++i {
                 atlas := *atlases[i];
                 atlas.width    = SPRITE_ATLAS_WIDTH;
                 atlas.height   = SPRITE_ATLAS_HEIGHT;
                 atlas.channels = SPRITE_ATLAS_CHANNELS;
-                atlas.pixels   = allocate_string(Default_Allocator, atlas.width * atlas.height * atlas.channels);
+                atlas.pixels   = allocate_string(*allocator, atlas.width * atlas.height * atlas.channels);
             }
 
             //
@@ -183,7 +183,7 @@ Texture_Data :: struct {
             for i := 0; i < atlases.count; ++i {
                 atlas := *atlases[i];
 
-                filepath := print_into_allocator(Default_Allocator, "data/sprite_atlas_%.png\0", i);
+                filepath := print_into_allocator(*allocator, "data/sprite_atlas_%.png\0", i);
 
                 result := stbi_write_png(filepath.data, atlas.width, atlas.height, atlas.channels, atlas.pixels.data, atlas.width * atlas.channels);
 
@@ -191,164 +191,26 @@ Texture_Data :: struct {
                     logprint(.Error, "Failed to export the sprite atlas '%'.", filepath);
                     success = false;
                 }
-                
-                deallocate_string(Default_Allocator, *atlas.pixels);
-                deallocate_string(Default_Allocator, *filepath);
             }
-
-            deallocate_array(Default_Allocator, *atlases);
         }
-        
+
+        if success {
+            end := os_get_hardware_time();
+            logprint(.Debug, "Sprite packing took %ms, %mb.", os_convert_hardware_time(end - start, .Milliseconds), cast(f64) allocator.stats.working_set / 1_000_000.0);
+        }
+
+        destroy_memory_arena(*arena);
+            
         return success;
     }
-
-
-/*
-    reorder_sprite_atlases :: () {
-        Old_Order :: enum { // A copy of the Sprite_Index enum
-            Background;
-            Bedrock;
-            Crystal;
-            Rock;
-            Shard;
-            Stone;
-            Emitter;
-            Receiver;
-            Mirror;
-            Player_Idle_Side_0;
-            Player_Idle_Side_1;
-            Player_Idle_Back_0;
-            Player_Idle_Back_1;
-            Player_Idle_Front_0;
-            Player_Idle_Front_1;
-            Dragon_Idle_0;
-            Dragon_Idle_1;
-            Dragon_Spitting_Fire;
-            Dragon_Recovering_0;
-            Dragon_Recovering_1;
-        }
-
-        New_Order: []Old_Order : .[
-            .Background,
-            .Bedrock,
-            .Crystal,
-            .Rock,
-            .Shard,
-            .Stone,
-            .Emitter,
-            .Receiver,
-            .Mirror,
-            .Player_Idle_Side_0,
-            .Player_Idle_Side_1,
-            .Player_Idle_Back_0,
-            .Player_Idle_Back_1,
-            .Player_Idle_Front_0,
-                .Player_Idle_Front_1,
-            .Count,
-            .Count,
-            .Count,
-            .Count,
-            .Count,
-            .Count,
-            .Count,
-            .Count,
-            .Count,
-            .Dragon_Idle_0,
-            .Dragon_Idle_1,
-            .Dragon_Spitting_Fire,
-            .Dragon_Recovering_0,
-            .Dragon_Recovering_1,
-        ];
-        
-        Sprite :: struct {
-            width, height, channels: u32;
-            pixels: string;
-        }
-
-        sprites: [Old_Order.Count]Sprite = ---;
-
-        {
-            old_atlases := bake_all_sprite_atlases("run_tree/data");
-
-            for i := 0; i < sprites.Capacity; ++i {
-                atlas_index := i / SPRITES_PER_ATLAS;
-                index_in_atlas := i % SPRITES_PER_ATLAS;
-
-                atlas := *old_atlases[atlas_index];
-                
-                sprite := *sprites[i];
-                sprite.width    = atlas.width  / SPRITE_ATLAS_COLUMNS;
-                sprite.height   = atlas.height / SPRITE_ATLAS_ROWS;
-                sprite.channels = atlas.channels;
-                sprite.pixels   = allocate_string(Default_Allocator, sprite.width * sprite.height * sprite.channels);
-
-                row    := index_in_atlas / SPRITE_ATLAS_COLUMNS;
-                column := index_in_atlas % SPRITE_ATLAS_COLUMNS;
-                
-                for h := 0; h < sprite.height; ++h {
-                    y := row * sprite.height + h;
-                    x := column * sprite.width;
-
-                    copy_memory(*sprite.pixels[h * sprite.width * sprite.channels], *atlas.pixels[(y * atlas.width + x) * sprite.channels], sprite.width * sprite.channels);
-                }
-            }
-        }
-
-        {
-            new_atlases := allocate_array(Default_Allocator, Baked_Texture, cast(s64) ceil(cast(f64) New_Order.count / cast(f64) SPRITES_PER_ATLAS));
-
-            for i := 0; i < new_atlases.count; ++i {
-                atlas := *new_atlases[i];
-                atlas.width    = SPRITE_ATLAS_WIDTH;
-                atlas.height   = SPRITE_ATLAS_HEIGHT;
-                atlas.channels = 4;
-                atlas.pixels   = allocate_string(Default_Allocator, atlas.width * atlas.height * atlas.channels);
-                clear_memory(atlas.pixels.data, atlas.width * atlas.height * atlas.channels);
-            }
-
-            for i := 0; i < New_Order.count; ++i {
-                if New_Order[i] == .Count continue;
-
-                sprite := *sprites[New_Order[i]];
-
-                atlas_index := i / SPRITES_PER_ATLAS;
-                index_in_atlas := i % SPRITES_PER_ATLAS;
-
-                row    := index_in_atlas / SPRITE_ATLAS_COLUMNS;
-                column := index_in_atlas % SPRITE_ATLAS_COLUMNS;
-
-                atlas := *new_atlases[atlas_index];
-
-                for h := 0; h < sprite.height; ++h {
-                    y := row * sprite.height + h;
-                    x := column * sprite.width;
-
-                    copy_memory(*atlas.pixels[(y * atlas.width + x) * sprite.channels], *sprite.pixels[h * sprite.width * sprite.channels], sprite.width * sprite.channels);
-                }
-            }
-
-            for i := 0; i < new_atlases.count; ++i {
-                atlas := *new_atlases[i];
-                file_path := print_into_allocator(Default_Allocator, "run_tree/data/sprite_atlas_%.png", i);
-                file_path_cstring := to_cstring(Default_Allocator, file_path);
-                result := stbi_write_png(file_path_cstring, atlas.width, atlas.height, atlas.channels, atlas.pixels.data, atlas.width * atlas.channels);
-                if result == 0 {
-                    print("[ASSET CONVERT]: Failed to write back the converted sprite atlas '%'.\n", file_path);
-                } else {
-                    print("[ASSET CONVERT]: Converted to a new sprite atlas '%'.\n", file_path);
-                }
-            }
-        }
-    }
-*/
 }
 
 
     
 #file_scope
 
-load_texture_data :: (filepath: string) -> Texture_Data, bool {
-    file_content, success := read_entire_file(Default_Allocator, filepath);
+load_texture_data :: (allocator: *Allocator, filepath: string) -> Texture_Data, bool {
+    file_content, success := read_entire_file(allocator, filepath);
     if !success {
         return .{ }, false;
     }
@@ -365,7 +227,7 @@ free_texture_data :: (data: *Texture_Data) {
 }
 
 bake_texture :: (filepath: string) -> Texture_Data {
-    texture, success := load_texture_data(filepath);
+    texture, success := load_texture_data(Default_Allocator, filepath);
 
     if !success {
         print("[ASSET BAKE]: Failed to bake the texture '%': The file does not exist.\n", filepath);
