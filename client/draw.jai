@@ -219,6 +219,15 @@ draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen
         v2_rotate(v2f.{ +screen_size.x / 2, -screen_size.y / 2 }, rotation),
         v2_rotate(v2f.{ +screen_size.x / 2, +screen_size.y / 2 }, rotation),
         v2_rotate(v2f.{ -screen_size.x / 2, +screen_size.y / 2 }, rotation) ];
+
+    vertices[0].x = round(vertices[0].x);
+    vertices[0].y = round(vertices[0].y);
+    vertices[1].x = round(vertices[1].x);
+    vertices[1].y = round(vertices[1].y);
+    vertices[2].x = round(vertices[2].x);
+    vertices[2].y = round(vertices[2].y);
+    vertices[3].x = round(vertices[3].x);
+    vertices[3].y = round(vertices[3].y);
     
     uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
     indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];

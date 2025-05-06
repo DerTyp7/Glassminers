@@ -676,9 +676,12 @@ main :: (args: []string) -> s32 {
 #if DEVELOPER {
     if !pack_sprite_atlases(*client) return -1;
 }
-    
+
     window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
-    create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_mode);
+    window_width: s32 = ifx DEVELOPER then cast(s32) (720 * 1.8) else cast(s32) WINDOW_DONT_CARE;
+    window_height: s32 = ifx DEVELOPER then 720 else cast(s32) WINDOW_DONT_CARE;
+
+    create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_width, window_height, window_mode);
     create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 1);
@@ -703,6 +706,14 @@ main :: (args: []string) -> s32 {
 }
         
         if client.current_state != client.next_state switch_to_next_state(*client);
+
+        if client.window.keys[.F11] & .Pressed {
+            if client.window.fullscreen {
+                set_window_style(*client.window, .Maximized);
+            } else {
+                set_window_style(*client.window, .Fullscreen);                
+            }
+        }
         
         //
         // Do one frame
