@@ -23,7 +23,7 @@ Texture_Data :: struct {
 }
 
 #if DEVELOPER {
-    pack_sprite_atlases :: () -> bool {
+    pack_sprite_atlases :: (client: *Client) -> bool {
         find_sprite_index_from_name :: (name: string) -> s64, bool {
             enum_info := cast(*Type_Info_Enum) type_info(Sprite_Index);
 
@@ -45,6 +45,9 @@ Texture_Data :: struct {
             texture: Texture_Data;
         }
 
+        destroy_file_watcher(*client.sprite_watchdog);
+        create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
+        
         start := os_get_hardware_time();
         arena: Memory_Arena;
         create_memory_arena(*arena, 1 * Memory_Unit.Megabytes, 1 * Memory_Unit.Megabytes, false);
@@ -105,6 +108,8 @@ Texture_Data :: struct {
                 }
 
                 highest_sprite_index = max(entry.sprite_index, highest_sprite_index);
+
+                add_file_to_watch(*client.sprite_watchdog, entry.filepath);
             }
         }
 

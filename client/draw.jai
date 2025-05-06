@@ -50,11 +50,7 @@ create_draw_data :: (client: *Client) {
 } #else {
     ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
-
-    for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
-        file_path := tprint("data/sprite_atlas_%.png", i);
-        client.sprite_atlases[i] = ge_create_texture_from_file(*client.graphics, file_path, .Filter_Nearest | .Wrap_Clamp_To_Edge);
-    }
+    reload_sprite_atlases_from_disk(client);
 }
 }
 
@@ -72,6 +68,14 @@ destroy_draw_data :: (client: *Client) {
 
 draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
     return .{ client, draw_ui_text, draw_ui_rect, set_ui_scissors, clear_ui_scissors };
+}
+
+reload_sprite_atlases_from_disk :: (client: *Client) {
+    for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
+        file_path := tprint("data/sprite_atlas_%.png", i);
+        if client.sprite_atlases[i] ge_destroy_texture(*client.graphics, client.sprite_atlases[i]);
+        client.sprite_atlases[i] = ge_create_texture_from_file(*client.graphics, file_path, .Filter_Nearest | .Wrap_Clamp_To_Edge);
+    }
 }
 
 

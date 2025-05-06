@@ -10,9 +10,9 @@
 #load "graphics_engine/graphics_engine.jai";
 
 #if DEVELOPER {
-    // For sprite altas reordering
     #library "stb/stb_image_write";
     #load "stb/stb_image_write.jai";
+    #load "file_watcher.jai";
 }
     
 // Shared
@@ -65,13 +65,17 @@ Client :: struct {
     ui_pipeline: *GE_Pipeline;
     entity_pipeline: *GE_Pipeline;
     sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
+
+#if DEVELOPER {
+    sprite_watchdog: File_Watcher;
+}
     
     epoch_time: f32;
     
     current_state: Game_State;
     next_state: Game_State;
     previous_game_result: Previous_Game_Result;
-    
+
     //
     // Networking
     //
@@ -636,16 +640,16 @@ main :: (args: []string) -> s32 {
     set_working_directory_to_executable_path();
     os_enable_high_resolution_timer();
     create_temp_allocator(128 * Memory_Unit.Megabytes);
-
-#if DEVELOPER {
-    if !pack_sprite_atlases() return -1;
-}
     
     client: Client;
     create_memory_pool(*client.engine_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     client.engine_allocator = allocator_from_memory_pool(*client.engine_pool);
     create_memory_pool(*client.world_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     client.world_allocator = allocator_from_memory_pool(*client.world_pool);
+
+#if DEVELOPER {
+    if !pack_sprite_atlases(*client) return -1;
+}
     
     window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
     create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_mode);
@@ -664,6 +668,14 @@ main :: (args: []string) -> s32 {
     while !client.window.should_close {
         frame_start := os_get_hardware_time();
 
+#if DEVELOPER {
+    changed_files := update_file_watcher(*client.sprite_watchdog, *temp);
+    if changed_files.count {
+        pack_sprite_atlases(*client);
+        reload_sprite_atlases_from_disk(*client);
+    }
+}
+        
         if client.current_state != client.next_state switch_to_next_state(*client);
         
         //

@@ -16,3 +16,7 @@ run_tree/*.c
 
 .emacs.desktop
 .emacs.desktop.lock
+
+# Baked sprite atlases
+
+run_tree/data/sprite_atlas_*.png
