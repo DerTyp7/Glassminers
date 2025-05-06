@@ -14,6 +14,11 @@ Hud :: struct {
 update_hud :: (client: *Client) {
     hud :: *client.hud;
 
+    if client.pause_menu_open {
+        hud.state = .Disabled;
+        return;
+    }
+    
     //
     // Clear out persistent state
     //

@@ -92,6 +92,7 @@ Client :: struct {
     world_pool: Memory_Pool;
     world_allocator: Allocator;
     requested_campaign: Campaign = .Tutorial; // Lobby screen
+    pause_menu_open: bool;
     game_seed: s64;
     world_size: v2i;
     tick_time: f32;
@@ -353,7 +354,10 @@ switch_to_next_state :: (client: *Client) {
     client.current_state = client.next_state;
     
     if #complete client.current_state == {
-      case .Main_Menu, .Connecting, .Ingame, .Game_Over;
+      case .Main_Menu, .Connecting, .Game_Over;
+
+      case .Ingame;
+        client.pause_menu_open = false;
         
       case .Lobby;
         // The server will already initialize our game during the lobby...
@@ -553,6 +557,28 @@ do_game_tick :: (client: *Client) {
 
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;
+
+    //
+    {
+        if client.window.keys[.Escape] & .Pressed client.pause_menu_open = !client.pause_menu_open;
+
+        if client.pause_menu_open {
+            ui :: *client.ui;
+            ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.5 });
+            ui_push_width(ui, .Pixels, 256, 1);
+            ui_push_height(ui, .Pixels, 32, 1);
+            if ui_button(ui, "Continue!") then {
+                client.pause_menu_open = false;
+            }
+            ui_divider(ui, false);
+            if ui_button(ui, "Back to Main Menu!") then {
+                client.next_state = .Main_Menu;
+            }
+            ui_pop_height(ui);
+            ui_pop_width(ui);
+            ui_pop_window(ui);
+        }
+    }
     
     // Update the camera
     {
@@ -617,7 +643,7 @@ do_game_tick :: (client: *Client) {
             if client.window.keys[.Shift] & .Pressed       { input.interaction_kind = .Secondary; read_any_input = true; }
         }
             
-        if read_any_input {
+        if !client.pause_menu_open && read_any_input {
             msg := make_message_from(input);
             array_add(*outgoing_messages, msg);
         }
@@ -707,6 +733,7 @@ main :: (args: []string) -> s32 {
               case .Ingame;
                 draw_world(*client);
                 draw_hud(*client);
+                if client.pause_menu_open draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
                 ge_imm2d_flush(*client.graphics);
             }
 
