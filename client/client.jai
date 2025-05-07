@@ -25,6 +25,7 @@
 #load "entity.jai";
 #load "assets.jai";
 #load "hud.jai";
+#load "sounds.jai";
 
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
@@ -57,24 +58,28 @@ Client :: struct {
     graphics: Graphics_Engine;
     ui: UI;
     mixer: Mixer;
-
+    
     engine_pool: Memory_Pool;
     engine_allocator: Allocator;
-
-    ui_font, title_font: Font;
-    ui_pipeline: *GE_Pipeline;
-    entity_pipeline: *GE_Pipeline;
-    sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
-
-#if DEVELOPER {
-    sprite_watchdog: File_Watcher;
-}
-    
     epoch_time: f32;
     
     current_state: Game_State;
     next_state: Game_State;
     previous_game_result: Previous_Game_Result;
+
+    //
+    // Assets
+    //
+    ui_font, title_font: Font;
+    ui_pipeline: *GE_Pipeline;
+    entity_pipeline: *GE_Pipeline;
+    sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
+    sounds: [Sound_Index.Count]Sound_Data;
+    
+#if DEVELOPER {
+    sprite_watchdog: File_Watcher;
+}
+    
 
     //
     // Networking
@@ -239,7 +244,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.move_entity.entity_pid);
         entity.physical_position = msg.move_entity.position;
         entity.physical_rotation = msg.move_entity.rotation;
-
+        
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
         entity.health = msg.entity_health.current_health;
@@ -358,6 +363,7 @@ switch_to_next_state :: (client: *Client) {
 
       case .Ingame;
         client.pause_menu_open = false;
+        create_hud(client);
         
       case .Lobby;
         // The server will already initialize our game during the lobby...
@@ -685,7 +691,8 @@ main :: (args: []string) -> s32 {
     create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 1);
-
+    create_all_sounds(*client);
+    
     client.remote_clients.allocator = *client.world_allocator;
     client.current_state = .Count;
     client.next_state    = .Main_Menu;
@@ -752,6 +759,13 @@ main :: (args: []string) -> s32 {
             ge_swap_buffers(*client.graphics);
         }
 
+        //
+        // Render one audio frame
+        //
+        {
+            update_mixer(*client.mixer);
+        }
+        
         client.epoch_time += client.window.frame_time;
         release_temp_allocator(0);
         
@@ -766,6 +780,7 @@ main :: (args: []string) -> s32 {
     //
     // Destroy the engine
     //
+    destroy_all_sounds(*client);
     destroy_mixer(*client.mixer);
     destroy_ui(*client.ui);
     destroy_draw_data(*client);
