@@ -291,7 +291,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         dragon := down(entity, Dragon);
         if dragon.state != msg.dragon_state.state then dragon.state_t = 0;
         dragon.state = msg.dragon_state.state;
-        
     }
 }
 
@@ -570,7 +569,7 @@ do_game_tick :: (client: *Client) {
 
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied then interpolate_location(client, entity, entity.entity_kind == .Player);
+            if occupied then interpolate_location(client, entity, entity.entity_kind == .Player || entity.entity_kind == .Goblin);
         }
     }
 

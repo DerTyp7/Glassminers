@@ -64,6 +64,11 @@ Dragon :: struct {
     damaged_entities_this_attack: [..]Pid; // @Leak when the entity is destroyed
 }
 
+Goblin :: struct {
+    #using entity : *Entity = ---;
+    
+}
+
 Entity_Manager :: struct {
     pid_counter:  Pid;
     pid_lookup:   Probed_Hash_Table(Pid, *Entity);
@@ -73,6 +78,7 @@ Entity_Manager :: struct {
     receivers:   Bucket_Array(Receiver);
     item_stacks: Bucket_Array(Item_Stack);
     dragons:     Bucket_Array(Dragon);
+    goblins:     Bucket_Array(Goblin);
 }
 
 
@@ -91,6 +97,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.receivers, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
     create_bucket_array(*server.dragons, *server.world_allocator);
+    create_bucket_array(*server.goblins, *server.world_allocator);
 }
 
 destroy_entity_manager :: (server: *Server) {
@@ -101,6 +108,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.receivers);
     destroy_bucket_array(*server.item_stacks);
     destroy_bucket_array(*server.dragons);
+    destroy_bucket_array(*server.goblins);
 }
 
 
@@ -145,6 +153,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Receiver;   make_derived(entity, *server.receivers);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Dragon;     make_derived(entity, *server.dragons);
+      case .Goblin;     make_derived(entity, *server.goblins);
       case .Crystal, .Bedrock, .Mirror, .Rock, .Coal;
         entity.derived = null;
     }
@@ -321,21 +330,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
     if #complete dragon.state == {
       case .Idle;
-        target_player: *Player = null;
-        target_distance: s32 = MAX_S32;
-        
-        for j := 0; j < server.players.slot_count; ++j {
-            player, occupied := index_bucket_array(*server.players, j);
-            if !occupied continue;
-            
-            if !has_line_of_sight(server, dragon, player.physical_position) continue;
-            
-            distance := abs(player.physical_position.x - dragon.physical_position.x) + abs(player.physical_position.y - dragon.physical_position.y);
-            if distance < target_distance {
-                target_player = player;
-                target_distance = distance;
-            }
-        }
+        target_player, target_distance := find_target_player_for_monster(server, dragon.physical_position);
         
         if target_player {
             delta := v2i.{ target_player.physical_position.x - dragon.physical_position.x, target_player.physical_position.y - dragon.physical_position.y };
@@ -380,6 +375,16 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
             dragon.state = .Idle;
             send_update(server, dragon);
         }
+    }
+}
+
+update_goblin :: (server: *Server, goblin: *Goblin) {
+    target_player, target_distance := find_target_player_for_monster(server, goblin.physical_position);
+
+    if target_player {
+        delta := v2i.{ target_player.physical_position.x - goblin.physical_position.x, target_player.physical_position.y - goblin.physical_position.y };
+        rotation := direction_from_vector(delta);
+        update_physical_location(server, goblin, goblin.physical_position, rotation);
     }
 }
 
@@ -566,8 +571,28 @@ clear_beam_data :: (data: *Beam_Data) {
     data.fields.allocator = *temp;
 }
 
-has_line_of_sight :: (server: *Server, entity: *Entity, target: v2i) -> bool {
-    delta := v2i.{ target.x - entity.physical_position.x, target.y - entity.physical_position.y };
+find_target_player_for_monster :: (server: *Server, monster_position: v2i) -> *Player, s32 {
+    target_player: *Player = null;
+    target_distance: s32 = MAX_S32;
+
+    for i := 0; i < server.players.slot_count; ++i {
+        player, occupied := index_bucket_array(*server.players, i);
+        if !occupied continue;
+        
+        if !has_line_of_sight(server, monster_position, player.physical_position) continue;
+        
+        distance := abs(player.physical_position.x - monster_position.x) + abs(player.physical_position.y - monster_position.y);
+        if distance < target_distance {
+            target_player = player;
+            target_distance = distance;
+        }
+    }
+
+    return target_player, target_distance;
+}
+
+has_line_of_sight :: (server: *Server, source: v2i, target: v2i) -> bool {
+    delta := v2i.{ target.x - source.x, target.y - source.y };
 
     if delta.x != 0 && delta.y != 0 return false; // There's no clean line between the target and the entity
 
@@ -576,7 +601,7 @@ has_line_of_sight :: (server: *Server, entity: *Entity, target: v2i) -> bool {
     delta.x /= abs(delta.x + delta.y);
     delta.y /= abs(delta.x + delta.y);
     
-    position := v2i.{ entity.physical_position.x + delta.x, entity.physical_position.y + delta.y };
+    position := v2i.{ source.x + delta.x, source.y + delta.y };
 
     while position.x != target.x || position.y != target.y {
         if get_blocking_entity_at_position(server, position, is_los_blocking_entity) return false;

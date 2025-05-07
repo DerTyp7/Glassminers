@@ -103,7 +103,7 @@ Texture_Data :: struct {
                 found_sprite_index: bool = ---;
                 entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
                 if !found_sprite_index {
-                    logprint(.Error, "The sprite ident '%' is not known in the system.", entry.ident);
+                    logprint(.Error, "The sprite identifier '%' is not known in the system.", entry.ident);
                     success = true;
                 }
 

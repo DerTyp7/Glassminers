@@ -98,15 +98,22 @@ PLAYER_DPS: f32 : HEALTH_PER_HEART;
 
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     30, // Player
-    30, // Crystal
-    70, // Bedrock
+
+    // Beams
     0,  // Emitter
     0,  // Receiver
     30, // Mirror
+
+    // Environment
+    70, // Bedrock
     50, // Rock
-    0,  // Item Stack
-    50, // Dragon
+    30, // Crystal
     40, // Coal
+    0,  // Item Stack
+
+    // NPCs
+    50, // Dragon
+    20, // Goblin
 ];
 
 Item_Kind :: enum {
@@ -117,15 +124,22 @@ Item_Kind :: enum {
 
 Entity_Kind :: enum {
     Player;
-    Crystal;
-    Bedrock;
+
+    // Beams
     Emitter;
     Receiver;
     Mirror;
+
+    // Environment
+    Bedrock;
     Rock;
-    Item_Stack;
-    Dragon;
     Coal;
+    Crystal;
+    Item_Stack;
+
+    // NPCs
+    Dragon;
+    Goblin;
 }
 
 Direction :: enum {
@@ -220,7 +234,16 @@ is_move_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Player, .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Dragon, .Coal;
+        case .Player,
+            .Emitter,
+            .Receiver,
+            .Mirror,
+            .Bedrock,
+            .Rock,
+            .Coal,
+            .Crystal,
+            .Dragon,
+            .Goblin;
         result = true;
 
       case .Item_Stack;
@@ -234,10 +257,10 @@ is_beam_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Coal;
+      case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal;
         result = true;
 
-      case .Player, .Dragon, .Item_Stack;
+      case .Player, .Item_Stack, .Dragon, .Goblin;
         result = false;
     }
 
@@ -248,7 +271,16 @@ is_los_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Player, .Dragon, .Coal;
+        case .Player,
+            .Emitter,
+            .Receiver,
+            .Mirror,
+            .Bedrock,
+            .Rock,
+            .Coal,
+            .Crystal,
+            .Dragon,
+            .Goblin;
         result = true;
 
       case .Item_Stack;
@@ -262,10 +294,10 @@ is_living_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Player, .Dragon;
+      case .Player, .Dragon, .Goblin;
         result = true;
 
-      case .Crystal, .Bedrock, .Emitter, .Receiver, .Mirror, .Rock, .Item_Stack, .Coal;
+      case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal, .Item_Stack;
         result = false;
     }
 

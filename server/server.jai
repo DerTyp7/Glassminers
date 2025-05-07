@@ -317,6 +317,7 @@ create_the_game :: (server: *Server) {
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
         generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
         generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
+        generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
     }
 }
 
@@ -543,9 +544,15 @@ do_game_tick :: (server: *Server) {
     //
     for i := 0; i < server.dragons.slot_count; ++i {
         dragon, occupied := index_bucket_array(*server.dragons, i);
-        if !occupied continue;
+        if occupied update_dragon(server, dragon);
+    }
 
-        update_dragon(server, dragon);
+    //
+    // Update all goblins
+    //
+    for i := 0; i < server.goblins.slot_count; ++i {
+        goblin, occupied := index_bucket_array(*server.goblins, i);
+        if occupied update_goblin(server, goblin);
     }
     
     //

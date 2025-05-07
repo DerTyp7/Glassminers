@@ -62,6 +62,10 @@ Dragon :: struct {
     state_t: f32 = 0;
 }
 
+Goblin :: struct {
+    #using entity : *Entity = ---;
+}
+
 Entity_Manager :: struct {
     pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
@@ -70,6 +74,7 @@ Entity_Manager :: struct {
     receivers:   Bucket_Array(Receiver);
     item_stacks: Bucket_Array(Item_Stack);
     dragons:     Bucket_Array(Dragon);
+    goblins:     Bucket_Array(Goblin);
 }
 
 
@@ -87,6 +92,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.receivers, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.dragons, *client.world_allocator);
+    create_bucket_array(*client.goblins, *client.world_allocator);
 }
 
 destroy_entity_manager :: (client: *Client) {
@@ -97,6 +103,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.receivers);
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.dragons);
+    destroy_bucket_array(*client.goblins);
 }
 
 
@@ -168,6 +175,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
       case .Dragon;     make_derived(entity, *client.dragons);
+      case .Goblin;     make_derived(entity, *client.goblins);
       case .Crystal, .Bedrock, .Mirror, .Rock, .Coal;
         entity.derived = null;
     }

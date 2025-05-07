@@ -10,6 +10,7 @@ Sprite_Index :: enum {
     Emitter;
     Receiver;
     Mirror;
+
     Player_Idle_Side_0;
     Player_Idle_Side_1;
     Player_Idle_Back_0;
@@ -25,11 +26,19 @@ Sprite_Index :: enum {
     Player_Walk_Front_0;
     Player_Walk_Front_1;
     Player_Walk_Front_2;
+
     Dragon_Idle_0;
     Dragon_Idle_1;
     Dragon_Spitting_Fire;
     Dragon_Recovering_0;
     Dragon_Recovering_1;
+    
+    Goblin_Idle_Back_0;
+    Goblin_Idle_Back_1;
+    Goblin_Idle_Front_0;
+    Goblin_Idle_Front_1;
+    Goblin_Idle_Side_0;
+    Goblin_Idle_Side_1;
 }
 
 //
@@ -530,19 +539,23 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
                 frame_time = 0.5;
             }
         }
-            
+        
         horizontally_mirrored = entity.physical_rotation == .East;
         index = get_epoch_time_animated_sprite_index(client, frame_time, frames);
-            
-      case .Crystal;   index = .Crystal;
-      case .Bedrock;   index = .Bedrock;
+
       case .Emitter;   index = .Emitter;
       case .Receiver;  index = .Receiver;
       case .Mirror;    index = .Mirror;
+            
+      case .Bedrock;   index = .Bedrock;
       case .Rock;      index = .Rock;
+      case .Coal; index = .Coal_Block;
+      case .Crystal;   index = .Crystal;
+
       case .Item_Stack;
         stack := down(entity, Item_Stack);
         index = get_sprite_index_for_item(stack.item_kind);
+
       case .Dragon;
         dragon := down(entity, Dragon);
         
@@ -559,7 +572,25 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
 
         horizontally_mirrored = dragon.physical_rotation == .East;
 
-        case .Coal; index = .Coal_Block;
+      case .Goblin;
+        // @CopyPasta: From the player case
+        frames: []Sprite_Index = ---;
+        frame_time: f32 = ---;
+
+        if #complete entity.physical_rotation == {
+          case .North;
+            frames = .[ .Goblin_Idle_Back_0, .Goblin_Idle_Back_1 ];
+            frame_time = 0.5;
+          case .South;
+            frames = .[ .Goblin_Idle_Front_0, .Goblin_Idle_Front_1 ];
+            frame_time = 0.5;
+          case .East, .West;
+            frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
+            frame_time = 0.5;
+        }
+        
+        horizontally_mirrored = entity.physical_rotation == .East;
+        index = get_epoch_time_animated_sprite_index(client, frame_time, frames);
     }
     
     return index, tint, horizontally_mirrored;
