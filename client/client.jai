@@ -254,9 +254,17 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         player := down(entity, Player);
 
         // State Transitions
-        if player.state != msg.player_state.state then stop_sound(client, *player.sound_pid);
-        if player.state != .Digging && msg.player_state.state == .Digging then player.sound_pid = play_sound(client, .Pickaxe_0, true);
-        if player.state != .Resurrecting && msg.player_state.state == .Resurrecting then player.resurrection_t  = 0;
+        if player.state != msg.player_state.state {
+            stop_sound(client, *player.sound_pid);
+
+            if #complete msg.player_state.state == {
+              case .Digging;  player.sound_pid = play_sound(client, .Pickaxe_0, true);
+              case .Carrying; player.sound_pid = play_sound(client, .Pickup_0, false);
+              case .Resurrecting; player.resurrection_t = 0;
+              case .Dead;
+              case .Idle;
+            }
+        }
 
         player.state           = msg.player_state.state;
         player.target_position = msg.player_state.target_position;

@@ -37,7 +37,6 @@ update_hud :: (client: *Client) {
     if client.window.keys[.C] & .Pressed {
         hud.state = .Crafting_Menu;
         set_available_crafting_recipes(client, RECIPES);
-        play_sound(client, .Pickup_0, false);
     } else if !client.window.keys[.C] & .Down && hud.state == .Crafting_Menu {
         hud.state = .Disabled;
     }
