@@ -11,6 +11,13 @@ Hud :: struct {
     };
 }
 
+create_hud :: (client: *Client) {
+    client.hud.state = .Disabled;
+    client.hud.crafting_recipe_input_this_frame = .None;
+    client.hud.crafting_menu.recipes = .[];
+    client.hud.crafting_menu.animation_t = .[];
+}
+
 update_hud :: (client: *Client) {
     hud :: *client.hud;
 
@@ -30,6 +37,7 @@ update_hud :: (client: *Client) {
     if client.window.keys[.C] & .Pressed {
         hud.state = .Crafting_Menu;
         set_available_crafting_recipes(client, RECIPES);
+        play_sound(client, .Pickup_0, false);
     } else if !client.window.keys[.C] & .Down && hud.state == .Crafting_Menu {
         hud.state = .Disabled;
     }
