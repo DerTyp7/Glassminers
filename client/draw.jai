@@ -279,9 +279,23 @@ draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: 
 }
 
 draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
-    screen_center := screen_from_world_position(client, world_center);
-    screen_size   := screen_from_world_size(client, world_size);
-    draw_sprite_screen_space(client, sprite_index, screen_center, screen_size, rotation, tint, horizontally_mirrored);
+    atlas_index    := sprite_index / SPRITES_PER_ATLAS;
+    index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
+
+    world_vertices: [4]v2f =.[
+        v2_rotate(v2f.{ -world_size.x / 2, -world_size.y / 2 }, rotation),
+        v2_rotate(v2f.{ +world_size.x / 2, -world_size.y / 2 }, rotation),
+        v2_rotate(v2f.{ +world_size.x / 2, +world_size.y / 2 }, rotation),
+        v2_rotate(v2f.{ -world_size.x / 2, +world_size.y / 2 }, rotation) ];
+    
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
+    indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
+    texture := client.sprite_atlases[atlas_index];
+
+    for i := 0; i < indices.Capacity; ++i {
+        screen_position := screen_from_world_position(client, v2f.{ world_center.x + world_vertices[indices[i]].x, world_center.y + world_vertices[indices[i]].y });
+        ge_imm2d_textured_vertex(*client.graphics, screen_position.x, screen_position.y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
+    }
 }
 
 

@@ -105,7 +105,8 @@ destroy_entity_manager :: (client: *Client) {
 //
 
 screen_from_world_position :: (client: *Client, world: v2f) -> v2f {
-    return .{ round((world.x - client.camera.center.x) * client.camera.world_to_screen.x + cast(f32) client.window.w / 2), round((world.y - client.camera.center.y) * client.camera.world_to_screen.y + cast(f32) client.window.h / 2) };
+    return .{ round((world.x - client.camera.center.x) * client.camera.world_to_screen.x + cast(f32) client.window.w / 2),
+              round((world.y - client.camera.center.y) * client.camera.world_to_screen.y + cast(f32) client.window.h / 2) };
 }
 
 screen_from_world_size :: (client: *Client, world: v2f) -> v2f {
@@ -132,7 +133,7 @@ update_camera_matrices :: (camera: *Camera, window: *Window) {
 
 down :: (entity: *Entity, $T: Type) -> *T {
 #if DEVELOPER {
-    assert(entity.derived_type_id == type_id(T)/* && entity.derived != null*/, "Invalid down() cast on entity.");
+    assert(entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");
 }
     return cast(*T) entity.derived;
 }
@@ -204,11 +205,16 @@ physically_remove_all_marked_entities :: (client: *Client) {
 //
 
 interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
+    lerp_with_snap  :: (from: $T, to: T, t: T) -> T {
+        if abs(from - to) < 0.001 return to;
+        return from * (1 - t) + to * t;
+    }
+
     {
         speed := client.tick_time * 10;
         target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
-        entity.visual_position.x = lerp(entity.visual_position.x, target_position.x, speed);
-        entity.visual_position.y = lerp(entity.visual_position.y, target_position.y, speed);
+        entity.visual_position.x = lerp_with_snap(entity.visual_position.x, target_position.x, speed);
+        entity.visual_position.y = lerp_with_snap(entity.visual_position.y, target_position.y, speed);
     }
         
     if disable_visual_rotation {
