@@ -548,7 +548,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         
         if #complete dragon.state == {
           case .Idle;
-            index = get_epoch_time_animated_sprite_index(client, 0.5, .[ .Dragon_Idle_0, .Dragon_Idle_1 ]);
+            index = get_epoch_time_animated_sprite_index(client, 0.33, .[ .Dragon_Idle_0, .Dragon_Idle_1 ]);
             
           case .Attacking;
             index = .Dragon_Spitting_Fire;

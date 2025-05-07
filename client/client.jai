@@ -252,10 +252,15 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Player_State;
         entity := get_entity(client, msg.player_state.entity_pid);
         player := down(entity, Player);
+
+        // State Transitions
+        if player.state != msg.player_state.state then stop_sound(client, *player.sound_pid);
+        if player.state != .Digging && msg.player_state.state == .Digging then player.sound_pid = play_sound(client, .Pickaxe_0, true);
+        if player.state != .Resurrecting && msg.player_state.state == .Resurrecting then player.resurrection_t  = 0;
+
         player.state           = msg.player_state.state;
         player.target_position = msg.player_state.target_position;
         player.carrying_item   = msg.player_state.carrying_item;
-        if player.state != .Resurrecting && msg.player_state.state == .Resurrecting then player.resurrection_t  = 0;
         
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);
@@ -690,7 +695,7 @@ main :: (args: []string) -> s32 {
     create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_width, window_height, window_mode);
     create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
-    create_mixer(*client.mixer, 1);
+    create_mixer(*client.mixer, 16);
     create_all_sounds(*client);
     
     client.remote_clients.allocator = *client.world_allocator;
