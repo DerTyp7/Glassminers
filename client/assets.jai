@@ -104,7 +104,8 @@ Texture_Data :: struct {
                 entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
                 if !found_sprite_index {
                     logprint(.Error, "The sprite identifier '%' is not known in the system.", entry.ident);
-                    success = true;
+                    success = false;
+                    continue;
                 }
 
                 highest_sprite_index = max(entry.sprite_index, highest_sprite_index);

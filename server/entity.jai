@@ -60,13 +60,12 @@ Dragon :: struct {
     beam_data: Beam_Data = ---;
     state: Dragon_State;
     attack_t: f32 = 0; // How long this current attack will continue to last
-    recovering_t: f32 = 0;
+    recovering_t: f32 = 0; // How much time left until the dragon can attack again
     damaged_entities_this_attack: [..]Pid; // @Leak when the entity is destroyed
 }
 
 Goblin :: struct {
     #using entity : *Entity = ---;
-    
 }
 
 Entity_Manager :: struct {
