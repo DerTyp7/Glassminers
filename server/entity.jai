@@ -228,6 +228,10 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
           case .Coal;
             remove_entity(server, entity);
             try_to_put_item(server, entity.physical_position, .Coal);
+
+          case .Mirror;
+            remove_entity(server, entity);
+            try_to_put_item(server, entity.physical_position, .Shard);            
             
           case;
             remove_entity(server, entity);
@@ -272,7 +276,7 @@ update_player :: (server: *Server, player: *Player) {
             if other_entity {
                 other_player := down(other_entity, Player);
                 other_player.state = .Idle; // This might be one frame late, depending on which order 'player' and 'other_player' are in the player list... But I'd say that's fine for now.
-                set_entity_health(server, other_player, MAX_HEALTHS[other_player.entity_kind]);
+                set_entity_health(server, other_player, HEALTH_PER_HEART);
             }
 
             player.state = .Idle;

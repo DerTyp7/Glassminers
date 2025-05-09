@@ -16,7 +16,6 @@ Sprite_Index :: enum {
     Lava_2;
     Lava_3;
     Water;
-    Stone_Slab;
     
     Player_Idle_Side_0;
     Player_Idle_Side_1;
@@ -372,7 +371,16 @@ draw_world :: (client: *Client) {
         sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
         draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, tint, horizontally_mirrored);
 
-        if entity.health < MAX_HEALTHS[entity.entity_kind] && is_living_entity(entity.entity_kind) {
+        draw_health: bool = ---;
+
+        if entity.entity_kind == {
+          case .Player;
+            player := down(entity, Player);
+            draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && player.state != .Dead;
+          case; draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && is_living_entity(entity.entity_kind)
+        }
+        
+        if draw_health {
             draw_health_bar_world_space(client, entity.visual_position, PROGRESS_BAR_WORLD_SIZE, entity.health, MAX_HEALTHS[entity.entity_kind]);
         }
     }
