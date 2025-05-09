@@ -59,7 +59,7 @@ Dragon :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
     state: Dragon_State = .Idle;
-    state_t: f32 = 0;
+    state_t: f32;
 }
 
 Goblin :: struct {

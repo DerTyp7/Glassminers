@@ -59,8 +59,7 @@ Dragon :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
     state: Dragon_State;
-    attack_t: f32 = 0; // How long this current attack will continue to last
-    recovering_t: f32 = 0; // How much time left until the dragon can attack again
+    state_t: f32; // How much time this dragon spent in the current state
     damaged_entities_this_attack: [..]Pid; // @Leak when the entity is destroyed
 }
 
@@ -341,8 +340,8 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
                 // The target player is actually in reach for the dragon's beam. Since we are
                 // checking for line-of-sight, we know the beam can actually reach the player
                 // like this.
-                dragon.state = .Attacking;
-                dragon.attack_t = DRAGON_ATTACK_TIME;
+                dragon.state   = .Attacking;
+                dragon.state_t = 0;
                 array_clear(*dragon.damaged_entities_this_attack);
                 dragon.damaged_entities_this_attack.allocator = *server.world_allocator;
                 send_update(server, dragon);
@@ -351,7 +350,6 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
       case .Attacking;
         recalculate_beam(server, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, DRAGON_BEAM_LENGTH);
-        dragon.attack_t -= server.tick_time;
 
         for i := 0; i < dragon.beam_data.fields.count; ++i {
             field := array_get(*dragon.beam_data.fields, i);
@@ -362,19 +360,21 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
             }
         }
         
-        if dragon.attack_t <= 0 {
-            dragon.state = .Recovering;
-            dragon.recovering_t = DRAGON_RECOVER_TIME;
+        if dragon.state_t >= DRAGON_ATTACK_TIME {
+            dragon.state   = .Recovering;
+            dragon.state_t = 0;
             send_update(server, dragon);
         }
         
       case .Recovering;
-        dragon.recovering_t -= server.tick_time;
-        if dragon.recovering_t <= 0 {
-            dragon.state = .Idle;
+        if dragon.state_t >= DRAGON_RECOVER_TIME {
+            dragon.state   = .Idle;
+            dragon.state_t = 0;
             send_update(server, dragon);
         }
     }
+
+    dragon.state_t += server.tick_time;
 }
 
 update_goblin :: (server: *Server, goblin: *Goblin) {
