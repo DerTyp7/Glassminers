@@ -216,16 +216,15 @@ physically_remove_all_marked_entities :: (client: *Client) {
 //
 
 interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
-    lerp_with_snap  :: (from: $T, to: T, t: T) -> T {
-        if abs(from - to) < 0.001 return to;
-        return from * (1 - t) + to * t;
+    snap  :: (from: $T, to: T) -> T {
+        return ifx abs(from - to) < 0.0005 then to else from;
     }
 
     {
         speed := client.tick_time * 10;
         target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
-        entity.visual_position.x = lerp_with_snap(entity.visual_position.x, target_position.x, speed);
-        entity.visual_position.y = lerp_with_snap(entity.visual_position.y, target_position.y, speed);
+        entity.visual_position.x = snap(lerp(entity.visual_position.x, target_position.x, speed), target_position.x);
+        entity.visual_position.y = snap(lerp(entity.visual_position.y, target_position.y, speed), target_position.y);
     }
         
     if disable_visual_rotation {
@@ -237,7 +236,7 @@ interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotati
     } else {
         speed := client.tick_time * 20;
         target_rotation := visual_from_physical_rotation(entity.physical_rotation);
-        entity.visual_rotation = lerp_with_wrap(entity.visual_rotation, target_rotation, speed, 0, 1);
+        entity.visual_rotation = snap(lerp_with_wrap(entity.visual_rotation, target_rotation, speed, 0, 1), target_rotation);
     }
 }
 
