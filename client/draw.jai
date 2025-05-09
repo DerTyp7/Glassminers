@@ -39,6 +39,9 @@ Sprite_Index :: enum {
     Goblin_Idle_Front_1;
     Goblin_Idle_Side_0;
     Goblin_Idle_Side_1;
+    Goblin_Attack_Back;
+    Goblin_Attack_Front;
+    Goblin_Attack_Side;
 }
 
 //
@@ -361,6 +364,10 @@ draw_world :: (client: *Client) {
         
         sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
         draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, tint, horizontally_mirrored);
+
+        if entity.health < MAX_HEALTHS[entity.entity_kind] && is_living_entity(entity.entity_kind) {
+            draw_health_bar_world_space(client, entity.visual_position, PROGRESS_BAR_WORLD_SIZE, entity.health, MAX_HEALTHS[entity.entity_kind]);
+        }
     }
 
     //
@@ -397,10 +404,6 @@ draw_world :: (client: *Client) {
         if !occupied continue;
 
         draw_beam(client, *dragon.beam_data, .{ 255, 209, 104, 150 });
-        
-        if dragon.health < MAX_HEALTHS[dragon.entity_kind] {
-            draw_health_bar_world_space(client, dragon.visual_position, PROGRESS_BAR_WORLD_SIZE, dragon.health, MAX_HEALTHS[dragon.entity_kind]);
-        }
     }
 
     //
@@ -448,11 +451,7 @@ draw_world :: (client: *Client) {
           case .Resurrecting;
             draw_progress_bar_world_space(client, .{ xx player.target_position.x, xx player.target_position.y }, PROGRESS_BAR_WORLD_SIZE, player.resurrection_t);
         }
-
-        if player.state != .Dead && player.health < MAX_HEALTHS[.Player] {
-            draw_health_bar_world_space(client, player.visual_position, PROGRESS_BAR_WORLD_SIZE, player.health, MAX_HEALTHS[player.entity_kind]);
-        }
-    }    
+    }
 
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
     
@@ -573,24 +572,42 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         horizontally_mirrored = dragon.physical_rotation == .East;
 
       case .Goblin;
-        // @CopyPasta: From the player case
+        goblin := down(entity, Goblin);
+
         frames: []Sprite_Index = ---;
         frame_time: f32 = ---;
+        
+        if #complete goblin.state == {
+          case .Idle;
+            if #complete entity.physical_rotation == {
+              case .North; frames = .[ .Goblin_Idle_Back_0, .Goblin_Idle_Back_1 ];
+              case .South; frames = .[ .Goblin_Idle_Front_0, .Goblin_Idle_Front_1 ];
+              case .East, .West; frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
+            }
 
-        if #complete entity.physical_rotation == {
-          case .North;
-            frames = .[ .Goblin_Idle_Back_0, .Goblin_Idle_Back_1 ];
-            frame_time = 0.5;
-          case .South;
-            frames = .[ .Goblin_Idle_Front_0, .Goblin_Idle_Front_1 ];
-            frame_time = 0.5;
-          case .East, .West;
-            frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
+            frame_time = 0.33;
+
+          case .Attacking;
+            if #complete entity.physical_rotation == {
+              case .North; frames = .[ .Goblin_Attack_Back ];
+              case .South; frames = .[ .Goblin_Attack_Front ];
+              case .East, .West; frames = .[ .Goblin_Attack_Side ];
+            }
+
+            frame_time = GOBLIN_ATTACK_TIME;
+
+          case .Recovering;
+            if #complete entity.physical_rotation == {
+              case .North; frames = .[ .Goblin_Idle_Back_0, .Goblin_Idle_Back_1 ];
+              case .South; frames = .[ .Goblin_Idle_Front_0, .Goblin_Idle_Front_1 ];
+              case .East, .West; frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
+            }
+
             frame_time = 0.5;
         }
         
-        horizontally_mirrored = entity.physical_rotation == .East;
         index = get_epoch_time_animated_sprite_index(client, frame_time, frames);
+        horizontally_mirrored = entity.physical_rotation == .East;
     }
     
     return index, tint, horizontally_mirrored;

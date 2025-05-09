@@ -64,6 +64,8 @@ Dragon :: struct {
 
 Goblin :: struct {
     #using entity : *Entity = ---;
+    state: Goblin_State;
+    state_t: f32; // How much time this goblin spent in the current state
 }
 
 Entity_Manager :: struct {

@@ -14,6 +14,7 @@ Message_Type :: enum {
     Receiver_State;
     Item_Stack_State;
     Dragon_State;
+    Goblin_State;
 }
 
 Player_Information_Message :: struct {
@@ -112,6 +113,12 @@ Dragon_State_Message :: struct {
     state: Dragon_State;
 }
 
+Goblin_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Goblin_State;
+    entity_pid: Pid;
+    state: Goblin_State;
+}
+
 Message :: struct {
     msg_type: Message_Type;
     local_type_id: Type;
@@ -132,6 +139,7 @@ Message :: struct {
         receiver_state: Receiver_State_Message;
         item_stack_state: Item_Stack_State_Message;
         dragon_state: Dragon_State_Message;
+        goblin_state: Goblin_State_Message;
     };
 }
 
@@ -210,6 +218,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Receiver_State;     result = type_id(Receiver_State_Message);
       case .Item_Stack_State;   result = type_id(Item_Stack_State_Message);
       case .Dragon_State;       result = type_id(Dragon_State_Message);
+      case .Goblin_State;       result = type_id(Goblin_State_Message);
     }
 
     return result;

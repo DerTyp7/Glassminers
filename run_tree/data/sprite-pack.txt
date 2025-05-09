@@ -55,3 +55,6 @@ Goblin_Idle_Front_0   data/sprites/goblin/goblin-idle-front-0.png
 Goblin_Idle_Front_1   data/sprites/goblin/goblin-idle-front-1.png
 Goblin_Idle_Side_0    data/sprites/goblin/goblin-idle-side-0.png
 Goblin_Idle_Side_1    data/sprites/goblin/goblin-idle-side-1.png
+Goblin_Attack_Back    data/sprites/goblin/goblin-attack-back.png
+Goblin_Attack_Front   data/sprites/goblin/goblin-attack-front.png
+Goblin_Attack_Side    data/sprites/goblin/goblin-attack-side.png

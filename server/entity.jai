@@ -65,6 +65,8 @@ Dragon :: struct {
 
 Goblin :: struct {
     #using entity : *Entity = ---;
+    state: Goblin_State;
+    state_t: f32; // How much time this goblin spent in the current state
 }
 
 Entity_Manager :: struct {
@@ -312,7 +314,12 @@ update_emitter :: (server: *Server, emitter: *Emitter) {
 }
 
 update_dragon :: (server: *Server, dragon: *Dragon) {
-    send_update :: (server: *Server, dragon: *Dragon) {
+    switch_state :: (server: *Server, dragon: *Dragon, new_state: Dragon_State) {
+        if dragon.state == new_state return;
+
+        dragon.state = new_state;
+        dragon.state_t = 0;
+        
         msg := make_message(Dragon_State_Message);
         msg.dragon_state.entity_pid = dragon.pid;
         msg.dragon_state.state = dragon.state;
@@ -323,7 +330,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
     lit_up, _ := is_emitter_field_at(server, dragon.physical_position);
     if lit_up {
-        damage_entity(server, dragon, 5 * server.tick_time);
+        damage_entity(server, dragon, BEAM_DPS * server.tick_time);
     }
 
     if #complete dragon.state == {
@@ -340,11 +347,9 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
                 // The target player is actually in reach for the dragon's beam. Since we are
                 // checking for line-of-sight, we know the beam can actually reach the player
                 // like this.
-                dragon.state   = .Attacking;
-                dragon.state_t = 0;
                 array_clear(*dragon.damaged_entities_this_attack);
                 dragon.damaged_entities_this_attack.allocator = *server.world_allocator;
-                send_update(server, dragon);
+                switch_state(server, dragon, .Attacking);
             }
         }
 
@@ -361,16 +366,12 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
         }
         
         if dragon.state_t >= DRAGON_ATTACK_TIME {
-            dragon.state   = .Recovering;
-            dragon.state_t = 0;
-            send_update(server, dragon);
+            switch_state(server, dragon, .Recovering);
         }
         
       case .Recovering;
         if dragon.state_t >= DRAGON_RECOVER_TIME {
-            dragon.state   = .Idle;
-            dragon.state_t = 0;
-            send_update(server, dragon);
+            switch_state(server, dragon, .Idle);
         }
     }
 
@@ -378,13 +379,51 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 }
 
 update_goblin :: (server: *Server, goblin: *Goblin) {
-    target_player, target_distance := find_target_player_for_monster(server, goblin.physical_position);
+    switch_state :: (server: *Server, goblin: *Goblin, new_state: Goblin_State) {
+        if goblin.state == new_state return;
 
-    if target_player {
-        delta := v2i.{ target_player.physical_position.x - goblin.physical_position.x, target_player.physical_position.y - goblin.physical_position.y };
-        rotation := direction_from_vector(delta);
-        update_physical_location(server, goblin, goblin.physical_position, rotation);
+        goblin.state = new_state;
+        goblin.state_t = 0;
+        
+        msg := make_message(Goblin_State_Message);
+        msg.goblin_state.entity_pid = goblin.pid;
+        msg.goblin_state.state = goblin.state;
+        array_add(*server.outgoing_messages, msg);
     }
+
+    lit_up, _ := is_emitter_field_at(server, goblin.physical_position);
+    if lit_up {
+        damage_entity(server, goblin, BEAM_DPS * server.tick_time);
+    }
+
+    if #complete goblin.state == {
+      case .Idle;
+        target_player, target_distance := find_target_player_for_monster(server, goblin.physical_position);
+
+        if target_player {
+            delta := v2i.{ target_player.physical_position.x - goblin.physical_position.x, target_player.physical_position.y - goblin.physical_position.y };
+
+            rotation := direction_from_vector(delta);
+            update_physical_location(server, goblin, goblin.physical_position, rotation);
+
+            if target_distance == 1 {
+                damage_entity(server, target_player, HEALTH_PER_HEART);
+                switch_state(server, goblin, .Attacking);
+            }
+        }
+
+      case .Attacking;
+        if goblin.state_t >= GOBLIN_ATTACK_TIME {
+            switch_state(server, goblin, .Recovering);
+        }
+
+      case .Recovering;
+        if goblin.state_t >= GOBLIN_RECOVER_TIME {
+            switch_state(server, goblin, .Idle);
+        }
+    }
+
+    goblin.state_t += server.tick_time;
 }
 
 take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {

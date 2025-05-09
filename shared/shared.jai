@@ -93,7 +93,11 @@ DRAGON_BEAM_LENGTH :: 3;
 DRAGON_ATTACK_TIME:  f32 : 1;
 DRAGON_RECOVER_TIME: f32 : 5;
 
+GOBLIN_ATTACK_TIME:  f32 : 0.5;
+GOBLIN_RECOVER_TIME: f32 : 2;
+
 HEALTH_PER_HEART: f32 : 10;
+BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
 PLAYER_DPS: f32 : HEALTH_PER_HEART;
 
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
@@ -158,6 +162,12 @@ Player_State :: enum {
 }
 
 Dragon_State :: enum {
+    Idle;
+    Attacking;
+    Recovering;
+}
+
+Goblin_State :: enum {
     Idle;
     Attacking;
     Recovering;

@@ -109,7 +109,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State, .Goblin_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
