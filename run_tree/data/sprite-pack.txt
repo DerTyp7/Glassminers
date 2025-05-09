@@ -5,15 +5,15 @@ Background  data/sprites/inanimates/background.png
 Bedrock     data/sprites/inanimates/bedrock.png
 Crystal     data/sprites/inanimates/crystal.png
 Rock        data/sprites/inanimates/rock.png
-Shard       data/sprites/inanimates/shard.png
-Stone       data/sprites/inanimates/stone.png
+Shard       data/sprites/items/shard.png
+Stone       data/sprites/items/stone.png
 Emitter     data/sprites/inanimates/emitter.png
 Receiver    data/sprites/inanimates/receiver.png
 Mirror      data/sprites/inanimates/mirror.png
 Emitter     data/sprites/inanimates/emitter.png
 Receiver    data/sprites/inanimates/receiver.png
-Coal_Block  data/sprites/inanimates/coal-block.png
-Coal_Item   data/sprites/inanimates/coal-item.png
+Coal_Block  data/sprites/inanimates/coal.png
+Coal_Item   data/sprites/items/coal.png
 
 #
 # Player
