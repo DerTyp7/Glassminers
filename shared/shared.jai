@@ -114,7 +114,8 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     30, // Crystal
     40, // Coal
     0,  // Item Stack
-
+    0,  // Lava
+    
     // NPCs
     50, // Dragon
     20, // Goblin
@@ -140,7 +141,8 @@ Entity_Kind :: enum {
     Coal;
     Crystal;
     Item_Stack;
-
+    Lava;
+    
     // NPCs
     Dragon;
     Goblin;
@@ -253,7 +255,8 @@ is_move_blocking_entity :: (kind: Entity_Kind) -> bool {
             .Coal,
             .Crystal,
             .Dragon,
-            .Goblin;
+            .Goblin,
+            .Lava;
         result = true;
 
       case .Item_Stack;
@@ -270,7 +273,7 @@ is_beam_blocking_entity :: (kind: Entity_Kind) -> bool {
       case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal;
         result = true;
 
-      case .Player, .Item_Stack, .Dragon, .Goblin;
+      case .Player, .Item_Stack, .Dragon, .Goblin, .Lava;
         result = false;
     }
 
@@ -293,7 +296,7 @@ is_los_blocking_entity :: (kind: Entity_Kind) -> bool {
             .Goblin;
         result = true;
 
-      case .Item_Stack;
+      case .Item_Stack, .Lava;
         result = false;
     }
 
@@ -307,7 +310,7 @@ is_living_entity :: (kind: Entity_Kind) -> bool {
       case .Player, .Dragon, .Goblin;
         result = true;
 
-      case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal, .Item_Stack;
+      case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal, .Item_Stack, .Lava;
         result = false;
     }
 

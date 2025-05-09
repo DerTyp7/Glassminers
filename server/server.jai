@@ -294,24 +294,37 @@ create_the_game :: (server: *Server) {
                 position.x >= 2 && position.x <= 2 + server.clients.count + 1;
         }
 
-        random_position :: (server: *Server) -> v2i {
+        random_position :: (server: *Server) -> v2i, bool {
             position := v2i.{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
 
+            success := true;
+            
+            iteration := 0;
             while get_entity_at_position(server, position) != null || is_blocked_position(server, position) {
                 position = .{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
+
+                if iteration > 10 {
+                    logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
+                    success = false;
+                    break;
+                }
+
+                ++iteration;
             }
             
-            return position;
+            return position, success;
         }
 
         generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
             for i := 0; i < n; ++i {
-                create_entity(server, kind, random_position(server), .North);
+                position, success := random_position(server);
+                if success create_entity(server, kind, position, .North);
             }
         }
 
         create_entity(server, .Emitter, .{ 0, 2 }, .East);
         create_entity(server, .Receiver, .{ server.world_size.x - 1, 2 }, .West);
+        generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
         generate_n_random_entities(server, .Bedrock, server.world_size.x * 2);
         generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);

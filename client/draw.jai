@@ -11,6 +11,11 @@ Sprite_Index :: enum {
     Receiver;
     Mirror;
 
+    Lava_0;
+    Lava_1;
+    Lava_2;
+    Lava_3;
+    
     Player_Idle_Side_0;
     Player_Idle_Side_1;
     Player_Idle_Back_0;
@@ -555,6 +560,9 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         stack := down(entity, Item_Stack);
         index = get_sprite_index_for_item(stack.item_kind);
 
+      case .Lava;
+        index = get_epoch_time_animated_sprite_index(client, 0.75, .[ .Lava_0, .Lava_1, .Lava_2, .Lava_3 ]);
+        
       case .Dragon;
         dragon := down(entity, Dragon);
         

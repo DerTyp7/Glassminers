@@ -16,6 +16,14 @@ Coal_Block  data/sprites/inanimates/coal.png
 Coal_Item   data/sprites/items/coal.png
 
 #
+# Environment
+#
+Lava_0 data/sprites/environment/lava-0.png
+Lava_1 data/sprites/environment/lava-1.png
+Lava_2 data/sprites/environment/lava-2.png
+Lava_3 data/sprites/environment/lava-3.png
+
+#
 # Player
 #
 

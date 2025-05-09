@@ -541,10 +541,15 @@ calculate_camera_target_position :: (client: *Client, target_center_position: v2
 }
 
 calculate_camera_position :: (client: *Client, current_camera_position: v2f, target_center_position: v2i) -> v2f {
+    lerp_with_snap :: (from: $T, to: T, speed: f32) -> T {
+        return ifx abs(from - to) < 0.001 then to else from;
+        return from * (1 - speed) + to * speed;
+    }
+
     target_camera_position := calculate_camera_target_position(client, target_center_position);
     speed := 10 * client.tick_time;
-    return .{ lerp(current_camera_position.x, target_camera_position.x, speed),
-              lerp(current_camera_position.y, target_camera_position.y, speed) };
+    return .{ lerp_with_snap(current_camera_position.x, target_camera_position.x, speed),
+              lerp_with_snap(current_camera_position.y, target_camera_position.y, speed) };
 }
 
 do_game_tick :: (client: *Client) {
