@@ -1,4 +1,9 @@
 #
+# GUI
+#
+Heart  data/sprites/items/heart.png
+
+#
 # Inanimates
 #
 Background  data/sprites/inanimates/background.png

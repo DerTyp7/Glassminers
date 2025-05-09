@@ -1,4 +1,6 @@
 Sprite_Index :: enum {
+    Heart;
+
     Background;
     Bedrock;
     Crystal;
@@ -140,6 +142,29 @@ draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_count: s64
 
         draw_rect_screen_space(client, c0, c1, background);
         draw_rect_screen_space(client, c0, c1, color);
+    }
+}
+
+draw_filling_sprites_screen_space :: (client: *Client, sprite_index: Sprite_Index, center: v2f, sprite_count: s64, sprite_size: f32, percentage: f32) {
+    background :: GE_Color.{ 100, 100, 100, 200 };
+
+    gap_size := round(cast(f32) sprite_size * 0.1);
+    leftmost_center := center.x - xx (sprite_count - 1) * cast(f32) 0.5 * (sprite_size + gap_size);
+    
+    for i := 0; i < sprite_count; ++i {
+        theta := cast(f32) i / cast(f32) sprite_count;
+
+        sprite_center := v2f.{ leftmost_center + xx i * (sprite_size + gap_size), center.y };
+
+        t: f32 = ---;
+        if theta + (cast(f32) 1 / cast(f32) sprite_count) <= percentage then
+            t = 0;
+        else
+            t = 1 - clamp((percentage - theta) / (cast(f32) 1 / cast(f32) sprite_count), 0, 1);
+
+        tint := ge_mix_colors(.{ 255, 255, 255, 255 }, background, t);
+
+        draw_sprite_screen_space(client, sprite_index, sprite_center, .{ sprite_size, sprite_size }, 0, tint, false);
     }
 }
 
@@ -292,8 +317,7 @@ draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: 
     screen_size   := screen_from_world_height(client, world_size);
 
     box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
-    foreground :: GE_Color.{ 227, 60, 74, 255 };
-    draw_filling_boxes_screen_space(client, screen_center, box_count, screen_size, health / max_health, foreground);    
+    draw_filling_sprites_screen_space(client, .Heart, screen_center, box_count, screen_size, health / max_health);    
 }
 
 draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
@@ -370,19 +394,6 @@ draw_world :: (client: *Client) {
         
         sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
         draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, tint, horizontally_mirrored);
-
-        draw_health: bool = ---;
-
-        if entity.entity_kind == {
-          case .Player;
-            player := down(entity, Player);
-            draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && player.state != .Dead;
-          case; draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && is_living_entity(entity.entity_kind)
-        }
-        
-        if draw_health {
-            draw_health_bar_world_space(client, entity.visual_position, PROGRESS_BAR_WORLD_SIZE, entity.health, MAX_HEALTHS[entity.entity_kind]);
-        }
     }
 
     //
@@ -469,6 +480,27 @@ draw_world :: (client: *Client) {
     }
 
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
+
+    //
+    // Draw all entity health bars
+    //
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if !occupied continue;
+
+        draw_health: bool = ---;
+
+        if entity.entity_kind == {
+          case .Player;
+            player := down(entity, Player);
+            draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && player.state != .Dead;
+          case; draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && is_living_entity(entity.entity_kind);
+        }
+        
+        if draw_health {
+            draw_health_bar_world_space(client, .{ entity.visual_position.x, entity.visual_position.y + 0.1 }, PROGRESS_BAR_WORLD_SIZE * 2, entity.health, MAX_HEALTHS[entity.entity_kind]);
+        }
+    }
     
     //
     // Draw the player's name above their entities
