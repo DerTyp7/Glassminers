@@ -169,7 +169,12 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.visual_position    = .{ xx entity.physical_position.x, xx entity.physical_position.y };
     entity.visual_rotation    = visual_from_physical_rotation(entity.physical_rotation);
 
-    probed_hash_table_add(*client.pid_lookup, pid, entity);
+    if cast(f32) client.pid_lookup.count / cast(f32) client.pid_lookup.buckets.count >= 0.7 {
+        probed_hash_table_resize(*client.pid_lookup, client.pid_lookup.buckets.count * 2);
+    }
+    
+    successfully_added := probed_hash_table_add(*client.pid_lookup, pid, entity);
+    assert(successfully_added, "For some reason we failed to register the entity pid on the client.");
 
     if #complete entity.entity_kind == {
       case .Player;     make_derived(entity, *client.players);

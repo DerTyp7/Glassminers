@@ -190,6 +190,7 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.receivers);
     remove_deriveds(*server.item_stacks);
     remove_deriveds(*server.dragons);
+    remove_deriveds(*server.goblins);
     remove_deriveds(*server.all_entities);
 }
 

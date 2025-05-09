@@ -542,7 +542,7 @@ calculate_camera_target_position :: (client: *Client, target_center_position: v2
 
 calculate_camera_position :: (client: *Client, current_camera_position: v2f, target_center_position: v2i) -> v2f {
     lerp_with_snap :: (from: $T, to: T, speed: f32) -> T {
-        return ifx abs(from - to) < 0.001 then to else from;
+        if abs(from - to) < 0.001 return to;
         return from * (1 - speed) + to * speed;
     }
 
@@ -587,7 +587,7 @@ do_game_tick :: (client: *Client) {
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;
 
-    //
+    // Do the pause menu
     {
         if client.window.keys[.Escape] & .Pressed client.pause_menu_open = !client.pause_menu_open;
 
@@ -596,6 +596,9 @@ do_game_tick :: (client: *Client) {
             ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.5 });
             ui_push_width(ui, .Pixels, 256, 1);
             ui_push_height(ui, .Pixels, 32, 1);
+
+            ui_label(ui, true, "Seed: %", client.game_seed);
+            ui_divider(ui, false);
             if ui_button(ui, "Continue!") then {
                 client.pause_menu_open = false;
             }
