@@ -189,7 +189,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
             filepath := print_into_allocator(*allocator, "%/sprite_atlas_%.png\0", directory, i);
 
             result := stbi_write_png(filepath.data, atlas.width, atlas.height, atlas.channels, atlas.pixels.data, atlas.width * atlas.channels);
-
+            
             if result == 0 {
                 logprint(.Error, "Failed to export the sprite atlas '%'.", filepath);
                 success = false;

@@ -26,9 +26,11 @@ create_sound_data :: (client: *Client) {
 }
 
 destroy_all_sounds :: (client: *Client) {
+#if !BAKE_ASSETS {
     for i := 0; i < client.sounds.Capacity; ++i {
         destroy_sound_data(*client.sounds[i]);
     }
+}
 }
 
 play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Sound_Pid {
