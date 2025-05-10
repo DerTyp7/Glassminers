@@ -383,28 +383,6 @@ consume_resources_from_player :: (server: *Server, player: *Player, resources: [
     }
 }
 
-available_resources_fulfill :: (available: [..]Item_Kind, required: []Item_Kind) -> bool {
-    copy := array_copy(*available, *temp);
-
-    all_requirements_met := true;
-
-    for i := 0; i < required.count; ++i {
-        item_found := false;
-
-        for j := 0; j < copy.count; ++j {
-            if array_get(*copy, j) == required[i] {
-                item_found = true;
-                array_remove_index(*copy, j);
-                break;
-            }
-        }
-
-        all_requirements_met &= item_found;
-    }
-    
-    return all_requirements_met;
-}
-
 maybe_craft_recipe :: (server: *Server, player: *Player, result_entity: Entity_Kind, required_resources: []Item_Kind) -> bool {
     // First check that the player has the necessary resources available
     available_resources := get_available_resources_for_player(server, player);
@@ -446,8 +424,6 @@ handle_player_input :: (server: *Server, player: *Player) {
     // Handle interaction
     //
     if #complete player.received_input.interaction_kind == {            
-      case .None;
-
       case .Primary;
         target_entity := get_entity_at_position(server, player.target_position);
 
@@ -500,10 +476,7 @@ handle_player_input :: (server: *Server, player: *Player) {
     // Handle crafting
     //
     if #complete player.received_input.crafting_recipe == {
-      case .None; // Ignore
-      case .Mirror; maybe_craft_recipe(server, player, .Mirror, .[ .Shard ]);
-      case .Dragon; maybe_craft_recipe(server, player, .Dragon, .[ .Stone, .Coal ]);
-      case .Crystal; maybe_craft_recipe(server, player, .Crystal, .[ .Shard, .Shard ]);
+      case .Mirror; maybe_craft_recipe(server, player, .Mirror, CRAFTING_RECIPE_REQUIREMENTS[.Mirror]);
     }
 }
 

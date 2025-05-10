@@ -194,7 +194,7 @@ draw_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius,
 draw_outlined_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius, inner_radius: f32, theta0, theta1: f32, color: GE_Color, thickness: f32) {
     subsegments :: 24;
 
-    draw_endpoint_sides := abs(theta0 - theta1) > 0.01;
+    draw_endpoint_sides := abs(theta0 - theta1) > 0.01 && (theta0 > 0.01 || theta1 < 0.99);
     
     for i := 0; i < subsegments; ++i {
         range  := theta1 - theta0;

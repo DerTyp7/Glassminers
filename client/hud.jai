@@ -13,7 +13,7 @@ Hud :: struct {
 
 create_hud :: (client: *Client) {
     client.hud.state = .Disabled;
-    client.hud.crafting_recipe_input_this_frame = .None;
+    client.hud.crafting_recipe_input_this_frame = .Count;
     client.hud.crafting_menu.recipes = .[];
     client.hud.crafting_menu.animation_t = .[];
 }
@@ -29,7 +29,7 @@ update_hud :: (client: *Client) {
     //
     // Clear out persistent state
     //
-    hud.crafting_recipe_input_this_frame = .None;
+    hud.crafting_recipe_input_this_frame = .Count;
     
     //
     // Toggle the active state
@@ -59,6 +59,12 @@ update_hud :: (client: *Client) {
         if client.window.keys[.Enter] & .Pressed {
             hud.crafting_recipe_input_this_frame = hud.crafting_menu.recipes[hud.crafting_menu.selected_recipe];
             hud.state = .Disabled;
+
+            if crafting_recipe_looks_doable(client, hud.crafting_recipe_input_this_frame) {
+                play_sound(client, .Crafting_0, false);
+            } else {
+                play_sound(client, .Failure_0, false);
+            }
         }
     }
 }
@@ -97,10 +103,7 @@ draw_hud :: (client: *Client) {
             sprite_index: Sprite_Index = ---;
             
             if #complete recipe == {
-              case .None;
-              case .Mirror;  sprite_index = .Mirror;
-              case .Dragon;  sprite_index = .Dragon_Idle_0;
-              case .Crystal; sprite_index = .Crystal;
+              case .Mirror; sprite_index = .Mirror;
             }
 
             theta       := (theta0 + theta1) * 0.5 * FTAU;
@@ -132,4 +135,21 @@ Hud_State :: enum {
     Crafting_Menu;
 }
 
-RECIPES := []Crafting_Recipe.[ .Mirror, .Dragon, .Crystal ];
+RECIPES := []Crafting_Recipe.[ .Mirror ];
+
+crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bool {
+    player_entity := get_entity(client, client.my_entity_pid);
+    player := down(player_entity, Player);
+    
+    required_resources: []Item_Kind = CRAFTING_RECIPE_REQUIREMENTS[recipe];
+
+    // First check that the player has the necessary resources available
+    available_resources := get_available_resources_for_player(client, player);
+    if !available_resources_fulfill(available_resources, required_resources) return false;
+    
+    // Then check the target position is actually empty
+    target_entity := get_entity_at_position(client, player.target_position);
+    if target_entity return false;
+
+    return true;
+}

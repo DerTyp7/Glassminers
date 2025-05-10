@@ -206,18 +206,17 @@ Goblin_State :: enum {
 }
 
 Interaction_Kind :: enum {
-    None;
     Primary;
     Secondary;
 }
 
 Crafting_Recipe :: enum {
-    None;
-    // @Temporary obviously
     Mirror;
-    Dragon;
-    Crystal;
 }
+
+CRAFTING_RECIPE_REQUIREMENTS: [Crafting_Recipe.Count][]Item_Kind = .[
+    .[ .Shard ],
+];
 
 direction_from_vector :: (vector: v2i) -> Direction {
     if vector.x == 0 && vector.y == 0 {
@@ -346,4 +345,26 @@ is_living_entity :: (kind: Entity_Kind) -> bool {
     }
 
     return result;    
+}
+
+available_resources_fulfill :: (available: [..]Item_Kind, required: []Item_Kind) -> bool {
+    copy := array_copy(*available, *temp);
+
+    all_requirements_met := true;
+
+    for i := 0; i < required.count; ++i {
+        item_found := false;
+
+        for j := 0; j < copy.count; ++j {
+            if array_get(*copy, j) == required[i] {
+                item_found = true;
+                array_remove_index(*copy, j);
+                break;
+            }
+        }
+
+        all_requirements_met &= item_found;
+    }
+    
+    return all_requirements_met;
 }

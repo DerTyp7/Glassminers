@@ -565,6 +565,26 @@ calculate_camera_position :: (client: *Client, current_camera_position: v2f, tar
               lerp_with_snap(current_camera_position.y, target_camera_position.y, speed) };
 }
 
+get_available_resources_for_player :: (client: *Client, player: *Player) -> [..]Item_Kind {
+    result: [..]Item_Kind;
+    result.allocator = *temp;
+
+    if player.state == .Carrying && player.carrying_item != .Count {
+        array_add(*result, player.carrying_item);
+    }
+
+    standing_on := get_entity_of_kind_at_position(client, .Item_Stack, player.physical_position);
+    if standing_on {
+        item_stack := down(standing_on, Item_Stack);
+
+        for i := 0; i < item_stack.count; ++i {
+            array_add(*result, item_stack.item_kind);
+        }
+    }
+    
+    return result;
+}
+
 do_game_tick :: (client: *Client) {
     client.tick_time = client.window.frame_time;
     
@@ -642,13 +662,13 @@ do_game_tick :: (client: *Client) {
         player_entity := get_entity(client, client.my_entity_pid);
         player := down(player_entity, Player);
 
-        read_any_input := client.hud.crafting_recipe_input_this_frame != .None;
+        read_any_input := client.hud.crafting_recipe_input_this_frame != .Count;
         
         input: Player_Input_Message = ---;
         input.entity_pid       = client.my_entity_pid;
         input.position         = player.physical_position;
         input.aim_direction    = player.physical_rotation;
-        input.interaction_kind = .None;
+        input.interaction_kind = .Count;
         input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
         
         if client.hud.state == .Disabled {

@@ -3,6 +3,8 @@ Sound_Pid :: u64;
 Sound_Index :: enum {
     Pickup_0;
     Placedown_0;
+    Crafting_0;
+    Failure_0;
     Pickaxe_0;
     Concrete_Footsteps_0;
     Concrete_Footsteps_1;
@@ -14,6 +16,8 @@ Sound_Index :: enum {
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "pickup-0.wav",
     "placedown-0.wav",
+    "crafting-0.wav",
+    "failure-0.wav",
     "pickaxe-0.wav",
     "concrete-footsteps-0.wav",
     "concrete-footsteps-1.wav",

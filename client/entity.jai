@@ -312,7 +312,16 @@ get_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
     return null;
 }
 
-get_blocking_entity_at_position :: (client: *Client, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity {
+get_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+get_blocking_entity_at_position :: (client: *Client, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity { // @Cleanup: Refactor this to have a sort-of runtime flags member per entity or per entity kind? Also, rename this thing?
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
         if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y && lambda(entity.entity_kind) return entity;

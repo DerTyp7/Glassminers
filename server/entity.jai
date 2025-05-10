@@ -511,7 +511,7 @@ get_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position:
     return null;
 }
 
-get_blocking_entity_at_position :: (server: *Server, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity {
+get_blocking_entity_at_position :: (server: *Server, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity { // @Cleanup: Refactor this to have a sort-of runtime flags member per entity or per entity kind? Also, rename this thing?
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
         if occupied && !entity.marked_for_removal && lambda(entity.entity_kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
