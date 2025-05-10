@@ -631,14 +631,13 @@ do_game_tick :: (client: *Client) {
             ui_push_height(ui, .Pixels, 32, 1);
 
             ui_label(ui, true, "Seed: %", client.game_seed);
+            ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
+
+            ui_divider(ui, true);
+            if ui_button(ui, "Continue!") then client.pause_menu_open = false;
             ui_divider(ui, false);
-            if ui_button(ui, "Continue!") then {
-                client.pause_menu_open = false;
-            }
-            ui_divider(ui, false);
-            if ui_button(ui, "Back to Main Menu!") then {
-                client.next_state = .Main_Menu;
-            }
+            if ui_button(ui, "Back to Main Menu!") then client.next_state = .Main_Menu;
+
             ui_pop_height(ui);
             ui_pop_width(ui);
             ui_pop_window(ui);
