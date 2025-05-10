@@ -30,8 +30,11 @@ create_sound_data :: (client: *Client) {
 } #else {
     for i := 0; i < client.sounds.Capacity; ++i {
         filepath := print_into_allocator(*temp, "data/sounds/%", SOUND_FILEPATH_MAP[i]);
+        add_file_to_watch(*client.sound_watchdog, filepath);
+
         status: Sound_File_Status = ---;
         client.sounds[i], status = create_sound_data_from_file(filepath);
+        
         if status != .Success logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
     }
 }
@@ -92,6 +95,19 @@ sound_active :: (client: *Client, sound_pid: Sound_Pid) -> bool {
     return stream.state != .Stopped && stream.play_counter == play_counter;
 }
 
+
+
+#if DEVELOPER {
+    find_sound_index_from_filepath :: (filepath: string) -> Sound_Index {
+        filename := cut_directories_from_path(filepath);
+
+        for i := 0; i < Sound_Index.Count; ++i {
+            if SOUND_FILEPATH_MAP[i] == filename return i;
+        }
+
+        return Sound_Index.Count;
+    }
+}
 
 
 #file_scope

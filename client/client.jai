@@ -74,6 +74,7 @@ Client :: struct {
     sounds: [Sound_Index.Count]Sound_Data;
     
 #if DEVELOPER {
+    sound_watchdog: File_Watcher;
     sprite_watchdog: File_Watcher;
 }
     
@@ -743,15 +744,39 @@ main :: (args: []string) -> s32 {
     while !client.window.should_close {
         frame_start := os_get_hardware_time();
 
+        //
+        // Check for hot-reloading
+        //
 #if DEVELOPER {
-    changed_files := update_file_watcher(*client.sprite_watchdog, *temp);
-    if changed_files.count {
+    changed_sprites := update_file_watcher(*client.sprite_watchdog, *temp);
+    if changed_sprites.count {
         if pack_sprite_atlases_with_watchdog(*client, "data") {
             reload_sprite_atlases_from_disk(*client);
         }
     }
+
+    changed_sounds := update_file_watcher(*client.sound_watchdog, *temp);
+    for i := 0; i < changed_sounds.count; ++i {
+        filepath := array_get(*changed_sounds, i);
+        sound_index := find_sound_index_from_filepath(filepath);
+        if sound_index != .Count {
+            destroy_sound_data(*client.sounds[i]);
+            status: Sound_File_Status = ---;
+            client.sounds[sound_index], status = create_sound_data_from_file(filepath);
+            if status == .Success {
+                logprint(.Debug, "Hot-loaded the sound '%'.", sound_index);
+            } else {
+                logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
+            }
+        } else {
+            logprint(.Warning, "Registered a non-cataloged sound change: '%'.", filepath);
+        }
+    }
 }
-        
+
+        //
+        // Handle transitions
+        //
         if client.current_state != client.next_state switch_to_next_state(*client);
 
         if client.window.keys[.F11] & .Pressed {
