@@ -2,12 +2,24 @@ Sound_Pid :: u64;
 
 Sound_Index :: enum {
     Pickup_0;
+    Placedown_0;
     Pickaxe_0;
+    Concrete_Footsteps_0;
+    Concrete_Footsteps_1;
+    Rock_Sliding_0;
+    Dragon_Attack_0;
+    Goblin_Attack_0;
 }
 
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "pickup-0.wav",
+    "placedown-0.wav",
     "pickaxe-0.wav",
+    "concrete-footsteps-0.wav",
+    "concrete-footsteps-1.wav",
+    "rock-sliding-0.wav",
+    "dragon-attack-0.wav",
+    "goblin-attack-0.wav",
 ];
 
 create_sound_data :: (client: *Client) {
@@ -33,6 +45,12 @@ destroy_all_sounds :: (client: *Client) {
 }
 }
 
+stop_all_sounds :: (client: *Client) {
+    for i := 0; i < client.mixer.player.streams.count; ++i {
+        client.mixer.player.streams[i].state = .Stopped;
+    }
+}
+
 play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Sound_Pid {
     sound := *client.sounds[sound_index];
     
@@ -45,6 +63,11 @@ play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Soun
     play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], looping);
 
     return (stream.play_counter << 48) | (stream & 0xffffffffffff);
+}
+
+play_sound_on_entity :: (client: *Client, entity: *Entity, sound_index: Sound_Index, looping: bool) {
+    stop_sound(client, *entity.sound_pid);
+    entity.sound_pid = play_sound(client, sound_index, looping);
 }
 
 stop_sound :: (client: *Client, sound_pid_pointer: *Sound_Pid) {
@@ -60,6 +83,13 @@ stop_sound :: (client: *Client, sound_pid_pointer: *Sound_Pid) {
     }
 
     ~sound_pid_pointer = INVALID_SOUND_PID;
+}
+
+sound_active :: (client: *Client, sound_pid: Sound_Pid) -> bool {
+    if sound_pid == INVALID_SOUND_PID return false;
+    stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
+    play_counter := sound_pid >> 48;
+    return stream.state != .Stopped && stream.play_counter == play_counter;
 }
 
 

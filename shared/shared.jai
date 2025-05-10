@@ -27,6 +27,34 @@ pids_equal :: (lhs, rhs: Pid) -> bool {
     return lhs == rhs;
 }
 
+lerp_with_wrap_and_snap :: (from, to, speed: $T/float, low, high: T) -> T {
+    direct_distance    := abs(to - from);
+    wrap_high_distance := (high - from) + (to - low);
+    wrap_low_distance  := (high - to) + (from - low);
+
+    result: f32 = ---;
+    
+    if direct_distance < wrap_high_distance && direct_distance < wrap_low_distance {
+        result = from * (1 - speed) + (to) * speed;
+    } else if wrap_high_distance < wrap_low_distance {
+        result = from * (1 - speed) + (wrap_high_distance + from) * speed;
+    } else {
+        result = from * (1 - speed) - (wrap_low_distance + from) * speed;
+    }
+
+    result = wrap(result, low, high);
+
+    if abs(result - to) < 0.001 result = to;
+
+    return result;
+}
+
+lerp_with_snap :: (from: $T, to: T, speed: f32) -> T {
+    result := from * (1 - speed) + to * speed;
+    if abs(result - to) < 0.001 result = to;
+    return result;
+}
+
 
 
 /* ----------------------------------------------- Shared Data ----------------------------------------------- */

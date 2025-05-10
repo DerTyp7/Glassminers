@@ -1,4 +1,3 @@
-
 // Jai modules
 #load "compiler.jai";
 #load "basic.jai";
@@ -242,7 +241,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.move_entity.entity_pid);
         entity.physical_position = msg.move_entity.position;
         entity.physical_rotation = msg.move_entity.rotation;
-        
+
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
         entity.health = msg.entity_health.current_health;
@@ -260,7 +259,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Carrying; player.sound_pid = play_sound(client, .Pickup_0, false);
               case .Resurrecting; player.resurrection_t = 0;
               case .Dead;
-              case .Idle;
+              case .Idle; if player.state == .Carrying player.sound_pid = play_sound(client, .Placedown_0, false);
             }
         }
 
@@ -287,13 +286,31 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Dragon_State;
         entity := get_entity(client, msg.dragon_state.entity_pid);
         dragon := down(entity, Dragon);
-        if dragon.state != msg.dragon_state.state then dragon.state_t = 0;
+
+        if dragon.state != msg.dragon_state.state {
+            dragon.state_t = 0;
+
+            if msg.dragon_state.state == {
+              case .Attacking;
+                play_sound_on_entity(client, dragon, .Dragon_Attack_0, false);
+            }
+        }
+
         dragon.state = msg.dragon_state.state;
 
       case .Goblin_State;
         entity := get_entity(client, msg.goblin_state.entity_pid);
         goblin := down(entity, Goblin);
-        if goblin.state != msg.goblin_state.state then goblin.state_t = 0;
+
+        if goblin.state != msg.goblin_state.state {
+            goblin.state_t = 0;
+
+            if msg.goblin_state.state == {
+              case .Attacking;
+                play_sound_on_entity(client, goblin, .Goblin_Attack_0, false);
+            }
+        }
+
         goblin.state = msg.goblin_state.state;
     }
 }
@@ -359,6 +376,7 @@ switch_to_next_state :: (client: *Client) {
 
       case .Lobby;
         if client.next_state != .Ingame {
+            stop_all_sounds(client);
             destroy_entity_manager(client);
             disconnect_from_server(client);
             maybe_shutdown_server(client);
@@ -366,6 +384,7 @@ switch_to_next_state :: (client: *Client) {
         }
         
       case .Ingame;
+        stop_all_sounds(client);
         destroy_entity_manager(client);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
@@ -539,11 +558,6 @@ calculate_camera_target_position :: (client: *Client, target_center_position: v2
 }
 
 calculate_camera_position :: (client: *Client, current_camera_position: v2f, target_center_position: v2i) -> v2f {
-    lerp_with_snap :: (from: $T, to: T, speed: f32) -> T {
-        if abs(from - to) < 0.001 return to;
-        return from * (1 - speed) + to * speed;
-    }
-
     target_camera_position := calculate_camera_target_position(client, target_center_position);
     speed := 10 * client.tick_time;
     return .{ lerp_with_snap(current_camera_position.x, target_camera_position.x, speed),
