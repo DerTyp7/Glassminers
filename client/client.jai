@@ -1,3 +1,4 @@
+
 // Jai modules
 #load "compiler.jai";
 #load "basic.jai";
@@ -9,12 +10,9 @@
 #load "virtual_connection.jai";
 #load "graphics_engine/graphics_engine.jai";
 
-#if DEVELOPER {
-    #library "stb/stb_image_write";
-    #load "stb/stb_image_write.jai";
-    #load "file_watcher.jai";
-}
-    
+#load "stb/stb_image_write.jai";
+#load "file_watcher.jai";
+
 // Shared
 #load "../shared/messages.jai";
 #load "../shared/shared.jai";
@@ -27,8 +25,8 @@
 #load "hud.jai";
 #load "sounds.jai";
 
-
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
+BAKE_ASSETS :: !DEVELOPER;
 
 Game_State :: enum {
     Main_Menu;
@@ -706,7 +704,8 @@ main :: (args: []string) -> s32 {
     client.world_allocator = allocator_from_memory_pool(*client.world_pool);
 
 #if DEVELOPER {
-    if !pack_sprite_atlases(*client) return -1;
+    create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
+    if !pack_sprite_atlases_with_watchdog(*client, "data") return -1;
 }
 
     window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
@@ -717,7 +716,7 @@ main :: (args: []string) -> s32 {
     create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 16);
-    create_all_sounds(*client);
+    create_sound_data(*client);
     
     client.remote_clients.allocator = *client.world_allocator;
     client.current_state = .Count;
@@ -733,8 +732,9 @@ main :: (args: []string) -> s32 {
 #if DEVELOPER {
     changed_files := update_file_watcher(*client.sprite_watchdog, *temp);
     if changed_files.count {
-        pack_sprite_atlases(*client);
-        reload_sprite_atlases_from_disk(*client);
+        if pack_sprite_atlases_with_watchdog(*client, "data") {
+            reload_sprite_atlases_from_disk(*client);
+        }
     }
 }
         

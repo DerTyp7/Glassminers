@@ -1,74 +1,71 @@
 #
 # GUI
 #
-Heart  data/sprites/items/heart.png
+Heart  sprites/items/heart.png # nocheckin
 
 #
 # Inanimates
 #
-Background  data/sprites/inanimates/background.png
-Bedrock     data/sprites/inanimates/bedrock.png
-Crystal     data/sprites/inanimates/crystal.png
-Rock        data/sprites/inanimates/rock.png
-Shard       data/sprites/items/shard.png
-Stone       data/sprites/items/stone.png
-Emitter     data/sprites/inanimates/emitter.png
-Receiver    data/sprites/inanimates/receiver.png
-Mirror      data/sprites/inanimates/mirror.png
-Emitter     data/sprites/inanimates/emitter.png
-Receiver    data/sprites/inanimates/receiver.png
-Coal_Block  data/sprites/inanimates/coal.png
-Coal_Item   data/sprites/items/coal.png
+Background  sprites/inanimates/background.png
+Bedrock     sprites/inanimates/bedrock.png
+Crystal     sprites/inanimates/crystal.png
+Rock        sprites/inanimates/rock.png
+Shard       sprites/items/shard.png
+Stone       sprites/items/stone.png
+Emitter     sprites/inanimates/emitter.png
+Receiver    sprites/inanimates/receiver.png
+Mirror      sprites/inanimates/mirror.png
+Emitter     sprites/inanimates/emitter.png
+Receiver    sprites/inanimates/receiver.png
+Coal_Block  sprites/inanimates/coal.png
+Coal_Item   sprites/items/coal.png
 
 #
 # Environment
 #
-Lava_0       data/sprites/environment/lava-0.png
-Lava_1       data/sprites/environment/lava-1.png
-Lava_2       data/sprites/environment/lava-2.png
-Lava_3       data/sprites/environment/lava-3.png
-Water        data/sprites/environment/water.png
+Lava_0       sprites/environment/lava-0.png
+Lava_1       sprites/environment/lava-1.png
+Lava_2       sprites/environment/lava-2.png
+Lava_3       sprites/environment/lava-3.png
+Water        sprites/environment/water.png
 
 #
 # Player
 #
-
-Player_Idle_Side_0   data/sprites/player/player-idle-side-0.png
-Player_Idle_Side_1   data/sprites/player/player-idle-side-1.png
-Player_Idle_Back_0   data/sprites/player/player-idle-back-0.png
-Player_Idle_Back_1   data/sprites/player/player-idle-back-1.png
-Player_Idle_Front_0  data/sprites/player/player-idle-front-0.png
-Player_Idle_Front_1  data/sprites/player/player-idle-front-1.png
-Player_Walk_Side_0   data/sprites/player/player-walk-side-0.png
-Player_Walk_Side_1   data/sprites/player/player-walk-side-1.png
-Player_Walk_Side_2   data/sprites/player/player-walk-side-2.png
-Player_Walk_Back_0   data/sprites/player/player-walk-back-0.png
-Player_Walk_Back_1   data/sprites/player/player-walk-back-1.png
-Player_Walk_Back_2   data/sprites/player/player-walk-back-2.png
-Player_Walk_Front_0  data/sprites/player/player-walk-front-0.png
-Player_Walk_Front_1  data/sprites/player/player-walk-front-1.png
-Player_Walk_Front_2  data/sprites/player/player-walk-front-2.png
+Player_Idle_Side_0   sprites/player/player-idle-side-0.png
+Player_Idle_Side_1   sprites/player/player-idle-side-1.png
+Player_Idle_Back_0   sprites/player/player-idle-back-0.png
+Player_Idle_Back_1   sprites/player/player-idle-back-1.png
+Player_Idle_Front_0  sprites/player/player-idle-front-0.png
+Player_Idle_Front_1  sprites/player/player-idle-front-1.png
+Player_Walk_Side_0   sprites/player/player-walk-side-0.png
+Player_Walk_Side_1   sprites/player/player-walk-side-1.png
+Player_Walk_Side_2   sprites/player/player-walk-side-2.png
+Player_Walk_Back_0   sprites/player/player-walk-back-0.png
+Player_Walk_Back_1   sprites/player/player-walk-back-1.png
+Player_Walk_Back_2   sprites/player/player-walk-back-2.png
+Player_Walk_Front_0  sprites/player/player-walk-front-0.png
+Player_Walk_Front_1  sprites/player/player-walk-front-1.png
+Player_Walk_Front_2  sprites/player/player-walk-front-2.png
 
 #
 # Dragon
 #
-
-Dragon_Idle_0         data/sprites/dragon/dragon-idle-0.png
-Dragon_Idle_1         data/sprites/dragon/dragon-idle-1.png
-Dragon_Spitting_Fire  data/sprites/dragon/dragon-spitting-fire.png
-Dragon_Recovering_0   data/sprites/dragon/dragon-recovering-0.png
-Dragon_Recovering_1   data/sprites/dragon/dragon-recovering-1.png
+Dragon_Idle_0         sprites/dragon/dragon-idle-0.png
+Dragon_Idle_1         sprites/dragon/dragon-idle-1.png
+Dragon_Spitting_Fire  sprites/dragon/dragon-spitting-fire.png
+Dragon_Recovering_0   sprites/dragon/dragon-recovering-0.png
+Dragon_Recovering_1   sprites/dragon/dragon-recovering-1.png
 
 #
 # Goblin
 #
-
-Goblin_Idle_Back_0    data/sprites/goblin/goblin-idle-back-0.png
-Goblin_Idle_Back_1    data/sprites/goblin/goblin-idle-back-1.png
-Goblin_Idle_Front_0   data/sprites/goblin/goblin-idle-front-0.png
-Goblin_Idle_Front_1   data/sprites/goblin/goblin-idle-front-1.png
-Goblin_Idle_Side_0    data/sprites/goblin/goblin-idle-side-0.png
-Goblin_Idle_Side_1    data/sprites/goblin/goblin-idle-side-1.png
-Goblin_Attack_Back    data/sprites/goblin/goblin-attack-back.png
-Goblin_Attack_Front   data/sprites/goblin/goblin-attack-front.png
-Goblin_Attack_Side    data/sprites/goblin/goblin-attack-side.png
+Goblin_Idle_Back_0    sprites/goblin/goblin-idle-back-0.png
+Goblin_Idle_Back_1    sprites/goblin/goblin-idle-back-1.png
+Goblin_Idle_Front_0   sprites/goblin/goblin-idle-front-0.png
+Goblin_Idle_Front_1   sprites/goblin/goblin-idle-front-1.png
+Goblin_Idle_Side_0    sprites/goblin/goblin-idle-side-0.png
+Goblin_Idle_Side_1    sprites/goblin/goblin-idle-side-1.png
+Goblin_Attack_Back    sprites/goblin/goblin-attack-back.png
+Goblin_Attack_Front   sprites/goblin/goblin-attack-front.png
+Goblin_Attack_Side    sprites/goblin/goblin-attack-side.png

@@ -5,9 +5,24 @@ Sound_Index :: enum {
     Pickaxe_0;
 }
 
-create_all_sounds :: (client: *Client) {
-    client.sounds[.Pickup_0] = load_sound("data/sounds/pickup-0.wav");
-    client.sounds[.Pickaxe_0] = load_sound("data/sounds/pickaxe-0.wav");
+SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
+    "pickup-0.wav",
+    "pickaxe-0.wav",
+];
+
+create_sound_data :: (client: *Client) {
+#if BAKE_ASSETS {
+    for i := 0; i < client.sounds.Capacity; ++i {
+        client.sounds[i] = BAKED_SOUNDS[i];
+    }
+} #else {
+    for i := 0; i < client.sounds.Capacity; ++i {
+        filepath := print_into_allocator(*temp, "data/sounds/%", SOUND_FILEPATH_MAP[i]);
+        status: Sound_File_Status = ---;
+        client.sounds[i], status = create_sound_data_from_file(filepath);
+        if status != .Success logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
+    }
+}
 }
 
 destroy_all_sounds :: (client: *Client) {
@@ -54,9 +69,3 @@ INVALID_SOUND_PID: Sound_Pid = 0;
 SOUND_CATEGORY_MAP: [Sound_Index.Count]Sound_Category : .[
     .Sound_Effect,
 ];
-
-load_sound :: (filepath: string) -> Sound_Data {
-    sound_data, status := create_sound_data_from_file(filepath);
-    if status != .Success logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
-    return sound_data;
-}
