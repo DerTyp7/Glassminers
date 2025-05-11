@@ -608,7 +608,7 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
         array_add(*result, guy.carrying_item);
     }
 
-    standing_on := get_entity_of_kind_at_position(client, .Item_Stack, guy.physical_position);
+    standing_on := find_entity_of_kind_at_position(client, .Item_Stack, guy.physical_position);
     if standing_on {
         item_stack := down(standing_on, Item_Stack);
 

@@ -290,8 +290,12 @@ create_the_game :: (server: *Server) {
     //
     {
         is_blocked_position :: (server: *Server, position: v2i) -> bool {
-            return position.y >= 1 && position.y <= 3 &&
-                position.x >= 2 && position.x <= 2 + server.clients.count + 1;
+            if position.y >= 1 && position.y <= 3 &&
+                position.x >= 2 && position.x <= 2 + server.clients.count + 1 return true;
+
+            if find_any_entity_at_position(server, position) != null return true;
+
+            return false;
         }
 
         random_position :: (server: *Server) -> v2i, bool {
@@ -300,7 +304,7 @@ create_the_game :: (server: *Server) {
             success := true;
             
             iteration := 0;
-            while get_entity_at_position(server, position) != null || is_blocked_position(server, position) {
+            while is_blocked_position(server, position) {
                 position = .{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
 
                 if iteration > 10 {
@@ -348,7 +352,7 @@ get_available_resources_for_guy :: (server: *Server, guy: *Guy) -> [..]Item_Kind
         array_add(*result, guy.carrying_item);
     }
 
-    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, guy.physical_position);
+    standing_on := find_entity_of_kind_at_position(server, .Item_Stack, guy.physical_position);
     if standing_on {
         item_stack := down(standing_on, Item_Stack);
 
@@ -361,7 +365,7 @@ get_available_resources_for_guy :: (server: *Server, guy: *Guy) -> [..]Item_Kind
 }
 
 consume_resources_from_guy :: (server: *Server, guy: *Guy, resources: []Item_Kind) {
-    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, guy.physical_position);
+    standing_on := find_entity_of_kind_at_position(server, .Item_Stack, guy.physical_position);
     item_stack: *Item_Stack = null;
 
     if standing_on {
@@ -388,7 +392,7 @@ maybe_craft_recipe :: (server: *Server, guy: *Guy, result_entity: Entity_Kind, r
     if !available_resources_fulfill(available_resources, required_resources) return false;
     
     // Then check the target position is actually empty
-    target_entity := get_entity_at_position(server, guy.target_position);
+    target_entity := find_any_entity_at_position(server, guy.target_position);
     if target_entity return false;
 
     // Actually commit to crafting.
@@ -424,7 +428,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     if #complete guy.received_input.interaction_kind == {            
       case .Primary;
-        target_entity := get_entity_at_position(server, guy.target_position);
+        target_entity := find_any_entity_at_position(server, guy.target_position);
 
         if guy.state != .Idle || !target_entity break;
         
@@ -437,7 +441,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         }
         
       case .Secondary;
-        target_entity := get_entity_at_position(server, guy.target_position);
+        target_entity := find_any_entity_at_position(server, guy.target_position);
 
         if #complete guy.state == {
           case .Dead, .Digging, .Resurrecting;

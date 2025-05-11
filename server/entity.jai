@@ -13,6 +13,7 @@ Entity :: struct {
     marked_for_removal: bool;
 
     health: f32;
+    entity_flags: Entity_Flags;
     
     physical_rotation: Direction;
     physical_position: v2i;
@@ -142,6 +143,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     entity.entity_kind        = kind;
     entity.marked_for_removal = false;
     entity.health             = MAX_HEALTHS[kind];
+    entity.entity_flags       = DEFAULT_ENTITY_FLAGS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
 
@@ -267,7 +269,7 @@ update_guy :: (server: *Server, guy: *Guy) {
     
     if guy.state == {
       case .Digging;
-        target_entity := get_entity_at_position(server, guy.target_position);
+        target_entity := find_any_entity_at_position(server, guy.target_position);
         if damage_entity(server, target_entity, GUY_DPS * server.tick_time) {
             guy.state = .Idle;
         }
@@ -361,7 +363,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
         for i := 0; i < dragon.beam_data.fields.count; ++i {
             field := array_get(*dragon.beam_data.fields, i);
-            entity := get_blocking_entity_at_position(server, field, is_living_entity);
+            entity := find_entity_with_flags_at_position(server, .Living, field);
             if entity && !array_contains(*dragon.damaged_entities_this_attack, entity.pid) {
                 damage_entity(server, entity, HEALTH_PER_HEART);
                 array_add(*dragon.damaged_entities_this_attack, entity.pid);
@@ -447,22 +449,9 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
 
 try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind) -> bool {
     success := false;
-    stack_entity := get_entity_at_position(server, target_position);
+    stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
 
-    if stack_entity == null {
-        stack_entity = create_entity(server, .Item_Stack, target_position, .North);
-        stack := down(stack_entity, Item_Stack);
-        stack.item_kind = kind;
-        stack.count = 1;
-
-        msg := make_message(Item_Stack_State_Message);
-        msg.item_stack_state.entity_pid = stack.pid;
-        msg.item_stack_state.item_kind  = stack.item_kind;
-        msg.item_stack_state.count      = stack.count;
-        array_add(*server.outgoing_messages, msg);
-
-        success = true;
-    } else if stack_entity.entity_kind == .Item_Stack {
+    if stack_entity {
         stack := down(stack_entity, Item_Stack);
 
         if stack.item_kind == kind {
@@ -476,6 +465,19 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind) -> b
 
             success = true;
         }
+    } else {
+        stack_entity = create_entity(server, .Item_Stack, target_position, .North);
+        stack := down(stack_entity, Item_Stack);
+        stack.item_kind = kind;
+        stack.count = 1;
+
+        msg := make_message(Item_Stack_State_Message);
+        msg.item_stack_state.entity_pid = stack.pid;
+        msg.item_stack_state.item_kind  = stack.item_kind;
+        msg.item_stack_state.count      = stack.count;
+        array_add(*server.outgoing_messages, msg);
+
+        success = true;
     }
 
     return success;
@@ -491,7 +493,7 @@ position_in_bounds :: (server: *Server, position: v2i) -> bool {
     return position.x >= 0 && position.x < server.world_size.x && position.y >= 0 && position.y < server.world_size.y;
 }
 
-get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
+find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
         if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
@@ -500,7 +502,7 @@ get_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     return null;
 }
 
-get_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity {
+find_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
         if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
@@ -509,10 +511,10 @@ get_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position:
     return null;
 }
 
-get_blocking_entity_at_position :: (server: *Server, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity { // @Cleanup: Refactor this to have a sort-of runtime flags member per entity or per entity kind? Also, rename this thing?
+find_entity_with_flags_at_position :: (server: *Server, flags: Entity_Flags, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && lambda(entity.entity_kind) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -589,8 +591,8 @@ recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i) -> b
     if !position_in_bounds(server, position) then return false;
 
     // Make sure the space is unoccupied or can be moved away
-    collision := get_blocking_entity_at_position(server, position, is_move_blocking_entity);
-    if collision != null && (!is_pushable_entity(collision.entity_kind) || !recursive_move_check(server, collision, move_delta)) then return false;
+    collision := find_entity_with_flags_at_position(server, .Blocks_Move, position);
+    if collision != null && (!bitfield_contains(*collision.entity_flags, Entity_Flags.Pushable) || !recursive_move_check(server, collision, move_delta)) then return false;
 
     // Success!
     return true;
@@ -601,7 +603,7 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
 
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
-    collision := get_blocking_entity_at_position(server, position, is_move_blocking_entity);
+    collision := find_entity_with_flags_at_position(server, .Blocks_Move, position);
     if collision recursive_move(server, collision, move_delta);
 
     update_physical_location(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);
@@ -645,7 +647,7 @@ has_line_of_sight :: (server: *Server, source: v2i, target: v2i) -> bool {
     position := v2i.{ source.x + delta.x, source.y + delta.y };
 
     while position.x != target.x || position.y != target.y {
-        if get_blocking_entity_at_position(server, position, is_los_blocking_entity) return false;
+        if find_entity_with_flags_at_position(server, .Blocks_Los, position) return false;
         position.x += delta.x;
         position.y += delta.y;
     }
@@ -660,7 +662,7 @@ recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction
         position.y += vector.y;
         if !position_in_bounds(server, position) break;
         
-        blocking := get_blocking_entity_at_position(server, position, is_beam_blocking_entity);
+        blocking := find_entity_with_flags_at_position(server, .Blocks_Beam, position);
         
         if blocking == null {
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });

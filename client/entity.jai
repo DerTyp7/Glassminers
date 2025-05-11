@@ -15,7 +15,9 @@ Entity :: struct {
     pid: Pid;
     entity_kind: Entity_Kind;
     marked_for_removal: bool;
+
     health: f32;
+    entity_flags: Entity_Flags;
     
     physical_position: v2i;
     physical_rotation: Direction;
@@ -164,6 +166,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.entity_kind        = kind;
     entity.marked_for_removal = false;
     entity.health             = MAX_HEALTHS[kind];
+    entity.entity_flags       = DEFAULT_ENTITY_FLAGS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.visual_position    = .{ xx entity.physical_position.x, xx entity.physical_position.y };
@@ -304,16 +307,16 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
     return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
 }
 
-get_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
+find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
 }
 
-get_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
+find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
         if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
@@ -322,10 +325,10 @@ get_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position:
     return null;
 }
 
-get_blocking_entity_at_position :: (client: *Client, position: v2i, lambda: (kind: Entity_Kind) -> bool) -> *Entity { // @Cleanup: Refactor this to have a sort-of runtime flags member per entity or per entity kind? Also, rename this thing?
+find_entity_with_flags_at_position :: (client: *Client, flags: Entity_Flags, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && entity.physical_position.x == position.x && entity.physical_position.y == position.y && lambda(entity.entity_kind) return entity;
+        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -343,7 +346,7 @@ recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction
         position.y += vector.y;
         if !position_in_bounds(client, position) break;
         
-        blocking := get_blocking_entity_at_position(client, position, is_beam_blocking_entity);
+        blocking := find_entity_with_flags_at_position(client, .Blocks_Beam, position);
         
         if blocking == null {
             array_add(*beam.fields, position);

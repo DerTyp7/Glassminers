@@ -130,6 +130,34 @@ HEALTH_PER_HEART: f32 : 10;
 BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
 GUY_DPS:  f32 : HEALTH_PER_HEART;
 
+Entity_Flags :: enum bitfield {
+    Pushable;
+    Living;
+    Blocks_Move;
+    Blocks_Beam;
+    Blocks_Los;
+}
+
+DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
+    // Beams
+    .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Emitter
+    .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Receiver
+    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Mirror
+
+    // Environment
+    .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Bedrock
+    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Rock
+    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Crystal
+    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
+    0, // Item Stack
+    .Blocks_Move, // Lava
+
+    // Beings
+    .Pushable | .Blocks_Move, // Guy
+    .Blocks_Move, // Dragon
+    .Blocks_Move, // Goblin
+];
+
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     // Beams
     0,  // Emitter
@@ -264,87 +292,6 @@ visual_from_physical_rotation :: (in: Direction) -> f32 {
     }
     
     return out;
-}
-
-// @Cleanup: Encode all of these helpers in one runtime_flags.
-
-is_pushable_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Guy || kind == .Crystal || kind == .Rock || kind == .Coal || kind == .Mirror;
-}
-
-is_move_blocking_entity :: (kind: Entity_Kind) -> bool {
-    result: bool = ---;
-
-    if #complete kind == {
-        case .Emitter,
-            .Receiver,
-            .Mirror,
-            .Bedrock,
-            .Rock,
-            .Coal,
-            .Crystal,
-            .Guy,
-            .Dragon,
-            .Goblin,
-            .Lava;
-        result = true;
-
-      case .Item_Stack;
-        result = false;
-    }
-
-    return result;
-}
-
-is_beam_blocking_entity :: (kind: Entity_Kind) -> bool {
-    result: bool = ---;
-
-    if #complete kind == {
-      case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal;
-        result = true;
-
-      case .Guy, .Item_Stack, .Dragon, .Goblin, .Lava;
-        result = false;
-    }
-
-    return result;
-}
-
-is_los_blocking_entity :: (kind: Entity_Kind) -> bool {
-    result: bool = ---;
-
-    if #complete kind == {
-        case .Emitter,
-            .Receiver,
-            .Mirror,
-            .Bedrock,
-            .Rock,
-            .Coal,
-            .Guy,
-            .Crystal,
-            .Dragon,
-            .Goblin;
-        result = true;
-
-      case .Item_Stack, .Lava;
-        result = false;
-    }
-
-    return result;    
-}
-
-is_living_entity :: (kind: Entity_Kind) -> bool {
-    result: bool = ---;
-
-    if #complete kind == {
-      case .Guy, .Dragon, .Goblin;
-        result = true;
-
-      case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal, .Item_Stack, .Lava;
-        result = false;
-    }
-
-    return result;    
 }
 
 available_resources_fulfill :: (available: [..]Item_Kind, required: []Item_Kind) -> bool {

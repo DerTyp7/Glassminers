@@ -472,7 +472,7 @@ draw_world :: (client: *Client) {
             draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
 
           case .Digging;
-            target_entity := get_entity_at_position(client, guy.target_position);
+            target_entity := find_any_entity_at_position(client, guy.target_position);
             draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.entity_kind]);
 
           case .Carrying;
@@ -502,7 +502,7 @@ draw_world :: (client: *Client) {
           case .Guy;
             guy := down(entity, Guy);
             draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && guy.state != .Dead;
-          case; draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && is_living_entity(entity.entity_kind);
+          case; draw_health = bitfield_contains(*entity.entity_flags, Entity_Flags.Living) && entity.health < MAX_HEALTHS[entity.entity_kind];
         }
         
         if draw_health {

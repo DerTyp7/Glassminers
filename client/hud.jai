@@ -148,7 +148,7 @@ crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bo
     if !available_resources_fulfill(available_resources, required_resources) return false;
     
     // Then check the target position is actually empty
-    target_entity := get_entity_at_position(client, guy.target_position);
+    target_entity := find_any_entity_at_position(client, guy.target_position);
     if target_entity return false;
 
     return true;
