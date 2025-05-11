@@ -245,6 +245,7 @@ interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotati
     }
 
     if approx_distance_to_move > 0.25 && !sound_active(client, entity.sound_pid) {
+        // Play move sound
         pick_random_sound :: (sounds: []Sound_Index) -> Sound_Index {
             time := rdtsc();
             return sounds[time % sounds.count];
@@ -254,7 +255,7 @@ interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotati
 
         if entity.entity_kind == {
           case .Player; sound_index = pick_random_sound(.[ .Concrete_Footsteps_0, .Concrete_Footsteps_1 ]);
-          case .Rock, .Crystal; sound_index = .Rock_Sliding_0;
+          case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
         }
 
         if sound_index != .Count {

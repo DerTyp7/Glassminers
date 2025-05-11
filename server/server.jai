@@ -456,7 +456,7 @@ handle_player_input :: (server: *Server, player: *Player) {
             }
             
           case .Carrying;
-            if target_entity && target_entity.entity_kind == .Emitter {
+            if target_entity && target_entity.entity_kind == .Emitter && player.carrying_item == .Coal {
                 emitter := down(target_entity, Emitter);
                 set_emitter_time_left(server, emitter, emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME);
                 player.state = .Idle;

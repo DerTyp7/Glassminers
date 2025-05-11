@@ -271,7 +271,7 @@ visual_from_physical_rotation :: (in: Direction) -> f32 {
 }
 
 is_pushable_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal || kind == .Rock;
+    return kind == .Player || kind == .Crystal || kind == .Rock || kind == .Coal || kind == .Mirror;
 }
 
 is_move_blocking_entity :: (kind: Entity_Kind) -> bool {
