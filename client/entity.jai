@@ -30,9 +30,9 @@ Entity :: struct {
 }
 }
 
-Player :: struct {
+Guy :: struct {
     #using entity : *Entity = ---;
-    state: Player_State = .Idle;
+    state: Guy_State = .Idle;
     target_position: v2i;
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;
@@ -69,14 +69,14 @@ Goblin :: struct {
 }
 
 Entity_Manager :: struct {
-    pid_lookup: Probed_Hash_Table(Pid, *Entity);
+    pid_lookup:   Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
-    players:     Bucket_Array(Player);
-    emitters:    Bucket_Array(Emitter);
-    receivers:   Bucket_Array(Receiver);
-    item_stacks: Bucket_Array(Item_Stack);
-    dragons:     Bucket_Array(Dragon);
-    goblins:     Bucket_Array(Goblin);
+    guys:         Bucket_Array(Guy);
+    emitters:     Bucket_Array(Emitter);
+    receivers:    Bucket_Array(Receiver);
+    item_stacks:  Bucket_Array(Item_Stack);
+    dragons:      Bucket_Array(Dragon);
+    goblins:      Bucket_Array(Goblin);
 }
 
 
@@ -89,7 +89,7 @@ create_entity_manager :: (client: *Client) {
     client.pid_lookup.allocator = *client.world_allocator;
     probed_hash_table_create(*client.pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.all_entities, *client.world_allocator);
-    create_bucket_array(*client.players, *client.world_allocator);
+    create_bucket_array(*client.guys, *client.world_allocator);
     create_bucket_array(*client.emitters, *client.world_allocator);
     create_bucket_array(*client.receivers, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
@@ -100,7 +100,7 @@ create_entity_manager :: (client: *Client) {
 destroy_entity_manager :: (client: *Client) {
     probed_hash_table_destroy(*client.pid_lookup);
     destroy_bucket_array(*client.all_entities);
-    destroy_bucket_array(*client.players);
+    destroy_bucket_array(*client.guys);
     destroy_bucket_array(*client.emitters);
     destroy_bucket_array(*client.receivers);
     destroy_bucket_array(*client.item_stacks);
@@ -177,7 +177,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     assert(successfully_added, "For some reason we failed to register the entity pid on the client.");
 
     if #complete entity.entity_kind == {
-      case .Player;     make_derived(entity, *client.players);
+      case .Guy;     make_derived(entity, *client.guys);
       case .Emitter;    make_derived(entity, *client.emitters);
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
@@ -207,7 +207,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
         }
     }
     
-    remove_deriveds(*client.players);
+    remove_deriveds(*client.guys);
     remove_deriveds(*client.emitters);
     remove_deriveds(*client.receivers);
     remove_deriveds(*client.dragons);
@@ -233,7 +233,7 @@ interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotati
     }
         
     if disable_visual_rotation {
-        // This is a hack, but for certain entities (e.g. players) we have sprites for the all
+        // This is a hack, but for certain entities (e.g. guys) we have sprites for the all
         // the different physical rotations (because these are from different "perspectives").
         // For those sprites, we don't actually want to rotate them visually, because the sprites
         // themselves are "rotated"...
@@ -254,7 +254,7 @@ interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotati
         sound_index: Sound_Index = .Count;
 
         if entity.entity_kind == {
-          case .Player; sound_index = pick_random_sound(.[ .Concrete_Footsteps_0, .Concrete_Footsteps_1 ]);
+          case .Guy; sound_index = pick_random_sound(.[ .Concrete_Footsteps_0, .Concrete_Footsteps_1 ]);
           case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
         }
 
@@ -276,9 +276,9 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
 }
 
-update_player :: (client: *Client, player: *Player) {
-    if player.state == .Resurrecting {
-        player.resurrection_t += client.tick_time / RESURRECTION_TIME;
+update_guy :: (client: *Client, guy: *Guy) {
+    if guy.state == .Resurrecting {
+        guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
 }
 

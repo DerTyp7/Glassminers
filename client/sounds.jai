@@ -9,7 +9,7 @@ Sound_Index :: enum {
     Concrete_Footsteps_0;
     Concrete_Footsteps_1;
     Rock_Sliding_0;
-    Player_Death_0;
+    Guy_Death_0;
     Dragon_Attack_0;
     Dragon_Death_0;
     Goblin_Attack_0;
@@ -25,7 +25,7 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "concrete-footsteps-0.wav",
     "concrete-footsteps-1.wav",
     "rock-sliding-0.wav",
-    "player-death-0.wav",
+    "guy-death-0.wav",
     "dragon-attack-0.wav",
     "dragon-death-0.wav",
     "goblin-attack-0.wav",

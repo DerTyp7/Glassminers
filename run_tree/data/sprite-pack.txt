@@ -34,23 +34,23 @@ Lava_2       sprites/environment/lava-2.png
 Lava_3       sprites/environment/lava-3.png
 
 #
-# Player
+# Guy
 #
-Player_Idle_Side_0   sprites/player/player-idle-side-0.png
-Player_Idle_Side_1   sprites/player/player-idle-side-1.png
-Player_Idle_Back_0   sprites/player/player-idle-back-0.png
-Player_Idle_Back_1   sprites/player/player-idle-back-1.png
-Player_Idle_Front_0  sprites/player/player-idle-front-0.png
-Player_Idle_Front_1  sprites/player/player-idle-front-1.png
-Player_Walk_Side_0   sprites/player/player-walk-side-0.png
-Player_Walk_Side_1   sprites/player/player-walk-side-1.png
-Player_Walk_Side_2   sprites/player/player-walk-side-2.png
-Player_Walk_Back_0   sprites/player/player-walk-back-0.png
-Player_Walk_Back_1   sprites/player/player-walk-back-1.png
-Player_Walk_Back_2   sprites/player/player-walk-back-2.png
-Player_Walk_Front_0  sprites/player/player-walk-front-0.png
-Player_Walk_Front_1  sprites/player/player-walk-front-1.png
-Player_Walk_Front_2  sprites/player/player-walk-front-2.png
+Guy_Idle_Side_0   sprites/guy/guy-idle-side-0.png
+Guy_Idle_Side_1   sprites/guy/guy-idle-side-1.png
+Guy_Idle_Back_0   sprites/guy/guy-idle-back-0.png
+Guy_Idle_Back_1   sprites/guy/guy-idle-back-1.png
+Guy_Idle_Front_0  sprites/guy/guy-idle-front-0.png
+Guy_Idle_Front_1  sprites/guy/guy-idle-front-1.png
+Guy_Walk_Side_0   sprites/guy/guy-walk-side-0.png
+Guy_Walk_Side_1   sprites/guy/guy-walk-side-1.png
+Guy_Walk_Side_2   sprites/guy/guy-walk-side-2.png
+Guy_Walk_Back_0   sprites/guy/guy-walk-back-0.png
+Guy_Walk_Back_1   sprites/guy/guy-walk-back-1.png
+Guy_Walk_Back_2   sprites/guy/guy-walk-back-2.png
+Guy_Walk_Front_0  sprites/guy/guy-walk-front-0.png
+Guy_Walk_Front_1  sprites/guy/guy-walk-front-1.png
+Guy_Walk_Front_2  sprites/guy/guy-walk-front-2.png
 
 #
 # Dragon

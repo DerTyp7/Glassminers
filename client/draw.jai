@@ -24,22 +24,22 @@ Sprite_Index :: enum {
     Lava_2;
     Lava_3;
 
-    // Player
-    Player_Idle_Side_0;
-    Player_Idle_Side_1;
-    Player_Idle_Back_0;
-    Player_Idle_Back_1;
-    Player_Idle_Front_0;
-    Player_Idle_Front_1;
-    Player_Walk_Side_0;
-    Player_Walk_Side_1;
-    Player_Walk_Side_2;
-    Player_Walk_Back_0;
-    Player_Walk_Back_1;
-    Player_Walk_Back_2;
-    Player_Walk_Front_0;
-    Player_Walk_Front_1;
-    Player_Walk_Front_2;
+    // Guy
+    Guy_Idle_Side_0;
+    Guy_Idle_Side_1;
+    Guy_Idle_Back_0;
+    Guy_Idle_Back_1;
+    Guy_Idle_Front_0;
+    Guy_Idle_Front_1;
+    Guy_Walk_Side_0;
+    Guy_Walk_Side_1;
+    Guy_Walk_Side_2;
+    Guy_Walk_Back_0;
+    Guy_Walk_Back_1;
+    Guy_Walk_Back_2;
+    Guy_Walk_Front_0;
+    Guy_Walk_Front_1;
+    Guy_Walk_Front_2;
 
     // Dragon
     Dragon_Idle_0;
@@ -454,36 +454,36 @@ draw_world :: (client: *Client) {
     }
     
     //
-    // Draw all player states
+    // Draw all guy states
     //
-    for i := 0; i < client.players.slot_count; ++i {
-        player, occupied := index_bucket_array(*client.players, i);
+    for i := 0; i < client.guys.slot_count; ++i {
+        guy, occupied := index_bucket_array(*client.guys, i);
         if !occupied continue;
 
-        if player.pid == client.my_entity_pid {
+        if guy.pid == client.my_entity_pid {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
-            draw_outlined_rect_world_space(client, .{ xx player.target_position.x - TARGET_RECT_HALF_SIZE, xx player.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx player.target_position.x + TARGET_RECT_HALF_SIZE, xx player.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
+            draw_outlined_rect_world_space(client, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
         }
             
-        if #complete player.state == {
+        if #complete guy.state == {
           case .Idle;
 
           case .Dead;
-            draw_circle_world_space(client, .{ xx player.visual_position.x, xx (player.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
+            draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
 
           case .Digging;
-            target_entity := get_entity_at_position(client, player.target_position);
+            target_entity := get_entity_at_position(client, guy.target_position);
             draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.entity_kind]);
 
           case .Carrying;
-            world_position := player.visual_position;
+            world_position := guy.visual_position;
             world_position.x += 0.25;
             world_size :: v2f.{ 0.25, 0.25 };
-            sprite_index := get_sprite_index_for_item(player.carrying_item);
+            sprite_index := get_sprite_index_for_item(guy.carrying_item);
             draw_sprite_world_space(client, sprite_index, world_position, world_size, 0, .{ 255, 255, 255, 255 }, false);
 
           case .Resurrecting;
-            draw_progress_bar_world_space(client, .{ xx player.target_position.x, xx player.target_position.y }, PROGRESS_BAR_WORLD_SIZE, player.resurrection_t);
+            draw_progress_bar_world_space(client, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
         }
     }
 
@@ -499,9 +499,9 @@ draw_world :: (client: *Client) {
         draw_health: bool = ---;
 
         if entity.entity_kind == {
-          case .Player;
-            player := down(entity, Player);
-            draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && player.state != .Dead;
+          case .Guy;
+            guy := down(entity, Guy);
+            draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && guy.state != .Dead;
           case; draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && is_living_entity(entity.entity_kind);
         }
         
@@ -511,7 +511,7 @@ draw_world :: (client: *Client) {
     }
     
     //
-    // Draw the player's name above their entities
+    // Draw the guy's name above their entities
     //
     for i := 0; i < client.remote_clients.count; ++i {
         rc := array_get_pointer(*client.remote_clients, i);
@@ -519,7 +519,7 @@ draw_world :: (client: *Client) {
     }
 
     //
-    // Draw an indicate above this player's entity
+    // Draw an indicate above this guy's entity
     //
     draw_label(client, "v YOU v", client.my_entity_pid);
 }
@@ -565,32 +565,32 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     horizontally_mirrored := false;
     
     if #complete entity.entity_kind == {
-      case .Player;
+      case .Guy;
         frames: []Sprite_Index = ---;
         frame_time: f32 = ---;
 
         if entity_is_moving(entity) {
             if #complete entity.physical_rotation == {
               case .North;
-                frames = .[ .Player_Walk_Back_0, .Player_Walk_Back_1, .Player_Walk_Back_2 ];
+                frames = .[ .Guy_Walk_Back_0, .Guy_Walk_Back_1, .Guy_Walk_Back_2 ];
                 frame_time = 0.2;
               case .South;
-                frames = .[ .Player_Walk_Front_0, .Player_Walk_Front_1, .Player_Walk_Front_2 ];
+                frames = .[ .Guy_Walk_Front_0, .Guy_Walk_Front_1, .Guy_Walk_Front_2 ];
                 frame_time = 0.2;
               case .East, .West;
-                frames = .[ .Player_Walk_Side_0, .Player_Walk_Side_1, .Player_Walk_Side_2 ];
+                frames = .[ .Guy_Walk_Side_0, .Guy_Walk_Side_1, .Guy_Walk_Side_2 ];
                 frame_time = 0.2;
             }
         } else {
             if #complete entity.physical_rotation == {
               case .North;
-                frames = .[ .Player_Idle_Back_0, .Player_Idle_Back_1 ];
+                frames = .[ .Guy_Idle_Back_0, .Guy_Idle_Back_1 ];
                 frame_time = 0.5;
               case .South;
-                frames = .[ .Player_Idle_Front_0, .Player_Idle_Front_1 ];
+                frames = .[ .Guy_Idle_Front_0, .Guy_Idle_Front_1 ];
                 frame_time = 0.5;
               case .East, .West;
-                frames = .[ .Player_Idle_Side_0, .Player_Idle_Side_1 ];
+                frames = .[ .Guy_Idle_Side_0, .Guy_Idle_Side_1 ];
                 frame_time = 0.5;
             }
         }

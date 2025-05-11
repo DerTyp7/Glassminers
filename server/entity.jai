@@ -24,17 +24,17 @@ Entity :: struct {
 }
 }
 
-Player :: struct {
-    #using entity : *Entity  = ---;
-    state: Player_State      = .Idle;
-    target_position: v2i     = .{ 0, 0 };
+Guy :: struct {
+    #using entity : *Entity = ---;
+    state: Guy_State        = .Idle;
+    target_position: v2i    = .{ 0, 0 };
 
     carrying_item: Item_Kind = .Count;
     
-    resurrection_pid: Pid    = INVALID_PID;
-    resurrection_t: f32      = 0; // Between 0 and 1
+    resurrection_pid: Pid = INVALID_PID;
+    resurrection_t: f32   = 0; // Between 0 and 1
     
-    received_input: Player_Input_Message = ---;
+    received_input: Guy_Input_Message = ---;
     received_input_this_tick: bool = false;
 }
 
@@ -73,12 +73,12 @@ Entity_Manager :: struct {
     pid_counter:  Pid;
     pid_lookup:   Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
-    players:     Bucket_Array(Player);
-    emitters:    Bucket_Array(Emitter);
-    receivers:   Bucket_Array(Receiver);
-    item_stacks: Bucket_Array(Item_Stack);
-    dragons:     Bucket_Array(Dragon);
-    goblins:     Bucket_Array(Goblin);
+    guys:         Bucket_Array(Guy);
+    emitters:     Bucket_Array(Emitter);
+    receivers:    Bucket_Array(Receiver);
+    item_stacks:  Bucket_Array(Item_Stack);
+    dragons:      Bucket_Array(Dragon);
+    goblins:      Bucket_Array(Goblin);
 }
 
 
@@ -92,7 +92,7 @@ create_entity_manager :: (server: *Server) {
     server.pid_lookup.allocator = *server.world_allocator;
     probed_hash_table_create(*server.pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*server.all_entities, *server.world_allocator);
-    create_bucket_array(*server.players, *server.world_allocator);
+    create_bucket_array(*server.guys, *server.world_allocator);
     create_bucket_array(*server.emitters, *server.world_allocator);
     create_bucket_array(*server.receivers, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
@@ -103,7 +103,7 @@ create_entity_manager :: (server: *Server) {
 destroy_entity_manager :: (server: *Server) {
     probed_hash_table_destroy(*server.pid_lookup);
     destroy_bucket_array(*server.all_entities);
-    destroy_bucket_array(*server.players);
+    destroy_bucket_array(*server.guys);
     destroy_bucket_array(*server.emitters);
     destroy_bucket_array(*server.receivers);
     destroy_bucket_array(*server.item_stacks);
@@ -148,7 +148,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     probed_hash_table_add(*server.pid_lookup, pid, entity);
     
     if #complete entity.entity_kind == {
-      case .Player;     make_derived(entity, *server.players);
+      case .Guy;        make_derived(entity, *server.guys);
       case .Emitter;    make_derived(entity, *server.emitters);
       case .Receiver;   make_derived(entity, *server.receivers);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
@@ -185,7 +185,7 @@ physically_remove_all_marked_entities :: (server: *Server) {
         }
     }
     
-    remove_deriveds(*server.players);
+    remove_deriveds(*server.guys);
     remove_deriveds(*server.emitters);
     remove_deriveds(*server.receivers);
     remove_deriveds(*server.item_stacks);
@@ -213,9 +213,9 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
         // Handle the entity dying
         //
         if entity.entity_kind == {
-          case .Player;
-            player := down(entity, Player);
-            player.state = .Dead;
+          case .Guy;
+            guy := down(entity, Guy);
+            guy.state = .Dead;
 
           case .Crystal;
             remove_entity(server, entity);
@@ -261,41 +261,41 @@ set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
 // Derived Types
 //
 
-update_player :: (server: *Server, player: *Player) {
-    look_vector := vector_from_direction(player.physical_rotation);
-    player.target_position = .{ player.physical_position.x + look_vector.x, player.physical_position.y + look_vector.y };
+update_guy :: (server: *Server, guy: *Guy) {
+    look_vector := vector_from_direction(guy.physical_rotation);
+    guy.target_position = .{ guy.physical_position.x + look_vector.x, guy.physical_position.y + look_vector.y };
     
-    if player.state == {
+    if guy.state == {
       case .Digging;
-        target_entity := get_entity_at_position(server, player.target_position);
-        if damage_entity(server, target_entity, PLAYER_DPS * server.tick_time) {
-            player.state = .Idle;
+        target_entity := get_entity_at_position(server, guy.target_position);
+        if damage_entity(server, target_entity, GUY_DPS * server.tick_time) {
+            guy.state = .Idle;
         }
 
       case .Resurrecting;
-        player.resurrection_t += server.tick_time / RESURRECTION_TIME;
+        guy.resurrection_t += server.tick_time / RESURRECTION_TIME;
 
-        if player.resurrection_t >= 1 {
-            other_entity := get_entity(server, player.resurrection_pid);
+        if guy.resurrection_t >= 1 {
+            other_entity := get_entity(server, guy.resurrection_pid);
             if other_entity {
-                other_player := down(other_entity, Player);
-                other_player.state = .Idle; // This might be one frame late, depending on which order 'player' and 'other_player' are in the player list... But I'd say that's fine for now.
-                set_entity_health(server, other_player, HEALTH_PER_HEART);
+                other_guy := down(other_entity, Guy);
+                other_guy.state = .Idle; // This might be one frame late, depending on which order 'guy' and 'other_guy' are in the guy list... But I'd say that's fine for now.
+                set_entity_health(server, other_guy, HEALTH_PER_HEART);
             }
 
-            player.state = .Idle;
+            guy.state = .Idle;
         }
     }
 
     //
-    // Send out the new player state
-    // @NetworkTraffic: Only send this message if anything changed about the player
+    // Send out the new guy state
+    // @NetworkTraffic: Only send this message if anything changed about the guy
     //
-    msg := make_message(Player_State_Message);
-    msg.player_state.entity_pid      = player.pid;
-    msg.player_state.state           = player.state;
-    msg.player_state.target_position = player.target_position;
-    msg.player_state.carrying_item   = player.carrying_item;
+    msg := make_message(Guy_State_Message);
+    msg.guy_state.entity_pid      = guy.pid;
+    msg.guy_state.state           = guy.state;
+    msg.guy_state.target_position = guy.target_position;
+    msg.guy_state.carrying_item   = guy.carrying_item;
     array_add(*server.outgoing_messages, msg);
 }
 
@@ -338,17 +338,17 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
     if #complete dragon.state == {
       case .Idle;
-        target_player, target_distance := find_target_player_for_monster(server, dragon.physical_position);
+        target_guy, target_distance := find_target_guy_for_monster(server, dragon.physical_position);
         
-        if target_player {
-            delta := v2i.{ target_player.physical_position.x - dragon.physical_position.x, target_player.physical_position.y - dragon.physical_position.y };
+        if target_guy {
+            delta := v2i.{ target_guy.physical_position.x - dragon.physical_position.x, target_guy.physical_position.y - dragon.physical_position.y };
 
             rotation := direction_from_vector(delta);
             update_physical_location(server, dragon, dragon.physical_position, rotation);
 
             if target_distance <= DRAGON_BEAM_LENGTH {
-                // The target player is actually in reach for the dragon's beam. Since we are
-                // checking for line-of-sight, we know the beam can actually reach the player
+                // The target guy is actually in reach for the dragon's beam. Since we are
+                // checking for line-of-sight, we know the beam can actually reach the guy
                 // like this.
                 array_clear(*dragon.damaged_entities_this_attack);
                 dragon.damaged_entities_this_attack.allocator = *server.world_allocator;
@@ -401,16 +401,16 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
 
     if #complete goblin.state == {
       case .Idle;
-        target_player, target_distance := find_target_player_for_monster(server, goblin.physical_position);
+        target_guy, target_distance := find_target_guy_for_monster(server, goblin.physical_position);
 
-        if target_player {
-            delta := v2i.{ target_player.physical_position.x - goblin.physical_position.x, target_player.physical_position.y - goblin.physical_position.y };
+        if target_guy {
+            delta := v2i.{ target_guy.physical_position.x - goblin.physical_position.x, target_guy.physical_position.y - goblin.physical_position.y };
 
             rotation := direction_from_vector(delta);
             update_physical_location(server, goblin, goblin.physical_position, rotation);
 
             if target_distance == 1 {
-                damage_entity(server, target_player, HEALTH_PER_HEART);
+                damage_entity(server, target_guy, HEALTH_PER_HEART);
                 switch_state(server, goblin, .Attacking);
             }
         }
@@ -612,24 +612,24 @@ clear_beam_data :: (data: *Beam_Data) {
     data.fields.allocator = *temp;
 }
 
-find_target_player_for_monster :: (server: *Server, monster_position: v2i) -> *Player, s32 {
-    target_player: *Player = null;
+find_target_guy_for_monster :: (server: *Server, monster_position: v2i) -> *Guy, s32 {
+    target_guy: *Guy = null;
     target_distance: s32 = MAX_S32;
 
-    for i := 0; i < server.players.slot_count; ++i {
-        player, occupied := index_bucket_array(*server.players, i);
+    for i := 0; i < server.guys.slot_count; ++i {
+        guy, occupied := index_bucket_array(*server.guys, i);
         if !occupied continue;
         
-        if !has_line_of_sight(server, monster_position, player.physical_position) continue;
+        if !has_line_of_sight(server, monster_position, guy.physical_position) continue;
         
-        distance := abs(player.physical_position.x - monster_position.x) + abs(player.physical_position.y - monster_position.y);
+        distance := abs(guy.physical_position.x - monster_position.x) + abs(guy.physical_position.y - monster_position.y);
         if distance < target_distance {
-            target_player = player;
+            target_guy = guy;
             target_distance = distance;
         }
     }
 
-    return target_player, target_distance;
+    return target_guy, target_distance;
 }
 
 has_line_of_sight :: (server: *Server, source: v2i, target: v2i) -> bool {

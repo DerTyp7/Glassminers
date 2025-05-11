@@ -8,8 +8,8 @@ Message_Type :: enum {
     Destroy_Entity;
     Move_Entity;
     Entity_Health;
-    Player_State;
-    Player_Input;
+    Guy_State;
+    Guy_Input;
     Emitter_State;
     Receiver_State;
     Item_Stack_State;
@@ -71,16 +71,16 @@ Entity_Health_Message :: struct {
     current_health: f32;
 }
 
-Player_State_Message :: struct {
-    MSG_TYPE :: Message_Type.Player_State;
+Guy_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Guy_State;
     entity_pid: Pid;
-    state: Player_State;
+    state: Guy_State;
     target_position: v2i;
     carrying_item: Item_Kind;
 }
 
-Player_Input_Message :: struct {
-    MSG_TYPE :: Message_Type.Player_Input;
+Guy_Input_Message :: struct {
+    MSG_TYPE :: Message_Type.Guy_Input;
     entity_pid: Pid;
     position: v2i;
     aim_direction: Direction;
@@ -133,8 +133,8 @@ Message :: struct {
         destroy_entity: Destroy_Entity_Message;
         move_entity: Move_Entity_Message;
         entity_health: Entity_Health_Message;
-        player_state: Player_State_Message;
-        player_input: Player_Input_Message;
+        guy_state: Guy_State_Message;
+        guy_input: Guy_Input_Message;
         emitter_state: Emitter_State_Message;
         receiver_state: Receiver_State_Message;
         item_stack_state: Item_Stack_State_Message;
@@ -227,8 +227,8 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Destroy_Entity;     result = type_id(Destroy_Entity_Message);
       case .Move_Entity;        result = type_id(Move_Entity_Message); 
       case .Entity_Health;      result = type_id(Entity_Health_Message);
-      case .Player_State;       result = type_id(Player_State_Message);
-      case .Player_Input;       result = type_id(Player_Input_Message);
+      case .Guy_State;          result = type_id(Guy_State_Message);
+      case .Guy_Input;          result = type_id(Guy_Input_Message);
       case .Emitter_State;      result = type_id(Emitter_State_Message);
       case .Receiver_State;     result = type_id(Receiver_State_Message);
       case .Item_Stack_State;   result = type_id(Item_Stack_State_Message);
@@ -340,8 +340,8 @@ print_message :: (message: *Message, prefix: string) {
       case .Destroy_Entity;     sprint(*builder, "%", message.destroy_entity);
       case .Move_Entity;        sprint(*builder, "%", message.move_entity);
       case .Entity_Health;      sprint(*builder, "%", message.entity_health);
-      case .Player_State;       sprint(*builder, "%", message.player_state);
-      case .Player_Input;       sprint(*builder, "%", message.player_input);
+      case .Guy_State;          sprint(*builder, "%", message.guy_state);
+      case .Guy_Input;          sprint(*builder, "%", message.guy_input);
       case .Emitter_State;      sprint(*builder, "%", message.emitter_state);
       case .Receiver_State;     sprint(*builder, "%", message.receiver_state);
       case .Item_Stack_State;   sprint(*builder, "%", message.item_stack_state);

@@ -109,7 +109,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Player_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State, .Goblin_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State, .Goblin_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -138,15 +138,15 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         server.campaign = msg.request_game_start.campaign;
         server.next_state = .Ingame;
         
-      case .Player_Input;
-        entity := get_entity(server, msg.player_input.entity_pid);
-        player := down(entity, Player);
+      case .Guy_Input;
+        entity := get_entity(server, msg.guy_input.entity_pid);
+        guy := down(entity, Guy);
 
         // We want to ensure a deterministic order in which entities are updated on the server.
-        // Players are just normal entities that are updated at a specific time during the tick,
+        // Guys are just normal entities that are updated at a specific time during the tick,
         // so just remember the player input for later.
-        player.received_input = msg.player_input;
-        player.received_input_this_tick = true;
+        guy.received_input = msg.guy_input;
+        guy.received_input_this_tick = true;
     }
 }    
 
@@ -275,7 +275,7 @@ create_the_game :: (server: *Server) {
     //
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        entity := create_entity(server, .Player, .{ 3 + i, 2 }, .North);
+        entity := create_entity(server, .Guy, .{ 3 + i, 2 }, .North);
         client.entity_pid = entity.pid;
         
         msg := make_message(Player_Information_Message);
@@ -340,15 +340,15 @@ do_lobby_tick :: (server: *Server) {
     send_all_outgoing_messages(server);
 }
 
-get_available_resources_for_player :: (server: *Server, player: *Player) -> [..]Item_Kind {
+get_available_resources_for_guy :: (server: *Server, guy: *Guy) -> [..]Item_Kind {
     result: [..]Item_Kind;
     result.allocator = *temp;
 
-    if player.state == .Carrying && player.carrying_item != .Count {
-        array_add(*result, player.carrying_item);
+    if guy.state == .Carrying && guy.carrying_item != .Count {
+        array_add(*result, guy.carrying_item);
     }
 
-    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, player.physical_position);
+    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, guy.physical_position);
     if standing_on {
         item_stack := down(standing_on, Item_Stack);
 
@@ -360,8 +360,8 @@ get_available_resources_for_player :: (server: *Server, player: *Player) -> [..]
     return result;
 }
 
-consume_resources_from_player :: (server: *Server, player: *Player, resources: []Item_Kind) {
-    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, player.physical_position);
+consume_resources_from_guy :: (server: *Server, guy: *Guy, resources: []Item_Kind) {
+    standing_on := get_entity_of_kind_at_position(server, .Item_Stack, guy.physical_position);
     item_stack: *Item_Stack = null;
 
     if standing_on {
@@ -371,102 +371,102 @@ consume_resources_from_player :: (server: *Server, player: *Player, resources: [
     for i := 0; i < resources.count; ++i {
         resource := resources[i];
 
-        if player.state == .Carrying && player.carrying_item == resource {
-            player.carrying_item = .Count;
-            player.state = .Idle;
+        if guy.state == .Carrying && guy.carrying_item == resource {
+            guy.carrying_item = .Count;
+            guy.state = .Idle;
         } else if item_stack && item_stack.item_kind == resource && item_stack.count {
             take_item_from_stack(server, item_stack);            
         } else {
-            panic("Tried to consume resources from the player that they don't have.");
+            panic("Tried to consume resources from the guy that they don't have.");
         }
     }
 }
 
-maybe_craft_recipe :: (server: *Server, player: *Player, result_entity: Entity_Kind, required_resources: []Item_Kind) -> bool {
-    // First check that the player has the necessary resources available
-    available_resources := get_available_resources_for_player(server, player);
+maybe_craft_recipe :: (server: *Server, guy: *Guy, result_entity: Entity_Kind, required_resources: []Item_Kind) -> bool {
+    // First check that the guy has the necessary resources available
+    available_resources := get_available_resources_for_guy(server, guy);
     if !available_resources_fulfill(available_resources, required_resources) return false;
     
     // Then check the target position is actually empty
-    target_entity := get_entity_at_position(server, player.target_position);
+    target_entity := get_entity_at_position(server, guy.target_position);
     if target_entity return false;
 
     // Actually commit to crafting.
-    consume_resources_from_player(server, player, required_resources);
-    create_entity(server, result_entity, player.target_position, .North);
+    consume_resources_from_guy(server, guy, required_resources);
+    create_entity(server, result_entity, guy.target_position, .North);
     return true;
 }
 
-handle_player_input :: (server: *Server, player: *Player) {
+handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     // Handle movement
     //
     {
-        cancel_current_action := player.physical_rotation != player.received_input.aim_direction || player.physical_position.x != player.received_input.position.x || player.physical_position.y != player.received_input.position.y;
+        cancel_current_action := guy.physical_rotation != guy.received_input.aim_direction || guy.physical_position.x != guy.received_input.position.x || guy.physical_position.y != guy.received_input.position.y;
 
         if cancel_current_action {
-            if #complete player.state == {
+            if #complete guy.state == {
               case .Dead, .Idle, .Carrying;
               case .Digging, .Resurrecting;
-                player.state = .Idle;
+                guy.state = .Idle;
             }
         }
 
-        if can_move_to_position(server, player, player.received_input.position) {
-            move_to_position(server, player, player.received_input.position);
+        if can_move_to_position(server, guy, guy.received_input.position) {
+            move_to_position(server, guy, guy.received_input.position);
         }
         
-        update_physical_location(server, player, player.physical_position, player.received_input.aim_direction);
+        update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
     }
         
     //
     // Handle interaction
     //
-    if #complete player.received_input.interaction_kind == {            
+    if #complete guy.received_input.interaction_kind == {            
       case .Primary;
-        target_entity := get_entity_at_position(server, player.target_position);
+        target_entity := get_entity_at_position(server, guy.target_position);
 
-        if player.state != .Idle || !target_entity break;
+        if guy.state != .Idle || !target_entity break;
         
         if target_entity.entity_kind == {
           case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
-            player.state = .Digging;
+            guy.state = .Digging;
           case .Item_Stack;
-            player.state = .Carrying;
-            player.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
+            guy.state = .Carrying;
+            guy.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
         }
         
       case .Secondary;
-        target_entity := get_entity_at_position(server, player.target_position);
+        target_entity := get_entity_at_position(server, guy.target_position);
 
-        if #complete player.state == {
+        if #complete guy.state == {
           case .Dead, .Digging, .Resurrecting;
           case .Idle;
             if target_entity == null {
             } else if target_entity.entity_kind == .Mirror {
                 update_physical_location(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
-            } else if target_entity.entity_kind == .Player {
-                other_player := down(target_entity, Player);
-                if other_player.state == .Dead {
-                    player.state = .Resurrecting;
-                    player.resurrection_pid = other_player.pid;
-                    player.resurrection_t = 0;
+            } else if target_entity.entity_kind == .Guy {
+                other_guy := down(target_entity, Guy);
+                if other_guy.state == .Dead {
+                    guy.state = .Resurrecting;
+                    guy.resurrection_pid = other_guy.pid;
+                    guy.resurrection_t = 0;
                 }
             }
             
           case .Carrying;
-            if target_entity && target_entity.entity_kind == .Emitter && player.carrying_item == .Coal {
+            if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Coal {
                 emitter := down(target_entity, Emitter);
                 set_emitter_time_left(server, emitter, emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME);
-                player.state = .Idle;
-                player.carrying_item = 0;
-            } else if target_entity && target_entity.entity_kind == .Lava && player.carrying_item == .Stone {
+                guy.state = .Idle;
+                guy.carrying_item = 0;
+            } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
-                player.state = .Idle;
-                player.carrying_item = 0;
-            } else if try_to_put_item(server, player.target_position, player.carrying_item) {
-                player.state = .Idle;
-                player.carrying_item = 0;
+                guy.state = .Idle;
+                guy.carrying_item = 0;
+            } else if try_to_put_item(server, guy.target_position, guy.carrying_item) {
+                guy.state = .Idle;
+                guy.carrying_item = 0;
             }
         }
     }
@@ -474,8 +474,8 @@ handle_player_input :: (server: *Server, player: *Player) {
     //
     // Handle crafting
     //
-    if #complete player.received_input.crafting_recipe == {
-      case .Mirror; maybe_craft_recipe(server, player, .Mirror, CRAFTING_RECIPE_REQUIREMENTS[.Mirror]);
+    if #complete guy.received_input.crafting_recipe == {
+      case .Mirror; maybe_craft_recipe(server, guy, .Mirror, CRAFTING_RECIPE_REQUIREMENTS[.Mirror]);
     }
 }
 
@@ -546,23 +546,23 @@ do_game_tick :: (server: *Server) {
     }
     
     //
-    // Update all players
+    // Update all guys
     //
-    number_of_dead_players := 0;
+    number_of_dead_guys := 0;
     
-    for i := 0; i < server.players.slot_count; ++i {
-        player, occupied := index_bucket_array(*server.players, i);
+    for i := 0; i < server.guys.slot_count; ++i {
+        guy, occupied := index_bucket_array(*server.guys, i);
         if !occupied continue;
 
-        if player.received_input_this_tick && player.state != .Dead then handle_player_input(server, player);
-        player.received_input_this_tick = false;
+        if guy.received_input_this_tick && guy.state != .Dead then handle_guy_input(server, guy);
+        guy.received_input_this_tick = false;
 
-        update_player(server, player);
+        update_guy(server, guy);
 
-        if player.state == .Dead ++number_of_dead_players;
+        if guy.state == .Dead ++number_of_dead_guys;
     }
 
-    if number_of_dead_players == server.clients.count {
+    if number_of_dead_guys == server.clients.count {
         game_state = .Lost;
     }
 

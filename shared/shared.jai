@@ -128,25 +128,24 @@ GOBLIN_RECOVER_TIME: f32 : 2;
 
 HEALTH_PER_HEART: f32 : 10;
 BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
-PLAYER_DPS: f32 : HEALTH_PER_HEART;
+GUY_DPS:  f32 : HEALTH_PER_HEART;
 
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
-    30, // Player
-
     // Beams
     0,  // Emitter
     0,  // Receiver
     30, // Mirror
 
     // Environment
-    70, // Bedrock
+    120, // Bedrock
     50, // Rock
     30, // Crystal
     40, // Coal
     0,  // Item Stack
     0,  // Lava
     
-    // NPCs
+    // Beings
+    30, // Guy
     50, // Dragon
     20, // Goblin
 ];
@@ -159,8 +158,6 @@ Item_Kind :: enum {
 }
 
 Entity_Kind :: enum {
-    Player;
-
     // Beams
     Emitter;
     Receiver;
@@ -174,7 +171,8 @@ Entity_Kind :: enum {
     Item_Stack;
     Lava;
     
-    // NPCs
+    // Beings
+    Guy;
     Dragon;
     Goblin;
 }
@@ -186,7 +184,7 @@ Direction :: enum {
     West;  // -X
 }
 
-Player_State :: enum {
+Guy_State :: enum {
     Dead;
     Idle;
     Digging;
@@ -268,22 +266,24 @@ visual_from_physical_rotation :: (in: Direction) -> f32 {
     return out;
 }
 
+// @Cleanup: Encode all of these helpers in one runtime_flags.
+
 is_pushable_entity :: (kind: Entity_Kind) -> bool {
-    return kind == .Player || kind == .Crystal || kind == .Rock || kind == .Coal || kind == .Mirror;
+    return kind == .Guy || kind == .Crystal || kind == .Rock || kind == .Coal || kind == .Mirror;
 }
 
 is_move_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-        case .Player,
-            .Emitter,
+        case .Emitter,
             .Receiver,
             .Mirror,
             .Bedrock,
             .Rock,
             .Coal,
             .Crystal,
+            .Guy,
             .Dragon,
             .Goblin,
             .Lava;
@@ -303,7 +303,7 @@ is_beam_blocking_entity :: (kind: Entity_Kind) -> bool {
       case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal;
         result = true;
 
-      case .Player, .Item_Stack, .Dragon, .Goblin, .Lava;
+      case .Guy, .Item_Stack, .Dragon, .Goblin, .Lava;
         result = false;
     }
 
@@ -314,13 +314,13 @@ is_los_blocking_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-        case .Player,
-            .Emitter,
+        case .Emitter,
             .Receiver,
             .Mirror,
             .Bedrock,
             .Rock,
             .Coal,
+            .Guy,
             .Crystal,
             .Dragon,
             .Goblin;
@@ -337,7 +337,7 @@ is_living_entity :: (kind: Entity_Kind) -> bool {
     result: bool = ---;
 
     if #complete kind == {
-      case .Player, .Dragon, .Goblin;
+      case .Guy, .Dragon, .Goblin;
         result = true;
 
       case .Emitter, .Receiver, .Mirror, .Bedrock, .Rock, .Coal, .Crystal, .Item_Stack, .Lava;

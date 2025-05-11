@@ -76,8 +76,8 @@ draw_hud :: (client: *Client) {
       case .Disabled;
 
       case .Crafting_Menu;
-        player_entity := get_entity(client, client.my_entity_pid);
-        screen_center := screen_from_world_position(client, player_entity.visual_position);
+        guy_entity := get_entity(client, client.my_entity_pid);
+        screen_center := screen_from_world_position(client, guy_entity.visual_position);
 
         padding_per_recipe: f32 = ifx hud.crafting_menu.recipes.count > 1 then 0.1 / cast(f32) hud.crafting_menu.recipes.count else 0;
         theta_per_recipe := 1.0 / cast(f32) hud.crafting_menu.recipes.count;
@@ -138,17 +138,17 @@ Hud_State :: enum {
 RECIPES := []Crafting_Recipe.[ .Mirror ];
 
 crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bool {
-    player_entity := get_entity(client, client.my_entity_pid);
-    player := down(player_entity, Player);
+    guy_entity := get_entity(client, client.my_entity_pid);
+    guy := down(guy_entity, Guy);
     
     required_resources: []Item_Kind = CRAFTING_RECIPE_REQUIREMENTS[recipe];
 
-    // First check that the player has the necessary resources available
-    available_resources := get_available_resources_for_player(client, player);
+    // First check that the guy has the necessary resources available
+    available_resources := get_available_resources_for_guy(client, guy);
     if !available_resources_fulfill(available_resources, required_resources) return false;
     
     // Then check the target position is actually empty
-    target_entity := get_entity_at_position(client, player.target_position);
+    target_entity := get_entity_at_position(client, guy.target_position);
     if target_entity return false;
 
     return true;

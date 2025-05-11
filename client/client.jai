@@ -214,7 +214,7 @@ find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Request_Game_Start, .Player_Input; // Ignore
+      case .Request_Game_Start, .Guy_Input; // Ignore
 
       case .Player_Information;
         if msg.player_information.player_pid != client.my_player_pid {
@@ -275,26 +275,26 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.entity_health.entity_pid);
         entity.health = msg.entity_health.current_health;
         
-      case .Player_State;
-        entity := get_entity(client, msg.player_state.entity_pid);
-        player := down(entity, Player);
+      case .Guy_State;
+        entity := get_entity(client, msg.guy_state.entity_pid);
+        guy := down(entity, Guy);
 
         // State Transitions
-        if player.state != msg.player_state.state {
-            stop_sound(client, *player.sound_pid);
+        if guy.state != msg.guy_state.state {
+            stop_sound(client, *guy.sound_pid);
 
-            if #complete msg.player_state.state == {
-              case .Digging;      player.sound_pid = play_sound(client, .Pickaxe_0, true);
-              case .Carrying;     player.sound_pid = play_sound(client, .Pickup_0, false);
-              case .Resurrecting; player.resurrection_t = 0;
-              case .Dead;         player.sound_pid = play_sound(client, .Player_Death_0, false);
-              case .Idle; if player.state == .Carrying player.sound_pid = play_sound(client, .Placedown_0, false);
+            if #complete msg.guy_state.state == {
+              case .Digging;      guy.sound_pid = play_sound(client, .Pickaxe_0, true);
+              case .Carrying;     guy.sound_pid = play_sound(client, .Pickup_0, false);
+              case .Resurrecting; guy.resurrection_t = 0;
+              case .Dead;         guy.sound_pid = play_sound(client, .Guy_Death_0, false);
+              case .Idle; if guy.state == .Carrying guy.sound_pid = play_sound(client, .Placedown_0, false);
             }
         }
 
-        player.state           = msg.player_state.state;
-        player.target_position = msg.player_state.target_position;
-        player.carrying_item   = msg.player_state.carrying_item;
+        guy.state           = msg.guy_state.state;
+        guy.target_position = msg.guy_state.target_position;
+        guy.carrying_item   = msg.guy_state.carrying_item;
         
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);
@@ -600,15 +600,15 @@ calculate_camera_position :: (client: *Client, current_camera_position: v2f, tar
               lerp_with_snap(current_camera_position.y, target_camera_position.y, speed) };
 }
 
-get_available_resources_for_player :: (client: *Client, player: *Player) -> [..]Item_Kind {
+get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind {
     result: [..]Item_Kind;
     result.allocator = *temp;
 
-    if player.state == .Carrying && player.carrying_item != .Count {
-        array_add(*result, player.carrying_item);
+    if guy.state == .Carrying && guy.carrying_item != .Count {
+        array_add(*result, guy.carrying_item);
     }
 
-    standing_on := get_entity_of_kind_at_position(client, .Item_Stack, player.physical_position);
+    standing_on := get_entity_of_kind_at_position(client, .Item_Stack, guy.physical_position);
     if standing_on {
         item_stack := down(standing_on, Item_Stack);
 
@@ -636,9 +636,9 @@ do_game_tick :: (client: *Client) {
             if occupied then update_emitter(client, emitter);
         }
 
-        for i := 0; i < client.players.slot_count; ++i {
-            player, occupied := index_bucket_array(*client.players, i);
-            if occupied then update_player(client, player);
+        for i := 0; i < client.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*client.guys, i);
+            if occupied then update_guy(client, guy);
         }
         
         for i := 0; i < client.dragons.slot_count; ++i {
@@ -648,7 +648,7 @@ do_game_tick :: (client: *Client) {
 
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied then interpolate_location(client, entity, entity.entity_kind == .Player || entity.entity_kind == .Goblin);
+            if occupied then interpolate_location(client, entity, entity.entity_kind == .Guy || entity.entity_kind == .Goblin);
         }
     }
 
@@ -681,8 +681,8 @@ do_game_tick :: (client: *Client) {
     
     // Update the camera
     {
-        player := get_entity(client, client.my_entity_pid);
-        client.camera.center = calculate_camera_position(client, client.camera.center, .{ xx player.physical_position.x, xx player.physical_position.y });
+        guy := get_entity(client, client.my_entity_pid);
+        client.camera.center = calculate_camera_position(client, client.camera.center, .{ xx guy.physical_position.x, xx guy.physical_position.y });
         update_camera_matrices(*client.camera, *client.window);
     }
 
@@ -691,45 +691,45 @@ do_game_tick :: (client: *Client) {
         update_hud(client);
     }
 
-    // Forward player input to the server
+    // Forward guy input to the server
     {
-        player_entity := get_entity(client, client.my_entity_pid);
-        player := down(player_entity, Player);
+        guy_entity := get_entity(client, client.my_entity_pid);
+        guy := down(guy_entity, Guy);
 
         read_any_input := client.hud.crafting_recipe_input_this_frame != .Count;
         
-        input: Player_Input_Message = ---;
+        input: Guy_Input_Message = ---;
         input.entity_pid       = client.my_entity_pid;
-        input.position         = player.physical_position;
-        input.aim_direction    = player.physical_rotation;
+        input.position         = guy.physical_position;
+        input.aim_direction    = guy.physical_rotation;
         input.interaction_kind = .Count;
         input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
         
         if client.hud.state == .Disabled {
             if client.window.keys[.A] & .Repeated {
-                input.position.x    = player.physical_position.x - 1;
-                input.position.y    = player.physical_position.y;
+                input.position.x    = guy.physical_position.x - 1;
+                input.position.y    = guy.physical_position.y;
                 input.aim_direction = .West;
                 read_any_input = true;
             }
 
             if client.window.keys[.D] & .Repeated {
-                input.position.x    = player.physical_position.x + 1;
-                input.position.y    = player.physical_position.y;
+                input.position.x    = guy.physical_position.x + 1;
+                input.position.y    = guy.physical_position.y;
                 input.aim_direction = .East;
                 read_any_input = true;
             }
 
             if client.window.keys[.W] & .Repeated {
-                input.position.x    = player.physical_position.x;
-                input.position.y    = player.physical_position.y - 1;
+                input.position.x    = guy.physical_position.x;
+                input.position.y    = guy.physical_position.y - 1;
                 input.aim_direction = .North;
                 read_any_input = true;
             }
 
             if client.window.keys[.S] & .Repeated {
-                input.position.x    = player.physical_position.x;
-                input.position.y    = player.physical_position.y + 1;
+                input.position.x    = guy.physical_position.x;
+                input.position.y    = guy.physical_position.y + 1;
                 input.aim_direction = .South;
                 read_any_input = true;
             }
