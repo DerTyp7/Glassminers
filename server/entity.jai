@@ -232,6 +232,10 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
           case .Mirror;
             remove_entity(server, entity);
             try_to_put_item(server, entity.physical_position, .Shard);            
+
+          case .Dragon, .Goblin;
+            remove_entity(server, entity);
+            try_to_put_item(server, entity.physical_position, .Coin);
             
           case;
             remove_entity(server, entity);

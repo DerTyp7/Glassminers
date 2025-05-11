@@ -1,24 +1,31 @@
 Sprite_Index :: enum {
+    // GUI
     Heart;
 
+    // Items
+    Coal_Item;
+    Shard;
+    Stone;
+    Coin;
+
+    // Inanimates
     Background;
     Bedrock;
     Crystal;
-    Shard;
     Rock;
-    Stone;
     Coal_Block;
-    Coal_Item;
     Emitter;
     Receiver;
     Mirror;
 
+    // Environment
     Lava_0;
     Lava_1;
     Lava_2;
     Lava_3;
     Water;
-    
+
+    // Player
     Player_Idle_Side_0;
     Player_Idle_Side_1;
     Player_Idle_Back_0;
@@ -35,12 +42,14 @@ Sprite_Index :: enum {
     Player_Walk_Front_1;
     Player_Walk_Front_2;
 
+    // Dragon
     Dragon_Idle_0;
     Dragon_Idle_1;
     Dragon_Spitting_Fire;
     Dragon_Recovering_0;
     Dragon_Recovering_1;
-    
+
+    // Goblin
     Goblin_Idle_Back_0;
     Goblin_Idle_Back_1;
     Goblin_Idle_Front_0;
@@ -537,7 +546,8 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
     if #complete item == {
       case .Shard; index = .Shard;
       case .Stone; index = .Stone;
-      case .Coal; index = .Coal_Item;
+      case .Coal;  index = .Coal_Item;
+      case .Coin;  index = .Coin;
     }
     
     return index;

@@ -156,6 +156,7 @@ Item_Kind :: enum {
     Shard;
     Stone;
     Coal;
+    Coin;
 }
 
 Entity_Kind :: enum {

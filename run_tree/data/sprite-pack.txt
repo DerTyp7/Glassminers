@@ -4,21 +4,26 @@
 Heart  sprites/items/heart.png
 
 #
+# Items
+#
+Coal_Item   sprites/items/coal.png
+Shard       sprites/items/shard.png
+Stone       sprites/items/stone.png
+Coin        sprites/items/coin.png
+
+#
 # Inanimates
 #
 Background  sprites/inanimates/background.png
 Bedrock     sprites/inanimates/bedrock.png
 Crystal     sprites/inanimates/crystal.png
 Rock        sprites/inanimates/rock.png
-Shard       sprites/items/shard.png
-Stone       sprites/items/stone.png
 Emitter     sprites/inanimates/emitter.png
 Receiver    sprites/inanimates/receiver.png
 Mirror      sprites/inanimates/mirror.png
 Emitter     sprites/inanimates/emitter.png
 Receiver    sprites/inanimates/receiver.png
 Coal_Block  sprites/inanimates/coal.png
-Coal_Item   sprites/items/coal.png
 
 #
 # Environment
