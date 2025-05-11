@@ -164,6 +164,10 @@ send_reliable_messages :: (connection: *Virtual_Connection, messages: *[..]Messa
     for i := 0; i < messages.count; ++i {
         message := array_get_pointer(messages, i);
 
+#if LOG_MESSAGES {
+        print_message(message, " OUT: ");
+}
+        
         if !serialize_message(*packet, message) {
             send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
             packet.body_size = 0;
@@ -179,18 +183,29 @@ send_reliable_messages :: (connection: *Virtual_Connection, messages: *[..]Messa
 }
 
 send_reliable_message :: (connection: *Virtual_Connection, message: *Message) {
+#if LOG_MESSAGES {
+    print_message(message, " OUT: ");
+}
+
     packet: Packet   = ---;
     packet.body_size = 0;
     success := serialize_message(*packet, message);
     assert(success, "This message did not fit into a single packet!");
+    
     send_packet(connection, *packet, .Message); // We're using TCP anyway, so we don't have to bother with this entire reliability overhead!
 }
 
 read_message :: (packet: *Packet, message: *Message) -> bool {
     if packet.body_read_offset >= packet.body_size return false;
+
     deserialize(packet, *message.msg_type, type_info(Message_Type));
     message.local_type_id = message_type_to_type_id(message.msg_type);
     deserialize(packet, *message.underlying, type_info(message.local_type_id));
+
+#if LOG_MESSAGES {
+    print_message(message, " IN : ");
+}
+
     return true;
 }
 
@@ -306,4 +321,33 @@ deserialize :: (packet: *Packet, pointer: *void, type: *Type_Info) {
             deserialize(packet, pointer + member.offset_in_bytes, member.type_info);
         }        
     }
+}
+
+print_message :: (message: *Message, prefix: string) {
+    builder: String_Builder;
+    create_string_builder(*builder, *temp);
+
+    sprint(*builder, prefix);
+    sprint(*builder, "%", message.msg_type);
+    
+    if #complete message.msg_type == {
+      case .Player_Information; sprint(*builder, "%", message.player_information);
+      case .Player_Disconnect;  sprint(*builder, "%", message.player_disconnect);
+      case .Request_Game_Start; sprint(*builder, "%", message.request_game_start);
+      case .Game_Start;         sprint(*builder, "%", message.game_start);
+      case .Game_Over;          sprint(*builder, "%", message.game_over);
+      case .Create_Entity;      sprint(*builder, "%", message.create_entity);
+      case .Destroy_Entity;     sprint(*builder, "%", message.destroy_entity);
+      case .Move_Entity;        sprint(*builder, "%", message.move_entity);
+      case .Entity_Health;      sprint(*builder, "%", message.entity_health);
+      case .Player_State;       sprint(*builder, "%", message.player_state);
+      case .Player_Input;       sprint(*builder, "%", message.player_input);
+      case .Emitter_State;      sprint(*builder, "%", message.emitter_state);
+      case .Receiver_State;     sprint(*builder, "%", message.receiver_state);
+      case .Item_Stack_State;   sprint(*builder, "%", message.item_stack_state);
+      case .Dragon_State;       sprint(*builder, "%", message.dragon_state);
+      case .Goblin_State;       sprint(*builder, "%", message.goblin_state);
+    }
+    
+    logprint(.Debug, finish_string_builder(*builder));
 }

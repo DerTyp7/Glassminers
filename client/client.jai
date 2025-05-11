@@ -26,6 +26,7 @@
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
+INFO_TEXT_TIMER: f32 : 5;
 
 Game_State :: enum {
     Main_Menu;
@@ -63,7 +64,9 @@ Client :: struct {
     current_state: Game_State;
     next_state: Game_State;
     previous_game_result: Previous_Game_Result;
-
+    info_text: string;
+    info_text_t: f32;
+    
     //
     // Assets
     //
@@ -77,7 +80,6 @@ Client :: struct {
     sound_watchdog: File_Watcher;
     sprite_watchdog: File_Watcher;
 }
-    
 
     //
     // Networking
@@ -85,6 +87,7 @@ Client :: struct {
     server_data: Shared_Server_Data = .{ .Closed, 0 };
     server_thread: Thread;
     connection: Virtual_Connection;
+    sent_connection_request: bool;
     remote_clients: [..]Remote_Client;
     my_player_pid: Pid;
     my_name: string;
@@ -119,6 +122,12 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
     print("\n");
 }
 
+set_info_text :: (client: *Client, format: string, args: ..Any) {
+    deallocate_string(*client.engine_allocator, *client.info_text);
+    client.info_text = print_into_allocator(*client.engine_allocator, format, args);
+    client.info_text_t = INFO_TEXT_TIMER;
+}
+
 
 
 host_server :: (client: *Client, port: u16) {
@@ -134,11 +143,24 @@ host_server :: (client: *Client, port: u16) {
 join_server :: (client: *Client, name: string, host: string, port: u16) {
     logprint(.Debug, "Joining server '%:%'...", host, port);
 
-    if create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port) == .Success {
-        send_connection_request_packet(*client.connection, 5);
+    //
+    // :ConnectionRequest
+    // We are using non-blocking TCP sockets. That includes the initial connect() call in the virtual
+    // connection module. This allows the game to not freeze while attempting to open a connection. However,
+    // this also means that we have to wait with writing the first packets until the TCP handshake has
+    // happened, which can obviously take a while when talking over the internet. Therefore, our
+    // own connection request packets need to wait for the TCP handshake to have happened, which is why
+    // that happens inside the connection screen.
+    //
+    client.sent_connection_request = false;
+
+    result := create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port);
+    if result == .Success {
         client.my_name    = copy_string(*client.engine_allocator, name);
         client.next_state = .Connecting;
     } else {
+        set_info_text(client, "Could not connect to server: %.", result);
+        disconnect_from_server(client);
         maybe_shutdown_server(client);
     }
 }
@@ -352,10 +374,12 @@ read_incoming_packets :: (client: *Client) {
     }
 }
 
-handle_server_timeout :: (client: *Client) {
+handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: string) {
     if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
         client.previous_game_result = .Connection_Lost;
-        client.next_state = .Game_Over;
+        client.next_state = next_screen;
+
+        set_info_text(client, info_text);
     } else if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
         send_ping_packet(*client.connection);
     }
@@ -472,7 +496,12 @@ do_main_menu :: (client: *Client) {
 
 do_connecting_screen :: (client: *Client) {
     read_incoming_packets(client);
-    handle_server_timeout(client);
+    handle_server_timeout(client, .Main_Menu, "The server could not be reached.");
+    
+    if !client.sent_connection_request && has_tcp_handshake_occurred(*client.connection) {
+        send_connection_request_packet(*client.connection, 1);
+        client.sent_connection_request = true;
+    }
     
     {
         ui :: *client.ui;
@@ -490,7 +519,7 @@ do_connecting_screen :: (client: *Client) {
 
 do_lobby_screen :: (client: *Client) {
     read_incoming_packets(client);
-    handle_server_timeout(client);
+    handle_server_timeout(client, .Main_Menu, "The server died.");
 
     {
         ui :: *client.ui;
@@ -589,7 +618,7 @@ do_game_tick :: (client: *Client) {
     client.tick_time = client.window.frame_time;
     
     read_incoming_packets(client);
-    handle_server_timeout(client);
+    handle_server_timeout(client, .Game_Over, "");
 
     //
     // Update all local entities based on the information received by the server.
@@ -820,6 +849,8 @@ main :: (args: []string) -> s32 {
               case .Ingame;     do_game_tick(*client);
               case .Game_Over;  do_game_over_screen(*client);
             }
+
+            client.info_text_t -= client.tick_time;
         }
         
         //
@@ -831,6 +862,9 @@ main :: (args: []string) -> s32 {
             if #complete client.current_state == {
               case .Main_Menu, .Connecting, .Lobby, .Game_Over;
                 draw_text_screen_space(*client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, .{ 255, 255, 255, 255 });
+                if client.info_text_t > 0 {
+                    draw_text_screen_space(*client, *client.ui_font, client.info_text, .{ xx client.window.w / 2, xx (client.window.h / 4 + client.title_font.line_height) }, .Center | .Median, .{ 252, 238, 28, 255 });
+                }
             
               case .Ingame;
                 draw_world(*client);

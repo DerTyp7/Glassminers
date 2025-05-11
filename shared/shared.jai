@@ -8,6 +8,8 @@ v2f :: Vector2_Base(f32);
 Pid :: u32;
 INVALID_PID: Pid : -1;
 
+LOG_MESSAGES :: false;
+
 Campaign :: enum {
     Tutorial;
     Easy;
