@@ -153,9 +153,9 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Blocks_Move, // Lava
 
     // Beings
-    .Pushable | .Blocks_Move, // Guy
-    .Blocks_Move, // Dragon
-    .Blocks_Move, // Goblin
+    .Living | .Pushable | .Blocks_Move, // Guy
+    .Living | .Blocks_Move, // Dragon
+    .Living | .Blocks_Move, // Goblin
 ];
 
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[

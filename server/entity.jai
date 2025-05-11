@@ -257,6 +257,75 @@ set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
     array_add(*server.outgoing_messages, msg);
 }
 
+remove_entity :: (server: *Server, entity: *Entity) {
+    entity.marked_for_removal = true;
+    msg := make_message(Destroy_Entity_Message);
+    msg.destroy_entity.entity_pid = entity.pid;
+    array_add(*server.outgoing_messages, msg);
+}
+
+find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+find_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity {
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+find_entity_with_flags_at_position :: (server: *Server, flags: Entity_Flags, position: v2i) -> *Entity {
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+update_physical_location :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
+    something_changed := position.x != entity.physical_position.x || position.y != entity.physical_position.y || rotation != entity.physical_rotation;
+
+    entity.physical_position = position;
+    entity.physical_rotation = rotation;
+
+    if something_changed {
+        msg := make_message(Move_Entity_Message);
+        msg.move_entity.entity_pid = entity.pid;
+        msg.move_entity.position = entity.physical_position;
+        msg.move_entity.rotation = entity.physical_rotation;
+        array_add(*server.outgoing_messages, msg);
+    }
+}
+
+position_in_bounds :: (server: *Server, position: v2i) -> bool {
+    return position.x >= 0 && position.x < server.world_size.x && position.y >= 0 && position.y < server.world_size.y;
+}
+
+can_move_to_position :: (server: *Server, entity: *Entity, position: v2i) -> bool {
+    move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
+    if move_delta.x != 0 || move_delta.y != 0 {
+        return recursive_move_check(server, entity, move_delta);
+    } else {
+        return true;
+    }
+}
+
+move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
+    move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
+    if move_delta.x != 0 || move_delta.y != 0 {
+        recursive_move(server, entity, move_delta);
+    }
+}
+
 
 
 //
@@ -481,81 +550,6 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind) -> b
     }
 
     return success;
-}
-
-
-
-//
-// Movement Code
-//
-
-position_in_bounds :: (server: *Server, position: v2i) -> bool {
-    return position.x >= 0 && position.x < server.world_size.x && position.y >= 0 && position.y < server.world_size.y;
-}
-
-find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
-    for i := 0; i < server.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
-    }
-    
-    return null;
-}
-
-find_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity {
-    for i := 0; i < server.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
-    }
-    
-    return null;
-}
-
-find_entity_with_flags_at_position :: (server: *Server, flags: Entity_Flags, position: v2i) -> *Entity {
-    for i := 0; i < server.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
-    }
-    
-    return null;
-}
-
-can_move_to_position :: (server: *Server, entity: *Entity, position: v2i) -> bool {
-    move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
-    if move_delta.x != 0 || move_delta.y != 0 {
-        return recursive_move_check(server, entity, move_delta);
-    } else {
-        return true;
-    }
-}
-
-move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
-    move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
-    if move_delta.x != 0 || move_delta.y != 0 {
-        recursive_move(server, entity, move_delta);
-    }
-}
-
-update_physical_location :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
-    something_changed := position.x != entity.physical_position.x || position.y != entity.physical_position.y || rotation != entity.physical_rotation;
-
-    entity.physical_position = position;
-    entity.physical_rotation = rotation;
-
-    if something_changed {
-        msg := make_message(Move_Entity_Message);
-        msg.move_entity.entity_pid = entity.pid;
-        msg.move_entity.position = entity.physical_position;
-        msg.move_entity.rotation = entity.physical_rotation;
-        array_add(*server.outgoing_messages, msg);
-    }
-}
-
-remove_entity :: (server: *Server, entity: *Entity) {
-    entity.marked_for_removal = true;
-    msg := make_message(Destroy_Entity_Message);
-    msg.destroy_entity.entity_pid = entity.pid;
-    array_add(*server.outgoing_messages, msg);
 }
 
 

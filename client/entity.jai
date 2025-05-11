@@ -23,6 +23,7 @@ Entity :: struct {
     physical_rotation: Direction;
     visual_position: v2f;
     visual_rotation: f32;
+    visual_size: v2f;
     
     derived: *void;
     sound_pid: Sound_Pid;
@@ -171,7 +172,8 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.physical_position  = position;
     entity.visual_position    = .{ xx entity.physical_position.x, xx entity.physical_position.y };
     entity.visual_rotation    = visual_from_physical_rotation(entity.physical_rotation);
-
+    entity.visual_size        = .{ 1, 1 };
+    
     if cast(f32) client.pid_lookup.count / cast(f32) client.pid_lookup.buckets.count >= 0.7 {
         probed_hash_table_resize(*client.pid_lookup, client.pid_lookup.buckets.count * 2);
     }
@@ -180,7 +182,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     assert(successfully_added, "For some reason we failed to register the entity pid on the client.");
 
     if #complete entity.entity_kind == {
-      case .Guy;     make_derived(entity, *client.guys);
+      case .Guy;        make_derived(entity, *client.guys);
       case .Emitter;    make_derived(entity, *client.emitters);
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
@@ -200,6 +202,33 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
     return entity;
 }
 
+find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
+find_entity_with_flags_at_position :: (client: *Client, flags: Entity_Flags, position: v2i) -> *Entity {
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+    }
+    
+    return null;
+}
+
 physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds :: (array: *Bucket_Array($T)) {
         for i := 0; i < array.slot_count; ++i {
@@ -217,13 +246,24 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.all_entities);
 }
 
+visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
+    size: v2f = ---;
+    
+    if kind == {
+      case .Coin; size = .{ 0.25, 0.25 };
+      case; size = v2f.{ 0.5, 0.5 };
+    }
+
+    return size;
+}
+
 
 
 //
 // Derived Types
 //
 
-interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
+interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
     approx_distance_to_move: f32 = ---;
     
     {
@@ -234,7 +274,9 @@ interpolate_location :: (client: *Client, entity: *Entity, disable_visual_rotati
         entity.visual_position.x = lerp_with_snap(entity.visual_position.x, target_position.x, speed);
         entity.visual_position.y = lerp_with_snap(entity.visual_position.y, target_position.y, speed);
     }
-        
+
+    entity.visual_size = visual_size_for_entity(entity);
+    
     if disable_visual_rotation {
         // This is a hack, but for certain entities (e.g. guys) we have sprites for the all
         // the different physical rotations (because these are from different "perspectives").
@@ -299,39 +341,14 @@ update_dragon :: (client: *Client, dragon: *Dragon) {
 
 
 
+#file_scope
+
 //
 // Helpers
 //
 
 position_in_bounds :: (client: *Client, position: v2i) -> bool {
     return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
-}
-
-find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
-    for i := 0; i < client.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
-    }
-    
-    return null;
-}
-
-find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
-    for i := 0; i < client.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
-    }
-    
-    return null;
-}
-
-find_entity_with_flags_at_position :: (client: *Client, flags: Entity_Flags, position: v2i) -> *Entity {
-    for i := 0; i < client.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
-    }
-    
-    return null;
 }
 
 clear_beam_data :: (data: *Beam_Data) {
@@ -363,4 +380,18 @@ recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction
             break;
         }
     }
+}
+
+visual_size_for_entity :: (entity: *Entity) -> v2f {
+    size: v2f = ---;
+
+    if entity.entity_kind == {
+      case .Item_Stack;
+        stack := down(entity, Item_Stack);
+        size = visual_size_for_item_kind(stack.item_kind);
+        
+      case; size = v2f.{ 1, 1 };
+    }
+    
+    return size;
 }

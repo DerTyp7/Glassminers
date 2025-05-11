@@ -401,7 +401,7 @@ draw_world :: (client: *Client) {
         if !occupied continue;
         
         sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
-        draw_sprite_world_space(client, sprite_index, entity.visual_position, .{ 1, 1 }, entity.visual_rotation, tint, horizontally_mirrored);
+        draw_sprite_world_space(client, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
     }
 
     //
@@ -476,9 +476,10 @@ draw_world :: (client: *Client) {
             draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.entity_kind]);
 
           case .Carrying;
-            world_position := guy.visual_position;
-            world_position.x += 0.25;
-            world_size :: v2f.{ 0.25, 0.25 };
+            active_guy_sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, guy);
+
+            world_position := get_visual_hand_position_for_guy(client, guy);
+            world_size := visual_size_for_item_kind(guy.carrying_item);
             sprite_index := get_sprite_index_for_item(guy.carrying_item);
             draw_sprite_world_space(client, sprite_index, world_position, world_size, 0, .{ 255, 255, 255, 255 }, false);
 
@@ -552,6 +553,17 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
     return index;
 }
 
+get_visual_hand_position_for_guy :: (client: *Client, guy: *Guy) -> v2f {
+    frame_index := cast(s64) floor(client.epoch_time / 0.5) % 2;
+    ONE_PIXEL: f32 : 1 / 16;
+
+    // The x and y coordinates are in pixels inside the guy's sprite.
+    x: f32 = ifx guy.physical_rotation == .West then 1 else 14;
+    y: f32 = 12 + xx frame_index;
+
+    return .{ guy.visual_position.x + (x * ONE_PIXEL - 0.5), guy.visual_position.y + (y * ONE_PIXEL - 0.5) };
+}
+
 get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, GE_Color, bool {
     entity_is_moving :: (entity: *Entity) -> bool {
         EPSILON: f32 : 0.01;
@@ -570,28 +582,20 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         frame_time: f32 = ---;
 
         if entity_is_moving(entity) {
+            frame_time = 0.2;
+
             if #complete entity.physical_rotation == {
-              case .North;
-                frames = .[ .Guy_Walk_Back_0, .Guy_Walk_Back_1, .Guy_Walk_Back_2 ];
-                frame_time = 0.2;
-              case .South;
-                frames = .[ .Guy_Walk_Front_0, .Guy_Walk_Front_1, .Guy_Walk_Front_2 ];
-                frame_time = 0.2;
-              case .East, .West;
-                frames = .[ .Guy_Walk_Side_0, .Guy_Walk_Side_1, .Guy_Walk_Side_2 ];
-                frame_time = 0.2;
+              case .North; frames = .[ .Guy_Walk_Back_0, .Guy_Walk_Back_1, .Guy_Walk_Back_2 ];
+              case .South; frames = .[ .Guy_Walk_Front_0, .Guy_Walk_Front_1, .Guy_Walk_Front_2 ];
+              case .East, .West; frames = .[ .Guy_Walk_Side_0, .Guy_Walk_Side_1, .Guy_Walk_Side_2 ];
             }
         } else {
+            frame_time = 0.5;
+
             if #complete entity.physical_rotation == {
-              case .North;
-                frames = .[ .Guy_Idle_Back_0, .Guy_Idle_Back_1 ];
-                frame_time = 0.5;
-              case .South;
-                frames = .[ .Guy_Idle_Front_0, .Guy_Idle_Front_1 ];
-                frame_time = 0.5;
-              case .East, .West;
-                frames = .[ .Guy_Idle_Side_0, .Guy_Idle_Side_1 ];
-                frame_time = 0.5;
+              case .North; frames = .[ .Guy_Idle_Back_0, .Guy_Idle_Back_1 ];
+              case .South; frames = .[ .Guy_Idle_Front_0, .Guy_Idle_Front_1 ];
+              case .East, .West; frames = .[ .Guy_Idle_Side_0, .Guy_Idle_Side_1 ];
             }
         }
         
