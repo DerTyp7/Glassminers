@@ -295,26 +295,20 @@ update_player :: (server: *Server, player: *Player) {
     array_add(*server.outgoing_messages, msg);
 }
 
+set_emitter_time_left :: (server: *Server, emitter: *Emitter, time_left_in_seconds: f32) {
+    emitter.time_left_in_seconds = clamp(time_left_in_seconds, 0, EMITTER_MAX_TIME);
+    msg := make_message(Emitter_State_Message);
+    msg.emitter_state.entity_pid = emitter.pid;
+    msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
+    array_add(*server.outgoing_messages, msg);
+}
+
 update_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
-
-    // @NetworkTraffic: Simple client-side prediction
-
-    previous := emitter.time_left_in_seconds;
-    
-    if emitter.time_left_in_seconds > 0 {
-        emitter.time_left_in_seconds -= server.tick_time;
-    }
-
-    if previous != emitter.time_left_in_seconds {
-        msg := make_message(Emitter_State_Message);
-        msg.emitter_state.entity_pid = emitter.pid;
-        msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
-        array_add(*server.outgoing_messages, msg);
-    }
     
     if emitter.time_left_in_seconds > 0 {
         recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
+        emitter.time_left_in_seconds -= server.tick_time;
     }
 }
 

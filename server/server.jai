@@ -458,7 +458,7 @@ handle_player_input :: (server: *Server, player: *Player) {
           case .Carrying;
             if target_entity && target_entity.entity_kind == .Emitter {
                 emitter := down(target_entity, Emitter);
-                emitter.time_left_in_seconds = clamp(emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME, 0, EMITTER_MAX_TIME);
+                set_emitter_time_left(server, emitter, emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME);
                 player.state = .Idle;
                 player.carrying_item = 0;
             } else if target_entity && target_entity.entity_kind == .Water && player.carrying_item == .Stone {
