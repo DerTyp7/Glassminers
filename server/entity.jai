@@ -154,7 +154,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Dragon;     make_derived(entity, *server.dragons);
       case .Goblin;     make_derived(entity, *server.goblins);
-      case .Crystal, .Bedrock, .Mirror, .Rock, .Coal, .Lava, .Water;
+      case .Crystal, .Bedrock, .Mirror, .Rock, .Coal, .Lava;
         entity.derived = null;
     }
 

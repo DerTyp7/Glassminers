@@ -325,7 +325,6 @@ create_the_game :: (server: *Server) {
         create_entity(server, .Emitter, .{ 0, 2 }, .East);
         create_entity(server, .Receiver, .{ server.world_size.x - 1, 2 }, .West);
         generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
-        generate_n_random_entities(server, .Water,   server.world_size.x / 2);
         generate_n_random_entities(server, .Bedrock, server.world_size.x);
         generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
         generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
@@ -461,7 +460,7 @@ handle_player_input :: (server: *Server, player: *Player) {
                 set_emitter_time_left(server, emitter, emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME);
                 player.state = .Idle;
                 player.carrying_item = 0;
-            } else if target_entity && target_entity.entity_kind == .Water && player.carrying_item == .Stone {
+            } else if target_entity && target_entity.entity_kind == .Lava && player.carrying_item == .Stone {
                 remove_entity(server, target_entity);
                 player.state = .Idle;
                 player.carrying_item = 0;

@@ -32,7 +32,6 @@ Lava_0       sprites/environment/lava-0.png
 Lava_1       sprites/environment/lava-1.png
 Lava_2       sprites/environment/lava-2.png
 Lava_3       sprites/environment/lava-3.png
-Water        sprites/environment/water.png
 
 #
 # Player
