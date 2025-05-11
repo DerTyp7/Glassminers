@@ -260,6 +260,12 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.destroy_entity.entity_pid);
         entity.marked_for_removal = true;
 
+        // Play death sounds
+        if entity.entity_kind == {
+          case .Dragon; play_sound(client, .Dragon_Death_0, false);
+          case .Goblin; play_sound(client, .Goblin_Death_0, false);
+        }
+        
       case .Move_Entity;
         entity := get_entity(client, msg.move_entity.entity_pid);
         entity.physical_position = msg.move_entity.position;
@@ -278,10 +284,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             stop_sound(client, *player.sound_pid);
 
             if #complete msg.player_state.state == {
-              case .Digging;  player.sound_pid = play_sound(client, .Pickaxe_0, true);
-              case .Carrying; player.sound_pid = play_sound(client, .Pickup_0, false);
+              case .Digging;      player.sound_pid = play_sound(client, .Pickaxe_0, true);
+              case .Carrying;     player.sound_pid = play_sound(client, .Pickup_0, false);
               case .Resurrecting; player.resurrection_t = 0;
-              case .Dead;
+              case .Dead;         player.sound_pid = play_sound(client, .Player_Death_0, false);
               case .Idle; if player.state == .Carrying player.sound_pid = play_sound(client, .Placedown_0, false);
             }
         }
