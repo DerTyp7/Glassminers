@@ -1,7 +1,7 @@
 #
 # GUI
 #
-Heart  sprites/items/heart.png # nocheckin
+Heart  sprites/items/heart.png
 
 #
 # Inanimates
