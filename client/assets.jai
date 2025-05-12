@@ -255,8 +255,8 @@ bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Da
         result[i], success = load_texture_data(Default_Allocator, filepath);
 
         if !success {
-            print("[ASSET BAKE]: Failed to bake the texture '%': The file does not exist.\n", filepath);
-            print("[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator));
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the texture '%': The file does not exist.\n", filepath));
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));
         }
     }
 
@@ -273,8 +273,8 @@ bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
         result[i], status = create_sound_data_from_file(filepath);
         
         if status != .Success {
-            print("[ASSET BAKE]: Failed to bake the sound '%': %.\n", filepath, status);
-            print("[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator));            
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the sound '%': %.\n", filepath, status));
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));            
         }
     }
     
@@ -284,7 +284,7 @@ bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
 bake_raw_file :: (filepath: string) -> string {
     file_content, success := read_entire_file(Default_Allocator, filepath);
     if !success {
-        print("[ASSET BAKE]: Failed to bake the raw file '%': The file does not exist.\n", filepath);
+        compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the raw file '%': The file does not exist.\n", filepath));
         return "";
     }
 

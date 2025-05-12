@@ -15,8 +15,19 @@
 #load "entity.jai";
 
 TICK_RATE: f32 : 30;
-DEVELOPER :: #run compiler_is_user_option_present("Developer");
+DEVELOPER   :: #run compiler_is_user_option_present("Developer");
+BAKE_ASSETS :: !DEVELOPER;
 
+#if BAKE_ASSETS {
+    bake_file :: (filepath: string) -> string {
+        file_content, success := read_entire_file(Default_Allocator, filepath);
+        if !success compiler_report_error(print_into_allocator(Default_Allocator, "Failed to bake the file '%': The file does not exist.", filepath));
+        return file_content;
+    }
+
+    TUTORIAL_WORLD_STRING :: #run bake_file("run_tree/data/tutorial-world.txt");
+}
+    
 Remote_Client :: struct {
     connection: Virtual_Connection;
     player_pid: Pid = INVALID_PID;
@@ -248,19 +259,164 @@ switch_to_next_state :: (server: *Server) {
     }
 }
 
+fill_world_randomly :: (server: *Server) {
+    is_blocked_position :: (server: *Server, position: v2i) -> bool {
+        if position.y >= 1 && position.y <= 3 &&
+            position.x >= 2 && position.x <= 2 + server.clients.count + 1 return true;
+
+        if find_any_entity_at_position(server, position) != null return true;
+
+        return false;
+    }
+
+    random_position :: (server: *Server) -> v2i, bool {
+        position := v2i.{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
+
+        success := true;
+        
+        iteration := 0;
+        while is_blocked_position(server, position) {
+            position = .{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
+
+            if iteration > 10 {
+                logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
+                success = false;
+                break;
+            }
+
+            ++iteration;
+        }
+        
+        return position, success;
+    }
+
+    generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
+        for i := 0; i < n; ++i {
+            position, success := random_position(server);
+            if success create_entity(server, kind, position, .North);
+        }
+    }
+
+    create_entity(server, .Emitter, .{ 0, 2 }, .East);
+    create_entity(server, .Receiver, .{ server.world_size.x - 1, 2 }, .West);
+    generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
+    generate_n_random_entities(server, .Bedrock, server.world_size.x);
+    generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
+    generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
+    generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
+    generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
+    generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
+}
+
+fill_world_from_string :: (server: *Server, data: string, source_name: string) -> bool {
+    ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
+        #char "e", // Emitter
+        #char "r", // Receiver
+        #char "m", // Mirror
+        #char "b", // Bedrock
+        #char "s", // Rock
+        #char "c", // Coal
+        #char "@", // Crystal
+        #char "i", // Item Stack
+        #char "l", // Lava
+        #char "!", // Guy
+        #char "d", // Dragon
+        #char "g", // Goblin
+    ];
+
+    ENTITY_DIRECTION_MAP: [Entity_Kind.Count]Direction : .[
+        .East, // Emitter
+        .West, // Receiver
+        .North, // Mirror
+        .North, // Bedrock
+        .North, // Rock
+        .North, // Coal
+        .North, // Crystal
+        .North, // Item Stack
+        .North, // Lava
+        .North, // Guy
+        .North, // Dragon
+        .North, // Goblin
+    ];
+    
+    //
+    // Verify that the world string is of the correct dimensions
+    //
+    lines := string_split(data, #char "\n", false, *temp);
+    if lines.count != server.world_size.y {
+        logprint(.Error, "Failed to load the world string '%': % lines were expected, but % were found.", source_name, server.world_size.y, lines.count);
+        return false;
+    }
+
+    for i := 0; i < lines.count; ++i {
+        line := array_get(*lines, i);
+        if line.count && line[line.count - 1] == #char "\r" {
+            line = substring_view(line, 0, line.count - 1);
+            array_put(*lines, i, line);
+        }
+        
+        if line.count != server.world_size.x {
+            logprint(.Error, "Failed to load the world string '%' in line %: % characters were expected, but % were found.", source_name, i + 1, server.world_size.x, line.count);
+            return false;
+        }
+    }
+
+    //
+    // Create entities for all characters in the world string
+    //
+    success := true;
+    
+    for y := 0; y < lines.count; ++y {
+        line := array_get(*lines, y);
+        for x := 0; x < line.count; ++x {
+            if line[x] == #char " " continue;
+
+            direction: Direction = ---;
+            
+            kind := Entity_Kind.Count;
+            for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
+                if ENTITY_TO_CHAR[i] == line[x] {
+                    kind = i;
+                    direction = ENTITY_DIRECTION_MAP[kind];
+                    break;
+                }
+            }
+
+            if kind != .Count {
+                create_entity(server, kind, .{ x, y }, direction);
+            } else {
+                logprint(.Error, "Failed to world the world string '%' in line %: The character '%' is not a known entity.", source_name, y + 1, line[x]);
+                success = false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+fill_world_from_file :: (server: *Server, filepath: string) -> bool {
+    file_content, success := read_entire_file(*temp, filepath);
+    if success {
+        return fill_world_from_string(server, file_content, filepath);
+    } else {
+        logprint(.Error, "Failed to load the world file '%': The file does not exist.");
+        return true;
+    }
+}
+
 create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
+    create_entity_manager(server);
+
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
     if #complete server.campaign == {
-      case .Tutorial; server.world_size = .{ 9, 5 };
-      case .Easy;     server.world_size = .{ 18, 5 };
+      case .Tutorial; server.world_size = .{ 15, 5 };
+      case .Easy;     server.world_size = .{ 20, 5 };
       case .Medium;   server.world_size = .{ 36, 5 };
       case .Hard;     server.world_size = .{ 72, 5 };
     }
-
-    create_entity_manager(server);
     
     //
     // Notify the clients about the game seed
@@ -275,7 +431,7 @@ create_the_game :: (server: *Server) {
     //
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        entity := create_entity(server, .Guy, .{ 3 + i, 2 }, .North);
+        entity := create_entity(server, .Guy, .{ 2 + i, 2 }, .North);
         client.entity_pid = entity.pid;
         
         msg := make_message(Player_Information_Message);
@@ -285,56 +441,15 @@ create_the_game :: (server: *Server) {
         array_add(*server.outgoing_messages, msg);            
     }
 
-    //
-    // Generate the base world
-    //
-    {
-        is_blocked_position :: (server: *Server, position: v2i) -> bool {
-            if position.y >= 1 && position.y <= 3 &&
-                position.x >= 2 && position.x <= 2 + server.clients.count + 1 return true;
-
-            if find_any_entity_at_position(server, position) != null return true;
-
-            return false;
-        }
-
-        random_position :: (server: *Server) -> v2i, bool {
-            position := v2i.{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
-
-            success := true;
-            
-            iteration := 0;
-            while is_blocked_position(server, position) {
-                position = .{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
-
-                if iteration > 10 {
-                    logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
-                    success = false;
-                    break;
-                }
-
-                ++iteration;
-            }
-            
-            return position, success;
-        }
-
-        generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
-            for i := 0; i < n; ++i {
-                position, success := random_position(server);
-                if success create_entity(server, kind, position, .North);
-            }
-        }
-
-        create_entity(server, .Emitter, .{ 0, 2 }, .East);
-        create_entity(server, .Receiver, .{ server.world_size.x - 1, 2 }, .West);
-        generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
-        generate_n_random_entities(server, .Bedrock, server.world_size.x);
-        generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
-        generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
-        generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
-        generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
-        generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
+    if server.campaign == .Tutorial {
+#if BAKE_ASSETS {
+    // @Incomplete: Bake the world string into the executable
+    fill_world_from_string(server, TUTORIAL_WORLD_STRING, "TutorialWorldString");
+} #else {
+    fill_world_from_file(server, "data/tutorial-world.txt");
+}
+    } else {
+        fill_world_randomly(server);
     }
 }
 
