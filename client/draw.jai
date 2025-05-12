@@ -106,6 +106,20 @@ reload_sprite_atlases_from_disk :: (client: *Client) {
     }
 }
 
+get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
+    index: Sprite_Index = ---;
+
+    if #complete item == {
+      case .Shard; index = .Shard;
+      case .Stone; index = .Stone;
+      case .Coal;  index = .Coal_Item;
+      case .Coin;  index = .Coin;
+    }
+    
+    return index;
+}
+
+
 
 
 //
@@ -538,19 +552,6 @@ get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []S
 
 get_epoch_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index) -> Sprite_Index {
     return get_time_animated_sprite_index(client, frame_time, frames, client.epoch_time);
-}
-
-get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
-    index: Sprite_Index = ---;
-
-    if #complete item == {
-      case .Shard; index = .Shard;
-      case .Stone; index = .Stone;
-      case .Coal;  index = .Coal_Item;
-      case .Coin;  index = .Coin;
-    }
-    
-    return index;
 }
 
 get_visual_hand_position_for_guy :: (client: *Client, guy: *Guy) -> v2f {

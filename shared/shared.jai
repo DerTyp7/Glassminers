@@ -242,7 +242,7 @@ Crafting_Recipe :: enum {
 }
 
 CRAFTING_RECIPE_REQUIREMENTS: [Crafting_Recipe.Count][]Item_Kind = .[
-    .[ .Shard ],
+    .[ .Shard ], // Mirror
 ];
 
 direction_from_vector :: (vector: v2i) -> Direction {

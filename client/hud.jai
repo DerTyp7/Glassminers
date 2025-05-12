@@ -89,7 +89,9 @@ draw_hud :: (client: *Client) {
             
             theta0 := cast(f32) i * theta_per_recipe + padding_per_recipe / 2;
             theta1 := cast(f32) (i + 1) * theta_per_recipe - padding_per_recipe / 2;
+            theta  := (theta0 + theta1) * 0.5;
 
+            // Draw the circle segment
             background_color := ge_mix_colors(.{ 40, 50, 60, 180 }, .{ 50, 89, 128, 180 }, client.hud.crafting_menu.animation_t[i]);
             draw_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, background_color);
 
@@ -100,19 +102,24 @@ draw_hud :: (client: *Client) {
                 client.hud.crafting_menu.animation_t[i] = clamp(client.hud.crafting_menu.animation_t[i] - 3 * client.tick_time, 0, 1);
             }
 
-            sprite_index: Sprite_Index = ---;
+            // Draw the divider between input and output of the recipe
+            draw_line_screen_space(client, .{ screen_center.x + sinf(theta * FTAU) * inner_radius * 1.1, screen_center.y - cosf(theta * FTAU) * inner_radius * 1.1 }, .{ screen_center.x + sinf(theta * FTAU) * outer_radius * 0.9, screen_center.y - cosf(theta * FTAU) * outer_radius * 0.9 }, .{ 255, 255, 255, 255 }, 1);
             
-            if #complete recipe == {
-              case .Mirror; sprite_index = .Mirror;
-            }
-
-            theta       := (theta0 + theta1) * 0.5 * FTAU;
+            // Draw the required + result icons
+            icon_scale  := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
+            icon_size   := v2f.{ (outer_radius - inner_radius) * icon_scale, (outer_radius - inner_radius) * icon_scale };
+            icon_theta  := cast(f32) 0.05;
             radius      := (inner_radius + outer_radius) * 0.5;
-            item_scale  := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
-            item_size   := v2f.{ (outer_radius - inner_radius) * item_scale, (outer_radius - inner_radius) * item_scale };
-            item_center := v2f.{ screen_center.x + sinf(theta) * radius, screen_center.y - cosf(theta) * radius };
-            draw_sprite_screen_space(client, sprite_index, item_center, item_size, 0, .{ 255, 255, 255, 255 }, false);
 
+            for i := 0; i < CRAFTING_RECIPE_REQUIREMENTS[recipe].count; ++i {
+                icon_center := v2f.{ screen_center.x + sinf((theta + icon_theta * xx (i + 1)) * FTAU) * radius, screen_center.y - cosf((theta + icon_theta * xx (i + 1)) * FTAU) * radius };
+                draw_sprite_screen_space(client, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIREMENTS[recipe][i]), icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+            }
+            
+            {
+                icon_center := v2f.{ screen_center.x + sinf((theta - icon_theta * 1) * FTAU) * radius, screen_center.y - cosf((theta - icon_theta * 1) * FTAU) * radius };
+                draw_sprite_screen_space(client, CRAFTING_RECIPE_ICONS[recipe], icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+            }
         }
     }
 }
@@ -136,6 +143,10 @@ Hud_State :: enum {
 }
 
 RECIPES := []Crafting_Recipe.[ .Mirror ];
+
+CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
+    .Mirror,
+];
 
 crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bool {
     guy_entity := get_entity(client, client.my_entity_pid);
