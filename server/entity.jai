@@ -156,7 +156,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Dragon;     make_derived(entity, *server.dragons);
       case .Goblin;     make_derived(entity, *server.goblins);
-      case .Crystal, .Bedrock, .Mirror, .Rock, .Coal, .Lava;
+      case .Crystal, .Bedrock, .Mirror, .Rock, .Coal, .Lava, .Trader;
         entity.derived = null;
     }
 
@@ -498,6 +498,16 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
     }
 
     goblin.state_t += server.tick_time;
+}
+
+update_trader :: (server: *Server, entity: *Entity) {
+    target_guy, target_distance := find_target_guy_for_monster(server, entity.physical_position);
+
+    if target_guy {
+        delta := v2i.{ target_guy.physical_position.x - entity.physical_position.x, target_guy.physical_position.y - entity.physical_position.y };
+        rotation := direction_from_vector(delta);
+        update_physical_location(server, entity, entity.physical_position, rotation);
+    }    
 }
 
 take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {

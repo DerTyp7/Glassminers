@@ -7,7 +7,9 @@ Sprite_Index :: enum {
     Shard;
     Stone;
     Coin;
-
+    Health_Potion;
+    Strength_Potion;
+    
     // Inanimates
     Background;
     Bedrock;
@@ -58,6 +60,14 @@ Sprite_Index :: enum {
     Goblin_Attack_Back;
     Goblin_Attack_Front;
     Goblin_Attack_Side;
+
+    // Trader
+    Trader_Idle_Back_0;
+    Trader_Idle_Back_1;
+    Trader_Idle_Front_0;
+    Trader_Idle_Front_1;
+    Trader_Idle_Side_0;
+    Trader_Idle_Side_1;
 }
 
 //
@@ -672,6 +682,18 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         
         index = get_epoch_time_animated_sprite_index(client, frame_time, frames);
         horizontally_mirrored = entity.physical_rotation == .East;
+
+      case .Trader;
+        frames: []Sprite_Index = ---;
+
+        if #complete entity.physical_rotation == {
+          case .North; frames = .[ .Trader_Idle_Back_0, .Trader_Idle_Back_1 ];
+          case .South; frames = .[ .Trader_Idle_Front_0, .Trader_Idle_Front_1 ];
+          case .East, .West; frames = .[ .Trader_Idle_Side_0, .Trader_Idle_Side_1 ];
+        }
+
+        horizontally_mirrored = entity.physical_rotation == .East;
+        index = get_epoch_time_animated_sprite_index(client, 0.5, frames);
     }
     
     return index, tint, horizontally_mirrored;

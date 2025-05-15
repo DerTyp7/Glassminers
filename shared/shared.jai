@@ -136,6 +136,7 @@ Entity_Flags :: enum bitfield {
     Blocks_Move;
     Blocks_Beam;
     Blocks_Los;
+    Disable_Visual_Rotation;
 }
 
 DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
@@ -153,9 +154,10 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Blocks_Move, // Lava
 
     // Beings
-    .Living | .Pushable | .Blocks_Move, // Guy
+    .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy
     .Living | .Blocks_Move, // Dragon
-    .Living | .Blocks_Move, // Goblin
+    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Goblin
+    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Trader
 ];
 
 MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
@@ -176,6 +178,7 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     30, // Guy
     50, // Dragon
     20, // Goblin
+    0,  // Trader
 ];
 
 Item_Kind :: enum {
@@ -203,6 +206,7 @@ Entity_Kind :: enum {
     Guy;
     Dragon;
     Goblin;
+    Trader;
 }
 
 Direction :: enum {
@@ -239,10 +243,22 @@ Interaction_Kind :: enum {
 
 Crafting_Recipe :: enum {
     Mirror;
+    Health_Potion;
 }
 
-CRAFTING_RECIPE_REQUIREMENTS: [Crafting_Recipe.Count][]Item_Kind = .[
+CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
     .[ .Shard ], // Mirror
+    .[ .Coin ],  // Health Potion
+];
+
+CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
+    .Count,  // Mirror
+    .Trader, // Health Potion
+];
+
+CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
+    true,  // Mirror
+    false, // Health Potion
 ];
 
 direction_from_vector :: (vector: v2i) -> Direction {

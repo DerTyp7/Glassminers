@@ -36,7 +36,8 @@ update_hud :: (client: *Client) {
     //
     if client.window.keys[.C] & .Pressed {
         hud.state = .Crafting_Menu;
-        set_available_crafting_recipes(client, RECIPES);
+        hud.crafting_menu.selected_recipe = 0;
+        set_available_crafting_recipes(client);
     } else if !client.window.keys[.C] & .Down && hud.state == .Crafting_Menu {
         hud.state = .Disabled;
     }
@@ -111,9 +112,9 @@ draw_hud :: (client: *Client) {
             icon_theta  := cast(f32) 0.05;
             radius      := (inner_radius + outer_radius) * 0.5;
 
-            for i := 0; i < CRAFTING_RECIPE_REQUIREMENTS[recipe].count; ++i {
+            for i := 0; i < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++i {
                 icon_center := v2f.{ screen_center.x + sinf((theta + icon_theta * xx (i + 1)) * FTAU) * radius, screen_center.y - cosf((theta + icon_theta * xx (i + 1)) * FTAU) * radius };
-                draw_sprite_screen_space(client, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIREMENTS[recipe][i]), icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+                draw_sprite_screen_space(client, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][i]), icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
             }
             
             {
@@ -124,13 +125,27 @@ draw_hud :: (client: *Client) {
     }
 }
 
-set_available_crafting_recipes :: (client: *Client, recipes: []Crafting_Recipe) {
+set_available_crafting_recipes :: (client: *Client) {
     deallocate_array(*client.world_allocator, *client.hud.crafting_menu.recipes);
     deallocate_array(*client.world_allocator, *client.hud.crafting_menu.animation_t);
-    client.hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipes.count);
-    client.hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipes.count);
-    copy_memory(client.hud.crafting_menu.recipes.data, recipes.data, recipes.count * size_of(Crafting_Recipe));
-    clear_memory(client.hud.crafting_menu.animation_t.data, recipes.count * size_of(f32));
+
+    recipe_count := 0;
+
+    for i := 0; i < Crafting_Recipe.Count; ++i {
+        if crafting_recipe_is_enabled(client, i) then ++recipe_count;
+    }
+    
+    client.hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
+    client.hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipe_count);
+
+    recipe_index := 0;
+    for i := 0; i < Crafting_Recipe.Count; ++i {
+        if crafting_recipe_is_enabled(client, i) {
+            client.hud.crafting_menu.recipes[recipe_index] = i;
+            client.hud.crafting_menu.animation_t[recipe_index] = 0;
+            ++recipe_index;
+        }
+    }
 }
 
 
@@ -142,25 +157,34 @@ Hud_State :: enum {
     Crafting_Menu;
 }
 
-RECIPES := []Crafting_Recipe.[ .Mirror ];
-
 CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
     .Mirror,
+    .Health_Potion,
 ];
 
 crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bool {
     guy_entity := get_entity(client, client.my_entity_pid);
     guy := down(guy_entity, Guy);
     
-    required_resources: []Item_Kind = CRAFTING_RECIPE_REQUIREMENTS[recipe];
+    // Check that the target position is actually empty, if required
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] {
+        if find_any_entity_at_position(client, guy.target_position) return false;
+    }
 
-    // First check that the guy has the necessary resources available
+    // Check that the guy has the required resources available
     available_resources := get_available_resources_for_guy(client, guy);
-    if !available_resources_fulfill(available_resources, required_resources) return false;
-    
-    // Then check the target position is actually empty
-    target_entity := find_any_entity_at_position(client, guy.target_position);
-    if target_entity return false;
+    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
 
     return true;
+}
+
+crafting_recipe_is_enabled :: (client: *Client, recipe: Crafting_Recipe) -> bool {
+    guy_entity := get_entity(client, client.my_entity_pid);
+    guy := down(guy_entity, Guy);
+
+    // Check that the target position is actually empty, if required
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_any_entity_at_position(client, guy.target_position) return false;
+
+    // Check that the required enabler is present
+    return CRAFTING_RECIPE_ENABLER[recipe] == .Count || find_entity_of_kind_at_position(client, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) != null;
 }

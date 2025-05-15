@@ -6,10 +6,12 @@ Heart  sprites/items/heart.png
 #
 # Items
 #
-Coal_Item   sprites/items/coal.png
-Shard       sprites/items/shard.png
-Stone       sprites/items/stone.png
-Coin        sprites/items/coin.png
+Coal_Item       sprites/items/coal.png
+Shard           sprites/items/shard.png
+Stone           sprites/items/stone.png
+Coin            sprites/items/coin.png
+Health_Potion   sprites/items/health-potion.png
+Strength_Potion sprites/items/strength-potion.png
 
 #
 # Inanimates
@@ -73,3 +75,13 @@ Goblin_Idle_Side_1    sprites/goblin/goblin-idle-side-1.png
 Goblin_Attack_Back    sprites/goblin/goblin-attack-back.png
 Goblin_Attack_Front   sprites/goblin/goblin-attack-front.png
 Goblin_Attack_Side    sprites/goblin/goblin-attack-side.png
+
+#
+# Trader
+#
+Trader_Idle_Back_0    sprites/trader/trader-idle-back-0.png
+Trader_Idle_Back_1    sprites/trader/trader-idle-back-1.png
+Trader_Idle_Front_0   sprites/trader/trader-idle-front-0.png
+Trader_Idle_Front_1   sprites/trader/trader-idle-front-1.png
+Trader_Idle_Side_0    sprites/trader/trader-idle-side-0.png
+Trader_Idle_Side_1    sprites/trader/trader-idle-side-1.png

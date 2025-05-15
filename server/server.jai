@@ -322,11 +322,12 @@ fill_world_from_string :: (server: *Server, data: string, source_name: string) -
         #char "!", // Guy
         #char "d", // Dragon
         #char "g", // Goblin
+        #char "t", // Trader
     ];
 
     ENTITY_DIRECTION_MAP: [Entity_Kind.Count]Direction : .[
-        .East, // Emitter
-        .West, // Receiver
+        .East,  // Emitter
+        .West,  // Receiver
         .North, // Mirror
         .North, // Bedrock
         .North, // Rock
@@ -337,6 +338,7 @@ fill_world_from_string :: (server: *Server, data: string, source_name: string) -
         .North, // Guy
         .North, // Dragon
         .North, // Goblin
+        .North, // Trader
     ];
     
     //
@@ -501,18 +503,19 @@ consume_resources_from_guy :: (server: *Server, guy: *Guy, resources: []Item_Kin
     }
 }
 
-maybe_craft_recipe :: (server: *Server, guy: *Guy, result_entity: Entity_Kind, required_resources: []Item_Kind) -> bool {
-    // First check that the guy has the necessary resources available
-    available_resources := get_available_resources_for_guy(server, guy);
-    if !available_resources_fulfill(available_resources, required_resources) return false;
-    
-    // Then check the target position is actually empty
-    target_entity := find_any_entity_at_position(server, guy.target_position);
-    if target_entity return false;
+try_to_fulfill_recipe :: (server: *Server, guy: *Guy, recipe: Crafting_Recipe) -> bool {
+    // Check the guy is facing the required enabler
+    if CRAFTING_RECIPE_ENABLER[recipe] != .Count && !find_entity_of_kind_at_position(server, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) return false;
 
+    // Check the target position is empty when required
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_any_entity_at_position(server, guy.target_position) return false;
+    
+    // Check the guy has enough resources
+    available_resources := get_available_resources_for_guy(server, guy);
+    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
+    
     // Actually commit to crafting.
-    consume_resources_from_guy(server, guy, required_resources);
-    create_entity(server, result_entity, guy.target_position, .North);
+    consume_resources_from_guy(server, guy, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]);
     return true;
 }
 
@@ -593,8 +596,13 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     // Handle crafting
     //
-    if #complete guy.received_input.crafting_recipe == {
-      case .Mirror; maybe_craft_recipe(server, guy, .Mirror, CRAFTING_RECIPE_REQUIREMENTS[.Mirror]);
+    if guy.received_input.crafting_recipe != .Count {
+        if try_to_fulfill_recipe(server, guy, guy.received_input.crafting_recipe) {
+            if #complete guy.received_input.crafting_recipe == {
+              case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
+              case .Health_Potion; set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
+            }
+        }
     }
 }
 
@@ -681,6 +689,14 @@ do_game_tick :: (server: *Server) {
         if guy.state == .Dead ++number_of_dead_guys;
     }
 
+    //
+    // Update all other kinds entities
+    //
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if occupied && entity.entity_kind == .Trader update_trader(server, entity);
+    }
+    
     if number_of_dead_guys == server.clients.count {
         game_state = .Lost;
     }
