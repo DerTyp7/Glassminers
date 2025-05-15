@@ -518,9 +518,13 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
 
 try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind) -> bool {
     success := false;
+
+    collision := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);
     stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
 
-    if stack_entity {
+    if collision {
+        success = false;
+    } else if stack_entity {
         stack := down(stack_entity, Item_Stack);
 
         if stack.item_kind == kind {
