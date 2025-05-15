@@ -27,7 +27,8 @@ Entity :: struct {
     
     derived: *void;
     sound_pid: Sound_Pid;
-
+    sound_cooldown: f32;
+    
 #if DEVELOPER {
     derived_type_id: Type;
 }
@@ -264,6 +265,9 @@ visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
 //
 
 interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
+    //
+    // Interpolate the entity's visuals
+    //
     approx_distance_to_move: f32 = ---;
     
     {
@@ -289,6 +293,9 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         entity.visual_rotation = lerp_with_wrap_and_snap(entity.visual_rotation, target_rotation, speed, 0, 1);
     }
 
+    //
+    // Update the entity's sounds
+    //
     if approx_distance_to_move > 0.25 && !sound_active(client, entity.sound_pid) {
         // Play move sound
         pick_random_sound :: (sounds: []Sound_Index) -> Sound_Index {
@@ -306,6 +313,10 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         if sound_index != .Count {
             entity.sound_pid = play_sound(client, sound_index, false);
         }
+    }
+
+    if entity.sound_cooldown > 0 {
+        entity.sound_cooldown -= client.tick_time;
     }
 }
 

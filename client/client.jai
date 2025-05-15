@@ -274,6 +274,19 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
         entity.health = msg.entity_health.current_health;
+
+        // Play damage sounds
+        sound_index: Sound_Index = .Count;
+        
+        if entity.entity_kind == {
+          case .Dragon; sound_index = .Dragon_Hurt_0;
+          case .Goblin; sound_index = .Goblin_Hurt_0;
+        }
+
+        if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound_pid) {
+            entity.sound_pid      = play_sound(client, sound_index, false);
+            entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
+        }
         
       case .Guy_State;
         entity := get_entity(client, msg.guy_state.entity_pid);
@@ -321,7 +334,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
             if msg.dragon_state.state == {
               case .Attacking;
-                play_sound_on_entity(client, dragon, .Dragon_Attack_0, false);
+                dragon.sound_pid = play_sound(client, .Dragon_Attack_0, false);
             }
         }
 
@@ -336,7 +349,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
             if msg.goblin_state.state == {
               case .Attacking;
-                play_sound_on_entity(client, goblin, .Goblin_Attack_0, false);
+                goblin.sound_pid = play_sound(client, .Goblin_Attack_0, false);
             }
         }
 

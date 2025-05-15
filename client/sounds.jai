@@ -11,8 +11,10 @@ Sound_Index :: enum {
     Rock_Sliding_0;
     Guy_Death_0;
     Dragon_Attack_0;
+    Dragon_Hurt_0;
     Dragon_Death_0;
     Goblin_Attack_0;
+    Goblin_Hurt_0;
     Goblin_Death_0;
 }
 
@@ -27,8 +29,10 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "rock-sliding-0.wav",
     "guy-death-0.wav",
     "dragon-attack-0.wav",
+    "dragon-hurt-0.wav",
     "dragon-death-0.wav",
     "goblin-attack-0.wav",
+    "goblin-hurt-0.wav",
     "goblin-death-0.wav",
 ];
 
@@ -78,11 +82,6 @@ play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Soun
     return (stream.play_counter << 48) | (stream & 0xffffffffffff);
 }
 
-play_sound_on_entity :: (client: *Client, entity: *Entity, sound_index: Sound_Index, looping: bool) {
-    stop_sound(client, *entity.sound_pid);
-    entity.sound_pid = play_sound(client, sound_index, looping);
-}
-
 stop_sound :: (client: *Client, sound_pid_pointer: *Sound_Pid) {
     sound_pid := ~sound_pid_pointer;
 
@@ -103,6 +102,11 @@ sound_active :: (client: *Client, sound_pid: Sound_Pid) -> bool {
     stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
     play_counter := sound_pid >> 48;
     return stream.state != .Stopped && stream.play_counter == play_counter;
+}
+
+get_sound_length_in_seconds :: (client: *Client, sound_index: Sound_Index) -> f32 {
+    sound_data := *client.sounds[sound_index];
+    return cast(f32) sound_data.available_frames / cast(f32) sound_data.sample_rate;
 }
 
 
