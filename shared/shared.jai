@@ -118,6 +118,8 @@ EMITTER_MAX_TIME: f32 : 180;
 COAL_EMITTER_CHARGE_TIME: f32 : 60;
 
 RESURRECTION_TIME: f32 : 5;
+STRENGTH_POTION_TIME: f32 : 30;
+STRENGTH_POTION_FACTOR: f32 : 2;
 
 DRAGON_BEAM_LENGTH :: 3;
 DRAGON_ATTACK_TIME:  f32 : 1;
@@ -244,21 +246,25 @@ Interaction_Kind :: enum {
 Crafting_Recipe :: enum {
     Mirror;
     Health_Potion;
+    Strength_Potion;
 }
 
 CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
     .[ .Shard ], // Mirror
     .[ .Coin ],  // Health Potion
+    .[ .Coin ],  // Strength Potion
 ];
 
 CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
     .Count,  // Mirror
     .Trader, // Health Potion
+    .Trader, // Strength Potion
 ];
 
 CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     true,  // Mirror
     false, // Health Potion
+    false, // Strength Potion
 ];
 
 direction_from_vector :: (vector: v2i) -> Direction {

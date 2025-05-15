@@ -488,7 +488,12 @@ draw_world :: (client: *Client) {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
             draw_outlined_rect_world_space(client, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
         }
-            
+
+        if guy.strength_t > 0 {
+            TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
+            draw_outlined_rect_world_space(client, .{ guy.visual_position.x - TARGET_RECT_HALF_SIZE, guy.visual_position.y - TARGET_RECT_HALF_SIZE }, .{ guy.visual_position.x + TARGET_RECT_HALF_SIZE, guy.visual_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 95, 205, 228, 100 });
+        }
+        
         if #complete guy.state == {
           case .Idle;
 

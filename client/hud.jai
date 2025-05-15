@@ -49,6 +49,8 @@ update_hud :: (client: *Client) {
       case .Disabled;
 
       case .Crafting_Menu;
+        if !hud.crafting_menu.recipes.count break;
+        
         if client.window.keys[.A] & .Repeated || client.window.keys[.W] & .Repeated || client.window.keys[.Arrow_Left] & .Repeated || client.window.keys[.Arrow_Up] & .Repeated {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe - 1 + hud.crafting_menu.recipes.count) % hud.crafting_menu.recipes.count;
         }
@@ -134,6 +136,8 @@ set_available_crafting_recipes :: (client: *Client) {
     for i := 0; i < Crafting_Recipe.Count; ++i {
         if crafting_recipe_is_enabled(client, i) then ++recipe_count;
     }
+
+    if recipe_count == 0 return;
     
     client.hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
     client.hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipe_count);
@@ -160,6 +164,7 @@ Hud_State :: enum {
 CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
     .Mirror,
     .Health_Potion,
+    .Strength_Potion,
 ];
 
 crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bool {

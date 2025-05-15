@@ -40,6 +40,7 @@ Guy :: struct {
     target_position: v2i;
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;
+    strength_t: f32 = 0;
 }
 
 Emitter :: struct {

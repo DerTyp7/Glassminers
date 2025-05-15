@@ -308,6 +308,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         guy.state           = msg.guy_state.state;
         guy.target_position = msg.guy_state.target_position;
         guy.carrying_item   = msg.guy_state.carrying_item;
+        guy.strength_t      = msg.guy_state.strength_t;
         
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);

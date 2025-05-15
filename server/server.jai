@@ -306,6 +306,7 @@ fill_world_randomly :: (server: *Server) {
     generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
     generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
     generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
+    generate_n_random_entities(server, .Trader,  server.world_size.x / 18);
 }
 
 fill_world_from_string :: (server: *Server, data: string, source_name: string) -> bool {
@@ -601,6 +602,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             if #complete guy.received_input.crafting_recipe == {
               case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
               case .Health_Potion; set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
+              case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
             }
         }
     }

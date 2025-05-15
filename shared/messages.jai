@@ -77,6 +77,7 @@ Guy_State_Message :: struct {
     state: Guy_State;
     target_position: v2i;
     carrying_item: Item_Kind;
+    strength_t: f32;
 }
 
 Guy_Input_Message :: struct {

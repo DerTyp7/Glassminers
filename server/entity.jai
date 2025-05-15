@@ -34,6 +34,8 @@ Guy :: struct {
     
     resurrection_pid: Pid = INVALID_PID;
     resurrection_t: f32   = 0; // Between 0 and 1
+
+    strength_t: f32 = 0;
     
     received_input: Guy_Input_Message = ---;
     received_input_this_tick: bool = false;
@@ -339,7 +341,12 @@ update_guy :: (server: *Server, guy: *Guy) {
     if guy.state == {
       case .Digging;
         target_entity := find_any_entity_at_position(server, guy.target_position);
-        if damage_entity(server, target_entity, GUY_DPS * server.tick_time) {
+
+        damage := GUY_DPS;
+
+        if guy.strength_t > 0 damage *= STRENGTH_POTION_FACTOR;
+
+        if damage_entity(server, target_entity, damage * server.tick_time) {
             guy.state = .Idle;
         }
 
@@ -358,6 +365,8 @@ update_guy :: (server: *Server, guy: *Guy) {
         }
     }
 
+    if guy.strength_t > 0 guy.strength_t -= server.tick_time;
+
     //
     // Send out the new guy state
     // @NetworkTraffic: Only send this message if anything changed about the guy
@@ -367,6 +376,7 @@ update_guy :: (server: *Server, guy: *Guy) {
     msg.guy_state.state           = guy.state;
     msg.guy_state.target_position = guy.target_position;
     msg.guy_state.carrying_item   = guy.carrying_item;
+    msg.guy_state.strength_t      = guy.strength_t;
     array_add(*server.outgoing_messages, msg);
 }
 
