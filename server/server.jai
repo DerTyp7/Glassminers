@@ -14,7 +14,7 @@
 // Server
 #load "entity.jai";
 
-TICK_RATE: f32 : 30;
+TICK_RATE: f32 : 60;
 DEVELOPER   :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
 
