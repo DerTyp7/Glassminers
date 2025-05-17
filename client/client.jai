@@ -868,6 +868,7 @@ do_game_tick :: (client: *Client) {
         input: Guy_Input_Message = ---;
         input.entity_pid       = client.my_entity_pid;
         input.position         = guy.physical_position;
+        input.wants_to_move    = false;
         input.aim_direction    = guy.physical_rotation;
         input.interaction_kind = .Count;
         input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
@@ -877,6 +878,7 @@ do_game_tick :: (client: *Client) {
                 input.position.x    = guy.physical_position.x;
                 input.position.y    = guy.physical_position.y - 1;
                 input.aim_direction = .North;
+                input.wants_to_move = true;
                 read_any_input = true;
             }
 
@@ -884,6 +886,7 @@ do_game_tick :: (client: *Client) {
                 input.position.x    = guy.physical_position.x - 1;
                 input.position.y    = guy.physical_position.y;
                 input.aim_direction = .West;
+                input.wants_to_move = true;
                 read_any_input = true;
             }
 
@@ -891,6 +894,7 @@ do_game_tick :: (client: *Client) {
                 input.position.x    = guy.physical_position.x;
                 input.position.y    = guy.physical_position.y + 1;
                 input.aim_direction = .South;
+                input.wants_to_move = true;
                 read_any_input = true;
             }
 
@@ -898,6 +902,7 @@ do_game_tick :: (client: *Client) {
                 input.position.x    = guy.physical_position.x + 1;
                 input.position.y    = guy.physical_position.y;
                 input.aim_direction = .East;
+                input.wants_to_move = true;
                 read_any_input = true;
             }
 

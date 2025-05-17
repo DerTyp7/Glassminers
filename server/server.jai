@@ -524,7 +524,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     // Handle movement
     //
-    {
+    if guy.received_input.wants_to_move {
         cancel_current_action := guy.physical_rotation != guy.received_input.aim_direction || guy.physical_position.x != guy.received_input.position.x || guy.physical_position.y != guy.received_input.position.y;
 
         if cancel_current_action {
@@ -535,13 +535,17 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             }
         }
 
-        if can_move_to_position(server, guy, guy.received_input.position) {
+        distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved during this tick...
+        
+        if distance_to_move == 1 && can_move_to_position(server, guy, guy.received_input.position) {
             move_to_position(server, guy, guy.received_input.position);
         }
         
-        update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
+        update_physical_location(server, guy, guy.physical_position, guy.physical_rotation);
     }
-        
+
+    update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
+    
     //
     // Handle interaction
     //

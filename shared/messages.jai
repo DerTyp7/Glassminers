@@ -84,6 +84,7 @@ Guy_Input_Message :: struct {
     MSG_TYPE :: Message_Type.Guy_Input;
     entity_pid: Pid;
     position: v2i;
+    wants_to_move: bool;
     aim_direction: Direction;
     interaction_kind: Interaction_Kind;
     crafting_recipe: Crafting_Recipe;
