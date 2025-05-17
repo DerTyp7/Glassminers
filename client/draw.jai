@@ -19,6 +19,7 @@ Sprite_Index :: enum {
     
     // Inanimates
     Background;
+    World_Edge;
     Bedrock;
     Crystal;
     Rock;
@@ -434,6 +435,9 @@ draw_world :: (client: *Client) {
     // Draw implicit background inanimates
     //
     for x := 0; x < client.world_size.x; ++x {
+        draw_sprite_world_space(client, .World_Edge, .{ xx x, -1 }, .{ 1, 1 }, 0.5, .{ 255, 255, 255, 255 }, false);
+        draw_sprite_world_space(client, .World_Edge, .{ xx x, xx client.world_size.y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
+
         for y := 0; y < client.world_size.y; ++y {
             draw_sprite_world_space(client, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
         }
@@ -506,7 +510,7 @@ draw_world :: (client: *Client) {
         guy, occupied := index_bucket_array(*client.guys, i);
         if !occupied continue;
 
-        if guy.pid == client.my_entity_pid {
+        if guy.pid == client.my_entity_pid && position_in_bounds(client, guy.target_position) {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
             draw_outlined_rect_world_space(client, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
         }

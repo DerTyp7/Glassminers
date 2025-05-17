@@ -24,6 +24,7 @@ Strength_Potion sprites/items/strength-potion.png
 # Inanimates
 #
 Background  sprites/inanimates/background.png
+World_Edge  sprites/inanimates/world-edge.png
 Bedrock     sprites/inanimates/bedrock.png
 Crystal     sprites/inanimates/crystal.png
 Rock        sprites/inanimates/rock.png
