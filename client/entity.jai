@@ -1,5 +1,5 @@
 Camera :: struct {
-    DESIRED_VERTICAL_UNITS: f32 : 5;
+    DESIRED_VERTICAL_UNITS: f32 : 6.3;
 
     ratio: f32;
     world_to_screen: v2f;
@@ -259,6 +259,10 @@ visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
     return size;
 }
 
+position_in_bounds :: (client: *Client, position: v2i) -> bool {
+    return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
+}
+
 
 
 //
@@ -358,10 +362,6 @@ update_dragon :: (client: *Client, dragon: *Dragon) {
 //
 // Helpers
 //
-
-position_in_bounds :: (client: *Client, position: v2i) -> bool {
-    return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
-}
 
 clear_beam_data :: (data: *Beam_Data) {
     array_clear_without_deallocation(*data.fields);

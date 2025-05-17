@@ -645,7 +645,16 @@ do_main_menu :: (client: *Client) {
         
         ui_pop_window(ui);
     }
+
+    // Quit Window
+    {
+        ui_push_window(ui, "Quit?", .Default, .{ 0.5, 0.8 });
+
+        if ui_button(ui, "Quit to Desktop") client.window.should_close = true;
         
+        ui_pop_window(ui);
+    }
+    
     ui_pop_width(ui);
 }
 
@@ -731,13 +740,22 @@ do_game_over_screen :: (client: *Client) {
 }
 
 calculate_camera_target_position :: (client: *Client, target_center_position: v2i) -> v2f {
+    custom_clamp :: (value, low, high: $T) -> T {
+        if low < high {
+            return clamp(value, low, high);
+        } else {
+            return (low + high) * 0.5;
+        }
+    }
+
     room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
                            floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
+
+    half_size := v2f.{ client.camera.size.x / 2 - 0.5, client.camera.size.y / 2 - 0.5 };
     
-    half_size     := v2f.{ floor(client.camera.size.x / 2), floor(client.camera.size.y / 2) };
-    
-    target_camera_position := v2f.{ clamp(room_position.x, half_size.x, xx client.world_size.x - half_size.x - 1),
-                                    clamp(room_position.y, half_size.y, xx client.world_size.y - half_size.y - 1) };
+    target_camera_position := v2f.{
+        custom_clamp(room_position.x, half_size.x, xx client.world_size.x - half_size.x - 1),
+        custom_clamp(room_position.y, half_size.y, xx client.world_size.y - half_size.y - 1) };
     
     return target_camera_position;
 }
@@ -942,6 +960,10 @@ main :: (args: []string) -> s32 {
     client.next_state    = .Main_Menu;
     switch_to_next_state(*client);
 
+#if DEVELOPER {
+    client.mixer.volumes[.Master] = 0.0;
+}
+    
     //
     // Main loop
     //

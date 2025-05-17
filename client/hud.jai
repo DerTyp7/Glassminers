@@ -92,8 +92,8 @@ draw_hud :: (client: *Client) {
 
         padding_per_recipe: f32 = ifx hud.crafting_menu.recipes.count > 1 then 0.1 / cast(f32) hud.crafting_menu.recipes.count else 0;
         theta_per_recipe := 1.0 / cast(f32) hud.crafting_menu.recipes.count;
-        outer_radius := cast(f32) client.window.h * 0.22;
-        inner_radius := cast(f32) client.window.h * 0.15;
+        outer_radius := cast(f32) client.window.h * 0.15;
+        inner_radius := cast(f32) client.window.h * 0.10;
         
         for i := 0; i < hud.crafting_menu.recipes.count; ++i {
             recipe := hud.crafting_menu.recipes[i];
