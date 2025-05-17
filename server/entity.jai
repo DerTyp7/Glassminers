@@ -685,11 +685,10 @@ recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction
         if blocking == null {
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
         } else if blocking.entity_kind == .Mirror {
-            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
-            
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
-            
             if reflection_success then direction = reflected_direction; else break;
+
+            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
         } else if blocking.entity_kind == .Receiver {
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             break;
