@@ -1,7 +1,11 @@
 #
-# GUI
+# HUD
 #
-Heart  sprites/items/heart.png
+Heart            sprites/items/heart.png
+Hud_PS_Circle    sprites/hud/Hud-PS-Circle.png
+Hud_PS_Cross     sprites/hud/Hud-PS-Cross.png
+Hud_PS_Triangle  sprites/hud/Hud-PS-Triangle.png
+Hud_PS_Square    sprites/hud/Hud-PS-Square.png
 
 #
 # Items

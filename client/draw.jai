@@ -1,7 +1,11 @@
 Sprite_Index :: enum {
-    // GUI
+    // HUD
     Heart;
-
+    Hud_PS_Circle;
+    Hud_PS_Cross;
+    Hud_PS_Triangle;
+    Hud_PS_Square;
+    
     // Items
     Coal_Item;
     Shard;
@@ -129,6 +133,19 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
     return index;
 }
 
+get_sprite_index_for_input_action :: (client: *Client, action: Input_Action) -> Sprite_Index {
+    for i := 0; i < client.input_bindings[action].count; ++i {
+        binding := *client.input_bindings[action][i];
+
+        if #complete binding.kind == {
+          case .Keyboard;        if client.active_input_device == .Keyboard then return get_sprite_index_for_key_code(binding.keycode);
+          case .Gamepad_Button;  if client.active_input_device == .Gamepad then return get_sprite_index_for_gamepad_button(binding.gamepad_button);
+          case .Gamepad_Gesture; if client.active_input_device == .Gamepad then return get_sprite_index_for_gamepad_gesture(binding.gamepad_gesture);
+        }
+    }
+
+    return .Count;
+}
 
 
 
@@ -286,6 +303,8 @@ draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, 
 }
 
 draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
+    if sprite_index == .Count return; // This makes it more convenient when drawing input action hints, because we might not have sprites for every input binding...
+
     atlas_index    := sprite_index / SPRITES_PER_ATLAS;
     index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
     
@@ -578,6 +597,27 @@ get_visual_hand_position_for_guy :: (client: *Client, guy: *Guy) -> v2f {
     y: f32 = 12 + xx frame_index;
 
     return .{ guy.visual_position.x + (x * ONE_PIXEL - 0.5), guy.visual_position.y + (y * ONE_PIXEL - 0.5) };
+}
+
+get_sprite_index_for_key_code :: (keycode: Key_Code) -> Sprite_Index {
+    return .Count;
+}
+
+get_sprite_index_for_gamepad_button :: (button: Window_Gamepad_Button_Code) -> Sprite_Index {
+    sprite: Sprite_Index = .Count;
+
+    if button == {
+        case .PS_Circle;   sprite = .Hud_PS_Circle;
+        case .PS_Cross;    sprite = .Hud_PS_Cross;
+        case .PS_Triangle; sprite = .Hud_PS_Triangle;
+        case .PS_Square;   sprite = .Hud_PS_Square;
+    }
+
+    return sprite;
+}
+
+get_sprite_index_for_gamepad_gesture :: (gesture: Window_Gamepad_Gesture_Code) -> Sprite_Index {
+    return .Count;
 }
 
 get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, GE_Color, bool {

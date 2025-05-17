@@ -99,6 +99,8 @@ draw_hud :: (client: *Client) {
             theta0 := cast(f32) i * theta_per_recipe + padding_per_recipe / 2;
             theta1 := cast(f32) (i + 1) * theta_per_recipe - padding_per_recipe / 2;
             theta  := (theta0 + theta1) * 0.5;
+            icon_scale := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
+            icon_theta :: cast(f32) 0.05;
 
             // Draw the circle segment
             background_color := ge_mix_colors(.{ 40, 50, 60, 180 }, .{ 50, 89, 128, 180 }, client.hud.crafting_menu.animation_t[i]);
@@ -115,19 +117,34 @@ draw_hud :: (client: *Client) {
             draw_line_screen_space(client, .{ screen_center.x + sinf(theta * FTAU) * inner_radius * 1.1, screen_center.y - cosf(theta * FTAU) * inner_radius * 1.1 }, .{ screen_center.x + sinf(theta * FTAU) * outer_radius * 0.9, screen_center.y - cosf(theta * FTAU) * outer_radius * 0.9 }, .{ 255, 255, 255, 255 }, 1);
             
             // Draw the required + result icons
-            icon_scale  := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
-            icon_size   := v2f.{ (outer_radius - inner_radius) * icon_scale, (outer_radius - inner_radius) * icon_scale };
-            icon_theta  := cast(f32) 0.05;
-            radius      := (inner_radius + outer_radius) * 0.5;
-
-            for i := 0; i < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++i {
-                icon_center := v2f.{ screen_center.x + sinf((theta + icon_theta * xx (i + 1)) * FTAU) * radius, screen_center.y - cosf((theta + icon_theta * xx (i + 1)) * FTAU) * radius };
-                draw_sprite_screen_space(client, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][i]), icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
-            }
-            
             {
+                icon_size   := v2f.{ (outer_radius - inner_radius) * icon_scale, (outer_radius - inner_radius) * icon_scale };
+                radius      := (inner_radius + outer_radius) * 0.5;
+
+                for i := 0; i < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++i {
+                    icon_center := v2f.{ screen_center.x + sinf((theta + icon_theta * xx (i + 1)) * FTAU) * radius, screen_center.y - cosf((theta + icon_theta * xx (i + 1)) * FTAU) * radius };
+                    draw_sprite_screen_space(client, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][i]), icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+                }
+                
                 icon_center := v2f.{ screen_center.x + sinf((theta - icon_theta * 1) * FTAU) * radius, screen_center.y - cosf((theta - icon_theta * 1) * FTAU) * radius };
                 draw_sprite_screen_space(client, CRAFTING_RECIPE_ICONS[recipe], icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+            }
+                
+            // Draw the input action hint
+            if hud.crafting_menu.selected_recipe == i {
+                icon_size := v2f.{  (outer_radius - inner_radius) * icon_scale * 0.75, (outer_radius - inner_radius) * icon_scale * 0.75 };
+
+                /*
+                cancel_radius      := inner_radius * 0.5;
+                cancel_icon_center := v2f.{ screen_center.x + sinf(theta * FTAU) * cancel_radius, screen_center.y - cosf(theta * FTAU) * cancel_radius };
+                cancel_sprite := get_sprite_index_for_input_action(client, .Crafting_Menu_Toggle);
+                draw_sprite_screen_space(client, cancel_sprite, cancel_icon_center, icon_size, 0, .{ 255, 0, 0, 255 }, false);
+                */
+                
+                confirm_radius      := inner_radius * 0.8;
+                confirm_icon_center := v2f.{ screen_center.x + sinf(theta * FTAU) * confirm_radius, screen_center.y - cosf(theta * FTAU) * confirm_radius };
+                confirm_sprite := get_sprite_index_for_input_action(client, .Crafting_Menu_Confirm);
+                draw_sprite_screen_space(client, confirm_sprite, confirm_icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
             }
         }
     }

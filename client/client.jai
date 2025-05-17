@@ -85,6 +85,7 @@ Client :: struct {
     // Input System
     //
     input_bindings: [Input_Action.Count][]Input_Binding;
+    active_input_device: Input_Device;
     
     //
     // Networking
@@ -134,6 +135,11 @@ set_info_text :: (client: *Client, format: string, args: ..Any) {
 }
 
 
+
+Input_Device :: enum {
+    Keyboard;
+    Gamepad;
+}
 
 Input_Action :: enum {
     Toggle_Pause_Menu;
@@ -234,9 +240,23 @@ input_action_fired :: (client: *Client, action: Input_Action) -> bool {
         binding := client.input_bindings[action][i];
         
         if #complete binding.kind == {
-          case .Keyboard;        if client.window.keys[binding.keycode] & .Repeated then return true;
-          case .Gamepad_Button;  if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed then return true;
-          case .Gamepad_Gesture; if client.window.connected_gamepads && client.window.gamepads[0].gestures[binding.gamepad_gesture] then return true;
+          case .Keyboard;
+            if client.window.keys[binding.keycode] & .Repeated {
+                client.active_input_device = .Keyboard;
+                return true;
+            }
+            
+          case .Gamepad_Button;
+            if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed {
+                client.active_input_device = .Gamepad;
+                return true;
+            }
+
+          case .Gamepad_Gesture;
+            if client.window.connected_gamepads && client.window.gamepads[0].gestures[binding.gamepad_gesture] {
+                client.active_input_device = .Gamepad;
+                return true;
+            }
         }
     }
 
