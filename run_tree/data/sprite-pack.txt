@@ -61,6 +61,9 @@ Guy_Walk_Back_2   sprites/guy/guy-walk-back-2.png
 Guy_Walk_Front_0  sprites/guy/guy-walk-front-0.png
 Guy_Walk_Front_1  sprites/guy/guy-walk-front-1.png
 Guy_Walk_Front_2  sprites/guy/guy-walk-front-2.png
+Guy_Dead_Side     sprites/guy/guy-dead-side.png
+Guy_Dead_Front    sprites/guy/guy-dead-front.png
+Guy_Dead_Back     sprites/guy/guy-dead-back.png
 
 #
 # Dragon

@@ -960,6 +960,10 @@ main :: (args: []string) -> s32 {
     client.next_state    = .Main_Menu;
     switch_to_next_state(*client);
 
+#if DEVELOPER {
+    client.mixer.volumes[.Master] = 0.0;
+}
+    
     //
     // Main loop
     //

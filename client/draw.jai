@@ -50,7 +50,10 @@ Sprite_Index :: enum {
     Guy_Walk_Front_0;
     Guy_Walk_Front_1;
     Guy_Walk_Front_2;
-
+    Guy_Dead_Side;
+    Guy_Dead_Front;
+    Guy_Dead_Back;
+    
     // Dragon
     Dragon_Idle_0;
     Dragon_Idle_1;
@@ -510,12 +513,12 @@ draw_world :: (client: *Client) {
         guy, occupied := index_bucket_array(*client.guys, i);
         if !occupied continue;
 
-        if guy.pid == client.my_entity_pid && position_in_bounds(client, guy.target_position) {
+        if guy.pid == client.my_entity_pid && guy.state != .Dead && position_in_bounds(client, guy.target_position) {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
             draw_outlined_rect_world_space(client, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
         }
 
-        if guy.strength_t > 0 {
+        if guy.strength_t > 0 && guy.state != .Dead {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
             draw_outlined_rect_world_space(client, .{ guy.visual_position.x - TARGET_RECT_HALF_SIZE, guy.visual_position.y - TARGET_RECT_HALF_SIZE }, .{ guy.visual_position.x + TARGET_RECT_HALF_SIZE, guy.visual_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 95, 205, 228, 100 });
         }
@@ -542,7 +545,7 @@ draw_world :: (client: *Client) {
             draw_progress_bar_world_space(client, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
         }
 
-        draw_input_binding_hint_for_guy(client, guy);
+        if guy.pid == client.my_entity_pid then draw_input_hint_for_guy(client, guy);
     }
 
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
@@ -651,10 +654,19 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     
     if #complete entity.entity_kind == {
       case .Guy;
+        guy := down(entity, Guy);
+
         frames: []Sprite_Index = ---;
         frame_time: f32 = ---;
 
-        if entity_is_moving(entity) {
+        if guy.state == .Dead {
+            frame_time = 0.5;
+            if #complete entity.physical_rotation == {
+              case .North; frames = .[ .Guy_Dead_Back ];
+              case .South; frames = .[ .Guy_Dead_Front ];
+              case .East, .West; frames = .[ .Guy_Dead_Side ];
+            }
+        } else if entity_is_moving(entity) {
             frame_time = 0.2;
 
             if #complete entity.physical_rotation == {
@@ -761,7 +773,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     return index, tint, horizontally_mirrored;
 }
 
-draw_input_binding_hint_for_guy :: (client: *Client, guy: *Guy) {
+draw_input_hint_for_guy :: (client: *Client, guy: *Guy) {
     if client.hud.was_open_this_frame return;
 
     target_entity := find_any_entity_at_position(client, guy.target_position);

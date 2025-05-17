@@ -4,7 +4,7 @@ SPRITE_ATLAS_HEIGHT    :: 128;
 SPRITE_ATLAS_CHANNELS  :: 4;
 SPRITE_ATLAS_COLUMNS   :: 8;
 SPRITE_ATLAS_ROWS      :: 8;
-SPRITE_ATLAS_COUNT     :: 1;
+SPRITE_ATLAS_COUNT     :: 2;
 SPRITE_WIDTH           :: SPRITE_ATLAS_WIDTH / SPRITE_ATLAS_COLUMNS;
 SPRITE_HEIGHT          :: SPRITE_ATLAS_HEIGHT / SPRITE_ATLAS_ROWS;
 
@@ -142,7 +142,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
         //
         // Prepare the atlases
         //
-        atlas_count := cast(s64) ceil(cast(f64) highest_sprite_index / cast(f64) SPRITES_PER_ATLAS);
+        atlas_count := cast(s64) ceil(cast(f64) (highest_sprite_index + 1) / cast(f64) SPRITES_PER_ATLAS);
 
         if atlas_count != SPRITE_ATLAS_COUNT {
             logprint(.Error, "The SPRITE_ATLAS_COUNT constant is no longer correct... Victor needs to change it!");
