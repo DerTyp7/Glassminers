@@ -38,7 +38,8 @@ update_hud :: (client: *Client) {
         if hud.state != .Crafting_Menu {
             hud.state = .Crafting_Menu;
             hud.crafting_menu.selected_recipe = 0;
-            set_available_crafting_recipes(client);
+            if !set_available_crafting_recipes(client) then hud.state = .Disabled;
+            
         } else {
             hud.state = .Disabled;
         }
@@ -129,7 +130,7 @@ draw_hud :: (client: *Client) {
     }
 }
 
-set_available_crafting_recipes :: (client: *Client) {
+set_available_crafting_recipes :: (client: *Client) -> s64 {
     deallocate_array(*client.world_allocator, *client.hud.crafting_menu.recipes);
     deallocate_array(*client.world_allocator, *client.hud.crafting_menu.animation_t);
 
@@ -139,19 +140,21 @@ set_available_crafting_recipes :: (client: *Client) {
         if crafting_recipe_is_enabled(client, i) then ++recipe_count;
     }
 
-    if recipe_count == 0 return;
-    
-    client.hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
-    client.hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipe_count);
+    if recipe_count != 0 {
+        client.hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
+        client.hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipe_count);
 
-    recipe_index := 0;
-    for i := 0; i < Crafting_Recipe.Count; ++i {
-        if crafting_recipe_is_enabled(client, i) {
-            client.hud.crafting_menu.recipes[recipe_index] = i;
-            client.hud.crafting_menu.animation_t[recipe_index] = 0;
-            ++recipe_index;
+        recipe_index := 0;
+        for i := 0; i < Crafting_Recipe.Count; ++i {
+            if crafting_recipe_is_enabled(client, i) {
+                client.hud.crafting_menu.recipes[recipe_index] = i;
+                client.hud.crafting_menu.animation_t[recipe_index] = 0;
+                ++recipe_index;
+            }
         }
     }
+        
+    return recipe_count;
 }
 
 

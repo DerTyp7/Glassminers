@@ -162,11 +162,13 @@ Input_Binding :: struct {
     kind: enum {
         Keyboard;
         Gamepad_Button;
+        Gamepad_Gesture;
     };
 
     #using data: union {
         keycode: Key_Code;
         gamepad_button: Window_Gamepad_Button_Code;
+        gamepad_gesture: Window_Gamepad_Gesture_Code;
     };
 }
 
@@ -185,6 +187,13 @@ register_all_input_bindings :: (client: *Client) {
         return binding;
     }
 
+    gamepad_gesture :: (gesture: Window_Gamepad_Gesture_Code) -> Input_Binding {
+        binding: Input_Binding = ---;
+        binding.kind = .Gamepad_Gesture;
+        binding.gamepad_gesture = gesture;
+        return binding;
+    }
+    
     //
     // The input bindings need to live forever, but making slices in here allocates them on the
     // stack (and so they are dead when the procedure exists).
@@ -196,15 +205,15 @@ register_all_input_bindings :: (client: *Client) {
             .[ keycode(.Escape), gamepad_button(.PS_Options) ], // Toggle Pause Menu
             .[ keycode(.F11) ], // Toggle fullscreen
         
-            .[ keycode(.W), gamepad_button(.Dpad_Up) ],    // Move North
-            .[ keycode(.D), gamepad_button(.Dpad_Right) ], // Move East
-            .[ keycode(.S), gamepad_button(.Dpad_Down) ],  // Move South
-            .[ keycode(.A), gamepad_button(.Dpad_Left) ],  // Move West
+            .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up) ],    // Move North
+            .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right) ], // Move East
+            .[ keycode(.S), gamepad_gesture(.Left_Swipe_Down) ],  // Move South
+            .[ keycode(.A), gamepad_gesture(.Left_Swipe_Left) ],  // Move West
 
-            .[ keycode(.Arrow_Up) ],    // Look North
-            .[ keycode(.Arrow_Right) ], // Look East
-            .[ keycode(.Arrow_Down) ],  // Look South
-            .[ keycode(.Arrow_Left) ],  // Look West
+            .[ keycode(.Arrow_Up),    gamepad_gesture(.Right_Swipe_Up) ],    // Look North
+            .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Swipe_Right) ], // Look East
+            .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Swipe_Down) ],  // Look South
+            .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ],  // Look West
 
             .[ keycode(.Space), gamepad_button(.PS_Cross) ],    // Interact Primary
             .[ keycode(.Shift), gamepad_button(.PS_Square) ],   // Interact Secondary
@@ -225,8 +234,9 @@ input_action_fired :: (client: *Client, action: Input_Action) -> bool {
         binding := client.input_bindings[action][i];
         
         if #complete binding.kind == {
-          case .Keyboard; if client.window.keys[binding.keycode] & .Repeated then return true;
-          case .Gamepad_Button; if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed then return true;
+          case .Keyboard;        if client.window.keys[binding.keycode] & .Repeated then return true;
+          case .Gamepad_Button;  if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed then return true;
+          case .Gamepad_Gesture; if client.window.connected_gamepads && client.window.gamepads[0].gestures[binding.gamepad_gesture] then return true;
         }
     }
 
