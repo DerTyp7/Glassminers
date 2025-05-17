@@ -549,32 +549,27 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Primary;
         target_entity := find_any_entity_at_position(server, guy.target_position);
 
-        if guy.state != .Idle || !target_entity break;
-        
-        if target_entity.entity_kind == {
-          case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
-            guy.state = .Digging;
-          case .Item_Stack;
-            guy.state = .Carrying;
-            guy.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
-        }
-        
-      case .Secondary;
-        target_entity := find_any_entity_at_position(server, guy.target_position);
-
         if #complete guy.state == {
           case .Dead, .Digging, .Resurrecting;
+            
           case .Idle;
-            if target_entity == null {
-            } else if target_entity.entity_kind == .Mirror {
-                update_physical_location(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
-            } else if target_entity.entity_kind == .Guy {
+            if !target_entity break;
+
+            if target_entity.entity_kind == {
+              case .Guy;
                 other_guy := down(target_entity, Guy);
                 if other_guy.state == .Dead {
                     guy.state = .Resurrecting;
                     guy.resurrection_pid = other_guy.pid;
                     guy.resurrection_t = 0;
                 }
+
+              case .Item_Stack;                
+                guy.state = .Carrying;
+                guy.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
+
+              case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
+                guy.state = .Digging;
             }
             
           case .Carrying;
@@ -591,6 +586,12 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.state = .Idle;
                 guy.carrying_item = 0;
             }
+        }
+
+      case .Secondary;
+        target_entity := find_any_entity_at_position(server, guy.target_position);
+        if target_entity && target_entity.entity_kind == .Mirror {
+            update_physical_location(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
         }
     }
     

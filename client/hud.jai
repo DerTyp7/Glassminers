@@ -1,6 +1,7 @@
 Hud :: struct {
     state: Hud_State;
     crafting_recipe_input_this_frame: Crafting_Recipe;
+    was_open_this_frame: bool;
     
     #using data: union {
         crafting_menu: struct {
@@ -21,6 +22,8 @@ create_hud :: (client: *Client) {
 update_hud :: (client: *Client) {
     hud :: *client.hud;
 
+    hud.was_open_this_frame = hud.state != .Disabled;
+    
     if client.pause_menu_open {
         hud.state = .Disabled;
         return;

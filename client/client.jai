@@ -215,13 +215,13 @@ register_all_input_bindings :: (client: *Client) {
             .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Swipe_Down) ],  // Look South
             .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ],  // Look West
 
-            .[ keycode(.Space), gamepad_button(.PS_Cross) ],    // Interact Primary
-            .[ keycode(.Shift), gamepad_button(.PS_Square) ],   // Interact Secondary
+            .[ keycode(.Space), gamepad_button(.PS_Cross) ],  // Interact Primary
+            .[ keycode(.Shift), gamepad_button(.PS_Square) ], // Interact Secondary
 
-            .[ keycode(.C),     gamepad_button(.PS_Triangle) ], // Open Crafting Menu
-            .[ keycode(.Space), gamepad_button(.PS_Cross) ],    // Confirm Crafting Menu
-            .[ keycode(.A), gamepad_button(.Left_Bumper) ],     // Left Slot Crafting Menu
-            .[ keycode(.D), gamepad_button(.Right_Bumper) ],    // Right Slot Crafting Menu
+            .[ keycode(.C),     gamepad_button(.PS_Square) ], // Open Crafting Menu
+            .[ keycode(.Space), gamepad_button(.PS_Cross) ],  // Confirm Crafting Menu
+            .[ keycode(.A), gamepad_button(.Left_Bumper),  gamepad_gesture(.Left_Swipe_Left) ],   // Left Slot Crafting Menu
+            .[ keycode(.D), gamepad_button(.Right_Bumper), gamepad_gesture(.Left_Swipe_Right) ],  // Right Slot Crafting Menu
     ];
 
     for i := 0; i < input_bindings.Capacity; ++i {
@@ -834,7 +834,7 @@ do_game_tick :: (client: *Client) {
         input.interaction_kind = .Count;
         input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
         
-        if client.hud.state == .Disabled {
+        if !client.hud.was_open_this_frame {
             if input_action_fired(client, .Move_North) {
                 input.position.x    = guy.physical_position.x;
                 input.position.y    = guy.physical_position.y - 1;
