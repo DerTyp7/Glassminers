@@ -224,7 +224,7 @@ register_all_input_bindings :: (client: *Client) {
             .[ keycode(.Space), gamepad_button(.PS_Cross) ],  // Interact Primary
             .[ keycode(.Shift), gamepad_button(.PS_Square) ], // Interact Secondary
 
-            .[ keycode(.C),     gamepad_button(.PS_Square) ], // Open Crafting Menu
+            .[ keycode(.Shift), gamepad_button(.PS_Square) ], // Open Crafting Menu
             .[ keycode(.Space), gamepad_button(.PS_Cross) ],  // Confirm Crafting Menu
             .[ keycode(.A), gamepad_button(.Left_Bumper),  gamepad_gesture(.Left_Swipe_Left) ],   // Left Slot Crafting Menu
             .[ keycode(.D), gamepad_button(.Right_Bumper), gamepad_gesture(.Left_Swipe_Right) ],  // Right Slot Crafting Menu

@@ -5,6 +5,9 @@ Sprite_Index :: enum {
     Hud_PS_Cross;
     Hud_PS_Triangle;
     Hud_PS_Square;
+    Hud_Key_C;
+    Hud_Key_Space;
+    Hud_Key_Shift;
     
     // Items
     Coal_Item;
@@ -515,22 +518,6 @@ draw_world :: (client: *Client) {
         
         if #complete guy.state == {
           case .Idle;
-            if client.hud.was_open_this_frame break;
-
-            target_entity := find_any_entity_at_position(client, guy.target_position);
-            if !target_entity break;
-
-            icon_size: f32 = 0.25 + sinf(client.epoch_time * FTAU * 2) * 0.05;
-            input_sprite: Sprite_Index = .Count;
-
-            if target_entity.entity_kind == {
-              case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
-                input_sprite = get_sprite_index_for_input_action(client, .Interact_Primary);
-
-              case .Trader; input_sprite = get_sprite_index_for_input_action(client, .Interact_Secondary);
-            }
-
-            draw_sprite_world_space(client, input_sprite, target_entity.visual_position, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, false);
             
           case .Dead;
             draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.epoch_time * FTAU) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
@@ -550,6 +537,8 @@ draw_world :: (client: *Client) {
           case .Resurrecting;
             draw_progress_bar_world_space(client, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
         }
+
+        draw_input_binding_hint_for_guy(client, guy);
     }
 
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
@@ -616,17 +605,25 @@ get_visual_hand_position_for_guy :: (client: *Client, guy: *Guy) -> v2f {
 }
 
 get_sprite_index_for_key_code :: (keycode: Key_Code) -> Sprite_Index {
-    return .Count;
+    sprite: Sprite_Index = .Count;
+
+    if keycode == {
+      case .C;     sprite = .Hud_Key_C;
+      case .Space; sprite = .Hud_Key_Space;
+      case .Shift; sprite = .Hud_Key_Shift;
+    }
+    
+    return sprite;
 }
 
 get_sprite_index_for_gamepad_button :: (button: Window_Gamepad_Button_Code) -> Sprite_Index {
     sprite: Sprite_Index = .Count;
 
     if button == {
-        case .PS_Circle;   sprite = .Hud_PS_Circle;
-        case .PS_Cross;    sprite = .Hud_PS_Cross;
-        case .PS_Triangle; sprite = .Hud_PS_Triangle;
-        case .PS_Square;   sprite = .Hud_PS_Square;
+      case .PS_Circle;   sprite = .Hud_PS_Circle;
+      case .PS_Cross;    sprite = .Hud_PS_Cross;
+      case .PS_Triangle; sprite = .Hud_PS_Triangle;
+      case .PS_Square;   sprite = .Hud_PS_Square;
     }
 
     return sprite;
@@ -758,6 +755,57 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     }
     
     return index, tint, horizontally_mirrored;
+}
+
+draw_input_binding_hint_for_guy :: (client: *Client, guy: *Guy) {
+    if client.hud.was_open_this_frame return;
+
+    target_entity := find_any_entity_at_position(client, guy.target_position);
+    if !target_entity return;
+
+    vertical_icon_offset: f32 = 0;
+    icon_size: f32 = 0.25 + sinf(client.epoch_time * FTAU * 2) * 0.05;
+    input_sprites: []Sprite_Index;
+
+    if target_entity.entity_kind == {
+      case .Bedrock, .Crystal, .Rock, .Coal;
+        if guy.state == .Idle {
+            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+        }
+      case .Lava;
+        if guy.state == .Carrying && guy.carrying_item == .Stone {
+            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+        }
+      case .Mirror;
+        if guy.state == .Idle {
+            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary), get_sprite_index_for_input_action(client, .Interact_Secondary) ];
+        }
+      case .Emitter;
+        if guy.state == .Carrying && guy.carrying_item == .Coal {
+            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+        }
+      case .Trader;
+        if guy.state == .Idle || guy.state == .Carrying {
+            input_sprites = .[ get_sprite_index_for_input_action(client, .Crafting_Menu_Toggle) ];
+        }
+      case .Guy;
+        if guy.state == .Idle {
+            other_guy := down(target_entity, Guy);
+            if other_guy.state == .Dead {
+                input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+            }
+        }
+      case .Item_Stack;
+        if guy.state == .Idle {
+            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+            vertical_icon_offset = 0.25;
+        }
+    }
+
+    for i := 0; i < input_sprites.count; ++i {
+        offset: f32 = (cast(f32) (i - input_sprites.count / 2) + cast(f32) (1 - input_sprites.count % 2) * 0.5) * 0.4;
+        draw_sprite_world_space(client, input_sprites[i], .{ target_entity.visual_position.x + offset, target_entity.visual_position.y + vertical_icon_offset }, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, false);
+    }
 }
 
 calculate_uv_box_for_index_in_atlas :: (index: s64, horizontally_mirrored: bool) -> [4]v2f {

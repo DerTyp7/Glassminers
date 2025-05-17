@@ -6,6 +6,9 @@ Hud_PS_Circle    sprites/hud/Hud-PS-Circle.png
 Hud_PS_Cross     sprites/hud/Hud-PS-Cross.png
 Hud_PS_Triangle  sprites/hud/Hud-PS-Triangle.png
 Hud_PS_Square    sprites/hud/Hud-PS-Square.png
+Hud_Key_C        sprites/hud/Hud-Key-C.png
+Hud_Key_Space    sprites/hud/Hud-Key-Space.png
+Hud_Key_Shift    sprites/hud/Hud-Key-Shift.png
 
 #
 # Items

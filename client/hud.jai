@@ -85,6 +85,8 @@ draw_hud :: (client: *Client) {
       case .Disabled;
 
       case .Crafting_Menu;
+        // @Cleanup: Drawing the crafting menu is really, really ugly
+
         guy_entity := get_entity(client, client.my_entity_pid);
         screen_center := screen_from_world_position(client, guy_entity.visual_position);
 
