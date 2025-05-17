@@ -515,9 +515,25 @@ draw_world :: (client: *Client) {
         
         if #complete guy.state == {
           case .Idle;
+            if client.hud.was_open_this_frame break;
 
+            target_entity := find_any_entity_at_position(client, guy.target_position);
+            if !target_entity break;
+
+            icon_size: f32 = 0.25 + sinf(client.epoch_time * FTAU * 2) * 0.05;
+            input_sprite: Sprite_Index = .Count;
+
+            if target_entity.entity_kind == {
+              case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
+                input_sprite = get_sprite_index_for_input_action(client, .Interact_Primary);
+
+              case .Trader; input_sprite = get_sprite_index_for_input_action(client, .Interact_Secondary);
+            }
+
+            draw_sprite_world_space(client, input_sprite, target_entity.visual_position, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, false);
+            
           case .Dead;
-            draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.epoch_time + FTAU * 3) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
+            draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.epoch_time * FTAU) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
 
           case .Digging;
             target_entity := find_any_entity_at_position(client, guy.target_position);
