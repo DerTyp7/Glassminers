@@ -82,6 +82,11 @@ Client :: struct {
 }
 
     //
+    // Input System
+    //
+    input_bindings: [Input_Action.Count][]Input_Binding;
+    
+    //
     // Networking
     //
     server_data: Shared_Server_Data = .{ .Closed, 0 };
@@ -126,6 +131,106 @@ set_info_text :: (client: *Client, format: string, args: ..Any) {
     deallocate_string(*client.engine_allocator, *client.info_text);
     client.info_text = print_into_allocator(*client.engine_allocator, format, args);
     client.info_text_t = INFO_TEXT_TIMER;
+}
+
+
+
+Input_Action :: enum {
+    Toggle_Pause_Menu;
+    Toggle_Fullscreen;
+
+    Move_North;
+    Move_East;
+    Move_South;
+    Move_West;
+    Look_North;
+    Look_East;
+    Look_South;
+    Look_West;
+
+    Interact_Primary;
+    Interact_Secondary;
+    
+    Crafting_Menu_Toggle;
+    Crafting_Menu_Confirm;
+    Crafting_Menu_Left_Slot;
+    Crafting_Menu_Right_Slot;
+}
+
+// @Incomplete: Also support gamepad gestures
+Input_Binding :: struct {
+    kind: enum {
+        Keyboard;
+        Gamepad_Button;
+    };
+
+    #using data: union {
+        keycode: Key_Code;
+        gamepad_button: Window_Gamepad_Button_Code;
+    };
+}
+
+register_all_input_bindings :: (client: *Client) {
+    keycode :: (keycode: Key_Code) -> Input_Binding {
+        binding: Input_Binding = ---;
+        binding.kind = .Keyboard;
+        binding.keycode = keycode;
+        return binding;
+    }
+
+    gamepad_button :: (button: Window_Gamepad_Button_Code) -> Input_Binding {
+        binding: Input_Binding = ---;
+        binding.kind = .Gamepad_Button;
+        binding.gamepad_button = button;
+        return binding;
+    }
+
+    //
+    // The input bindings need to live forever, but making slices in here allocates them on the
+    // stack (and so they are dead when the procedure exists).
+    // Therefore, for easier setup I construct them locally here, and then copy them into the
+    // engine allocator later on.
+    //
+    
+    input_bindings := [Input_Action.Count][]Input_Binding.[
+            .[ keycode(.Escape), gamepad_button(.PS_Options) ], // Toggle Pause Menu
+            .[ keycode(.F11) ], // Toggle fullscreen
+        
+            .[ keycode(.W), gamepad_button(.Dpad_Up) ],    // Move North
+            .[ keycode(.D), gamepad_button(.Dpad_Right) ], // Move East
+            .[ keycode(.S), gamepad_button(.Dpad_Down) ],  // Move South
+            .[ keycode(.A), gamepad_button(.Dpad_Left) ],  // Move West
+
+            .[ keycode(.Arrow_Up) ],    // Look North
+            .[ keycode(.Arrow_Right) ], // Look East
+            .[ keycode(.Arrow_Down) ],  // Look South
+            .[ keycode(.Arrow_Left) ],  // Look West
+
+            .[ keycode(.Space), gamepad_button(.PS_Cross) ],    // Interact Primary
+            .[ keycode(.Shift), gamepad_button(.PS_Square) ],   // Interact Secondary
+
+            .[ keycode(.C),     gamepad_button(.PS_Triangle) ], // Open Crafting Menu
+            .[ keycode(.Space), gamepad_button(.PS_Cross) ],    // Confirm Crafting Menu
+            .[ keycode(.A), gamepad_button(.Left_Bumper) ],     // Left Slot Crafting Menu
+            .[ keycode(.D), gamepad_button(.Right_Bumper) ],    // Right Slot Crafting Menu
+    ];
+
+    for i := 0; i < input_bindings.Capacity; ++i {
+        client.input_bindings[i] = copy_array(*client.engine_allocator, input_bindings[i]);
+    }
+}
+    
+input_action_fired :: (client: *Client, action: Input_Action) -> bool {
+    for i := 0; i < client.input_bindings[action].count; ++i {
+        binding := client.input_bindings[action][i];
+        
+        if #complete binding.kind == {
+          case .Keyboard; if client.window.keys[binding.keycode] & .Repeated then return true;
+          case .Gamepad_Button; if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed then return true;
+        }
+    }
+
+    return false;
 }
 
 
@@ -671,7 +776,7 @@ do_game_tick :: (client: *Client) {
 
     // Do the pause menu
     {
-        if client.window.keys[.Escape] & .Pressed client.pause_menu_open = !client.pause_menu_open;
+        if input_action_fired(client, .Toggle_Pause_Menu) client.pause_menu_open = !client.pause_menu_open;
 
         if client.pause_menu_open {
             ui :: *client.ui;
@@ -720,40 +825,40 @@ do_game_tick :: (client: *Client) {
         input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
         
         if client.hud.state == .Disabled {
-            if client.window.keys[.A] & .Repeated {
-                input.position.x    = guy.physical_position.x - 1;
-                input.position.y    = guy.physical_position.y;
-                input.aim_direction = .West;
-                read_any_input = true;
-            }
-
-            if client.window.keys[.D] & .Repeated {
-                input.position.x    = guy.physical_position.x + 1;
-                input.position.y    = guy.physical_position.y;
-                input.aim_direction = .East;
-                read_any_input = true;
-            }
-
-            if client.window.keys[.W] & .Repeated {
+            if input_action_fired(client, .Move_North) {
                 input.position.x    = guy.physical_position.x;
                 input.position.y    = guy.physical_position.y - 1;
                 input.aim_direction = .North;
                 read_any_input = true;
             }
 
-            if client.window.keys[.S] & .Repeated {
+            if input_action_fired(client, .Move_West) {
+                input.position.x    = guy.physical_position.x - 1;
+                input.position.y    = guy.physical_position.y;
+                input.aim_direction = .West;
+                read_any_input = true;
+            }
+
+            if input_action_fired(client, .Move_South) {
                 input.position.x    = guy.physical_position.x;
                 input.position.y    = guy.physical_position.y + 1;
                 input.aim_direction = .South;
                 read_any_input = true;
             }
 
-            if client.window.keys[.Arrow_Left]  & .Pressed { input.aim_direction = .West; read_any_input = true; }
-            if client.window.keys[.Arrow_Right] & .Pressed { input.aim_direction = .East; read_any_input = true; }
-            if client.window.keys[.Arrow_Up]    & .Pressed { input.aim_direction = .North; read_any_input = true; }
-            if client.window.keys[.Arrow_Down]  & .Pressed { input.aim_direction = .South; read_any_input = true; }
-            if client.window.keys[.Space] & .Pressed       { input.interaction_kind = .Primary; read_any_input = true; }
-            if client.window.keys[.Shift] & .Pressed       { input.interaction_kind = .Secondary; read_any_input = true; }
+            if input_action_fired(client, .Move_East) {
+                input.position.x    = guy.physical_position.x + 1;
+                input.position.y    = guy.physical_position.y;
+                input.aim_direction = .East;
+                read_any_input = true;
+            }
+
+            if input_action_fired(client, .Look_North) { input.aim_direction = .North; read_any_input = true; }
+            if input_action_fired(client, .Look_West)  { input.aim_direction = .West;  read_any_input = true; }
+            if input_action_fired(client, .Look_South) { input.aim_direction = .South; read_any_input = true; }
+            if input_action_fired(client, .Look_East)  { input.aim_direction = .East;  read_any_input = true; }
+            if input_action_fired(client, .Interact_Primary)   { input.interaction_kind = .Primary; read_any_input = true; }
+            if input_action_fired(client, .Interact_Secondary) { input.interaction_kind = .Secondary; read_any_input = true; }
         }
             
         if !client.pause_menu_open && read_any_input {
@@ -800,6 +905,7 @@ main :: (args: []string) -> s32 {
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 16);
     create_sound_data(*client);
+    register_all_input_bindings(*client);
     
     client.remote_clients.allocator = *client.world_allocator;
     client.current_state = .Count;
@@ -841,13 +947,13 @@ main :: (args: []string) -> s32 {
         }
     }
 }
-
+        
         //
         // Handle transitions
         //
         if client.current_state != client.next_state switch_to_next_state(*client);
 
-        if client.window.keys[.F11] & .Pressed {
+        if input_action_fired(*client, .Toggle_Fullscreen) {
             if client.window.fullscreen {
                 set_window_style(*client.window, .Maximized);
             } else {

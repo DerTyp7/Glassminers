@@ -34,14 +34,16 @@ update_hud :: (client: *Client) {
     //
     // Toggle the active state
     //
-    if client.window.keys[.C] & .Pressed {
-        hud.state = .Crafting_Menu;
-        hud.crafting_menu.selected_recipe = 0;
-        set_available_crafting_recipes(client);
-    } else if !client.window.keys[.C] & .Down && hud.state == .Crafting_Menu {
-        hud.state = .Disabled;
+    if input_action_fired(client, .Crafting_Menu_Toggle) {
+        if hud.state != .Crafting_Menu {
+            hud.state = .Crafting_Menu;
+            hud.crafting_menu.selected_recipe = 0;
+            set_available_crafting_recipes(client);
+        } else {
+            hud.state = .Disabled;
+        }
     }
-
+    
     //
     // Update the active state
     //
@@ -51,15 +53,15 @@ update_hud :: (client: *Client) {
       case .Crafting_Menu;
         if !hud.crafting_menu.recipes.count break;
         
-        if client.window.keys[.A] & .Repeated || client.window.keys[.W] & .Repeated || client.window.keys[.Arrow_Left] & .Repeated || client.window.keys[.Arrow_Up] & .Repeated {
+        if input_action_fired(client, .Crafting_Menu_Left_Slot) {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe - 1 + hud.crafting_menu.recipes.count) % hud.crafting_menu.recipes.count;
         }
 
-        if client.window.keys[.D] & .Repeated || client.window.keys[.S] & .Repeated || client.window.keys[.Arrow_Right] & .Repeated || client.window.keys[.Arrow_Down] & .Repeated {
+        if input_action_fired(client, .Crafting_Menu_Right_Slot) {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe + 1) % hud.crafting_menu.recipes.count;
         }
 
-        if client.window.keys[.Enter] & .Pressed {
+        if input_action_fired(client, .Crafting_Menu_Confirm) {
             hud.crafting_recipe_input_this_frame = hud.crafting_menu.recipes[hud.crafting_menu.selected_recipe];
             hud.state = .Disabled;
 
