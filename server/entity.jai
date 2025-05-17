@@ -52,6 +52,11 @@ Receiver :: struct {
     progress_time_in_seconds: f32;
 }
 
+Slab :: struct {
+    #using entity : *Entity = ---;
+    time_left_in_seconds: f32 = SLAB_TIME_TO_LIVE;
+}
+
 Item_Stack :: struct {
     #using entity : *Entity = ---;
     item_kind: Item_Kind = 0;
@@ -79,6 +84,7 @@ Entity_Manager :: struct {
     guys:         Bucket_Array(Guy);
     emitters:     Bucket_Array(Emitter);
     receivers:    Bucket_Array(Receiver);
+    slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
     dragons:      Bucket_Array(Dragon);
     goblins:      Bucket_Array(Goblin);
@@ -98,6 +104,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.guys, *server.world_allocator);
     create_bucket_array(*server.emitters, *server.world_allocator);
     create_bucket_array(*server.receivers, *server.world_allocator);
+    create_bucket_array(*server.slabs, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
     create_bucket_array(*server.dragons, *server.world_allocator);
     create_bucket_array(*server.goblins, *server.world_allocator);
@@ -109,6 +116,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.guys);
     destroy_bucket_array(*server.emitters);
     destroy_bucket_array(*server.receivers);
+    destroy_bucket_array(*server.slabs);
     destroy_bucket_array(*server.item_stacks);
     destroy_bucket_array(*server.dragons);
     destroy_bucket_array(*server.goblins);
@@ -155,6 +163,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Guy;        make_derived(entity, *server.guys);
       case .Emitter;    make_derived(entity, *server.emitters);
       case .Receiver;   make_derived(entity, *server.receivers);
+      case .Slab;       make_derived(entity, *server.slabs);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Dragon;     make_derived(entity, *server.dragons);
       case .Goblin;     make_derived(entity, *server.goblins);
@@ -192,6 +201,7 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.guys);
     remove_deriveds(*server.emitters);
     remove_deriveds(*server.receivers);
+    remove_deriveds(*server.slabs);
     remove_deriveds(*server.item_stacks);
     remove_deriveds(*server.dragons);
     remove_deriveds(*server.goblins);
@@ -249,6 +259,12 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
     }
 
     return has_died;
+}
+
+damage_if_in_lava :: (server: *Server, entity: *Entity) {
+    is_on_lava := find_entity_of_kind_at_position(server, .Lava, entity.physical_position) != null;
+
+    if is_on_lava damage_entity(server, entity, server.tick_time * LAVA_DPS);
 }
 
 set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
@@ -367,6 +383,8 @@ update_guy :: (server: *Server, guy: *Guy) {
 
     if guy.strength_t > 0 guy.strength_t -= server.tick_time;
 
+    damage_if_in_lava(server, guy);
+    
     //
     // Send out the new guy state
     // @NetworkTraffic: Only send this message if anything changed about the guy
@@ -397,6 +415,35 @@ update_emitter :: (server: *Server, emitter: *Emitter) {
     }
 }
 
+update_receiver :: (server: *Server, receiver: *Receiver) {
+    // @NetworkTraffic: Simple client-side predicition
+    
+    previous := receiver.progress_time_in_seconds;
+
+    lit_up, incoming_direction := is_emitter_field_at(server, receiver.physical_position);
+    if lit_up && incoming_direction == opposite_direction(receiver.physical_rotation) {
+        receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
+    } else {
+        receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
+    }
+
+    if receiver.progress_time_in_seconds != previous {
+        msg := make_message(Receiver_State_Message);
+        msg.receiver_state.entity_pid = receiver.pid;
+        msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
+        array_add(*server.outgoing_messages, msg);
+    }
+}
+
+update_slab :: (server: *Server, slab: *Slab) {
+    slab.time_left_in_seconds -= server.tick_time;
+
+    if slab.time_left_in_seconds <= 0 {
+        remove_entity(server, slab);
+        create_entity(server, .Lava, slab.physical_position, .North);
+    }
+}
+
 update_dragon :: (server: *Server, dragon: *Dragon) {
     switch_state :: (server: *Server, dragon: *Dragon, new_state: Dragon_State) {
         if dragon.state == new_state return;
@@ -416,6 +463,8 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
     if lit_up {
         damage_entity(server, dragon, BEAM_DPS * server.tick_time);
     }
+
+    damage_if_in_lava(server, dragon);
 
     if #complete dragon.state == {
       case .Idle;
@@ -479,6 +528,8 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
     if lit_up {
         damage_entity(server, goblin, BEAM_DPS * server.tick_time);
     }
+
+    damage_if_in_lava(server, goblin);
 
     if #complete goblin.state == {
       case .Idle;

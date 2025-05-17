@@ -320,6 +320,7 @@ fill_world_from_string :: (server: *Server, data: string, source_name: string) -
         #char "@", // Crystal
         #char "i", // Item Stack
         #char "l", // Lava
+        #char "_", // Slab
         #char "!", // Guy
         #char "d", // Dragon
         #char "g", // Goblin
@@ -340,6 +341,7 @@ fill_world_from_string :: (server: *Server, data: string, source_name: string) -
         .North, // Dragon
         .North, // Goblin
         .North, // Trader
+        .North, // Slab
     ];
     
     //
@@ -584,6 +586,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.carrying_item = 0;
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
+                create_entity(server, .Slab, target_entity.physical_position, .North);
                 guy.state = .Idle;
                 guy.carrying_item = 0;
             } else if try_to_put_item(server, guy.target_position, guy.carrying_item) {
@@ -639,30 +642,22 @@ do_game_tick :: (server: *Server) {
     for i := 0; i < server.receivers.slot_count; ++i {
         receiver, occupied := index_bucket_array(*server.receivers, i);
         if !occupied continue;
-        
-        // @NetworkTraffic: Simple client-side predicition
-        
-        previous := receiver.progress_time_in_seconds;
 
-        lit_up, incoming_direction := is_emitter_field_at(server, receiver.physical_position);
-        if lit_up && incoming_direction == opposite_direction(receiver.physical_rotation) {
-            receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
-        } else {
-            receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
-        }
-
-        if receiver.progress_time_in_seconds != previous {
-            msg := make_message(Receiver_State_Message);
-            msg.receiver_state.entity_pid = receiver.pid;
-            msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
-            array_add(*server.outgoing_messages, msg);
-        }
+        update_receiver(server, receiver);
 
         if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
             game_state = .Won;
         }
     }
 
+    //
+    // Update all slab
+    //
+    for i := 0; i < server.slabs.slot_count; ++i {
+        slab, occupied := index_bucket_array(*server.slabs, i);
+        if occupied update_slab(server, slab);
+    }
+    
     //
     // Update all dragons
     //
@@ -695,13 +690,18 @@ do_game_tick :: (server: *Server) {
 
         if guy.state == .Dead ++number_of_dead_guys;
     }
-
+    
     //
     // Update all other kinds entities
     //
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && entity.entity_kind == .Trader update_trader(server, entity);
+        if !occupied continue;
+
+        if entity.entity_kind == {
+            case .Trader; update_trader(server, entity);
+            case .Rock, .Coal, .Crystal, .Item_Stack; damage_if_in_lava(server, entity);
+        }
     }
     
     if number_of_dead_guys == server.clients.count {

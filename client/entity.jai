@@ -54,6 +54,11 @@ Receiver :: struct {
     progress_time_in_seconds: f32 = 0;
 }
 
+Slab :: struct {
+    #using entity : *Entity = ---;
+    time_left_in_seconds: f32 = SLAB_TIME_TO_LIVE;
+}
+
 Item_Stack :: struct {
     #using entity : *Entity = ---;
     item_kind: Item_Kind = 0;
@@ -79,6 +84,7 @@ Entity_Manager :: struct {
     guys:         Bucket_Array(Guy);
     emitters:     Bucket_Array(Emitter);
     receivers:    Bucket_Array(Receiver);
+    slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
     dragons:      Bucket_Array(Dragon);
     goblins:      Bucket_Array(Goblin);
@@ -97,6 +103,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.guys, *client.world_allocator);
     create_bucket_array(*client.emitters, *client.world_allocator);
     create_bucket_array(*client.receivers, *client.world_allocator);
+    create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.dragons, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
@@ -108,6 +115,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.guys);
     destroy_bucket_array(*client.emitters);
     destroy_bucket_array(*client.receivers);
+    destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.dragons);
     destroy_bucket_array(*client.goblins);
@@ -187,6 +195,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Guy;        make_derived(entity, *client.guys);
       case .Emitter;    make_derived(entity, *client.emitters);
       case .Receiver;   make_derived(entity, *client.receivers);
+      case .Slab;       make_derived(entity, *client.slabs);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
       case .Dragon;     make_derived(entity, *client.dragons);
       case .Goblin;     make_derived(entity, *client.goblins);
@@ -244,7 +253,10 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.guys);
     remove_deriveds(*client.emitters);
     remove_deriveds(*client.receivers);
+    remove_deriveds(*client.slabs);
+    remove_deriveds(*client.item_stacks);
     remove_deriveds(*client.dragons);
+    remove_deriveds(*client.goblins);
     remove_deriveds(*client.all_entities);
 }
 
@@ -335,6 +347,10 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     if emitter.time_left_in_seconds <= 0 return;
 
     recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
+}
+
+update_slab :: (client: *Client, slab: *Slab) {
+    slab.time_left_in_seconds -= client.tick_time;
 }
 
 update_guy :: (client: *Client, guy: *Guy) {

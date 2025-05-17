@@ -803,6 +803,11 @@ do_game_tick :: (client: *Client) {
             if occupied then update_emitter(client, emitter);
         }
 
+        for i := 0; i < client.slabs.slot_count; ++i {
+            slab, occupied := index_bucket_array(*client.slabs, i);
+            if occupied then update_slab(client, slab);
+        }
+
         for i := 0; i < client.guys.slot_count; ++i {
             guy, occupied := index_bucket_array(*client.guys, i);
             if occupied then update_guy(client, guy);

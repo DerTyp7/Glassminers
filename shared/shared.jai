@@ -116,6 +116,7 @@ VISUAL_ROOM_OFFSET :: v2f.{ #run VISUAL_ROOM_SIZE.x / 2 - 0.5, #run VISUAL_ROOM_
 RECEIVER_TIME_TO_CHARGE: f32 : 5;
 EMITTER_MAX_TIME: f32 : 180;
 COAL_EMITTER_CHARGE_TIME: f32 : 60;
+SLAB_TIME_TO_LIVE: f32 : 10;
 
 RESURRECTION_TIME: f32 : 5;
 STRENGTH_POTION_TIME: f32 : 30;
@@ -131,6 +132,7 @@ GOBLIN_RECOVER_TIME: f32 : 2;
 HEALTH_PER_HEART: f32 : 10;
 BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
 GUY_DPS:  f32 : HEALTH_PER_HEART;
+LAVA_DPS: f32 : HEALTH_PER_HEART * 3;
 
 Entity_Flags :: enum bitfield {
     Pushable;
@@ -154,6 +156,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
     0, // Item Stack
     .Blocks_Move, // Lava
+    0, // Slab
 
     // Beings
     .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy
@@ -175,6 +178,7 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     40, // Coal
     0,  // Item Stack
     0,  // Lava
+    0,  // Slab
     
     // Beings
     30, // Guy
@@ -203,6 +207,7 @@ Entity_Kind :: enum {
     Crystal;
     Item_Stack;
     Lava;
+    Slab;
     
     // Beings
     Guy;

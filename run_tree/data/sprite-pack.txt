@@ -42,6 +42,10 @@ Lava_0       sprites/environment/lava-0.png
 Lava_1       sprites/environment/lava-1.png
 Lava_2       sprites/environment/lava-2.png
 Lava_3       sprites/environment/lava-3.png
+Slab_0       sprites/environment/slab-0.png
+Slab_1       sprites/environment/slab-1.png
+Slab_2       sprites/environment/slab-2.png
+Slab_3       sprites/environment/slab-3.png
 
 #
 # Guy
