@@ -187,6 +187,28 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     0,  // Trader
 ];
 
+ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
+    // Beams
+    2, // Emitter
+    2, // Receiver
+    2, // Mirror
+
+    // Environment
+    2, // Bedrock
+    2, // Rock
+    2, // Crystal
+    2, // Coal
+    1, // Item Stack
+    0, // Lava
+    0, // Slab
+
+    // Beings
+    3, // Guy
+    3, // Dragon
+    3, // Goblin
+    3, // Trader
+];
+
 Item_Kind :: enum {
     Shard;
     Stone;

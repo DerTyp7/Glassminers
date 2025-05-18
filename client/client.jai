@@ -1,6 +1,7 @@
 // Jai modules
 #load "compiler.jai";
 #load "basic.jai";
+#load "sort.jai";
 #load "window.jai";
 #load "hash_table.jai";
 #load "ui.jai";
