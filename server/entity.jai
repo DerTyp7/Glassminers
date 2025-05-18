@@ -283,12 +283,16 @@ remove_entity :: (server: *Server, entity: *Entity) {
 }
 
 find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
+    found_entity: *Entity = null;
+    
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y && (!found_entity || ENTITY_VISUAL_DEPTHS[entity.entity_kind] > ENTITY_VISUAL_DEPTHS[found_entity.entity_kind]) {
+            found_entity = entity;
+        }
     }
     
-    return null;
+    return found_entity;
 }
 
 find_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity {

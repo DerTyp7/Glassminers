@@ -451,18 +451,35 @@ draw_world :: (client: *Client) {
     }
     
     //
-    // Draw all entities
+    // Draw all entities, sorted by their kind's depth. We also do some simple
+    // visibility checks on these entities
     //
-    for i := 0; i < client.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.all_entities, i);
-        if !occupied continue;
-        
-        sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
-        draw_sprite_world_space(client, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
-    }
+    {
+        compare_entities_by_depth :: (lhs, rhs: **Entity) -> s32 {
+            return ENTITY_VISUAL_DEPTHS[(~lhs).entity_kind] - ENTITY_VISUAL_DEPTHS[(~rhs).entity_kind];
+        }
 
+        entities_to_draw: [..]*Entity;
+        entities_to_draw.allocator = *temp;
+        
+        for i := 0; i < client.all_entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*client.all_entities, i);
+            if !occupied continue;
+
+            if visibility_check_entity(client, entity) then array_add(*entities_to_draw, entity);
+        }
+        
+        quick_sort([]*Entity.{ entities_to_draw.count, entities_to_draw.data }, compare_entities_by_depth);
+        
+        for i := 0; i < entities_to_draw.count; ++i {
+            entity := array_get(*entities_to_draw, i);
+            sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
+            draw_sprite_world_space(client, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+        }
+    }
+        
     //
-    // Draw all emitters
+    // Draw all emitter states
     //
     for i := 0; i < client.emitters.slot_count; ++i {
         emitter, occupied := index_bucket_array(*client.emitters, i);
@@ -851,6 +868,17 @@ calculate_uv_box_for_index_in_atlas :: (index: s64, horizontally_mirrored: bool)
     }
     
     return .[ .{ x0, y0 }, .{ x1, y0 }, .{ x1, y1 }, .{ x0, y1 } ];
+}
+
+visibility_check_entity :: (client: *Client, entity: *Entity) -> bool {
+    entity_top_left := v2f.{ entity.visual_position.x - entity.visual_size.x / 2, entity.visual_position.y - entity.visual_size.y / 2 };
+    entity_bottom_right := v2f.{ entity.visual_position.x + entity.visual_size.x / 2, entity.visual_position.y + entity.visual_size.y / 2 };
+
+    screen_top_left := v2f.{ client.camera.center.x - client.camera.size.x / 2, client.camera.center.y - client.camera.size.y / 2 };
+    screen_bottom_right := v2f.{ client.camera.center.x + client.camera.size.x / 2, client.camera.center.y + client.camera.size.y / 2 };
+    
+    return (entity_bottom_right.x >= screen_top_left.x && entity_bottom_right.y >= screen_top_left.y) &&
+        (entity_top_left.x <= screen_bottom_right.x && entity_top_left.y <= screen_bottom_right.y);
 }
 
 draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector2, foreground: UI_Color, background: UI_Color) {
