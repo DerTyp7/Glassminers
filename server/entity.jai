@@ -1,7 +1,7 @@
 Beam_Data :: struct {
     Field :: struct {
         #using position: v2i;
-        incoming_direction: Direction;
+        incoming_direction: Direction; // @Cleanup: Isn't this the outgoing direction?
     }
 
     fields: [..]Field;
@@ -420,7 +420,7 @@ update_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
     
     if emitter.time_left_in_seconds > 0 {
-        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
+        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
         emitter.time_left_in_seconds -= server.tick_time;
     }
 }
@@ -497,7 +497,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
         }
 
       case .Attacking;
-        recalculate_beam(server, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, DRAGON_BEAM_LENGTH);
+        recalculate_beam(server, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, false, DRAGON_BEAM_LENGTH);
 
         for i := 0; i < dragon.beam_data.fields.count; ++i {
             field := array_get(*dragon.beam_data.fields, i);
@@ -742,7 +742,9 @@ has_line_of_sight :: (server: *Server, source: v2i, target: v2i) -> bool {
     return true;
 }
 
-recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction: Direction, max_length: s64) {
+recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction: Direction, include_initial_position: bool, max_length: s64) {
+    if include_initial_position then array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+
     while beam.fields.count < max_length {
         vector := vector_from_direction(direction);
         position.x += vector.x;

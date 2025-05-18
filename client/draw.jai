@@ -410,15 +410,15 @@ draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_c
 //
 
 draw_world :: (client: *Client) {
-    draw_beam :: (client: *Client, beam: *Beam_Data, color: GE_Color, intensity: f32) {
-        WORLD_HALF_SIZE: f32 : 0.75 / 2;
-
+    draw_beam :: (client: *Client, beam: *Beam_Data, color: GE_Color, intensity: f32, first_field_as_v: bool) {
         intense_color := GE_Color.{ color.r, color.g, color.b, cast(u8) (cast(f32) color.a * intensity) };
-        
-        for i := 0; i < beam.fields.count; ++i {
-            field := array_get_pointer(*beam.fields, i);
-            visual_position := v2f.{ xx field.x, xx field.y };
-            draw_rect_world_space(client, .{ visual_position.x - WORLD_HALF_SIZE, visual_position.y - WORLD_HALF_SIZE }, .{ visual_position.x + WORLD_HALF_SIZE, visual_position.y + WORLD_HALF_SIZE }, intense_color);
+
+        vertices: []v2f = build_mesh_for_beam(client, beam, first_field_as_v);
+
+        for i := 0; i < vertices.count; ++i {
+            world_space := vertices[i];
+            screen_space := screen_from_world_position(client, world_space);
+            ge_imm2d_colored_vertex(*client.graphics, screen_space.x, screen_space.y, intense_color);
         }
     }
     
@@ -491,7 +491,7 @@ draw_world :: (client: *Client) {
         t := (1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME) * 3;
         
         intensity := smoothstep(cosf(powf(t, 5) * FTAU) * 0.5 + 0.5, 0, (t * t) / 30);
-        draw_beam(client, *emitter.beam_data, .{ 255, 255, 255, 150 }, intensity);
+        draw_beam(client, *emitter.beam_data, .{ 255, 229, 167, 220 }, intensity, true);
 
         if emitter.time_left_in_seconds > 0 {
             draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
@@ -517,7 +517,8 @@ draw_world :: (client: *Client) {
         dragon, occupied := index_bucket_array(*client.dragons, i);
         if !occupied continue;
 
-        draw_beam(client, *dragon.beam_data, .{ 255, 209, 104, 150 }, 1);
+        // @Cleanup: Maybe fade the beam out?
+        draw_beam(client, *dragon.beam_data, .{ 255, 82, 0, 150 }, 1, false);
     }
 
     //
@@ -905,3 +906,39 @@ clear_ui_scissors :: (client: *Client) {
     ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w - 1, xx client.window.h - 1 ]);
 }
 
+build_mesh_for_beam :: (client: *Client, beam: *Beam_Data, first_field_as_v: bool) -> []v2f {
+    vertices: [..]v2f;
+    vertices.allocator = *temp;
+
+    HALF_WIDTH: f32 : 0.75 / 2;
+    HALF_HEIGHT: f32 : 1 / 2;
+
+    for i := 0; i < beam.fields.count; ++i {
+        field := array_get(*beam.fields, i);
+        
+        add_triangle :: (vertices: *[..]v2f, field: v2i, p0, p1, p2: v2f, rotation: Direction) {
+            visual_position := v2f.{ xx field.x, xx field.y };
+
+            angle := visual_from_physical_rotation(rotation);
+            rotated_p0 := v2_rotate(p0, angle);
+            rotated_p1 := v2_rotate(p1, angle);
+            rotated_p2 := v2_rotate(p2, angle);
+            array_add(vertices, v2f.{ visual_position.x + rotated_p0.x, visual_position.y + rotated_p0.y });
+            array_add(vertices, v2f.{ visual_position.x + rotated_p1.x, visual_position.y + rotated_p1.y });
+            array_add(vertices, v2f.{ visual_position.x + rotated_p2.x, visual_position.y + rotated_p2.y });
+        }
+        
+        if i == 0 && first_field_as_v {
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ 0, HALF_HEIGHT * 0.8 }, .{ HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
+        } else if i > 0 && array_get(*beam.fields, i - 1).incoming_direction != field.incoming_direction {
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ HALF_WIDTH, HALF_WIDTH }, .{ HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
+            add_triangle(*vertices, field, .{ -HALF_HEIGHT, -HALF_WIDTH }, .{ HALF_WIDTH, HALF_WIDTH }, .{ -HALF_HEIGHT, HALF_WIDTH }, field.incoming_direction);
+            add_triangle(*vertices, field, .{ HALF_WIDTH, HALF_WIDTH }, .{ -HALF_HEIGHT, -HALF_WIDTH }, .{ -HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
+        } else {
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ HALF_WIDTH, -HALF_HEIGHT }, .{ -HALF_WIDTH, HALF_HEIGHT }, field.incoming_direction);
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, HALF_HEIGHT }, .{ HALF_WIDTH, -HALF_HEIGHT }, .{ HALF_WIDTH, HALF_HEIGHT }, field.incoming_direction);
+        }
+    }
+
+    return .{ vertices.count, vertices.data };
+}

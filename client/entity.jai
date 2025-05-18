@@ -8,7 +8,12 @@ Camera :: struct {
 }
 
 Beam_Data :: struct {
-    fields: [..]v2i;
+    Field :: struct {
+        #using position: v2i;
+        incoming_direction: Direction;
+    }
+
+    fields: [..]Field;
 }
 
 Entity :: struct {
@@ -346,7 +351,7 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     
     if emitter.time_left_in_seconds <= 0 return;
 
-    recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, MAX_S64);
+    recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
 }
 
 update_slab :: (client: *Client, slab: *Slab) {
@@ -365,7 +370,7 @@ update_dragon :: (client: *Client, dragon: *Dragon) {
     if #complete dragon.state == {
       case .Idle, .Recovering;
       case .Attacking;
-        recalculate_beam(client, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, DRAGON_BEAM_LENGTH);
+        recalculate_beam(client, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, false, DRAGON_BEAM_LENGTH);
     }
 
     dragon.state_t += client.tick_time;
@@ -384,7 +389,9 @@ clear_beam_data :: (data: *Beam_Data) {
     data.fields.allocator = *temp;
 }
 
-recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction: Direction, max_length: s64) {
+recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction: Direction, include_initial_position: bool, max_length: s64) {
+    if include_initial_position then array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+    
     while beam.fields.count < max_length {
         vector := vector_from_direction(direction);
         position.x += vector.x;
@@ -394,15 +401,15 @@ recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction
         blocking := find_entity_with_flags_at_position(client, .Blocks_Beam, position);
         
         if blocking == null {
-            array_add(*beam.fields, position);
+            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
         } else if blocking.entity_kind == .Mirror {
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
 
             if reflection_success then direction = reflected_direction; else break;
 
-            array_add(*beam.fields, position);
+            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
         } else if blocking.entity_kind == .Receiver {
-            array_add(*beam.fields, position);
+            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             break;
         } else {
             break;
