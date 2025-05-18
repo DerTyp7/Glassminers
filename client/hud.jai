@@ -199,9 +199,7 @@ crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bo
     guy := down(guy_entity, Guy);
     
     // Check that the target position is actually empty, if required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] {
-        if find_any_entity_at_position(client, guy.target_position) return false;
-    }
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Move, guy.target_position) return false;
 
     // Check that the guy has the required resources available
     available_resources := get_available_resources_for_guy(client, guy);
@@ -215,7 +213,7 @@ crafting_recipe_is_enabled :: (client: *Client, recipe: Crafting_Recipe) -> bool
     guy := down(guy_entity, Guy);
 
     // Check that the target position is actually empty, if required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_any_entity_at_position(client, guy.target_position) return false;
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Move, guy.target_position) return false;
 
     // Check that the required enabler is present
     return CRAFTING_RECIPE_ENABLER[recipe] == .Count || find_entity_of_kind_at_position(client, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) != null;

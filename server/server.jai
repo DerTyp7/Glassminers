@@ -511,7 +511,7 @@ try_to_fulfill_recipe :: (server: *Server, guy: *Guy, recipe: Crafting_Recipe) -
     if CRAFTING_RECIPE_ENABLER[recipe] != .Count && !find_entity_of_kind_at_position(server, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) return false;
 
     // Check the target position is empty when required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_any_entity_at_position(server, guy.target_position) return false;
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(server, .Blocks_Move, guy.target_position) return false;
     
     // Check the guy has enough resources
     available_resources := get_available_resources_for_guy(server, guy);
@@ -574,8 +574,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.state = .Carrying;
                 guy.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
 
-              case .Bedrock, .Crystal, .Rock, .Mirror, .Coal;
-                guy.state = .Digging;
+              case;
+                if target_entity.entity_flags & .Diggable {
+                    guy.state = .Digging;
+                }
             }
             
           case .Carrying;
@@ -589,7 +591,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 create_entity(server, .Slab, target_entity.physical_position, .North);
                 guy.state = .Idle;
                 guy.carrying_item = 0;
-            } else if try_to_put_item(server, guy.target_position, guy.carrying_item) {
+            } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
                 guy.carrying_item = 0;
             }
@@ -700,7 +702,7 @@ do_game_tick :: (server: *Server) {
 
         if entity.entity_kind == {
             case .Trader; update_trader(server, entity);
-            case .Rock, .Coal, .Crystal, .Item_Stack; damage_if_in_lava(server, entity);
+            case .Rock, .Coal, .Crystal, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
         }
     }
     

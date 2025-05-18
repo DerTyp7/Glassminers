@@ -136,6 +136,7 @@ LAVA_DPS: f32 : HEALTH_PER_HEART * 3;
 
 Entity_Flags :: enum bitfield {
     Pushable;
+    Diggable;
     Living;
     Blocks_Move;
     Blocks_Beam;
@@ -147,13 +148,13 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
     .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Emitter
     .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Receiver
-    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Mirror
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Mirror
 
     // Environment
-    .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Bedrock
-    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Rock
-    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Crystal
-    .Pushable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
+    .Blocks_Move | .Diggable | .Blocks_Beam | .Blocks_Los, // Bedrock
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Rock
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Crystal
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
     0, // Item Stack
     .Blocks_Move, // Lava
     0, // Slab

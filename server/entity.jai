@@ -209,62 +209,62 @@ physically_remove_all_marked_entities :: (server: *Server) {
 }
 
 damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bool {
-    has_died := false;
-
     entity.health -= immediate_damage;
     entity.health = max(entity.health, 0);
+    has_died := entity.health <= 0;
 
-    if entity.health > 0 {
-        //
-        // Send information about the entity health to all clients
-        //
-        msg := make_message(Entity_Health_Message);
-        msg.entity_health.entity_pid = entity.pid;
-        msg.entity_health.current_health = entity.health;
-        array_add(*server.outgoing_messages, msg);
-    } else {
-        //
-        // Handle the entity dying
-        //
-        if entity.entity_kind == {
-          case .Guy;
-            guy := down(entity, Guy);
-            guy.state = .Dead;
-
-          case .Crystal;
-            remove_entity(server, entity);
-            try_to_put_item(server, entity.physical_position, .Shard);
-
-          case .Rock;
-            remove_entity(server, entity);
-            try_to_put_item(server, entity.physical_position, .Stone);
-
-          case .Coal;
-            remove_entity(server, entity);
-            try_to_put_item(server, entity.physical_position, .Coal);
-
-          case .Mirror;
-            remove_entity(server, entity);
-            try_to_put_item(server, entity.physical_position, .Shard);            
-
-          case .Dragon, .Goblin;
-            remove_entity(server, entity);
-            try_to_put_item(server, entity.physical_position, .Coin);
-            
-          case;
-            remove_entity(server, entity);
-        }
-
-        has_died = true;
-    }
+    //
+    // Send information about the entity health to all clients
+    //
+    msg := make_message(Entity_Health_Message);
+    msg.entity_health.entity_pid = entity.pid;
+    msg.entity_health.current_health = entity.health;
+    array_add(*server.outgoing_messages, msg);
 
     return has_died;
 }
 
-damage_if_in_lava :: (server: *Server, entity: *Entity) {
+kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
+    if entity.entity_kind == {
+      case .Guy;
+        guy := down(entity, Guy);
+        guy.state = .Dead;
+
+      case .Crystal;
+        remove_entity(server, entity);
+        try_to_put_item(server, entity.physical_position, .Shard, killer);
+
+      case .Rock;
+        remove_entity(server, entity);
+        try_to_put_item(server, entity.physical_position, .Stone, killer);
+
+      case .Coal;
+        remove_entity(server, entity);
+        try_to_put_item(server, entity.physical_position, .Coal, killer);
+
+      case .Mirror;
+        remove_entity(server, entity);
+        try_to_put_item(server, entity.physical_position, .Shard, killer);
+
+      case .Dragon, .Goblin;
+        remove_entity(server, entity);
+        try_to_put_item(server, entity.physical_position, .Coin, killer);
+        
+      case;
+        remove_entity(server, entity);
+    }
+}
+
+damage_and_maybe_kill_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) {
+    if damage_entity(server, entity, immediate_damage) {
+        kill_entity(server, entity, null);
+    }
+}
+
+damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
     is_on_lava := find_entity_of_kind_at_position(server, .Lava, entity.physical_position) != null;
 
-    if is_on_lava damage_entity(server, entity, server.tick_time * LAVA_DPS);
+    if is_on_lava damage_and_maybe_kill_entity(server, entity, server.tick_time * LAVA_DPS);
 }
 
 set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
@@ -360,14 +360,20 @@ update_guy :: (server: *Server, guy: *Guy) {
     
     if guy.state == {
       case .Digging;
-        target_entity := find_any_entity_at_position(server, guy.target_position);
+        target_entity := find_entity_with_flags_at_position(server, .Diggable, guy.target_position); // This target entity might change (or become null) when the guy rotates because of player input, or the entity is destructed by someone else...
 
+        if !target_entity {
+            guy.state = .Idle;
+            break;
+        }
+        
         damage := GUY_DPS;
 
         if guy.strength_t > 0 damage *= STRENGTH_POTION_FACTOR;
 
         if damage_entity(server, target_entity, damage * server.tick_time) {
             guy.state = .Idle;
+            kill_entity(server, target_entity, guy);
         }
 
       case .Resurrecting;
@@ -387,7 +393,7 @@ update_guy :: (server: *Server, guy: *Guy) {
 
     if guy.strength_t > 0 guy.strength_t -= server.tick_time;
 
-    damage_if_in_lava(server, guy);
+    damage_and_maybe_kill_if_in_lava(server, guy);
     
     //
     // Send out the new guy state
@@ -465,10 +471,10 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
 
     lit_up, _ := is_emitter_field_at(server, dragon.physical_position);
     if lit_up {
-        damage_entity(server, dragon, BEAM_DPS * server.tick_time);
+        damage_and_maybe_kill_entity(server, dragon, BEAM_DPS * server.tick_time);
     }
 
-    damage_if_in_lava(server, dragon);
+    damage_and_maybe_kill_if_in_lava(server, dragon);
 
     if #complete dragon.state == {
       case .Idle;
@@ -497,7 +503,7 @@ update_dragon :: (server: *Server, dragon: *Dragon) {
             field := array_get(*dragon.beam_data.fields, i);
             entity := find_entity_with_flags_at_position(server, .Living, field);
             if entity && !array_contains(*dragon.damaged_entities_this_attack, entity.pid) {
-                damage_entity(server, entity, HEALTH_PER_HEART);
+                damage_and_maybe_kill_entity(server, entity, HEALTH_PER_HEART);
                 array_add(*dragon.damaged_entities_this_attack, entity.pid);
             }
         }
@@ -530,10 +536,10 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
 
     lit_up, _ := is_emitter_field_at(server, goblin.physical_position);
     if lit_up {
-        damage_entity(server, goblin, BEAM_DPS * server.tick_time);
+        damage_and_maybe_kill_entity(server, goblin, BEAM_DPS * server.tick_time);
     }
 
-    damage_if_in_lava(server, goblin);
+    damage_and_maybe_kill_if_in_lava(server, goblin);
 
     if #complete goblin.state == {
       case .Idle;
@@ -546,7 +552,7 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
             update_physical_location(server, goblin, goblin.physical_position, rotation);
 
             if target_distance == 1 {
-                damage_entity(server, target_guy, HEALTH_PER_HEART);
+                damage_and_maybe_kill_entity(server, target_guy, HEALTH_PER_HEART);
                 switch_state(server, goblin, .Attacking);
             }
         }
@@ -591,7 +597,7 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
     return stack.item_kind;
 }
 
-try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind) -> bool {
+try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
     success := false;
 
     collision := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);
@@ -628,6 +634,12 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind) -> b
         success = true;
     }
 
+    if !success && target_guy && target_guy.state == .Idle {
+        target_guy.state = .Carrying;
+        target_guy.carrying_item = kind;
+        success = true;
+    }
+    
     return success;
 }
 
