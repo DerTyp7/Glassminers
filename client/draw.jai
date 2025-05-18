@@ -488,10 +488,9 @@ draw_world :: (client: *Client) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        t := (1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME) * 2;
+        t := (1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME) * 3;
         
-        
-        intensity := smoothstep(cosf(powf(t, 5) * FTAU) * 0.5 + 0.5, 0, 0.05);
+        intensity := smoothstep(cosf(powf(t, 5) * FTAU) * 0.5 + 0.5, 0, (t * t) / 30);
         draw_beam(client, *emitter.beam_data, .{ 255, 255, 255, 150 }, intensity);
 
         if emitter.time_left_in_seconds > 0 {
