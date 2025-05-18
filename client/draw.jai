@@ -410,13 +410,15 @@ draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_c
 //
 
 draw_world :: (client: *Client) {
-    draw_beam :: (client: *Client, beam: *Beam_Data, color: GE_Color) {
+    draw_beam :: (client: *Client, beam: *Beam_Data, color: GE_Color, intensity: f32) {
         WORLD_HALF_SIZE: f32 : 0.75 / 2;
 
+        intense_color := GE_Color.{ color.r, color.g, color.b, cast(u8) (cast(f32) color.a * intensity) };
+        
         for i := 0; i < beam.fields.count; ++i {
             field := array_get_pointer(*beam.fields, i);
             visual_position := v2f.{ xx field.x, xx field.y };
-            draw_rect_world_space(client, .{ visual_position.x - WORLD_HALF_SIZE, visual_position.y - WORLD_HALF_SIZE }, .{ visual_position.x + WORLD_HALF_SIZE, visual_position.y + WORLD_HALF_SIZE }, color);
+            draw_rect_world_space(client, .{ visual_position.x - WORLD_HALF_SIZE, visual_position.y - WORLD_HALF_SIZE }, .{ visual_position.x + WORLD_HALF_SIZE, visual_position.y + WORLD_HALF_SIZE }, intense_color);
         }
     }
     
@@ -486,7 +488,11 @@ draw_world :: (client: *Client) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        draw_beam(client, *emitter.beam_data, .{ 255, 255, 255, 150 });
+        t := (1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME) * 2;
+        
+        
+        intensity := smoothstep(cosf(powf(t, 5) * FTAU) * 0.5 + 0.5, 0, 0.05);
+        draw_beam(client, *emitter.beam_data, .{ 255, 255, 255, 150 }, intensity);
 
         if emitter.time_left_in_seconds > 0 {
             draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
@@ -512,7 +518,7 @@ draw_world :: (client: *Client) {
         dragon, occupied := index_bucket_array(*client.dragons, i);
         if !occupied continue;
 
-        draw_beam(client, *dragon.beam_data, .{ 255, 209, 104, 150 });
+        draw_beam(client, *dragon.beam_data, .{ 255, 209, 104, 150 }, 1);
     }
 
     //
@@ -552,7 +558,7 @@ draw_world :: (client: *Client) {
             draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.epoch_time * FTAU) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
 
           case .Digging;
-            target_entity := find_any_entity_at_position(client, guy.target_position);
+            target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
             draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.entity_kind]);
 
           case .Carrying;
