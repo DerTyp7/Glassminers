@@ -33,6 +33,7 @@ Sprite_Index :: enum {
     Lava_1;
     Lava_2;
     Lava_3;
+    Lava_4;
     Slab_0;
     Slab_1;
     Slab_2;
@@ -722,7 +723,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         index = get_sprite_index_for_item(stack.item_kind);
 
       case .Lava;
-        index = get_epoch_time_animated_sprite_index(client, 0.75, .[ .Lava_0, .Lava_1, .Lava_2, .Lava_3 ]);
+        index = get_epoch_time_animated_sprite_index(client, 0.75, .[ .Lava_0, .Lava_1, .Lava_2, .Lava_3, .Lava_4 ]);
 
       case .Slab;
         slab := down(entity, Slab);
