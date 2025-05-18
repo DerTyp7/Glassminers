@@ -598,6 +598,8 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
 }
 
 try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
+    if !position_in_bounds(server, target_position) return false;
+
     success := false;
 
     collision := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);

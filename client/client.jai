@@ -242,7 +242,7 @@ input_action_fired :: (client: *Client, action: Input_Action) -> bool {
         
         if #complete binding.kind == {
           case .Keyboard;
-            if client.window.keys[binding.keycode] & .Repeated {
+            if client.window.keys[binding.keycode] & .Pressed {
                 client.active_input_device = .Keyboard;
                 return true;
             }

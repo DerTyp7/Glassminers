@@ -298,7 +298,7 @@ fill_world_randomly :: (server: *Server) {
     }
 
     create_entity(server, .Emitter, .{ 0, 2 }, .East);
-    create_entity(server, .Receiver, .{ server.world_size.x - 1, 2 }, .West);
+    create_entity(server, .Receiver, .{ server.world_size.x - 1, random_u64_in(*server.random, 0, server.world_size.y) }, .West);
     generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
     generate_n_random_entities(server, .Bedrock, server.world_size.x);
     generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
@@ -702,7 +702,7 @@ do_game_tick :: (server: *Server) {
 
         if entity.entity_kind == {
             case .Trader; update_trader(server, entity);
-            case .Rock, .Coal, .Crystal, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
+            case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
         }
     }
     
