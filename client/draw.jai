@@ -930,10 +930,12 @@ build_mesh_for_beam :: (client: *Client, beam: *Beam_Data, first_field_as_v: boo
         
         if i == 0 && first_field_as_v {
             add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ 0, HALF_HEIGHT * 0.8 }, .{ HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
-        } else if i > 0 && array_get(*beam.fields, i - 1).incoming_direction != field.incoming_direction {
-            add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ HALF_WIDTH, HALF_WIDTH }, .{ HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
-            add_triangle(*vertices, field, .{ -HALF_HEIGHT, -HALF_WIDTH }, .{ HALF_WIDTH, HALF_WIDTH }, .{ -HALF_HEIGHT, HALF_WIDTH }, field.incoming_direction);
-            add_triangle(*vertices, field, .{ HALF_WIDTH, HALF_WIDTH }, .{ -HALF_HEIGHT, -HALF_WIDTH }, .{ -HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
+        } else if i + 1 < beam.fields.count && field.incoming_direction != array_get(*beam.fields, i + 1).incoming_direction {
+            mirror_rotation, valid_rotation := get_mirror_rotation_from_reflection(field.incoming_direction, array_get(*beam.fields, i + 1).incoming_direction);
+            assert(valid_rotation, "The Beam Data somehow has a valid corner.");
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, +HALF_WIDTH }, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ +HALF_WIDTH, -HALF_HEIGHT }, mirror_rotation);
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, +HALF_WIDTH }, .{ +HALF_HEIGHT, +HALF_WIDTH }, .{ +HALF_HEIGHT, -HALF_WIDTH }, mirror_rotation);
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, +HALF_WIDTH }, .{ +HALF_HEIGHT, -HALF_WIDTH }, .{ +HALF_WIDTH, -HALF_HEIGHT }, mirror_rotation);
         } else {
             add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ HALF_WIDTH, -HALF_HEIGHT }, .{ -HALF_WIDTH, HALF_HEIGHT }, field.incoming_direction);
             add_triangle(*vertices, field, .{ -HALF_WIDTH, HALF_HEIGHT }, .{ HALF_WIDTH, -HALF_HEIGHT }, .{ HALF_WIDTH, HALF_HEIGHT }, field.incoming_direction);

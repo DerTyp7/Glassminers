@@ -331,6 +331,16 @@ reflect_direction :: (incoming: Direction, mirror: Direction) -> Direction, bool
         return .Count, false;
 }
 
+get_mirror_rotation_from_reflection :: (incoming, outgoing: Direction) -> Direction, bool {
+    if (outgoing + 1) % Direction.Count == incoming {
+        return (incoming + 2) % Direction.Count, true;
+    } else if (outgoing - 1) % Direction.Count == incoming {
+        return outgoing, true;
+    } else {
+        return .Count, false;
+    }
+}
+
 visual_from_physical_rotation :: (in: Direction) -> f32 {
     out: f32 = ---;
 

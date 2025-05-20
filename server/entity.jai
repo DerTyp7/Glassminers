@@ -1,7 +1,7 @@
 Beam_Data :: struct {
     Field :: struct {
         #using position: v2i;
-        incoming_direction: Direction; // @Cleanup: Isn't this the outgoing direction?
+        incoming_direction: Direction;
     }
 
     fields: [..]Field;
@@ -757,9 +757,12 @@ recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
         } else if blocking.entity_kind == .Mirror {
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
-            if reflection_success then direction = reflected_direction; else break;
-
-            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            if reflection_success {
+                array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+                direction = reflected_direction;;
+            } else {
+                break;
+            }
         } else if blocking.entity_kind == .Receiver {
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             break;

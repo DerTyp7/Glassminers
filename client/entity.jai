@@ -404,10 +404,12 @@ recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
         } else if blocking.entity_kind == .Mirror {
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
-
-            if reflection_success then direction = reflected_direction; else break;
-
-            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            if reflection_success {
+                array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+                direction = reflected_direction;;
+            } else {
+                break;
+            }
         } else if blocking.entity_kind == .Receiver {
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             break;
