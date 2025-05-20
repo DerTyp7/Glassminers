@@ -164,7 +164,6 @@ Input_Action :: enum {
     Crafting_Menu_Right_Slot;
 }
 
-// @Incomplete: Also support gamepad gestures
 Input_Binding :: struct {
     kind: enum {
         Keyboard;

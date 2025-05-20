@@ -167,7 +167,6 @@ get_sprite_index_for_input_action :: (client: *Client, action: Input_Action) -> 
 
 draw_rect_screen_space :: (client: *Client, c0, c1: v2f, color: GE_Color) {
     ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, color);
-    ge_imm2d_flush(*client.graphics); // @Cleanup: Why are we flushing here? For the UI?
 }
 
 draw_line_screen_space :: (client: *Client, c0, c1: v2f, color: GE_Color, thickness: f32) {
@@ -517,8 +516,8 @@ draw_world :: (client: *Client) {
         dragon, occupied := index_bucket_array(*client.dragons, i);
         if !occupied continue;
 
-        // @Cleanup: Maybe fade the beam out?
-        draw_beam(client, *dragon.beam_data, .{ 255, 82, 0, 150 }, 1, false);
+        intensity := smoothstep(DRAGON_ATTACK_TIME - dragon.state_t, 0, 0.5);
+        draw_beam(client, *dragon.beam_data, .{ 255, 82, 0, 150 }, intensity, false);
     }
 
     //

@@ -448,7 +448,6 @@ create_the_game :: (server: *Server) {
 
     if server.campaign == .Tutorial {
 #if BAKE_ASSETS {
-    // @Incomplete: Bake the world string into the executable
     fill_world_from_string(server, TUTORIAL_WORLD_STRING, "TutorialWorldString");
 } #else {
     fill_world_from_file(server, "data/tutorial-world.txt");
