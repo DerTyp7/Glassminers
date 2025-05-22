@@ -7,6 +7,7 @@
 #load "ui.jai";
 #load "mixer.jai";
 #load "threads.jai";
+#load "random.jai";
 #load "virtual_connection.jai";
 #load "graphics_engine/graphics_engine.jai";
 
@@ -24,6 +25,7 @@
 #load "assets.jai";
 #load "hud.jai";
 #load "sounds.jai";
+#load "particles.jai";
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
@@ -822,6 +824,11 @@ do_game_tick :: (client: *Client) {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied then interpolate_visuals_and_play_sounds(client, entity, entity.entity_flags & .Disable_Visual_Rotation);
         }
+
+        for i := 0; i < client.particle_systems.slot_count; ++i {
+            system, occupied := index_bucket_array(*client.particle_systems, i);
+            if occupied then update_particle_system(system, client.tick_time);
+        }
     }
 
     outgoing_messages: [..]Message;
@@ -932,6 +939,7 @@ do_game_tick :: (client: *Client) {
         }
     }
     
+    physically_remove_all_marked_particle_systems(client);
     physically_remove_all_marked_entities(client);
 }
 
