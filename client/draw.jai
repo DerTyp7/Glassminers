@@ -475,7 +475,17 @@ draw_world :: (client: *Client) {
         for i := 0; i < entities_to_draw.count; ++i {
             entity := array_get(*entities_to_draw, i);
             sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
-            draw_sprite_world_space(client, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+
+            if entity.entity_kind == .Item_Stack {
+                item_stack := down(entity, Item_Stack);
+                count := min(VISUAL_ITEM_STACK_CAPACITY, item_stack.count);
+                for i := 0; i < count; ++i {
+                    world_position: v2f = .{ entity.visual_position.x + VISUAL_ITEM_STACK_OFFSETS[i].x, entity.visual_position.y + VISUAL_ITEM_STACK_OFFSETS[i].y };
+                    draw_sprite_world_space(client, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+                }
+            } else {
+                draw_sprite_world_space(client, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+            }
         }
     }
 
@@ -531,7 +541,7 @@ draw_world :: (client: *Client) {
         item_stack, occupied := index_bucket_array(*client.item_stacks, i);
         if !occupied continue;
 
-        if item_stack.count > 1 {
+        if item_stack.count > VISUAL_ITEM_STACK_CAPACITY {
             screen_center := screen_from_world_position(client, v2f.{ item_stack.visual_position.x + 0.3, item_stack.visual_position.y + 0.3 });
             draw_text_screen_space(client, *client.ui_font, tprint("%", item_stack.count), screen_center, .Center | .Median, .{ 255, 255, 255, 255 });
         }
