@@ -400,7 +400,7 @@ update_guy :: (client: *Client, guy: *Guy) {
         emitter.shape_cutout_factor = 0.95;
         emitter.lifetime = .[ 0.5, 0.7 ];
         emitter.speed = .[ 0.3, 0.5 ];
-        emitter.color = .[ .{ 59, 184, 209, 100 }, .{ 232, 175, 255, 100 } ];
+        emitter.color = .[ .{ 103, 34, 130, 170 }, .{ 164, 37, 214, 170 } ];
         emitter.gravity = .{ 0, -2 };
     }
 
