@@ -46,6 +46,7 @@ Guy :: struct {
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;
     strength_t: f32 = 0;
+    particle_system: *Particle_System = null;
 }
 
 Emitter :: struct {
@@ -93,6 +94,8 @@ Entity_Manager :: struct {
     item_stacks:  Bucket_Array(Item_Stack);
     dragons:      Bucket_Array(Dragon);
     goblins:      Bucket_Array(Goblin);
+    
+    particle_systems: Bucket_Array(Particle_System);
 }
 
 
@@ -112,6 +115,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.dragons, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
+    create_bucket_array(*client.particle_systems, *client.world_allocator);
 }
 
 destroy_entity_manager :: (client: *Client) {
@@ -124,6 +128,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.dragons);
     destroy_bucket_array(*client.goblins);
+    destroy_bucket_array(*client.particle_systems);
 }
 
 
@@ -151,6 +156,30 @@ update_camera_matrices :: (camera: *Camera, window: *Window) {
     camera.size.x            = camera.DESIRED_VERTICAL_UNITS * camera.ratio;
     camera.world_to_screen.y = xx window.h / camera.DESIRED_VERTICAL_UNITS;
     camera.world_to_screen.x = camera.world_to_screen.y;
+}
+
+
+
+//
+// Particle System
+//
+
+create_particle_system :: (client: *Client, emitter_count: s64) -> *Particle_System {
+    system := push_bucket_array(*client.particle_systems);
+    system.marked_for_removal = false;
+    system.allocator = *client.world_allocator;
+    system.emitters = allocate_array(system.allocator, Particle_Emitter, emitter_count);
+    seed_random_generator(*system.random, system.random.DEFAULT_X, system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
+    return system;
+}
+
+physically_remove_all_marked_particle_systems :: (client: *Client) {
+    for i := 0; i < client.particle_systems.slot_count; ++i {
+        system, occupied := index_bucket_array(*client.particle_systems, i);
+        if occupied && system.marked_for_removal {
+            remove_index_from_bucket_array(*client.particle_systems, i);
+        }
+    }
 }
 
 
@@ -361,6 +390,27 @@ update_slab :: (client: *Client, slab: *Slab) {
 update_guy :: (client: *Client, guy: *Guy) {
     if guy.state == .Resurrecting {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
+    }
+
+    if guy.strength_t > 0 && guy.particle_system == null {
+        guy.particle_system = create_particle_system(client, 1);
+        emitter := create_particle_emitter(guy.particle_system, 0, 64);
+        emitter.drag = 0.95;
+        emitter.box_half_size = .{ 0.45, 0.15 };
+        emitter.shape_cutout_factor = 0.95;
+        emitter.lifetime = .[ 0.5, 0.7 ];
+        emitter.speed = .[ 0.3, 0.5 ];
+        emitter.color = .[ .{ 59, 184, 209, 100 }, .{ 232, 175, 255, 100 } ];
+        emitter.gravity = .{ 0, -2 };
+    }
+
+    if guy.particle_system {
+        guy.particle_system.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
+
+        if guy.strength_t < 0 && guy.particle_system != null {
+            guy.particle_system.marked_for_removal = true;
+            guy.particle_system = null;
+        }
     }
 }
 

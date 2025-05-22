@@ -38,6 +38,7 @@ Sprite_Index :: enum {
     Slab_1;
     Slab_2;
     Slab_3;
+    Slab_4;
     
     // Guy
     Guy_Idle_Side_0;
@@ -466,9 +467,7 @@ draw_world :: (client: *Client) {
         
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if !occupied continue;
-
-            if visibility_check_entity(client, entity) then array_add(*entities_to_draw, entity);
+            if occupied && visibility_check_entity(client, entity) then array_add(*entities_to_draw, entity);
         }
         
         quick_sort([]*Entity.{ entities_to_draw.count, entities_to_draw.data }, compare_entities_by_depth);
@@ -479,7 +478,12 @@ draw_world :: (client: *Client) {
             draw_sprite_world_space(client, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
         }
     }
-        
+
+    for i := 0; i < client.particle_systems.slot_count; ++i {
+        system, occupied := index_bucket_array(*client.particle_systems, i);
+        if occupied then draw_particle_system(client, system);
+    }
+    
     //
     // Draw all emitter states
     //
@@ -543,11 +547,6 @@ draw_world :: (client: *Client) {
         if guy.pid == client.my_entity_pid && guy.state != .Dead && position_in_bounds(client, guy.target_position) {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
             draw_outlined_rect_world_space(client, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
-        }
-
-        if guy.strength_t > 0 && guy.state != .Dead {
-            TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
-            draw_outlined_rect_world_space(client, .{ guy.visual_position.x - TARGET_RECT_HALF_SIZE, guy.visual_position.y - TARGET_RECT_HALF_SIZE }, .{ guy.visual_position.x + TARGET_RECT_HALF_SIZE, guy.visual_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 95, 205, 228, 100 });
         }
         
         if #complete guy.state == {
@@ -732,7 +731,8 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
 
       case .Slab;
         slab := down(entity, Slab);
-        index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / 4, .[ .Slab_0, .Slab_1, .Slab_2, .Slab_3 ], SLAB_TIME_TO_LIVE - slab.time_left_in_seconds);
+        frames: []Sprite_Index = .[ .Slab_0, .Slab_1, .Slab_2, .Slab_3, .Slab_4 ];
+        index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / cast(f32) frames.count, frames, SLAB_TIME_TO_LIVE - slab.time_left_in_seconds);
         
       case .Dragon;
         dragon := down(entity, Dragon);
@@ -942,4 +942,23 @@ build_mesh_for_beam :: (client: *Client, beam: *Beam_Data, first_field_as_v: boo
     }
 
     return .{ vertices.count, vertices.data };
+}
+
+draw_particle_system :: (client: *Client, system: *Particle_System) {
+    for i := 0; i < system.emitters.count; ++i {
+        emitter := *system.emitters[i];
+
+        local_to_world_position := v2f.{ emitter.local_position.x + system.world_position.x, emitter.local_position.y + system.world_position.y };
+
+        for j := 0; j < emitter.particles.count; ++j {
+            particle := *emitter.particles[j];
+            
+            if particle.remaining_time > 0 {
+                world_position := v2f.{ particle.local_position.x + local_to_world_position.x, particle.local_position.y + local_to_world_position.y };
+                c0 := screen_from_world_position(client, .{ world_position.x - particle.size.x / 2, world_position.y - particle.size.y / 2 });
+                c1 := screen_from_world_position(client, .{ world_position.x + particle.size.x / 2, world_position.y + particle.size.y / 2 });
+                ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, particle.color);
+            }
+        }
+    }
 }

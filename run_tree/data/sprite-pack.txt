@@ -47,6 +47,7 @@ Slab_0       sprites/environment/slab-0.png
 Slab_1       sprites/environment/slab-1.png
 Slab_2       sprites/environment/slab-2.png
 Slab_3       sprites/environment/slab-3.png
+Slab_4       sprites/environment/slab-4.png
 
 #
 # Guy
