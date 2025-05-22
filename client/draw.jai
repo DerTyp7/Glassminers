@@ -38,6 +38,7 @@ Sprite_Index :: enum {
     Slab_1;
     Slab_2;
     Slab_3;
+    Slab_4;
     
     // Guy
     Guy_Idle_Side_0;
@@ -730,7 +731,8 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
 
       case .Slab;
         slab := down(entity, Slab);
-        index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / 4, .[ .Slab_0, .Slab_1, .Slab_2, .Slab_3 ], SLAB_TIME_TO_LIVE - slab.time_left_in_seconds);
+        frames: []Sprite_Index = .[ .Slab_0, .Slab_1, .Slab_2, .Slab_3, .Slab_4 ];
+        index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / cast(f32) frames.count, frames, SLAB_TIME_TO_LIVE - slab.time_left_in_seconds);
         
       case .Dragon;
         dragon := down(entity, Dragon);
