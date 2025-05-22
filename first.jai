@@ -52,7 +52,7 @@ build_client :: (mode: Build_Mode) {
     options.workspace_name    = "Client";
     options.output_file_path  = "run_tree/client";
     options.source_files      = .[ "client/client.jai" ];
-    options.linker_options    = .[ .{ .Library, "run_tree/server" } ];
+    options.linker_options    = .[ .{ .Library, "run_tree/server" }, .{ .String, "run_tree/data/icon/icon.res" } ];
     options.type_information  = true;
     apply_flags(*options, mode, .Executable);
     compiler_create_and_compile_workspace(*options);

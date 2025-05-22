@@ -967,6 +967,7 @@ main :: (args: []string) -> s32 {
     window_height: s32 = ifx DEVELOPER then 720 else cast(s32) WINDOW_DONT_CARE;
 
     create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_width, window_height, window_mode);
+    set_window_icon_from_resource_name(*client.window, "IDI_ICON1");
     create_draw_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 16);
