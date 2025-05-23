@@ -35,6 +35,18 @@ apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Tar
     }
 }
 
+build_version_string_file :: () {
+    system :: (line: cstring) -> s32 #foreign;
+
+#if OS == .Windows {
+    SYSTEM_CALL: cstring : "@echo off && for /f \"delims=\" %a in ('git rev-parse --short HEAD') do ECHO=VERSION_STRING :: \"%a\"; > shared\\VERSION_STRING.jai";
+} #else #if OS == .Linux {
+    SYSTEM_CALL: cstring : "echo VERSION_STRING :: \"$(git rev-parse --short HEAD)\"';' > shared/VERSION_STRING.jai";
+}
+
+    system(SYSTEM_CALL);
+}
+
 build_server :: (mode: Build_Mode, target: Build_Target) -> bool {
     options := compiler_default_workspace_options();
     options.workspace_name    = "Server";
@@ -54,9 +66,9 @@ build_client :: (mode: Build_Mode) {
     options.source_files      = .[ "client/client.jai" ];
 
     #if OS == .Windows {
-        options.linker_options    = .[ .{ .Library, "run_tree/server" }, .{ .String, "run_tree/data/icon/icon.res" } ];
+        options.linker_options = .[ .{ .Library, "run_tree/server" }, .{ .String, "run_tree/data/icon/icon.res" } ];
     } #else {
-        options.linker_options    = .[ .{ .Library, "run_tree/server" } ];
+        options.linker_options = .[ .{ .Library, "run_tree/server" } ];
     }
         
     options.type_information  = true;
@@ -65,6 +77,8 @@ build_client :: (mode: Build_Mode) {
 }
 
 #run {
+    build_version_string_file();
+        
     options := compiler_get_active_workspace_options();
     if options.user_options.count {
         for i := 0; i < options.user_options.count; ++i {
