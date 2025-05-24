@@ -428,15 +428,50 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     if emitter.particles == INVALID_PID {
         particles := create_particle_system(client, MAX_F32, emitter.visual_position, 1);
         particle_emitter := create_particle_emitter(particles, 0, 256 * 5);
-        particle_emitter.shape = .Cone;
-        particle_emitter.cone_angles = .[ 0.24, 0.26 ];
-        particle_emitter.lifetime    = .[ 4, 5 ];
+        particle_emitter.shape    = .Line_String;
+        particle_emitter.lifetime = .[ MAX_F32, MAX_F32 ];
+        particle_emitter.color    = .[ .{ 168, 166, 52, 255 }, .{ 255, 240, 160, 255 } ];
+        particle_emitter.particles_per_second = 50;
         emitter.particles = particles.pid;
     }
 
     {
         particles := get_particle_system(client, emitter.particles);
         particles.global_alpha = emitter.beam_intensity;
+        particles.world_position = emitter.visual_position;
+        
+        particle_emitter := *particles.emitters[0];
+        particle_emitter.line_strings = allocate_array(*temp, Line_String, emitter.beam_data.fields.count);
+
+        WIDTH: f32 : 0.9;
+        
+        for i := 1; i < emitter.beam_data.fields.count; ++i {
+            field := array_get(*emitter.beam_data.fields, i);
+
+            my_displacement := vector_from_direction(field.incoming_direction);
+
+            previous_direction := array_get(*emitter.beam_data.fields, i - 1).incoming_direction;
+            next_direction     := ifx i + 1 < emitter.beam_data.fields.count then array_get(*emitter.beam_data.fields, i + 1).incoming_direction else field.incoming_direction;
+
+            start_angle := (visual_from_physical_rotation(previous_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
+            end_angle   := (visual_from_physical_rotation(next_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
+            
+            start_field := v2f.{ xx field.position.x - xx my_displacement.x - emitter.visual_position.x,
+                                 xx field.position.y - xx my_displacement.y - emitter.visual_position.y };
+            end_field := v2f.{ xx field.position.x - emitter.visual_position.x,
+                               xx field.position.y - emitter.visual_position.y };
+                                    
+            start_width := ifx i == 1 then 0 else WIDTH;
+            end_width   := WIDTH;
+
+            particle_emitter.line_strings[i - 1] = .{ .[ start_field, end_field ], .[ start_angle, end_angle ], .[ start_width, end_width ] };
+
+            if i == emitter.beam_data.fields.count - 1 {
+                final_field := v2f.{ xx field.position.x + xx my_displacement.x / 2 - emitter.visual_position.x,
+                                     xx field.position.y + xx my_displacement.y / 2 - emitter.visual_position.y };
+                particle_emitter.line_strings[i] = .{ .[ end_field, final_field ], .[ end_angle, end_angle ], .[ end_width, end_width] };
+            }
+        }
     }
 }
 

@@ -59,6 +59,19 @@ lerp_with_snap :: (from: $T, to: T, speed: f32) -> T {
     return result;
 }
 
+find_nearest_point_on_line_segment :: (point: v2f, line: [2]v2f) -> v2f, f32, f32 {
+    A := v2f.{ line[1].x - line[0].x, line[1].y - line[0].y };
+    B := v2f.{ point.x   - line[0].x, point.y   - line[0].y };
+
+    line_length := A.x * A.x + A.y * A.y;
+    dot := A.x * B.x + A.y * B.y;
+    t := clamp(dot / line_length, 0, 1);
+    point_on_line := v2f.{ line[0].x + t * A.x, line[0].y + t * A.y };
+    point_to_line := v2f.{ point_on_line.x - point.x, point_on_line.y - point.y };
+    
+    return point_on_line, sqrt(point_to_line.x * point_to_line.x + point_to_line.y * point_to_line.y), t;
+}
+
 
 
 /* ----------------------------------------------- Shared Data ----------------------------------------------- */

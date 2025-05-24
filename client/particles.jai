@@ -1,15 +1,24 @@
+Line_String :: struct {
+    points: [2]v2f;
+    angles: [2]f32;
+    widths: [2]f32;
+}
+
 Particle :: struct {
     local_position: v2f;
     velocity: v2f;
     speed: f32;
     size: v2f;
     color: GE_Color;
-    remaining_time: f32;
+    elapsed_time: f32;
+    lifetime: f32;
+    random_zero_to_one: f32;
 }
 
 Particle_Emitter_Shape :: enum {
     Box;
     Cone;
+    Line_String;
 }
 
 Particle_Emitter :: struct {
@@ -21,6 +30,7 @@ Particle_Emitter :: struct {
     #using derived: union {
         box_half_size: v2f;
         cone_angles: [2]f32;
+        line_strings: []Line_String;
     };
 
     drag: f32 = 0;
@@ -83,28 +93,44 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
     for i := 0; i < emitter.particles.count; ++i {
         particle := *emitter.particles[i];
 
-        if particle.remaining_time <= 0 {
+        if particle.elapsed_time >= particle.lifetime {
             if alive_t <= 0 || new_particle_accumulator < 1 {
                 continue;
             }
 
-            particle.local_position = get_spawn_position(random, emitter);
-            particle.velocity = get_spawn_velocity(random, emitter, particle.local_position);
-            particle.speed    = random_f32_in(random, emitter.speed[0], emitter.speed[1]);
-            particle.size.x   = random_f32_in(random, emitter.size[0].x, emitter.size[1].x);
-            particle.size.y   = random_f32_in(random, emitter.size[0].y, emitter.size[1].y);
-            particle.color    = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(random));
-            particle.remaining_time = random_f32_in(random, emitter.lifetime[0], emitter.lifetime[1]);
+            particle.local_position   = get_spawn_position(random, emitter);
+            particle.velocity         = get_spawn_velocity(random, emitter, particle.local_position);
+            particle.speed            = random_f32_in(random, emitter.speed[0], emitter.speed[1]);
+            particle.size.x           = random_f32_in(random, emitter.size[0].x, emitter.size[1].x);
+            particle.size.y           = random_f32_in(random, emitter.size[0].y, emitter.size[1].y);
+            particle.color            = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(random));
+            particle.elapsed_time     = 0;
+            particle.lifetime         = random_f32_in(random, emitter.lifetime[0], emitter.lifetime[1]);
+            particle.random_zero_to_one = random_f32_in(random, 0, 1);
             new_particle_accumulator -= 1;
         }
-        
-        particle.local_position.x += particle.velocity.x * particle.speed * dt;
-        particle.local_position.y += particle.velocity.y * particle.speed * dt;
-        particle.velocity.x += emitter.gravity.x * dt;
-        particle.velocity.y += emitter.gravity.y * dt;
-        particle.velocity.x *= expf(-emitter.drag * dt);
-        particle.velocity.y *= expf(-emitter.drag * dt);
-        particle.remaining_time -= dt;
+
+        if shape == .Line_String {
+            target_position, total_travel_distance := get_position_along_line_string(emitter, particle.elapsed_time * particle.speed, particle.random_zero_to_one * 0.7 - 0.35);
+
+            // If the line string changed drastically, we don't want to teleport this particle
+            // to the next position, since that looks bad. Instead, we just want to kill it.
+            if v2_magnitude_squared(v2f.{ target_position.x - particle.local_position.x, target_position.y - particle.local_position.y }) <= 0.5 {
+                particle.local_position = target_position;
+                particle.lifetime = total_travel_distance / particle.speed;
+            } else {
+                particle.lifetime = 0;
+            }
+        } else {
+            particle.local_position.x += particle.velocity.x * particle.speed * dt;
+            particle.local_position.y += particle.velocity.y * particle.speed * dt;
+            particle.velocity.x += emitter.gravity.x * dt;
+            particle.velocity.y += emitter.gravity.y * dt;
+            particle.velocity.x *= expf(-emitter.drag * dt);
+            particle.velocity.y *= expf(-emitter.drag * dt);
+        }
+            
+        particle.elapsed_time += dt;
     }
 
     alive_t -= dt;
@@ -115,17 +141,17 @@ get_spawn_position :: (random: *Random_Generator, #using emitter: *Particle_Emit
 
     if #complete emitter.shape == {
       case .Box;
-        cutout_half_size: v2f = .{ emitter.shape_cutout_factor * emitter.box_half_size.x, emitter.shape_cutout_factor * emitter.box_half_size.y };
+        cutout_half_size: v2f = .{ shape_cutout_factor * box_half_size.x, shape_cutout_factor * box_half_size.y };
 
         // @Cleanup: I'm sure there's a smarter way of doing this, that isn't rejection sampling
         while true {
-            position.x = random_f32_in(random, -emitter.box_half_size.x, emitter.box_half_size.x);
-            position.y = random_f32_in(random, -emitter.box_half_size.y, emitter.box_half_size.y);
+            position.x = random_f32_in(random, -box_half_size.x, box_half_size.x);
+            position.y = random_f32_in(random, -box_half_size.y, box_half_size.y);
 
             if abs(position.x) >= cutout_half_size.x || abs(position.y) >= cutout_half_size.y break;
         }
 
-      case .Cone;
+      case .Cone, .Line_String;
         position = .{ 0, 0 };
     }
     
@@ -140,7 +166,47 @@ get_spawn_velocity :: (random: *Random_Generator, #using emitter: *Particle_Emit
       case .Cone;
         theta := random_f32_in(random, emitter.cone_angles[0], emitter.cone_angles[1]);
         velocity = .{ sinf(theta * FTAU), -cosf(theta * FTAU) };
+
+      case .Line_String;
+        velocity = .{ 0, 0 };
     }
 
     return velocity;
+}
+
+get_position_along_line_string :: (#using emitter: *Particle_Emitter, total_t: f32, normal_offset: f32) -> v2f, f32 {
+    total_distance_travelled: f32 = 0;
+    point_at_total_t: v2f = ---;
+    found_point_at_total_t := false;
+
+    for i := 0; i < emitter.line_strings.count; ++i {
+        line_string := *emitter.line_strings[i];
+
+        line_direction := v2_normalize(v2f.{ line_string.points[1].x - line_string.points[0].x, line_string.points[1].y - line_string.points[0].y });
+        
+        offset_lengths: [2]f32 = ---;
+        offset_lengths[0] = (line_string.widths[0] * normal_offset) / sinf(line_string.angles[0] * FTAU);
+        offset_lengths[1] = (line_string.widths[1] * normal_offset) / sinf(line_string.angles[1] * FTAU);
+
+        offset: [2]v2f = ---;
+        offset[0] = v2_rotate(v2f.{ offset_lengths[0] * line_direction.x, offset_lengths[0] * line_direction.y }, line_string.angles[0]);
+        offset[1] = v2_rotate(v2f.{ offset_lengths[1] * line_direction.x, offset_lengths[1] * line_direction.y }, line_string.angles[1]);
+        
+        endpoint: [2]v2f = ---;
+        endpoint[0] = .{ line_string.points[0].x + offset[0].x, line_string.points[0].y + offset[0].y };
+        endpoint[1] = .{ line_string.points[1].x + offset[1].x, line_string.points[1].y + offset[1].y };
+        endpoint_distance := v2_magnitude(v2_sub_v2(endpoint[1], endpoint[0]));
+        
+        if !found_point_at_total_t && (i == emitter.line_strings.count || total_distance_travelled + endpoint_distance > total_t) {
+            t := (total_t - total_distance_travelled) / endpoint_distance;
+
+            point_at_total_t = v2f.{ endpoint[0].x * (1 - t) + endpoint[1].x * t,
+                                     endpoint[0].y * (1 - t) + endpoint[1].y * t };
+            found_point_at_total_t = true;
+        }
+
+        total_distance_travelled += endpoint_distance;
+    }
+
+    return point_at_total_t, total_distance_travelled;
 }
