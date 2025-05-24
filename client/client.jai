@@ -79,6 +79,7 @@ Client :: struct {
     entity_pipeline: *GE_Pipeline;
     sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
     sounds: [Sound_Index.Count]Sound_Data;
+    sounds_played_this_frame: [Sound_Index.Count]bool;
     
 #if DEVELOPER {
     sound_watchdog: File_Watcher;
@@ -405,8 +406,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         // Play death sounds
         if entity.entity_kind == {
-          case .Frog; play_sound(client, .Frog_Death_0, false);
-          case .Goblin; play_sound(client, .Goblin_Death_0, false);
+          case .Frog; play_sound_once_per_frame(client, .Frog_Death_0);
+          case .Goblin; play_sound_once_per_frame(client, .Goblin_Death_0);
         }
         
       case .Move_Entity;
@@ -427,7 +428,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
 
         if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound_pid) {
-            entity.sound_pid      = play_sound(client, sound_index, false);
+            entity.sound_pid      = play_sound_once_per_frame(client, sound_index);
             entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
         }
         
@@ -478,7 +479,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
             if msg.frog_state.state == {
               case .Attacking;
-                frog.sound_pid = play_sound(client, .Frog_Attack_0, false);
+                frog.sound_pid = play_sound_once_per_frame(client, .Frog_Attack_0);
             }
         }
 
@@ -493,7 +494,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
             if msg.goblin_state.state == {
               case .Attacking;
-                goblin.sound_pid = play_sound(client, .Goblin_Attack_0, false);
+                goblin.sound_pid = play_sound_once_per_frame(client, .Goblin_Attack_0);
             }
         }
 
@@ -828,6 +829,8 @@ do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
 
+    client.sounds_played_this_frame = .[ false ];
+    
     //
     // Update all local entities based on the information received by the server.
     // This also does some basic client-side prediction

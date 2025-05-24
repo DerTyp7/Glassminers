@@ -320,7 +320,7 @@ fill_world_randomly :: (server: *Server) {
     generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
     generate_n_random_entities(server, .Frog,  server.world_size.x / 9);
     generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
-    generate_n_random_entities(server, .Trader,  server.world_size.x / 18);
+    generate_n_random_entities(server, .Trader,  min(1, server.world_size.x / 36));
 }
 
 load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]string, bool {

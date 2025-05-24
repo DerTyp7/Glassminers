@@ -486,7 +486,7 @@ update_frog :: (server: *Server, frog: *Frog) {
             rotation := direction_from_vector(delta);
             update_physical_location(server, frog, frog.physical_position, rotation);
 
-            if target_distance <= FROG_BEAM_LENGTH && false { // nocheckin
+            if target_distance <= FROG_BEAM_LENGTH {
                 // The target guy is actually in reach for the frog's beam. Since we are
                 // checking for line-of-sight, we know the beam can actually reach the guy
                 // like this.

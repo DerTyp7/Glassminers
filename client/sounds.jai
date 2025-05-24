@@ -78,8 +78,14 @@ play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Soun
     }
 
     play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], looping);
-
+    client.sounds_played_this_frame[sound_index] = true;
+    
     return (stream.play_counter << 48) | (stream & 0xffffffffffff);
+}
+
+play_sound_once_per_frame :: (client: *Client, sound_index: Sound_Index) -> Sound_Pid {
+    if client.sounds_played_this_frame[sound_index] return INVALID_SOUND_PID;
+    return play_sound(client, sound_index, false);
 }
 
 stop_sound :: (client: *Client, sound_pid_pointer: *Sound_Pid) {

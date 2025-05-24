@@ -87,8 +87,14 @@ Frog_Idle_Front_1           sprites/frog/frog-idle-front-1.png
 Frog_Idle_Front_2           sprites/frog/frog-idle-front-2.png
 Frog_Idle_Front_3           sprites/frog/frog-idle-front-3.png
 
-Frog_Spitting_Fire_Front_0  sprites/frog/frog-idle-front-0.png
+Frog_Attacking_Side_0       sprites/frog/frog-idle-side-0.png
+Frog_Attacking_Back_0       sprites/frog/frog-idle-back-0.png
+Frog_Attacking_Front_0      sprites/frog/frog-idle-front-0.png
 
+Frog_Recovering_Side_0      sprites/frog/frog-idle-side-0.png
+Frog_Recovering_Side_1      sprites/frog/frog-idle-side-1.png
+Frog_Recovering_Back_0      sprites/frog/frog-idle-back-0.png
+Frog_Recovering_Back_1      sprites/frog/frog-idle-back-1.png
 Frog_Recovering_Front_0     sprites/frog/frog-idle-front-0.png
 Frog_Recovering_Front_1     sprites/frog/frog-idle-front-1.png
 

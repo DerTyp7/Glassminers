@@ -364,7 +364,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         }
 
         if sound_index != .Count {
-            entity.sound_pid = play_sound(client, sound_index, false);
+            entity.sound_pid = play_sound_once_per_frame(client, sound_index);
         }
     }
 
