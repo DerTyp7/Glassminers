@@ -83,7 +83,7 @@ play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Soun
     return (stream.play_counter << 48) | (stream & 0xffffffffffff);
 }
 
-play_sound_once_per_frame :: client: *Client, sound_index: Sound_Index) -> Sound_Pid {
+play_sound_once_per_frame :: (client: *Client, sound_index: Sound_Index) -> Sound_Pid {
     if client.sounds_played_this_frame[sound_index] return INVALID_SOUND_PID;
     return play_sound(client, sound_index, false);
 }

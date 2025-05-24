@@ -190,7 +190,7 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     30, // Guy
     50, // Frog
     20, // Goblin
-    0,  // Trader
+    30, // Trader
 ];
 
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
