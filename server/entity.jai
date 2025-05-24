@@ -205,7 +205,14 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.item_stacks);
     remove_deriveds(*server.frogs);
     remove_deriveds(*server.goblins);
-    remove_deriveds(*server.all_entities);
+
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if occupied && entity.marked_for_removal {
+            probed_hash_table_remove(*server.pid_lookup, entity.pid);
+            remove_index_from_bucket_array(*server.all_entities, i);
+        }
+    }
 }
 
 damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bool {
