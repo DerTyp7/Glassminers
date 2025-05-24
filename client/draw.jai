@@ -652,13 +652,20 @@ draw_world :: (client: *Client) {
 
 PROGRESS_BAR_AS_CIRCLE :: false;
 
-get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32) -> Sprite_Index {
-    frame_index := cast(s64) floor(time / frame_time) % frames.count;
+get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32, looping: bool) -> Sprite_Index {
+    frame_index := cast(s64) floor(time / frame_time);
+
+    if looping {
+        frame_index = frame_index % frames.count;
+    } else {
+        frame_index = clamp(frame_index, 0, frames.count - 1);
+    }
+    
     return frames[frame_index];
 }
 
 get_epoch_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index) -> Sprite_Index {
-    return get_time_animated_sprite_index(client, frame_time, frames, client.epoch_time);
+    return get_time_animated_sprite_index(client, frame_time, frames, client.epoch_time, true);
 }
 
 get_visual_hand_position_for_guy :: (client: *Client, guy: *Guy) -> v2f {
@@ -767,7 +774,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
       case .Slab;
         slab := down(entity, Slab);
         frames: []Sprite_Index = .[ .Slab_0, .Slab_1, .Slab_2, .Slab_3, .Slab_4 ];
-        index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / cast(f32) frames.count, frames, SLAB_TIME_TO_LIVE - slab.time_left_in_seconds);
+        index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / cast(f32) frames.count, frames, SLAB_TIME_TO_LIVE - slab.time_left_in_seconds, false);
         
       case .Frog;
         frog := down(entity, Frog);
@@ -788,7 +795,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
               case .South; frames = .[ .Frog_Attacking_Front_0, .Frog_Attacking_Front_1, .Frog_Attacking_Front_2, .Frog_Attacking_Front_3 ];
               case .East, .West; frames = .[ .Frog_Attacking_Side_0, .Frog_Attacking_Side_1, .Frog_Attacking_Side_2, .Frog_Attacking_Side_3 ];
             }
-            index = get_time_animated_sprite_index(client, FROG_ATTACK_TIME / xx frames.count, frames, frog.state_t);
+            index = get_time_animated_sprite_index(client, FROG_ATTACK_TIME / xx frames.count, frames, frog.state_t, false);
 
           case .Recovering;
             if #complete entity.physical_rotation == {
@@ -796,7 +803,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
               case .South; frames = .[ .Frog_Recovering_Front_0, .Frog_Recovering_Front_1 ];
               case .East, .West; frames = .[ .Frog_Recovering_Side_0, .Frog_Recovering_Side_1 ];
             }
-            index = get_time_animated_sprite_index(client, FROG_RECOVER_TIME / xx frames.count, frames, frog.state_t);
+            index = get_time_animated_sprite_index(client, FROG_RECOVER_TIME / xx frames.count, frames, frog.state_t, false);
         }
 
         horizontally_mirrored = frog.physical_rotation == .East;
