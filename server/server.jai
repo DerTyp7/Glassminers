@@ -745,16 +745,6 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.world_allocator = allocator_from_memory_pool(*server.world_pool);
     server.clients.allocator = *server.engine_allocator;
     server.outgoing_messages.allocator = *temp;
-
-    // nocheckin
-#if ALLOCATOR_STATISTICS {
-    acb :: (alloc: *Allocator, user_pointer: *void, address: *void, size: u64) { print("+ %: %\n", address, size); }
-    dcb :: (alloc: *Allocator, user_pointer: *void, address: *void, size: u64) {
-        print("- %: %\n", address, size);
-    }
-    server.world_allocator.callbacks.allocation_callback = acb;
-    server.world_allocator.callbacks.deallocation_callback = dcb;
-}
     
     result := create_server_connection(*server.connection, NETWORK_PROTOCOL, data.requested_port);
     if result == .Success {
