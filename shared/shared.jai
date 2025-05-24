@@ -187,7 +187,7 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     0,  // Slab
     
     // Beings
-    30, // Guy
+    100, // Guy // nocheckin
     50, // Frog
     20, // Goblin
     30, // Trader
