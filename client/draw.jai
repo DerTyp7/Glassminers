@@ -73,7 +73,13 @@ Sprite_Index :: enum {
     Frog_Idle_Front_1;
     Frog_Idle_Front_2;
     Frog_Idle_Front_3;
-    Frog_Spitting_Fire_Front_0;
+    Frog_Attacking_Side_0;
+    Frog_Attacking_Back_0;
+    Frog_Attacking_Front_0;
+    Frog_Recovering_Side_0;
+    Frog_Recovering_Side_1;
+    Frog_Recovering_Back_0;
+    Frog_Recovering_Back_1;
     Frog_Recovering_Front_0;
     Frog_Recovering_Front_1;
 
@@ -761,17 +767,27 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         if #complete frog.state == {
           case .Idle;
             if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Frog_Idle_Back_0, .Frog_Idle_Back_1 ];
+              case .North; frames = .[ .Frog_Idle_Back_0, .Frog_Idle_Back_1, .Frog_Idle_Back_2, .Frog_Idle_Back_3 ];
               case .South; frames = .[ .Frog_Idle_Front_0, .Frog_Idle_Front_1, .Frog_Idle_Front_2, .Frog_Idle_Front_3 ];
-              case .East, .West; frames = .[ .Frog_Idle_Side_0, .Frog_Idle_Side_1 ];
+              case .East, .West; frames = .[ .Frog_Idle_Side_0, .Frog_Idle_Side_1, .Frog_Idle_Side_2, .Frog_Idle_Side_3 ];
             }
             index = get_epoch_time_animated_sprite_index(client, 0.33, frames);
             
           case .Attacking;
-            index = .Frog_Spitting_Fire_Front_0;
+            if #complete entity.physical_rotation == {
+              case .North; frames = .[ .Frog_Attacking_Back_0 ];
+              case .South; frames = .[ .Frog_Attacking_Front_0 ];
+              case .East, .West; frames = .[ .Frog_Attacking_Side_0 ];
+            }
+            index = get_epoch_time_animated_sprite_index(client, FROG_ATTACK_TIME / xx frames.count, frames);
 
           case .Recovering;
-            index = get_time_animated_sprite_index(client, FROG_RECOVER_TIME / 2, .[ .Frog_Recovering_Front_0, .Frog_Recovering_Front_1 ], frog.state_t);
+            if #complete entity.physical_rotation == {
+              case .North; frames = .[ .Frog_Recovering_Back_0, .Frog_Recovering_Back_1 ];
+              case .South; frames = .[ .Frog_Recovering_Front_0, .Frog_Recovering_Front_1 ];
+              case .East, .West; frames = .[ .Frog_Recovering_Side_0, .Frog_Recovering_Side_1 ];
+            }
+            index = get_epoch_time_animated_sprite_index(client, FROG_RECOVER_TIME / xx frames.count, frames);
         }
 
         horizontally_mirrored = frog.physical_rotation == .East;
