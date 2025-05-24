@@ -584,6 +584,21 @@ switch_to_next_state :: (client: *Client) {
 
 
 
+do_campaign_selector :: (client: *Client) {
+    ui :: *client.ui;
+
+    if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Campaign)[client.requested_campaign]) {
+        for i := 0; i < Campaign.Count; ++i {
+            if !DEVELOPER && i == Campaign.Developer continue;
+
+            if ui_button(ui, enum_names(Campaign)[i]) {
+                client.requested_campaign = i;
+            }
+        }
+    }
+    ui_pop_dropdown(ui);
+}
+
 do_main_menu :: (client: *Client) {
     ui :: *client.ui;
     
@@ -629,15 +644,7 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Single Player", .Default, window_position(client, 0));
 
-        if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Campaign)[client.requested_campaign]) {
-            for i := 0; i < Campaign.Count; ++i {
-                if ui_button(ui, enum_names(Campaign)[i]) {
-                    client.requested_campaign = i;
-                }
-            }
-        }
-        ui_pop_dropdown(ui);
-
+        do_campaign_selector(client);
         ui_divider(ui, false);
 
         if ui_button(ui, "Play!") {
@@ -731,16 +738,9 @@ do_lobby_screen :: (client: *Client) {
             rc := array_get_pointer(*client.remote_clients, i);
             ui_label(ui, false, rc.name);
         }
-        
+
         ui_divider(ui, true);
-        if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Campaign)[client.requested_campaign]) {
-            for i := 0; i < Campaign.Count; ++i {
-                if ui_button(ui, enum_names(Campaign)[i]) {
-                    client.requested_campaign = i;
-                }
-            }
-        }
-        ui_pop_dropdown(ui);
+        do_campaign_selector(client);
 
         if ui_button(ui, "Start!") {
             start_lobby(client);

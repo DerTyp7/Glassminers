@@ -12,6 +12,7 @@ LOG_MESSAGES :: false;
 
 Campaign :: enum {
     Tutorial;
+    Developer;
     Easy;
     Medium;
     Hard;
@@ -29,6 +30,7 @@ pids_equal :: (lhs, rhs: Pid) -> bool {
     return lhs == rhs;
 }
 
+// @Cleanup: Isn't this in the Basic module now?
 lerp_with_wrap_and_snap :: (from, to, speed: $T/float, low, high: T) -> T {
     direct_distance    := abs(to - from);
     wrap_high_distance := (high - from) + (to - low);

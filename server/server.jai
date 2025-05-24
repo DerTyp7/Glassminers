@@ -25,7 +25,21 @@ BAKE_ASSETS :: !DEVELOPER;
         return file_content;
     }
 
-    TUTORIAL_WORLD_STRING :: #run bake_file("run_tree/data/tutorial-world.txt");
+    CAMPAIGN_WORLD_STRINGS :: [Campaign.Count]string.[
+        #run bake_file("run_tree/data/tutorial-world.txt"),
+        #run bake_file("run_tree/data/developer-world.txt"),
+        "", // Easy
+        "", // Medium
+        "" // Hard
+    ];
+} #else {
+    CAMPAIGN_WORLD_FILE_PATHS :: [Campaign.Count]string.[
+        "data/tutorial-world.txt",
+        "data/developer-world.txt",
+        "", // Easy
+        "", // Medium
+        "", // Hard
+    ];
 }
     
 Remote_Client :: struct {
@@ -309,7 +323,43 @@ fill_world_randomly :: (server: *Server) {
     generate_n_random_entities(server, .Trader,  server.world_size.x / 18);
 }
 
-fill_world_from_string :: (server: *Server, data: string, source_name: string) -> bool {
+load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]string, bool {
+#if !BAKE_ASSETS {
+    data, success := read_entire_file(*temp, CAMPAIGN_WORLD_FILE_PATHS[campaign]);
+    if !success {
+        logprint(.Error, "Failed to load the predefined world file '%' from disk.", CAMPAIGN_WORLD_FILE_PATHS[campaign]);
+        return ---, false;
+    }
+} #else {
+    data := CAMPAIGN_WORLD_STRINGS[campaign];
+}
+
+    lines := string_split(data, #char "\n", false, *temp);
+
+    for i := 0; i < lines.count; ++i {
+        line := array_get(*lines, i);
+        if line.count && line[line.count - 1] == #char "\r" {
+            array_put(*lines, i, substring_view(line, 0, line.count - 1));
+        }
+    }
+    
+    return lines, true;
+}
+
+get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
+    lines, success := load_predefined_world_data(server, campaign);
+    if !success return .{};
+    
+    width: s32 = 0;
+
+    for i := 0; i < lines.count; ++i {
+        width = max(width, array_get(*lines, i).count);
+    }
+
+    return .{ width, lines.count };
+}
+
+fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         #char "e", // Emitter
         #char "r", // Receiver
@@ -343,34 +393,13 @@ fill_world_from_string :: (server: *Server, data: string, source_name: string) -
         .North, // Trader
         .North, // Slab
     ];
-    
-    //
-    // Verify that the world string is of the correct dimensions
-    //
-    lines := string_split(data, #char "\n", false, *temp);
-    if lines.count != server.world_size.y {
-        logprint(.Error, "Failed to load the world string '%': % lines were expected, but % were found.", source_name, server.world_size.y, lines.count);
-        return false;
-    }
 
-    for i := 0; i < lines.count; ++i {
-        line := array_get(*lines, i);
-        if line.count && line[line.count - 1] == #char "\r" {
-            line = substring_view(line, 0, line.count - 1);
-            array_put(*lines, i, line);
-        }
-        
-        if line.count != server.world_size.x {
-            logprint(.Error, "Failed to load the world string '%' in line %: % characters were expected, but % were found.", source_name, i + 1, server.world_size.x, line.count);
-            return false;
-        }
-    }
+    lines, success := load_predefined_world_data(server, campaign);
+    if !success return false;
 
     //
     // Create entities for all characters in the world string
     //
-    success := true;
-    
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
         for x := 0; x < line.count; ++x {
@@ -390,23 +419,13 @@ fill_world_from_string :: (server: *Server, data: string, source_name: string) -
             if kind != .Count {
                 create_entity(server, kind, .{ x, y }, direction);
             } else {
-                logprint(.Error, "Failed to world the world string '%' in line %: The character '%' is not a known entity.", source_name, y + 1, line[x]);
+                logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
                 success = false;
             }
         }
     }
     
     return true;
-}
-
-fill_world_from_file :: (server: *Server, filepath: string) -> bool {
-    file_content, success := read_entire_file(*temp, filepath);
-    if success {
-        return fill_world_from_string(server, file_content, filepath);
-    } else {
-        logprint(.Error, "Failed to load the world file '%': The file does not exist.");
-        return true;
-    }
 }
 
 create_the_game :: (server: *Server) {
@@ -417,10 +436,10 @@ create_the_game :: (server: *Server) {
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
     if #complete server.campaign == {
-      case .Tutorial; server.world_size = .{ 15, 5 };
-      case .Easy;     server.world_size = .{ 20, 5 };
-      case .Medium;   server.world_size = .{ 36, 5 };
-      case .Hard;     server.world_size = .{ 72, 5 };
+      case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server, server.campaign);
+      case .Easy;      server.world_size = .{ 20, 5 };
+      case .Medium;    server.world_size = .{ 36, 5 };
+      case .Hard;      server.world_size = .{ 72, 5 };
     }
     
     //
@@ -446,12 +465,8 @@ create_the_game :: (server: *Server) {
         array_add(*server.outgoing_messages, msg);            
     }
 
-    if server.campaign == .Tutorial {
-#if BAKE_ASSETS {
-    fill_world_from_string(server, TUTORIAL_WORLD_STRING, "TutorialWorldString");
-} #else {
-    fill_world_from_file(server, "data/tutorial-world.txt");
-}
+    if server.campaign == .Tutorial || server.campaign == .Developer {
+        fill_predefined_world(server, server.campaign);
     } else {
         fill_world_randomly(server);
     }
