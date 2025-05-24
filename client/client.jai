@@ -975,7 +975,7 @@ do_game_tick :: (client: *Client) {
         }
     }
     
-    physically_remove_all_marked_particle_systems(client);
+    physically_remove_dead_particle_systems(client);
     physically_remove_all_marked_entities(client);
 }
 

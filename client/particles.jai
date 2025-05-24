@@ -39,8 +39,10 @@ Particle_Emitter :: struct {
 
 Particle_System :: struct {
     allocator: *Allocator;
-
-    marked_for_removal: bool;
+    pid: Pid;
+    
+    time_to_live: f32;
+    
     world_position: v2f;
     global_alpha: f32;
     
@@ -63,6 +65,8 @@ destroy_particle_system :: (#using system: *Particle_System) {
 }
 
 update_particle_system :: (#using system: *Particle_System, dt: f32) {
+    system.time_to_live -= dt;
+
     for i := 0; i < emitters.count; ++i {
         update_particle_emitter(*system.random, *emitters[i], dt);
     }

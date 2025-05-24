@@ -1,4 +1,5 @@
 Sound_Pid :: u64;
+INVALID_SOUND_PID: Sound_Pid = 0;
 
 Sound_Index :: enum {
     Pickup_0;
@@ -131,8 +132,6 @@ get_sound_length_in_seconds :: (client: *Client, sound_index: Sound_Index) -> f3
 
 
 #file_scope
-
-INVALID_SOUND_PID: Sound_Pid = 0;
 
 SOUND_CATEGORY_MAP: [Sound_Index.Count]Sound_Category : .[
     .Sound_Effect,

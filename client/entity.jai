@@ -29,10 +29,11 @@ Entity :: struct {
     visual_position: v2f;
     visual_rotation: f32;
     visual_size: v2f;
+
+    sound_pid: Sound_Pid = INVALID_SOUND_PID;
+    sound_cooldown: f32;
     
     derived: *void;
-    sound_pid: Sound_Pid;
-    sound_cooldown: f32;
     
 #if DEVELOPER {
     derived_type_id: Type;
@@ -46,7 +47,7 @@ Guy :: struct {
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;
     strength_t: f32 = 0;
-    particles: *Particle_System = null;
+    particles: Pid = INVALID_PID;
 }
 
 Emitter :: struct {
@@ -74,7 +75,7 @@ Item_Stack :: struct {
 Frog :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
-    particles: *Particle_System = null;
+    particles: Pid = INVALID_PID;
     state: Frog_State = .Idle;
     state_t: f32;
 }
@@ -86,7 +87,7 @@ Goblin :: struct {
 }
 
 Entity_Manager :: struct {
-    pid_lookup:   Probed_Hash_Table(Pid, *Entity);
+    entity_pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
     guys:         Bucket_Array(Guy);
     emitters:     Bucket_Array(Emitter);
@@ -95,6 +96,9 @@ Entity_Manager :: struct {
     item_stacks:  Bucket_Array(Item_Stack);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
+
+    particle_pid_counter := 0;
+    particle_pid_lookup: Probed_Hash_Table(Pid, *Particle_System);
     particle_systems: Bucket_Array(Particle_System);
 }
 
@@ -105,8 +109,8 @@ Entity_Manager :: struct {
 //
 
 create_entity_manager :: (client: *Client) {
-    client.pid_lookup.allocator = *client.world_allocator;
-    probed_hash_table_create(*client.pid_lookup, 128, pid_hash, pids_equal);
+    client.entity_pid_lookup.allocator = *client.world_allocator;
+    probed_hash_table_create(*client.entity_pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.all_entities, *client.world_allocator);
     create_bucket_array(*client.guys, *client.world_allocator);
     create_bucket_array(*client.emitters, *client.world_allocator);
@@ -115,11 +119,14 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
+
+    client.entity_pid_lookup.allocator = *client.world_allocator;
+    probed_hash_table_create(*client.particle_pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.particle_systems, *client.world_allocator);
 }
 
 destroy_entity_manager :: (client: *Client) {
-    probed_hash_table_destroy(*client.pid_lookup);
+    probed_hash_table_destroy(*client.entity_pid_lookup);
     destroy_bucket_array(*client.all_entities);
     destroy_bucket_array(*client.guys);
     destroy_bucket_array(*client.emitters);
@@ -128,6 +135,8 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
+
+    probed_hash_table_destroy(*client.particle_pid_lookup);
     destroy_bucket_array(*client.particle_systems);
 }
 
@@ -164,25 +173,46 @@ update_camera_matrices :: (camera: *Camera, window: *Window) {
 // Particle System
 //
 
-create_particle_system :: (client: *Client, world_position: v2f, emitter_count: s64) -> *Particle_System {
+create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitter_count: s64) -> *Particle_System {
+    pid := ++client.particle_pid_counter;
+
     system := push_bucket_array(*client.particle_systems);
-    system.allocator = *client.world_allocator;
-    system.marked_for_removal = false;
+    system.pid            = pid;
+    system.allocator      = *client.world_allocator;
+    system.time_to_live   = ttl;
     system.world_position = world_position;
-    system.global_alpha = 1;
-    system.emitters = allocate_array(system.allocator, Particle_Emitter, emitter_count);
+    system.global_alpha   = 1;
+    system.emitters       = allocate_array(system.allocator, Particle_Emitter, emitter_count);
     seed_random_generator(*system.random, system.random.DEFAULT_X, system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
+
+    if cast(f32) client.particle_pid_lookup.count / cast(f32) client.particle_pid_lookup.buckets.count >= 0.7 {
+        probed_hash_table_resize(*client.particle_pid_lookup, client.particle_pid_lookup.buckets.count * 2);
+    }
+
+    successfully_added := probed_hash_table_add(*client.particle_pid_lookup, pid, system);
+    assert(successfully_added, "For some reason we failed to register the particle pid on the client.");
+
     return system;
 }
 
-physically_remove_all_marked_particle_systems :: (client: *Client) {
+physically_remove_dead_particle_systems :: (client: *Client) {
     for i := 0; i < client.particle_systems.slot_count; ++i {
         system, occupied := index_bucket_array(*client.particle_systems, i);
-        if occupied && system.marked_for_removal {
+        if !occupied continue;
+        
+        if system.time_to_live <= 0 {
+            probed_hash_table_remove(*client.particle_pid_lookup, system.pid);
             remove_index_from_bucket_array(*client.particle_systems, i);
         }
     }
 }
+
+get_particle_system :: (client: *Client, pid: Pid) -> *Particle_System {
+    pointer := probed_hash_table_query(*client.particle_pid_lookup, pid);
+    assert(pointer != null, "Tried to get a non-existent particle system.");
+    return ~pointer;
+}
+
 
 
 
@@ -220,11 +250,11 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.visual_rotation    = visual_from_physical_rotation(entity.physical_rotation);
     entity.visual_size        = .{ 1, 1 };
     
-    if cast(f32) client.pid_lookup.count / cast(f32) client.pid_lookup.buckets.count >= 0.7 {
-        probed_hash_table_resize(*client.pid_lookup, client.pid_lookup.buckets.count * 2);
+    if cast(f32) client.entity_pid_lookup.count / cast(f32) client.entity_pid_lookup.buckets.count >= 0.7 {
+        probed_hash_table_resize(*client.entity_pid_lookup, client.entity_pid_lookup.buckets.count * 2);
     }
     
-    successfully_added := probed_hash_table_add(*client.pid_lookup, pid, entity);
+    successfully_added := probed_hash_table_add(*client.entity_pid_lookup, pid, entity);
     assert(successfully_added, "For some reason we failed to register the entity pid on the client.");
 
     if #complete entity.entity_kind == {
@@ -243,10 +273,9 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
 }
 
 get_entity :: (client: *Client, pid: Pid) -> *Entity {
-    pointer := probed_hash_table_query(*client.pid_lookup, pid);
+    pointer := probed_hash_table_query(*client.entity_pid_lookup, pid);
     assert(pointer != null, "Tried to get a non-existent entity.");
-    entity := ~pointer;
-    return entity;
+    return ~pointer;
 }
 
 find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
@@ -293,7 +322,14 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.item_stacks);
     remove_deriveds(*client.frogs);
     remove_deriveds(*client.goblins);
-    remove_deriveds(*client.all_entities);
+
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if occupied && entity.marked_for_removal {
+            probed_hash_table_remove(*client.entity_pid_lookup, entity.pid);
+            remove_index_from_bucket_array(*client.all_entities, i);
+        }
+    }
 }
 
 visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
@@ -394,9 +430,9 @@ update_guy :: (client: *Client, guy: *Guy) {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
 
-    if guy.strength_t > 0 && guy.particles == null {
-        guy.particles = create_particle_system(client, guy.visual_position, 1);
-        emitter := create_particle_emitter(guy.particles, 0, 64);
+    if guy.strength_t > 0 && guy.particles == INVALID_PID {
+        particles := create_particle_system(client, STRENGTH_POTION_TIME, guy.visual_position, 1);
+        emitter := create_particle_emitter(particles, 0, 64);
         emitter.drag = 0.95;
         emitter.box_half_size = .{ 0.45, 0.15 };
         emitter.shape_cutout_factor = 0.95;
@@ -404,20 +440,20 @@ update_guy :: (client: *Client, guy: *Guy) {
         emitter.speed = .[ 0.3, 0.5 ];
         emitter.color = .[ .{ 103, 34, 130, 170 }, .{ 164, 37, 214, 170 } ];
         emitter.gravity = .{ 0, -2 };
+        guy.particles = particles.pid;
+    } else if guy.strength_t <= 0 {
+        guy.particles = INVALID_PID;
     }
 
-    if guy.particles {
-        guy.particles.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
+    if guy.particles != INVALID_PID {
+        particles := get_particle_system(client, guy.particles);
+        
+        particles.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
         t := guy.strength_t / 10;
         if t <= 1 {
-            guy.particles.global_alpha = clamp(1 - powf(1 - t, 2), 0, 1);
+            particles.global_alpha = clamp(1 - powf(1 - t, 2), 0, 1);
         } else {
-            guy.particles.global_alpha = 1;
-        }
-        
-        if guy.strength_t < 0 && guy.particles != null {
-            guy.particles.marked_for_removal = true;
-            guy.particles = null;
+            particles.global_alpha = 1;
         }
     }
 }
@@ -427,17 +463,14 @@ update_frog :: (client: *Client, frog: *Frog) {
 
     if #complete frog.state == {
       case .Idle, .Recovering;
-        if frog.particles {
-            frog.particles.marked_for_removal = true;
-            frog.particles = null;
-        }
+        frog.particles = INVALID_PID;
 
       case .Attacking;
         recalculate_beam(client, *frog.beam_data, frog.physical_position, frog.physical_rotation, false, FROG_BEAM_LENGTH);
 
-        if !frog.particles {
-            frog.particles = create_particle_system(client, frog.visual_position, 1);
-            emitter := create_particle_emitter(frog.particles, 0, 256);
+        if frog.particles == INVALID_PID {
+            particles := create_particle_system(client, FROG_ATTACK_TIME, frog.visual_position, 1);
+            emitter := create_particle_emitter(particles, 0, 256);
             emitter.shape    = .Cone;
             emitter.drag     = .9;
             emitter.speed    = .[ 4, 6 ];
@@ -448,6 +481,8 @@ update_frog :: (client: *Client, frog: *Frog) {
 
             theta := visual_from_physical_rotation(frog.physical_rotation);
             emitter.cone_angles = .[ theta - 0.03, theta + 0.03 ];
+
+            frog.particles = particles.pid;
         }
     }
 
