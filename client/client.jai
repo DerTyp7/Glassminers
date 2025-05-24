@@ -405,7 +405,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         // Play death sounds
         if entity.entity_kind == {
-          case .Dragon; play_sound(client, .Dragon_Death_0, false);
+          case .Frog; play_sound(client, .Frog_Death_0, false);
           case .Goblin; play_sound(client, .Goblin_Death_0, false);
         }
         
@@ -422,7 +422,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         sound_index: Sound_Index = .Count;
         
         if entity.entity_kind == {
-          case .Dragon; sound_index = .Dragon_Hurt_0;
+          case .Frog; sound_index = .Frog_Hurt_0;
           case .Goblin; sound_index = .Goblin_Hurt_0;
         }
 
@@ -469,20 +469,20 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         item_stack.item_kind = msg.item_stack_state.item_kind;
         item_stack.count     = msg.item_stack_state.count;
 
-      case .Dragon_State;
-        entity := get_entity(client, msg.dragon_state.entity_pid);
-        dragon := down(entity, Dragon);
+      case .Frog_State;
+        entity := get_entity(client, msg.frog_state.entity_pid);
+        frog := down(entity, Frog);
 
-        if dragon.state != msg.dragon_state.state {
-            dragon.state_t = 0;
+        if frog.state != msg.frog_state.state {
+            frog.state_t = 0;
 
-            if msg.dragon_state.state == {
+            if msg.frog_state.state == {
               case .Attacking;
-                dragon.sound_pid = play_sound(client, .Dragon_Attack_0, false);
+                frog.sound_pid = play_sound(client, .Frog_Attack_0, false);
             }
         }
 
-        dragon.state = msg.dragon_state.state;
+        frog.state = msg.frog_state.state;
 
       case .Goblin_State;
         entity := get_entity(client, msg.goblin_state.entity_pid);
@@ -848,9 +848,9 @@ do_game_tick :: (client: *Client) {
             if occupied then update_guy(client, guy);
         }
         
-        for i := 0; i < client.dragons.slot_count; ++i {
-            dragon, occupied := index_bucket_array(*client.dragons, i);
-            if occupied then update_dragon(client, dragon);
+        for i := 0; i < client.frogs.slot_count; ++i {
+            frog, occupied := index_bucket_array(*client.frogs, i);
+            if occupied then update_frog(client, frog);
         }
 
         for i := 0; i < client.all_entities.slot_count; ++i {
@@ -1018,6 +1018,7 @@ main :: (args: []string) -> s32 {
 
 #if DEVELOPER {
     client.mixer.volumes[.Master] = 0.0;
+    client.requested_campaign = .Developer;
 }
     
     //

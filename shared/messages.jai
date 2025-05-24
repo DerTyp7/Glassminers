@@ -13,7 +13,7 @@ Message_Type :: enum {
     Emitter_State;
     Receiver_State;
     Item_Stack_State;
-    Dragon_State;
+    Frog_State;
     Goblin_State;
 }
 
@@ -109,10 +109,10 @@ Item_Stack_State_Message :: struct {
     count: s64;
 }
 
-Dragon_State_Message :: struct {
-    MSG_TYPE :: Message_Type.Dragon_State;
+Frog_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Frog_State;
     entity_pid: Pid;
-    state: Dragon_State;
+    state: Frog_State;
 }
 
 Goblin_State_Message :: struct {
@@ -140,7 +140,7 @@ Message :: struct {
         emitter_state: Emitter_State_Message;
         receiver_state: Receiver_State_Message;
         item_stack_state: Item_Stack_State_Message;
-        dragon_state: Dragon_State_Message;
+        frog_state: Frog_State_Message;
         goblin_state: Goblin_State_Message;
     };
 }
@@ -234,7 +234,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Emitter_State;      result = type_id(Emitter_State_Message);
       case .Receiver_State;     result = type_id(Receiver_State_Message);
       case .Item_Stack_State;   result = type_id(Item_Stack_State_Message);
-      case .Dragon_State;       result = type_id(Dragon_State_Message);
+      case .Frog_State;         result = type_id(Frog_State_Message);
       case .Goblin_State;       result = type_id(Goblin_State_Message);
     }
 
@@ -347,7 +347,7 @@ print_message :: (message: *Message, prefix: string) {
       case .Emitter_State;      sprint(*builder, "%", message.emitter_state);
       case .Receiver_State;     sprint(*builder, "%", message.receiver_state);
       case .Item_Stack_State;   sprint(*builder, "%", message.item_stack_state);
-      case .Dragon_State;       sprint(*builder, "%", message.dragon_state);
+      case .Frog_State;         sprint(*builder, "%", message.frog_state);
       case .Goblin_State;       sprint(*builder, "%", message.goblin_state);
     }
     

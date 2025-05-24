@@ -60,12 +60,22 @@ Sprite_Index :: enum {
     Guy_Dead_Front;
     Guy_Dead_Back;
     
-    // Dragon
-    Dragon_Idle_0;
-    Dragon_Idle_1;
-    Dragon_Spitting_Fire;
-    Dragon_Recovering_0;
-    Dragon_Recovering_1;
+    // Frog
+    Frog_Idle_Side_0;
+    Frog_Idle_Side_1;
+    Frog_Idle_Side_2;
+    Frog_Idle_Side_3;
+    Frog_Idle_Back_0;
+    Frog_Idle_Back_1;
+    Frog_Idle_Back_2;
+    Frog_Idle_Back_3;
+    Frog_Idle_Front_0;
+    Frog_Idle_Front_1;
+    Frog_Idle_Front_2;
+    Frog_Idle_Front_3;
+    Frog_Spitting_Fire_Front_0;
+    Frog_Recovering_Front_0;
+    Frog_Recovering_Front_1;
 
     // Goblin
     Goblin_Idle_Back_0;
@@ -524,14 +534,14 @@ draw_world :: (client: *Client) {
     }
 
     //
-    // Draw all dragon states
+    // Draw all frog states
     //
-    for i := 0; i < client.dragons.slot_count; ++i {
-        dragon, occupied := index_bucket_array(*client.dragons, i);
+    for i := 0; i < client.frogs.slot_count; ++i {
+        frog, occupied := index_bucket_array(*client.frogs, i);
         if !occupied continue;
 
-        intensity := smoothstep(DRAGON_ATTACK_TIME - dragon.state_t, 0, 0.5);
-        draw_beam(client, *dragon.beam_data, .{ 255, 82, 0, 150 }, intensity, false);
+        intensity := smoothstep(FROG_ATTACK_TIME - frog.state_t, 0, 0.5);
+        draw_beam(client, *frog.beam_data, .{ 255, 82, 0, 150 }, intensity, false);
     }
 
     //
@@ -744,27 +754,31 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         frames: []Sprite_Index = .[ .Slab_0, .Slab_1, .Slab_2, .Slab_3, .Slab_4 ];
         index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / cast(f32) frames.count, frames, SLAB_TIME_TO_LIVE - slab.time_left_in_seconds);
         
-      case .Dragon;
-        dragon := down(entity, Dragon);
+      case .Frog;
+        frog := down(entity, Frog);
+        frames: []Sprite_Index = ---;
         
-        if #complete dragon.state == {
+        if #complete frog.state == {
           case .Idle;
-            index = get_epoch_time_animated_sprite_index(client, 0.33, .[ .Dragon_Idle_0, .Dragon_Idle_1 ]);
+            if #complete entity.physical_rotation == {
+              case .North; frames = .[ .Frog_Idle_Back_0, .Frog_Idle_Back_1 ];
+              case .South; frames = .[ .Frog_Idle_Front_0, .Frog_Idle_Front_1, .Frog_Idle_Front_2, .Frog_Idle_Front_3 ];
+              case .East, .West; frames = .[ .Frog_Idle_Side_0, .Frog_Idle_Side_1 ];
+            }
+            index = get_epoch_time_animated_sprite_index(client, 0.33, frames);
             
           case .Attacking;
-            index = .Dragon_Spitting_Fire;
+            index = .Frog_Spitting_Fire_Front_0;
 
           case .Recovering;
-            index = get_time_animated_sprite_index(client, DRAGON_RECOVER_TIME / 2, .[ .Dragon_Recovering_0, .Dragon_Recovering_1 ], dragon.state_t);
+            index = get_time_animated_sprite_index(client, FROG_RECOVER_TIME / 2, .[ .Frog_Recovering_Front_0, .Frog_Recovering_Front_1 ], frog.state_t);
         }
 
-        horizontally_mirrored = dragon.physical_rotation == .East;
+        horizontally_mirrored = frog.physical_rotation == .East;
 
       case .Goblin;
         goblin := down(entity, Goblin);
-
         frames: []Sprite_Index = ---;
-        frame_time: f32 = ---;
         
         if #complete goblin.state == {
           case .Idle;
@@ -774,7 +788,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
               case .East, .West; frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
             }
 
-            frame_time = 0.33;
+            index = get_epoch_time_animated_sprite_index(client, 0.33, frames);
 
           case .Attacking;
             if #complete entity.physical_rotation == {
@@ -783,7 +797,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
               case .East, .West; frames = .[ .Goblin_Attack_Side ];
             }
 
-            frame_time = GOBLIN_ATTACK_TIME;
+            index = get_epoch_time_animated_sprite_index(client, GOBLIN_ATTACK_TIME, frames);
 
           case .Recovering;
             if #complete entity.physical_rotation == {
@@ -792,10 +806,9 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
               case .East, .West; frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
             }
 
-            frame_time = 0.5;
+            index = get_epoch_time_animated_sprite_index(client, 0.5, frames);
         }
         
-        index = get_epoch_time_animated_sprite_index(client, frame_time, frames);
         horizontally_mirrored = entity.physical_rotation == .East;
 
       case .Trader;

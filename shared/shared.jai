@@ -127,9 +127,9 @@ RESURRECTION_TIME: f32 : 5;
 STRENGTH_POTION_TIME: f32 : 30;
 STRENGTH_POTION_FACTOR: f32 : 2;
 
-DRAGON_BEAM_LENGTH :: 3;
-DRAGON_ATTACK_TIME:  f32 : 1;
-DRAGON_RECOVER_TIME: f32 : 5;
+FROG_BEAM_LENGTH :: 3;
+FROG_ATTACK_TIME:  f32 : 1;
+FROG_RECOVER_TIME: f32 : 5;
 
 GOBLIN_ATTACK_TIME:  f32 : 0.5;
 GOBLIN_RECOVER_TIME: f32 : 2;
@@ -166,7 +166,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
 
     // Beings
     .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy
-    .Living | .Blocks_Move, // Dragon
+    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Frog
     .Living | .Blocks_Move | .Disable_Visual_Rotation, // Goblin
     .Living | .Blocks_Move | .Disable_Visual_Rotation, // Trader
 ];
@@ -188,7 +188,7 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     
     // Beings
     30, // Guy
-    50, // Dragon
+    50, // Frog
     20, // Goblin
     0,  // Trader
 ];
@@ -210,7 +210,7 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
 
     // Beings
     3, // Guy
-    3, // Dragon
+    3, // Frog
     3, // Goblin
     3, // Trader
 ];
@@ -239,7 +239,7 @@ Entity_Kind :: enum {
     
     // Beings
     Guy;
-    Dragon;
+    Frog;
     Goblin;
     Trader;
 }
@@ -259,7 +259,7 @@ Guy_State :: enum {
     Resurrecting;
 }
 
-Dragon_State :: enum {
+Frog_State :: enum {
     Idle;
     Attacking;
     Recovering;

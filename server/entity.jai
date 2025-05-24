@@ -63,11 +63,11 @@ Item_Stack :: struct {
     count: s64 = 0;
 }
 
-Dragon :: struct {
+Frog :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
-    state: Dragon_State;
-    state_t: f32; // How much time this dragon spent in the current state
+    state: Frog_State;
+    state_t: f32; // How much time this frog spent in the current state
     damaged_entities_this_attack: [..]Pid; // @Leak when the entity is destroyed
 }
 
@@ -86,7 +86,7 @@ Entity_Manager :: struct {
     receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
-    dragons:      Bucket_Array(Dragon);
+    frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
 }
 
@@ -106,7 +106,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.receivers, *server.world_allocator);
     create_bucket_array(*server.slabs, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
-    create_bucket_array(*server.dragons, *server.world_allocator);
+    create_bucket_array(*server.frogs, *server.world_allocator);
     create_bucket_array(*server.goblins, *server.world_allocator);
 }
 
@@ -118,7 +118,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.receivers);
     destroy_bucket_array(*server.slabs);
     destroy_bucket_array(*server.item_stacks);
-    destroy_bucket_array(*server.dragons);
+    destroy_bucket_array(*server.frogs);
     destroy_bucket_array(*server.goblins);
 }
 
@@ -165,7 +165,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Receiver;   make_derived(entity, *server.receivers);
       case .Slab;       make_derived(entity, *server.slabs);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
-      case .Dragon;     make_derived(entity, *server.dragons);
+      case .Frog;       make_derived(entity, *server.frogs);
       case .Goblin;     make_derived(entity, *server.goblins);
       case .Crystal, .Bedrock, .Mirror, .Rock, .Coal, .Lava, .Trader;
         entity.derived = null;
@@ -203,7 +203,7 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.receivers);
     remove_deriveds(*server.slabs);
     remove_deriveds(*server.item_stacks);
-    remove_deriveds(*server.dragons);
+    remove_deriveds(*server.frogs);
     remove_deriveds(*server.goblins);
     remove_deriveds(*server.all_entities);
 }
@@ -246,7 +246,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Shard, killer);
 
-      case .Dragon, .Goblin;
+      case .Frog, .Goblin;
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Coin, killer);
         
@@ -454,71 +454,71 @@ update_slab :: (server: *Server, slab: *Slab) {
     }
 }
 
-update_dragon :: (server: *Server, dragon: *Dragon) {
-    switch_state :: (server: *Server, dragon: *Dragon, new_state: Dragon_State) {
-        if dragon.state == new_state return;
+update_frog :: (server: *Server, frog: *Frog) {
+    switch_state :: (server: *Server, frog: *Frog, new_state: Frog_State) {
+        if frog.state == new_state return;
 
-        dragon.state = new_state;
-        dragon.state_t = 0;
+        frog.state = new_state;
+        frog.state_t = 0;
         
-        msg := make_message(Dragon_State_Message);
-        msg.dragon_state.entity_pid = dragon.pid;
-        msg.dragon_state.state = dragon.state;
+        msg := make_message(Frog_State_Message);
+        msg.frog_state.entity_pid = frog.pid;
+        msg.frog_state.state = frog.state;
         array_add(*server.outgoing_messages, msg);
     }
 
-    clear_beam_data(*dragon.beam_data);
+    clear_beam_data(*frog.beam_data);
 
-    lit_up, _ := is_emitter_field_at(server, dragon.physical_position);
+    lit_up, _ := is_emitter_field_at(server, frog.physical_position);
     if lit_up {
-        damage_and_maybe_kill_entity(server, dragon, BEAM_DPS * server.tick_time);
+        damage_and_maybe_kill_entity(server, frog, BEAM_DPS * server.tick_time);
     }
 
-    damage_and_maybe_kill_if_in_lava(server, dragon);
+    damage_and_maybe_kill_if_in_lava(server, frog);
 
-    if #complete dragon.state == {
+    if #complete frog.state == {
       case .Idle;
-        target_guy, target_distance := find_target_guy_for_monster(server, dragon.physical_position);
+        target_guy, target_distance := find_target_guy_for_monster(server, frog.physical_position);
         
         if target_guy {
-            delta := v2i.{ target_guy.physical_position.x - dragon.physical_position.x, target_guy.physical_position.y - dragon.physical_position.y };
+            delta := v2i.{ target_guy.physical_position.x - frog.physical_position.x, target_guy.physical_position.y - frog.physical_position.y };
 
             rotation := direction_from_vector(delta);
-            update_physical_location(server, dragon, dragon.physical_position, rotation);
+            update_physical_location(server, frog, frog.physical_position, rotation);
 
-            if target_distance <= DRAGON_BEAM_LENGTH {
-                // The target guy is actually in reach for the dragon's beam. Since we are
+            if target_distance <= FROG_BEAM_LENGTH && false { // nocheckin
+                // The target guy is actually in reach for the frog's beam. Since we are
                 // checking for line-of-sight, we know the beam can actually reach the guy
                 // like this.
-                array_clear(*dragon.damaged_entities_this_attack);
-                dragon.damaged_entities_this_attack.allocator = *server.world_allocator;
-                switch_state(server, dragon, .Attacking);
+                array_clear(*frog.damaged_entities_this_attack);
+                frog.damaged_entities_this_attack.allocator = *server.world_allocator;
+                switch_state(server, frog, .Attacking);
             }
         }
 
       case .Attacking;
-        recalculate_beam(server, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, false, DRAGON_BEAM_LENGTH);
+        recalculate_beam(server, *frog.beam_data, frog.physical_position, frog.physical_rotation, false, FROG_BEAM_LENGTH);
 
-        for i := 0; i < dragon.beam_data.fields.count; ++i {
-            field := array_get(*dragon.beam_data.fields, i);
+        for i := 0; i < frog.beam_data.fields.count; ++i {
+            field := array_get(*frog.beam_data.fields, i);
             entity := find_entity_with_flags_at_position(server, .Living, field);
-            if entity && !array_contains(*dragon.damaged_entities_this_attack, entity.pid) {
+            if entity && !array_contains(*frog.damaged_entities_this_attack, entity.pid) {
                 damage_and_maybe_kill_entity(server, entity, HEALTH_PER_HEART);
-                array_add(*dragon.damaged_entities_this_attack, entity.pid);
+                array_add(*frog.damaged_entities_this_attack, entity.pid);
             }
         }
         
-        if dragon.state_t >= DRAGON_ATTACK_TIME {
-            switch_state(server, dragon, .Recovering);
+        if frog.state_t >= FROG_ATTACK_TIME {
+            switch_state(server, frog, .Recovering);
         }
         
       case .Recovering;
-        if dragon.state_t >= DRAGON_RECOVER_TIME {
-            switch_state(server, dragon, .Idle);
+        if frog.state_t >= FROG_RECOVER_TIME {
+            switch_state(server, frog, .Idle);
         }
     }
 
-    dragon.state_t += server.tick_time;
+    frog.state_t += server.tick_time;
 }
 
 update_goblin :: (server: *Server, goblin: *Goblin) {

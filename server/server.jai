@@ -134,7 +134,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Dragon_State, .Goblin_State; // Ignore
+      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Frog_State, .Goblin_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -318,7 +318,7 @@ fill_world_randomly :: (server: *Server) {
     generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
     generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
     generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
-    generate_n_random_entities(server, .Dragon,  server.world_size.x / 9);
+    generate_n_random_entities(server, .Frog,  server.world_size.x / 9);
     generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
     generate_n_random_entities(server, .Trader,  server.world_size.x / 18);
 }
@@ -372,7 +372,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char "l", // Lava
         #char "_", // Slab
         #char "!", // Guy
-        #char "d", // Dragon
+        #char "f", // Frog
         #char "g", // Goblin
         #char "t", // Trader
     ];
@@ -388,7 +388,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         .North, // Item Stack
         .North, // Lava
         .North, // Guy
-        .North, // Dragon
+        .North, // Frog
         .North, // Goblin
         .North, // Trader
         .North, // Slab
@@ -675,11 +675,11 @@ do_game_tick :: (server: *Server) {
     }
     
     //
-    // Update all dragons
+    // Update all frogs
     //
-    for i := 0; i < server.dragons.slot_count; ++i {
-        dragon, occupied := index_bucket_array(*server.dragons, i);
-        if occupied update_dragon(server, dragon);
+    for i := 0; i < server.frogs.slot_count; ++i {
+        frog, occupied := index_bucket_array(*server.frogs, i);
+        if occupied update_frog(server, frog);
     }
 
     //

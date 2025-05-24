@@ -72,13 +72,25 @@ Guy_Dead_Front    sprites/guy/guy-dead-front.png
 Guy_Dead_Back     sprites/guy/guy-dead-back.png
 
 #
-# Dragon
+# Frog
 #
-Dragon_Idle_0         sprites/dragon/dragon-idle-0.png
-Dragon_Idle_1         sprites/dragon/dragon-idle-1.png
-Dragon_Spitting_Fire  sprites/dragon/dragon-spitting-fire.png
-Dragon_Recovering_0   sprites/dragon/dragon-recovering-0.png
-Dragon_Recovering_1   sprites/dragon/dragon-recovering-1.png
+Frog_Idle_Side_0            sprites/frog/frog-idle-side-0.png
+Frog_Idle_Side_1            sprites/frog/frog-idle-side-1.png
+Frog_Idle_Side_2            sprites/frog/frog-idle-side-2.png
+Frog_Idle_Side_3            sprites/frog/frog-idle-side-3.png
+Frog_Idle_Back_0            sprites/frog/frog-idle-back-0.png
+Frog_Idle_Back_1            sprites/frog/frog-idle-back-1.png
+Frog_Idle_Back_2            sprites/frog/frog-idle-back-2.png
+Frog_Idle_Back_3            sprites/frog/frog-idle-back-3.png
+Frog_Idle_Front_0           sprites/frog/frog-idle-front-0.png
+Frog_Idle_Front_1           sprites/frog/frog-idle-front-1.png
+Frog_Idle_Front_2           sprites/frog/frog-idle-front-2.png
+Frog_Idle_Front_3           sprites/frog/frog-idle-front-3.png
+
+Frog_Spitting_Fire_Front_0  sprites/frog/frog-idle-front-0.png
+
+Frog_Recovering_Front_0     sprites/frog/frog-idle-front-0.png
+Frog_Recovering_Front_1     sprites/frog/frog-idle-front-1.png
 
 #
 # Goblin

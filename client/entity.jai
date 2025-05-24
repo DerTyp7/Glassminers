@@ -71,10 +71,10 @@ Item_Stack :: struct {
     count: s64 = 0;
 }
 
-Dragon :: struct {
+Frog :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
-    state: Dragon_State = .Idle;
+    state: Frog_State = .Idle;
     state_t: f32;
 }
 
@@ -92,7 +92,7 @@ Entity_Manager :: struct {
     receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
-    dragons:      Bucket_Array(Dragon);
+    frogs:      Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     
     particle_systems: Bucket_Array(Particle_System);
@@ -113,7 +113,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.receivers, *client.world_allocator);
     create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
-    create_bucket_array(*client.dragons, *client.world_allocator);
+    create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
     create_bucket_array(*client.particle_systems, *client.world_allocator);
 }
@@ -126,7 +126,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.receivers);
     destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
-    destroy_bucket_array(*client.dragons);
+    destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
     destroy_bucket_array(*client.particle_systems);
 }
@@ -233,7 +233,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Slab;       make_derived(entity, *client.slabs);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
-      case .Dragon;     make_derived(entity, *client.dragons);
+      case .Frog;     make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Crystal, .Bedrock, .Mirror, .Rock, .Coal, .Lava, .Trader;
         entity.derived = null;
@@ -291,7 +291,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.receivers);
     remove_deriveds(*client.slabs);
     remove_deriveds(*client.item_stacks);
-    remove_deriveds(*client.dragons);
+    remove_deriveds(*client.frogs);
     remove_deriveds(*client.goblins);
     remove_deriveds(*client.all_entities);
 }
@@ -422,16 +422,16 @@ update_guy :: (client: *Client, guy: *Guy) {
     }
 }
 
-update_dragon :: (client: *Client, dragon: *Dragon) {
-    clear_beam_data(*dragon.beam_data);
+update_frog :: (client: *Client, frog: *Frog) {
+    clear_beam_data(*frog.beam_data);
 
-    if #complete dragon.state == {
+    if #complete frog.state == {
       case .Idle, .Recovering;
       case .Attacking;
-        recalculate_beam(client, *dragon.beam_data, dragon.physical_position, dragon.physical_rotation, false, DRAGON_BEAM_LENGTH);
+        recalculate_beam(client, *frog.beam_data, frog.physical_position, frog.physical_rotation, false, FROG_BEAM_LENGTH);
     }
 
-    dragon.state_t += client.tick_time;
+    frog.state_t += client.tick_time;
 }
 
 
