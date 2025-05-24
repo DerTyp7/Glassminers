@@ -108,6 +108,7 @@ Client :: struct {
     world_pool: Memory_Pool;
     world_allocator: Allocator;
     requested_campaign: Campaign = .Tutorial; // Lobby screen
+    immediately_start_game: bool = false; // Lobby screen, when coming from a single player
     pause_menu_open: bool;
     game_seed: s64;
     world_size: v2i;
@@ -379,6 +380,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         remove_client_by_pid(client, msg.player_disconnect.player_pid);
 
       case .Game_Start;
+        create_hud(client);
+        create_entity_manager(client);
+        client.my_entity_pid = INVALID_PID;
+        client.pause_menu_open = false;
         client.game_seed  = msg.game_start.seed;
         client.world_size = msg.game_start.size;
         client.next_state = .Ingame;
@@ -575,19 +580,6 @@ switch_to_next_state :: (client: *Client) {
     }
 
     client.current_state = client.next_state;
-    
-    if #complete client.current_state == {
-      case .Main_Menu, .Connecting, .Game_Over;
-
-      case .Ingame;
-        client.pause_menu_open = false;
-        create_hud(client);
-        
-      case .Lobby;
-        // The server will already initialize our game during the lobby...
-        create_entity_manager(client);
-        client.my_entity_pid = INVALID_PID;
-    }
 }
 
 
@@ -595,11 +587,21 @@ switch_to_next_state :: (client: *Client) {
 do_main_menu :: (client: *Client) {
     ui :: *client.ui;
     
-    ui_push_width(ui, .Pixels, 256, 1);
+    DEFAULT_PORT: s64 : 9876;
+    WINDOW_WIDTH: f32 : 256;
+    APPROX_WINDOW_HEIGHT: f32 : 256;
+    
+    ui_push_width(ui, .Pixels, WINDOW_WIDTH, 1);
 
+    window_position :: (client: *Client, index: s64) -> UI_Vector2 {
+        screen := UI_Vector2.{ (xx client.window.w / 2 + (xx index - 0.5) * WINDOW_WIDTH * 1.1),
+                               (xx client.window.h / 2 - APPROX_WINDOW_HEIGHT * 0.75) };
+        return .{ screen.x / (cast(f32) client.window.w - WINDOW_WIDTH), screen.y / (cast(f32) client.window.h - APPROX_WINDOW_HEIGHT) };
+    }
+    
     // Host Window
     {
-        ui_push_window(ui, "Host", .Default, .{ 0.33, 0.4 });
+        ui_push_window(ui, "Host", .Default, window_position(client, -1));
         ui_label(ui, false, "Name:");
         name := ui_text_input(ui, "Enter your name", .Everything);
         ui_divider(ui, true);
@@ -610,21 +612,46 @@ do_main_menu :: (client: *Client) {
         if ui_button(ui, "Host!") {
 #if DEVELOPER {
             if !name._string.count then { name._string = "Victor"; name.valid = true; }
-            if !port.valid then { port._int = 9876; port.valid = true; }
+            if !port.valid then { port._int = DEFAULT_PORT; port.valid = true; }
 }
     
             if name.valid && port.valid {
                 host_server(client, port._int);
                 join_server(client, name._string, "localhost", port._int);
+                client.immediately_start_game = false;
             }
         }
         
         ui_pop_window(ui);
     }
 
+    // Single Player Window
+    {
+        ui_push_window(ui, "Single Player", .Default, window_position(client, 0));
+
+        if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Campaign)[client.requested_campaign]) {
+            for i := 0; i < Campaign.Count; ++i {
+                if ui_button(ui, enum_names(Campaign)[i]) {
+                    client.requested_campaign = i;
+                }
+            }
+        }
+        ui_pop_dropdown(ui);
+
+        ui_divider(ui, false);
+
+        if ui_button(ui, "Play!") {
+            host_server(client, DEFAULT_PORT);
+            join_server(client, "YOU", "localhost", DEFAULT_PORT);
+            client.immediately_start_game = true;
+        }
+        
+        ui_pop_window(ui);
+    }
+    
     // Join Window
     {
-        ui_push_window(ui, "Join", .Default, .{ 0.66, 0.4 });
+        ui_push_window(ui, "Join", .Default, window_position(client, +1));
         ui_label(ui, false, "Name:");
         name := ui_text_input(ui, "Enter your name", .Everything);
         ui_divider(ui, true);
@@ -638,11 +665,12 @@ do_main_menu :: (client: *Client) {
 #if DEVELOPER {
             if !name._string.count then { name._string = "Surreal"; name.valid = true; }
             if !host._string.count then { host._string = "localhost"; host.valid = true; }
-            if !port.valid then { port._int = 9876; port.valid = true; }
+            if !port.valid then { port._int = DEFAULT_PORT; port.valid = true; }
 }
                 
             if name.valid && host.valid && port.valid {
                 join_server(client, name._string, host._string, port._int);
+                client.immediately_start_game = false;
             }
         }
         
@@ -688,6 +716,10 @@ do_lobby_screen :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Main_Menu, "The server died.");
 
+    if client.immediately_start_game {
+        start_lobby(client);
+    }
+    
     {
         ui :: *client.ui;
         ui_push_width(ui, .Pixels, 256, 1);
