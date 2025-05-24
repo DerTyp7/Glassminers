@@ -30,7 +30,7 @@
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
-INFO_TEXT_TIMER: f32 : 5;
+DEFAULT_INFO_TEXT_TIMER: f32 : 5;
 
 Game_State :: enum {
     Main_Menu;
@@ -134,10 +134,10 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
     print("\n");
 }
 
-set_info_text :: (client: *Client, format: string, args: ..Any) {
+set_info_text :: (client: *Client, time: f32, format: string, args: ..Any) {
     deallocate_string(*client.engine_allocator, *client.info_text);
     client.info_text = print_into_allocator(*client.engine_allocator, format, args);
-    client.info_text_t = INFO_TEXT_TIMER;
+    client.info_text_t = time;
 }
 
 
@@ -299,7 +299,7 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
         client.my_name    = copy_string(*client.engine_allocator, name);
         client.next_state = .Connecting;
     } else {
-        set_info_text(client, "Could not connect to server: %.", result);
+        set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "Could not connect to server: %.", result);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
     }
@@ -544,7 +544,7 @@ handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: s
         client.previous_game_result = .Connection_Lost;
         client.next_state = next_screen;
 
-        set_info_text(client, info_text);
+        set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
     } else if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
         send_ping_packet(*client.connection);
     }
@@ -612,8 +612,12 @@ do_main_menu :: (client: *Client) {
 
     window_position :: (client: *Client, index: s64) -> UI_Vector2 {
         screen := UI_Vector2.{ (xx client.window.w / 2 + (xx index - 0.5) * WINDOW_WIDTH * 1.1),
-                               (xx client.window.h / 2 - APPROX_WINDOW_HEIGHT * 0.75) };
+                               (xx client.window.h / 2 - APPROX_WINDOW_HEIGHT * 0.65) };
         return .{ screen.x / (cast(f32) client.window.w - WINDOW_WIDTH), screen.y / (cast(f32) client.window.h - APPROX_WINDOW_HEIGHT) };
+    }
+
+    if client.server_data.state != .Closed {
+        set_info_text(client, 0.5, "Your local server is still closing...");
     }
     
     // Host Window
@@ -626,7 +630,7 @@ do_main_menu :: (client: *Client) {
         port := ui_text_input(ui, "Enter the port", .Integer);
         ui_divider(ui, true);
         
-        if ui_button(ui, "Host!") {
+        if client.server_data.state == .Closed && ui_button(ui, "Host!") {
 #if DEVELOPER {
             if !name._string.count then { name._string = "Victor"; name.valid = true; }
             if !port.valid then { port._int = DEFAULT_PORT; port.valid = true; }
@@ -649,7 +653,7 @@ do_main_menu :: (client: *Client) {
         do_campaign_selector(client);
         ui_divider(ui, false);
 
-        if ui_button(ui, "Play!") {
+        if client.server_data.state == .Closed && ui_button(ui, "Play!") {
             host_server(client, DEFAULT_PORT);
             join_server(client, "YOU", "localhost", DEFAULT_PORT);
             client.immediately_start_game = true;
@@ -670,7 +674,7 @@ do_main_menu :: (client: *Client) {
         port := ui_text_input(ui, "Enter the port", .Integer);
         ui_divider(ui, true);
         
-        if ui_button(ui, "Join!") {
+        if client.server_data.state == .Closed && ui_button(ui, "Join!") {
 #if DEVELOPER {
             if !name._string.count then { name._string = "Surreal"; name.valid = true; }
             if !host._string.count then { host._string = "localhost"; host.valid = true; }
