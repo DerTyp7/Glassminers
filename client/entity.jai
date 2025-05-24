@@ -209,6 +209,10 @@ physically_remove_dead_particle_systems :: (client: *Client) {
     }
 }
 
+particle_system_exists :: (client: *Client, pid: Pid) -> bool {
+    return probed_hash_table_query(*client.particle_pid_lookup, pid) != null;
+}
+
 get_particle_system :: (client: *Client, pid: Pid) -> *Particle_System {
     pointer := probed_hash_table_query(*client.particle_pid_lookup, pid);
     assert(pointer != null, "Tried to get a non-existent particle system.");
@@ -495,13 +499,14 @@ update_guy :: (client: *Client, guy: *Guy) {
         emitter.color = .[ .{ 103, 34, 130, 170 }, .{ 164, 37, 214, 170 } ];
         emitter.gravity = .{ 0, -2 };
         guy.particles = particles.pid;
-    } else if guy.strength_t <= 0 {
+    } else if !particle_system_exists(client, guy.particles) {
         guy.particles = INVALID_PID;
     }
 
     if guy.particles != INVALID_PID {
         particles := get_particle_system(client, guy.particles);
         
+        particles.time_to_live = guy.strength_t;
         particles.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
         t := guy.strength_t / 10;
         if t <= 1 {
