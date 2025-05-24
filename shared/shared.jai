@@ -11,8 +11,8 @@ INVALID_PID: Pid : -1;
 LOG_MESSAGES :: false;
 
 Campaign :: enum {
-    Tutorial;
     Developer;
+    Tutorial;
     Easy;
     Medium;
     Hard;
@@ -162,7 +162,7 @@ Entity_Flags :: enum bitfield {
     Disable_Visual_Rotation;
 }
 
-DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
+ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
     .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Emitter
     .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Receiver
@@ -184,7 +184,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Living | .Blocks_Move | .Disable_Visual_Rotation, // Trader
 ];
 
-MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
+ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     // Beams
     0,  // Emitter
     0,  // Receiver
@@ -200,10 +200,27 @@ MAX_HEALTHS: [Entity_Kind.Count]f32 : .[
     0,  // Slab
     
     // Beings
-    100, // Guy // nocheckin
+    30, // Guy
     50, // Frog
     20, // Goblin
     30, // Trader
+];
+
+ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
+        .East,  // Emitter
+        .West,  // Receiver
+        .North, // Mirror
+        .North, // Bedrock
+        .North, // Rock
+        .North, // Coal
+        .North, // Crystal
+        .North, // Item Stack
+        .North, // Lava
+        .North, // Slab
+        .North, // Guy
+        .South, // Frog
+        .South, // Goblin
+        .South, // Trader
 ];
 
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth

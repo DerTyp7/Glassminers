@@ -26,16 +26,16 @@ BAKE_ASSETS :: !DEVELOPER;
     }
 
     CAMPAIGN_WORLD_STRINGS :: [Campaign.Count]string.[
-        #run bake_file("run_tree/data/tutorial-world.txt"),
         #run bake_file("run_tree/data/developer-world.txt"),
+        #run bake_file("run_tree/data/tutorial-world.txt"),
         "", // Easy
         "", // Medium
         "" // Hard
     ];
 } #else {
     CAMPAIGN_WORLD_FILE_PATHS :: [Campaign.Count]string.[
-        "data/tutorial-world.txt",
         "data/developer-world.txt",
+        "data/tutorial-world.txt",
         "", // Easy
         "", // Medium
         "", // Hard
@@ -151,6 +151,8 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         // Store the information locally
         if target.name deallocate_string(*server.world_allocator, *target.name);
         target.name = copy_string(*server.world_allocator, msg.player_information.name);
+
+        logprint(.Debug, "Player '%' set their name to '%'.", target.player_pid, target.name);
         
         // Broadcast the message along
         broadcasted_msg := make_message(Player_Information_Message);
@@ -307,7 +309,7 @@ fill_world_randomly :: (server: *Server) {
     generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
         for i := 0; i < n; ++i {
             position, success := random_position(server);
-            if success create_entity(server, kind, position, .North);
+            if success create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
         }
     }
 
@@ -377,23 +379,6 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char "t", // Trader
     ];
 
-    ENTITY_DIRECTION_MAP: [Entity_Kind.Count]Direction : .[
-        .East,  // Emitter
-        .West,  // Receiver
-        .North, // Mirror
-        .North, // Bedrock
-        .North, // Rock
-        .North, // Coal
-        .North, // Crystal
-        .North, // Item Stack
-        .North, // Lava
-        .North, // Guy
-        .North, // Frog
-        .North, // Goblin
-        .North, // Trader
-        .North, // Slab
-    ];
-
     lines, success := load_predefined_world_data(server, campaign);
     if !success return false;
 
@@ -411,7 +396,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
             for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
                 if ENTITY_TO_CHAR[i] == line[x] {
                     kind = i;
-                    direction = ENTITY_DIRECTION_MAP[kind];
+                    direction = ENTITY_DEFAULT_DIRECTION[kind];
                     break;
                 }
             }

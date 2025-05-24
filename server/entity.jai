@@ -152,8 +152,8 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     entity.pid                = pid;
     entity.entity_kind        = kind;
     entity.marked_for_removal = false;
-    entity.health             = MAX_HEALTHS[kind];
-    entity.entity_flags       = DEFAULT_ENTITY_FLAGS[kind];
+    entity.health             = ENTITY_DEFAULT_HEALTH[kind];
+    entity.entity_flags       = ENTITY_DEFAULT_FLAGS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
 

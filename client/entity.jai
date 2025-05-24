@@ -244,8 +244,8 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.pid                = pid;
     entity.entity_kind        = kind;
     entity.marked_for_removal = false;
-    entity.health             = MAX_HEALTHS[kind];
-    entity.entity_flags       = DEFAULT_ENTITY_FLAGS[kind];
+    entity.health             = ENTITY_DEFAULT_HEALTH[kind];
+    entity.entity_flags       = ENTITY_DEFAULT_FLAGS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.visual_position    = .{ xx entity.physical_position.x, xx entity.physical_position.y };

@@ -76,15 +76,12 @@ Sprite_Index :: enum {
     Frog_Attacking_Side_0;
     Frog_Attacking_Side_1;
     Frog_Attacking_Side_2;
-    Frog_Attacking_Side_3;
     Frog_Attacking_Back_0;
     Frog_Attacking_Back_1;
     Frog_Attacking_Back_2;
-    Frog_Attacking_Back_3;
     Frog_Attacking_Front_0;
     Frog_Attacking_Front_1;
     Frog_Attacking_Front_2;
-    Frog_Attacking_Front_3;
     Frog_Recovering_Side_0;
     Frog_Recovering_Side_1;
     Frog_Recovering_Back_0;
@@ -589,7 +586,7 @@ draw_world :: (client: *Client) {
 
           case .Digging;
             target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
-            draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / MAX_HEALTHS[target_entity.entity_kind]);
+            draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / ENTITY_DEFAULT_HEALTH[target_entity.entity_kind]);
 
           case .Carrying;
             active_guy_sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, guy);
@@ -620,12 +617,12 @@ draw_world :: (client: *Client) {
         if entity.entity_kind == {
           case .Guy;
             guy := down(entity, Guy);
-            draw_health = entity.health < MAX_HEALTHS[entity.entity_kind] && guy.state != .Dead;
-          case; draw_health = bitfield_contains(*entity.entity_flags, Entity_Flags.Living) && entity.health < MAX_HEALTHS[entity.entity_kind];
+            draw_health = entity.health < ENTITY_DEFAULT_HEALTH[entity.entity_kind] && guy.state != .Dead;
+          case; draw_health = bitfield_contains(*entity.entity_flags, Entity_Flags.Living) && entity.health < ENTITY_DEFAULT_HEALTH[entity.entity_kind];
         }
         
         if draw_health {
-            draw_health_bar_world_space(client, .{ entity.visual_position.x, entity.visual_position.y + 0.1 }, PROGRESS_BAR_WORLD_SIZE * 2, entity.health, MAX_HEALTHS[entity.entity_kind]);
+            draw_health_bar_world_space(client, .{ entity.visual_position.x, entity.visual_position.y + 0.1 }, PROGRESS_BAR_WORLD_SIZE * 2, entity.health, ENTITY_DEFAULT_HEALTH[entity.entity_kind]);
         }
     }
     
@@ -788,9 +785,9 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
             
           case .Attacking;
             if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Frog_Attacking_Back_0, .Frog_Attacking_Back_1, .Frog_Attacking_Back_2, .Frog_Attacking_Back_3 ];
-              case .South; frames = .[ .Frog_Attacking_Front_0, .Frog_Attacking_Front_1, .Frog_Attacking_Front_2, .Frog_Attacking_Front_3 ];
-              case .East, .West; frames = .[ .Frog_Attacking_Side_0, .Frog_Attacking_Side_1, .Frog_Attacking_Side_2, .Frog_Attacking_Side_3 ];
+              case .North; frames = .[ .Frog_Attacking_Back_0, .Frog_Attacking_Back_1, .Frog_Attacking_Back_2 ];
+              case .South; frames = .[ .Frog_Attacking_Front_0, .Frog_Attacking_Front_1, .Frog_Attacking_Front_2 ];
+              case .East, .West; frames = .[ .Frog_Attacking_Side_0, .Frog_Attacking_Side_1, .Frog_Attacking_Side_2 ];
             }
             index = get_time_animated_sprite_index(client, FROG_ATTACK_TIME / xx frames.count, frames, frog.state_t, false);
 
