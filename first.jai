@@ -13,7 +13,7 @@ Build_Target :: enum {
     Library;
 }
 
-apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Target) {
+apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Target, release_subsystem: Subsystem) {
     if #complete mode == {
       case .Debug;
         options.target_backend    = .X64;
@@ -24,7 +24,7 @@ apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Tar
         
       case .Release;
         options.target_backend    = .C;
-        options.target_subsystem  = .Windows;
+        options.target_subsystem  = release_subsystem;
         options.runtime_features  = .None;
         options.debug_information = false;
     }
@@ -53,7 +53,7 @@ build_server :: (mode: Build_Mode, target: Build_Target) -> bool {
     options.output_file_path  = "run_tree/server";
     options.source_files      = .[ "server/server.jai" ];
     options.type_information  = true;
-    apply_flags(*options, mode, target);
+    apply_flags(*options, mode, target, .Console);
     return compiler_create_and_compile_workspace(*options);    
 }
 
@@ -72,7 +72,7 @@ build_client :: (mode: Build_Mode) {
     }
         
     options.type_information  = true;
-    apply_flags(*options, mode, .Executable);
+    apply_flags(*options, mode, .Executable, .Windows);
     compiler_create_and_compile_workspace(*options);
 }
 
