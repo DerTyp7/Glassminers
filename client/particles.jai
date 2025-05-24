@@ -9,16 +9,18 @@ Particle :: struct {
 
 Particle_Emitter_Shape :: enum {
     Box;
+    Cone;
 }
 
 Particle_Emitter :: struct {
-    particles: []Particle;
+    // Properties
     local_position: v2f;
 
     shape: Particle_Emitter_Shape;
     shape_cutout_factor: f32;
     #using derived: union {
         box_half_size: v2f;
+        cone_angles: [2]f32;
     };
 
     drag: f32 = 0;
@@ -27,6 +29,12 @@ Particle_Emitter :: struct {
     lifetime: [2]f32 = .[ 2, 3 ];
     color: [2]GE_Color = .[ .{ 0, 0, 0, 255 }, .{ 255, 255, 255, 255 } ];
     gravity: v2f = .{ 0, 0 };
+    particles_per_second: f32 = 256;
+    alive_t: f32 = MAX_F32; // An emitter will only spawn new particles if it is alive
+
+    // Internal State
+    particles: []Particle;
+    new_particle_accumulator: f32 = 0;
 }
 
 Particle_System :: struct {
@@ -65,10 +73,16 @@ update_particle_system :: (#using system: *Particle_System, dt: f32) {
 #file_scope
 
 update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle_Emitter, dt: f32) {
+    new_particle_accumulator += particles_per_second * dt;
+    
     for i := 0; i < emitter.particles.count; ++i {
         particle := *emitter.particles[i];
 
         if particle.remaining_time <= 0 {
+            if alive_t <= 0 || new_particle_accumulator < 1 {
+                continue;
+            }
+
             particle.local_position = get_spawn_position(random, emitter);
             particle.velocity = get_spawn_velocity(random, emitter, particle.local_position);
             particle.speed    = random_f32_in(random, emitter.speed[0], emitter.speed[1]);
@@ -76,6 +90,7 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
             particle.size.y   = random_f32_in(random, emitter.size[0].y, emitter.size[1].y);
             particle.color    = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(random));
             particle.remaining_time = random_f32_in(random, emitter.lifetime[0], emitter.lifetime[1]);
+            new_particle_accumulator -= 1;
         }
         
         particle.local_position.x += particle.velocity.x * particle.speed * dt;
@@ -86,6 +101,8 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
         particle.velocity.y *= expf(-emitter.drag * dt);
         particle.remaining_time -= dt;
     }
+
+    alive_t -= dt;
 }
 
 get_spawn_position :: (random: *Random_Generator, #using emitter: *Particle_Emitter) -> v2f {
@@ -102,6 +119,9 @@ get_spawn_position :: (random: *Random_Generator, #using emitter: *Particle_Emit
 
             if abs(position.x) >= cutout_half_size.x || abs(position.y) >= cutout_half_size.y break;
         }
+
+      case .Cone;
+        position = .{ 0, 0 };
     }
     
     return position;
@@ -112,6 +132,9 @@ get_spawn_velocity :: (random: *Random_Generator, #using emitter: *Particle_Emit
 
     if #complete emitter.shape == {
       case .Box; velocity = position;
+      case .Cone;
+        theta := random_f32_in(random, emitter.cone_angles[0], emitter.cone_angles[1]);
+        velocity = .{ sinf(theta * FTAU), -cosf(theta * FTAU) };
     }
 
     return velocity;

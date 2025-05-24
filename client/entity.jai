@@ -46,7 +46,7 @@ Guy :: struct {
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;
     strength_t: f32 = 0;
-    particle_system: *Particle_System = null;
+    particles: *Particle_System = null;
 }
 
 Emitter :: struct {
@@ -74,6 +74,7 @@ Item_Stack :: struct {
 Frog :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
+    particles: *Particle_System = null;
     state: Frog_State = .Idle;
     state_t: f32;
 }
@@ -92,9 +93,8 @@ Entity_Manager :: struct {
     receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
-    frogs:      Bucket_Array(Frog);
+    frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
-    
     particle_systems: Bucket_Array(Particle_System);
 }
 
@@ -394,9 +394,9 @@ update_guy :: (client: *Client, guy: *Guy) {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
 
-    if guy.strength_t > 0 && guy.particle_system == null {
-        guy.particle_system = create_particle_system(client, guy.visual_position, 1);
-        emitter := create_particle_emitter(guy.particle_system, 0, 64);
+    if guy.strength_t > 0 && guy.particles == null {
+        guy.particles = create_particle_system(client, guy.visual_position, 1);
+        emitter := create_particle_emitter(guy.particles, 0, 64);
         emitter.drag = 0.95;
         emitter.box_half_size = .{ 0.45, 0.15 };
         emitter.shape_cutout_factor = 0.95;
@@ -406,18 +406,18 @@ update_guy :: (client: *Client, guy: *Guy) {
         emitter.gravity = .{ 0, -2 };
     }
 
-    if guy.particle_system {
-        guy.particle_system.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
+    if guy.particles {
+        guy.particles.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
         t := guy.strength_t / 10;
         if t <= 1 {
-            guy.particle_system.global_alpha = clamp(1 - powf(1 - t, 2), 0, 1);
+            guy.particles.global_alpha = clamp(1 - powf(1 - t, 2), 0, 1);
         } else {
-            guy.particle_system.global_alpha = 1;
+            guy.particles.global_alpha = 1;
         }
         
-        if guy.strength_t < 0 && guy.particle_system != null {
-            guy.particle_system.marked_for_removal = true;
-            guy.particle_system = null;
+        if guy.strength_t < 0 && guy.particles != null {
+            guy.particles.marked_for_removal = true;
+            guy.particles = null;
         }
     }
 }
@@ -427,8 +427,28 @@ update_frog :: (client: *Client, frog: *Frog) {
 
     if #complete frog.state == {
       case .Idle, .Recovering;
+        if frog.particles {
+            frog.particles.marked_for_removal = true;
+            frog.particles = null;
+        }
+
       case .Attacking;
         recalculate_beam(client, *frog.beam_data, frog.physical_position, frog.physical_rotation, false, FROG_BEAM_LENGTH);
+
+        if !frog.particles {
+            frog.particles = create_particle_system(client, frog.visual_position, 1);
+            emitter := create_particle_emitter(frog.particles, 0, 256);
+            emitter.shape    = .Cone;
+            emitter.drag     = .9;
+            emitter.speed    = .[ 4, 6 ];
+            emitter.lifetime = .[ 0.5, 0.8 ];
+            emitter.color    = .[ .{ 255, 241, 99, 255 }, .{ 255, 111, 52, 255 } ];
+            emitter.particles_per_second = 1024;
+            emitter.alive_t  = 0.5;
+
+            theta := visual_from_physical_rotation(frog.physical_rotation);
+            emitter.cone_angles = .[ theta - 0.03, theta + 0.03 ];
+        }
     }
 
     frog.state_t += client.tick_time;
