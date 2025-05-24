@@ -164,10 +164,12 @@ update_camera_matrices :: (camera: *Camera, window: *Window) {
 // Particle System
 //
 
-create_particle_system :: (client: *Client, emitter_count: s64) -> *Particle_System {
+create_particle_system :: (client: *Client, world_position: v2f, emitter_count: s64) -> *Particle_System {
     system := push_bucket_array(*client.particle_systems);
-    system.marked_for_removal = false;
     system.allocator = *client.world_allocator;
+    system.marked_for_removal = false;
+    system.world_position = world_position;
+    system.global_alpha = 1;
     system.emitters = allocate_array(system.allocator, Particle_Emitter, emitter_count);
     seed_random_generator(*system.random, system.random.DEFAULT_X, system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
     return system;
@@ -393,7 +395,7 @@ update_guy :: (client: *Client, guy: *Guy) {
     }
 
     if guy.strength_t > 0 && guy.particle_system == null {
-        guy.particle_system = create_particle_system(client, 1);
+        guy.particle_system = create_particle_system(client, guy.visual_position, 1);
         emitter := create_particle_emitter(guy.particle_system, 0, 64);
         emitter.drag = 0.95;
         emitter.box_half_size = .{ 0.45, 0.15 };
@@ -406,7 +408,13 @@ update_guy :: (client: *Client, guy: *Guy) {
 
     if guy.particle_system {
         guy.particle_system.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
-
+        t := guy.strength_t / 10;
+        if t <= 1 {
+            guy.particle_system.global_alpha = clamp(1 - powf(1 - t, 2), 0, 1);
+        } else {
+            guy.particle_system.global_alpha = 1;
+        }
+        
         if guy.strength_t < 0 && guy.particle_system != null {
             guy.particle_system.marked_for_removal = true;
             guy.particle_system = null;

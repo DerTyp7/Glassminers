@@ -964,10 +964,11 @@ draw_particle_system :: (client: *Client, system: *Particle_System) {
             particle := *emitter.particles[j];
             
             if particle.remaining_time > 0 {
+                color := GE_Color.{ particle.color.r, particle.color.g, particle.color.b, cast(u8) (cast(f32) particle.color.a * system.global_alpha) };
                 world_position := v2f.{ particle.local_position.x + local_to_world_position.x, particle.local_position.y + local_to_world_position.y };
                 c0 := screen_from_world_position(client, .{ world_position.x - particle.size.x / 2, world_position.y - particle.size.y / 2 });
                 c1 := screen_from_world_position(client, .{ world_position.x + particle.size.x / 2, world_position.y + particle.size.y / 2 });
-                ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, particle.color);
+                ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, color);
             }
         }
     }

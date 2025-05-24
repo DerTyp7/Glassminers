@@ -31,10 +31,13 @@ Particle_Emitter :: struct {
 
 Particle_System :: struct {
     allocator: *Allocator;
+
     marked_for_removal: bool;
+    world_position: v2f;
+    global_alpha: f32;
+    
     random: Random_Generator;
     emitters: []Particle_Emitter;
-    world_position: v2f;
 }
 
 create_particle_emitter :: (#using system: *Particle_System, emitter_index: s64, particle_count: s64) -> *Particle_Emitter {
