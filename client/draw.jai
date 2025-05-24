@@ -526,10 +526,7 @@ draw_world :: (client: *Client) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        t := (1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME) * 3;
-        
-        intensity := smoothstep(cosf(powf(t, 5) * FTAU) * 0.5 + 0.5, 0, (t * t) / 30);
-        draw_beam(client, *emitter.beam_data, .{ 255, 229, 167, 220 }, intensity, true);
+        draw_beam(client, *emitter.beam_data, .{ 255, 229, 167, 220 }, emitter.beam_intensity, true);
 
         if emitter.time_left_in_seconds > 0 {
             draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);

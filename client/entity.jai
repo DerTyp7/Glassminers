@@ -53,6 +53,8 @@ Guy :: struct {
 Emitter :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
+    beam_intensity: f32 = ---;
+    particles: Pid = INVALID_PID;
     time_left_in_seconds: f32 = EMITTER_MAX_TIME;
 }
 
@@ -419,6 +421,23 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     if emitter.time_left_in_seconds <= 0 return;
 
     recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
+
+    t := (1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME) * 3;
+    emitter.beam_intensity = smoothstep(cosf(powf(t, 5) * FTAU) * 0.5 + 0.5, 0, (t * t) / 30);
+
+    if emitter.particles == INVALID_PID {
+        particles := create_particle_system(client, MAX_F32, emitter.visual_position, 1);
+        particle_emitter := create_particle_emitter(particles, 0, 256 * 5);
+        particle_emitter.shape = .Cone;
+        particle_emitter.cone_angles = .[ 0.24, 0.26 ];
+        particle_emitter.lifetime    = .[ 4, 5 ];
+        emitter.particles = particles.pid;
+    }
+
+    {
+        particles := get_particle_system(client, emitter.particles);
+        particles.global_alpha = emitter.beam_intensity;
+    }
 }
 
 update_slab :: (client: *Client, slab: *Slab) {
