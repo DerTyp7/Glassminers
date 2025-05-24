@@ -118,7 +118,7 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
     msg.player_disconnect.player_pid = client.player_pid;
     array_add(*server.outgoing_messages, msg);
     
-    if client.name deallocate_string(*server.world_allocator, *client.name);
+    if client.name deallocate_string(*server.engine_allocator, *client.name);
     
     array_remove_value_pointer(*server.clients, client);
 }
@@ -149,8 +149,8 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         }
         
         // Store the information locally
-        if target.name deallocate_string(*server.world_allocator, *target.name);
-        target.name = copy_string(*server.world_allocator, msg.player_information.name);
+        if target.name deallocate_string(*server.engine_allocator, *target.name);
+        target.name = copy_string(*server.engine_allocator, msg.player_information.name);
 
         logprint(.Debug, "Player '%' set their name to '%'.", target.player_pid, target.name);
         
@@ -746,6 +746,16 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.clients.allocator = *server.engine_allocator;
     server.outgoing_messages.allocator = *temp;
 
+    // nocheckin
+#if ALLOCATOR_STATISTICS {
+    acb :: (alloc: *Allocator, user_pointer: *void, address: *void, size: u64) { print("+ %: %\n", address, size); }
+    dcb :: (alloc: *Allocator, user_pointer: *void, address: *void, size: u64) {
+        print("- %: %\n", address, size);
+    }
+    server.world_allocator.callbacks.allocation_callback = acb;
+    server.world_allocator.callbacks.deallocation_callback = dcb;
+}
+    
     result := create_server_connection(*server.connection, NETWORK_PROTOCOL, data.requested_port);
     if result == .Success {
         atomic_store(*data.state, Server_State.Running);
@@ -789,6 +799,8 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     switch_to_next_state(*server);
     
     atomic_store(*data.state, Server_State.Closing);
+
+    os_sleep(5); // Give the TCP connection time to ensure the Game_Over message has reached all clients...
     
     destroy_connection(*server.connection);
     destroy_memory_pool(*server.world_pool);

@@ -111,6 +111,7 @@ create_entity_manager :: (server: *Server) {
 }
 
 destroy_entity_manager :: (server: *Server) {
+    print("Destroying entity manager!\n");
     probed_hash_table_destroy(*server.pid_lookup);
     destroy_bucket_array(*server.all_entities);
     destroy_bucket_array(*server.guys);
