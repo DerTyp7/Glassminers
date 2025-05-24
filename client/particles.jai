@@ -64,6 +64,12 @@ create_particle_emitter :: (#using system: *Particle_System, emitter_index: s64,
     emitter := *emitters[emitter_index];
     ~emitter = Particle_Emitter.{};
     emitter.particles = allocate_array(allocator, Particle, particle_count);
+
+    for i := 0; i < emitter.particles.count; ++i {
+        emitter.particles[i].elapsed_time = 0;
+        emitter.particles[i].lifetime = 0;
+    }
+    
     emitter.new_particle_accumulator = 0;
     return emitter;
 }

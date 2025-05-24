@@ -790,7 +790,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     
     atomic_store(*data.state, Server_State.Closing);
 
-    os_sleep(5); // Give the TCP connection time to ensure the Game_Over message has reached all clients...
+    os_sleep(NETWORK_CONNECTION_DIE_SPEED); // Give the TCP connection time to ensure the Game_Over message has reached all clients...
     
     destroy_connection(*server.connection);
     destroy_memory_pool(*server.world_pool);

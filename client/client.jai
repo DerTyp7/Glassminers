@@ -309,7 +309,7 @@ disconnect_from_server :: (client: *Client) {
     logprint(.Debug, "Disconnecting from the server...");
 
     send_connection_closed_packet(*client.connection, 5);
-    os_sleep(0.2); // Try to make sure we actually send the connection close to the server...
+    os_sleep(NETWORK_CONNECTION_DIE_SPEED);
     destroy_connection(*client.connection);
     maybe_shutdown_server(client);
     deallocate_string(*client.engine_allocator, *client.my_name);

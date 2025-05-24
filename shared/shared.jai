@@ -115,6 +115,13 @@ Shared_Server_Data :: struct {
 NETWORK_PROTOCOL :: Connection_Protocol.TCP;
 NETWORK_PING_INTERVAL: f32 : 0.25;
 
+// When we send the last data via a TCP connection and then immediately close it, the OS might
+// just internally drop all the data we wanted to send. Now, we are a game and so we'd rather
+// drop some data than wait forever until it actually arrived, but we still want good chances
+// of the data arriving. Therefore, this hack attempts to bring the OS to send the data, before
+// we then actually close the connection...
+NETWORK_CONNECTION_DIE_SPEED: f32 : 0.05;
+
 #if DEVELOPER {
     NETWORK_TIMEOUT: f32 : 180; // Just to make debugging one endpoint easier
 } #else {
