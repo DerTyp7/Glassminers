@@ -31,6 +31,7 @@
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
 DEFAULT_INFO_TEXT_TIMER: f32 : 5;
+TARGET_FRAMES_PER_SECOND: f32 : 144;
 
 Game_State :: enum {
     Main_Menu;
@@ -1135,7 +1136,7 @@ main :: (args: []string) -> s32 {
         release_temp_allocator(0);
         
         frame_end := os_get_hardware_time();
-        os_sleep_to_tick_rate(frame_start, frame_end, 144);
+        os_sleep_to_tick_rate(frame_start, frame_end, TARGET_FRAMES_PER_SECOND);
     }
     
     // Shut down all resources that might currently be in use
