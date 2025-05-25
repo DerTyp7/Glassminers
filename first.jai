@@ -41,7 +41,7 @@ build_version_string_file :: () {
 #if OS == .Windows {
     SYSTEM_CALL: cstring : "@echo off && for /f \"delims=\" %a in ('git rev-parse --short HEAD') do ECHO=VERSION_STRING :: \"%a\"; > shared\\VERSION_STRING.jai";
 } #else #if OS == .Linux {
-    SYSTEM_CALL: cstring : "echo VERSION_STRING :: \"$(git rev-parse --short HEAD)\"';' > shared/VERSION_STRING.jai";
+    SYSTEM_CALL: cstring : "echo VERSION_STRING :: \\\"$(git rev-parse --short HEAD)\\\"';' > shared/VERSION_STRING.jai";
 }
 
     system(SYSTEM_CALL);
