@@ -5,6 +5,10 @@ Sprite_Index :: enum {
     Hud_PS_Cross;
     Hud_PS_Triangle;
     Hud_PS_Square;
+    Hud_XBox_A;
+    Hud_XBox_B;
+    Hud_XBox_X;
+    Hud_XBox_Y;
     Hud_Key_C;
     Hud_Key_Space;
     Hud_Key_Shift;
@@ -169,13 +173,37 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: 
 }
 
 get_sprite_index_for_input_action :: (client: *Client, action: Input_Action) -> Sprite_Index {
+    is_vendor_appropriate_gamepad_binding :: (gamepad: *Window_Gamepad, button: Window_Gamepad_Button_Code) -> bool {
+        result: bool = ---;
+
+        if button == {
+          case .XBox_A, .XBox_B, .XBox_X, .XBox_Y, .XBox_Start, .XBox_Back, .XBox_Home, .XBox_Capture;
+            result = gamepad.vendor == .XBox;
+          case .PS_Cross, .PS_Circle, .PS_Square, .PS_Triangle, .PS_Options, .PS_Share, .PS_Home, .PS_Touch_Pad;
+            result = gamepad.vendor == .PlayStation;
+          case;
+            result = true;
+        }
+        
+        return result;
+    }
+
     for i := 0; i < client.input_bindings[action].count; ++i {
         binding := *client.input_bindings[action][i];
 
         if #complete binding.kind == {
-          case .Keyboard;        if client.active_input_device == .Keyboard then return get_sprite_index_for_key_code(binding.keycode);
-          case .Gamepad_Button;  if client.active_input_device == .Gamepad then return get_sprite_index_for_gamepad_button(binding.gamepad_button);
-          case .Gamepad_Gesture; if client.active_input_device == .Gamepad then return get_sprite_index_for_gamepad_gesture(binding.gamepad_gesture);
+          case .Keyboard;
+            if client.active_input_device == .Keyboard {
+                return get_sprite_index_for_key_code(binding.keycode);
+            }
+          case .Gamepad_Button;
+            if client.active_input_device == .Gamepad && is_vendor_appropriate_gamepad_binding(*client.window.gamepads[0], binding.gamepad_button) {
+                return get_sprite_index_for_gamepad_button(binding.gamepad_button);
+            }
+          case .Gamepad_Gesture;
+            if client.active_input_device == .Gamepad {
+                return get_sprite_index_for_gamepad_gesture(binding.gamepad_gesture);
+            }
         }
     }
 
@@ -693,6 +721,10 @@ get_sprite_index_for_gamepad_button :: (button: Window_Gamepad_Button_Code) -> S
       case .PS_Cross;    sprite = .Hud_PS_Cross;
       case .PS_Triangle; sprite = .Hud_PS_Triangle;
       case .PS_Square;   sprite = .Hud_PS_Square;
+      case .XBox_A; sprite = .Hud_XBox_A;
+      case .XBox_B; sprite = .Hud_XBox_B;
+      case .XBox_X; sprite = .Hud_XBox_X;
+      case .XBox_Y; sprite = .Hud_XBox_Y;
     }
 
     return sprite;

@@ -166,8 +166,8 @@ Input_Action :: enum {
     
     Crafting_Menu_Toggle;
     Crafting_Menu_Confirm;
-    Crafting_Menu_Left_Slot;
-    Crafting_Menu_Right_Slot;
+    Crafting_Menu_Left;
+    Crafting_Menu_Right;
 }
 
 Input_Binding :: struct {
@@ -212,32 +212,27 @@ register_all_input_bindings :: (client: *Client) {
     // Therefore, for easier setup I construct them locally here, and then copy them into the
     // engine allocator later on.
     //
-    
-    input_bindings := [Input_Action.Count][]Input_Binding.[
-            .[ keycode(.Escape), gamepad_button(.PS_Options) ], // Toggle Pause Menu
-            .[ keycode(.F11) ], // Toggle fullscreen
-        
-            .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up) ],    // Move North
-            .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right) ], // Move East
-            .[ keycode(.S), gamepad_gesture(.Left_Swipe_Down) ],  // Move South
-            .[ keycode(.A), gamepad_gesture(.Left_Swipe_Left) ],  // Move West
 
-            .[ keycode(.Arrow_Up),    gamepad_gesture(.Right_Swipe_Up) ],    // Look North
-            .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Swipe_Right) ], // Look East
-            .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Swipe_Down) ],  // Look South
-            .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ],  // Look West
+    ib: [Input_Action.Count][]Input_Binding = ---;
+    ib[.Toggle_Pause_Menu]     = .[ keycode(.Escape), gamepad_button(.PS_Options), gamepad_button(.XBox_Start) ];
+    ib[.Toggle_Fullscreen]     = .[ keycode(.F11) ];
+    ib[.Move_North]            = .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up) ];
+    ib[.Move_East]             = .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right) ];
+    ib[.Move_South]            = .[ keycode(.S), gamepad_gesture(.Left_Swipe_Down) ];
+    ib[.Move_West]             = .[ keycode(.A), gamepad_gesture(.Left_Swipe_Left) ];
+    ib[.Look_North]            = .[ keycode(.Arrow_Up), gamepad_gesture(.Right_Swipe_Up) ];
+    ib[.Look_East]             = .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Swipe_Right) ];
+    ib[.Look_South]            = .[ keycode(.Arrow_Down), gamepad_gesture(.Right_Swipe_Down) ];
+    ib[.Look_West]             = .[ keycode(.Arrow_Left), gamepad_gesture(.Right_Swipe_Left) ];
+    ib[.Interact_Primary]      = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
+    ib[.Interact_Secondary]    = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
+    ib[.Crafting_Menu_Toggle]  = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
+    ib[.Crafting_Menu_Confirm] = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
+    ib[.Crafting_Menu_Left]    = .[ keycode(.A), keycode(.Arrow_Left), gamepad_button(.Left_Bumper), gamepad_gesture(.Left_Swipe_Left) ];
+    ib[.Crafting_Menu_Right]   = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper), gamepad_gesture(.Left_Swipe_Right) ];
 
-            .[ keycode(.Space), gamepad_button(.PS_Cross) ],  // Interact Primary
-            .[ keycode(.Shift), gamepad_button(.PS_Square) ], // Interact Secondary
-
-            .[ keycode(.Shift), gamepad_button(.PS_Square) ], // Open Crafting Menu
-            .[ keycode(.Space), gamepad_button(.PS_Cross) ],  // Confirm Crafting Menu
-            .[ keycode(.A), gamepad_button(.Left_Bumper),  gamepad_gesture(.Left_Swipe_Left) ],   // Left Slot Crafting Menu
-            .[ keycode(.D), gamepad_button(.Right_Bumper), gamepad_gesture(.Left_Swipe_Right) ],  // Right Slot Crafting Menu
-    ];
-
-    for i := 0; i < input_bindings.Capacity; ++i {
-        client.input_bindings[i] = copy_array(*client.engine_allocator, input_bindings[i]);
+    for i := 0; i < ib.Capacity; ++i {
+        client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);
     }
 }
     

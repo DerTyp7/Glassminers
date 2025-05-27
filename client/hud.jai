@@ -57,11 +57,11 @@ update_hud :: (client: *Client) {
       case .Crafting_Menu;
         if !hud.crafting_menu.recipes.count break;
         
-        if input_action_fired(client, .Crafting_Menu_Left_Slot) {
+        if input_action_fired(client, .Crafting_Menu_Left) {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe - 1 + hud.crafting_menu.recipes.count) % hud.crafting_menu.recipes.count;
         }
 
-        if input_action_fired(client, .Crafting_Menu_Right_Slot) {
+        if input_action_fired(client, .Crafting_Menu_Right) {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe + 1) % hud.crafting_menu.recipes.count;
         }
 
