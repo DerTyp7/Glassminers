@@ -614,7 +614,9 @@ draw_world :: (client: *Client) {
 
           case .Digging;
             target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
-            draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / ENTITY_DEFAULT_HEALTH[target_entity.entity_kind]);
+            if target_entity {
+                draw_progress_bar_world_space(client, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / ENTITY_DEFAULT_HEALTH[target_entity.entity_kind]);
+            }
 
           case .Carrying;
             active_guy_sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, guy);
