@@ -305,16 +305,13 @@ disconnect_from_server :: (client: *Client) {
     logprint(.Debug, "Disconnecting from the server...");
 
     send_connection_closed_packet(*client.connection, 5);
-    os_sleep(NETWORK_CONNECTION_DIE_SPEED);
-    destroy_connection(*client.connection);
-    maybe_shutdown_server(client);
     deallocate_string(*client.engine_allocator, *client.my_name);
-    
     for i := 0; i < client.remote_clients.count; ++i {
         deallocate_string(*client.world_allocator, *array_get_pointer(*client.remote_clients, i).name);
     }
-    
     array_clear(*client.remote_clients);
+
+    destroy_connection(*client.connection);
 }
 
 start_lobby :: (client: *Client) {
@@ -325,9 +322,7 @@ start_lobby :: (client: *Client) {
 
 maybe_shutdown_server :: (client: *Client) {
     previous, success := atomic_compare_and_exchange(cast(*s64) *client.server_data.state, Server_State.Running, Server_State.Closing);
-    if success {
-        join_thread(*client.server_thread);
-    }
+    if success detach_thread(*client.server_thread);
 }
 
 remove_client_by_pid :: (client: *Client, pid: Pid) {
@@ -647,7 +642,7 @@ do_main_menu :: (client: *Client) {
         ui_push_window(ui, "Single Player", .Default, window_position(client, 0));
 
         do_campaign_selector(client);
-        ui_divider(ui, false);
+        ui_divider(ui, true);
 
         if client.server_data.state == .Closed && ui_button(ui, "Play!") {
             host_server(client, DEFAULT_PORT);
@@ -1065,7 +1060,7 @@ main :: (args: []string) -> s32 {
         // Handle transitions
         //
         if client.current_state != client.next_state switch_to_next_state(*client);
-
+        
         if input_action_fired(*client, .Toggle_Fullscreen) {
             if client.window.fullscreen {
                 set_window_style(*client.window, .Maximized);
