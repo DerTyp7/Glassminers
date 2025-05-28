@@ -2,8 +2,9 @@
 
 - Support for gamepad input on Linux
 - Support for XBox Button Icons for input binding hints
+- Improved the lingering of virtual connections to less likely drop crucial information (like client disconnect, game over)
 - Fixed a crash when two players dig at the same entity
-
+- Fixed a crash when the game ends with the emitter running out of time
 
 ## 0.1.0 (25.05.2025)
 

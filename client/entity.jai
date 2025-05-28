@@ -418,6 +418,12 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
 update_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
 
+    if emitter.particles != INVALID_PID {
+        particles := get_particle_system(client, emitter.particles);
+        particle_emitter := *particles.emitters[0];
+        particle_emitter.line_strings = .[];
+    }
+        
     if emitter.time_left_in_seconds > 0 {
         emitter.time_left_in_seconds -= client.tick_time;
     }
