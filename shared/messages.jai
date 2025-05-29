@@ -88,6 +88,7 @@ Guy_Input_Message :: struct {
     aim_direction: Direction;
     interaction_kind: Interaction_Kind;
     crafting_recipe: Crafting_Recipe;
+    cheat: Cheat;
 }
 
 Emitter_State_Message :: struct {

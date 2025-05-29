@@ -130,6 +130,7 @@ Log_Level :: enum {
 }
 
 logprint :: (level: Log_Level, format: string, args: ..Any) {
+    // @Incomplete: Make this atomic by using a custom Print_Buffer
     print("[CLIENT][%] ", enum_names(Log_Level)[level]);
     print(format, ..args);
     print("\n");
@@ -228,16 +229,16 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Move_East]             = .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right) ];
     ib[.Move_South]            = .[ keycode(.S), gamepad_gesture(.Left_Swipe_Down) ];
     ib[.Move_West]             = .[ keycode(.A), gamepad_gesture(.Left_Swipe_Left) ];
-    ib[.Look_North]            = .[ keycode(.Arrow_Up), gamepad_gesture(.Right_Swipe_Up) ];
+    ib[.Look_North]            = .[ keycode(.Arrow_Up),    gamepad_gesture(.Right_Swipe_Up) ];
     ib[.Look_East]             = .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Swipe_Right) ];
-    ib[.Look_South]            = .[ keycode(.Arrow_Down), gamepad_gesture(.Right_Swipe_Down) ];
-    ib[.Look_West]             = .[ keycode(.Arrow_Left), gamepad_gesture(.Right_Swipe_Left) ];
+    ib[.Look_South]            = .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Swipe_Down) ];
+    ib[.Look_West]             = .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ];
     ib[.Interact_Primary]      = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
     ib[.Interact_Secondary]    = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
     ib[.Crafting_Menu_Toggle]  = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
     ib[.Crafting_Menu_Confirm] = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
-    ib[.Crafting_Menu_Left]    = .[ keycode(.A), keycode(.Arrow_Left), gamepad_button(.Left_Bumper), gamepad_gesture(.Left_Swipe_Left) ];
-    ib[.Crafting_Menu_Right]   = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper), gamepad_gesture(.Left_Swipe_Right) ];
+    ib[.Crafting_Menu_Left]    = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_gesture(.Left_Swipe_Left),  gamepad_gesture(.Left_Swipe_Up) ];
+    ib[.Crafting_Menu_Right]   = .[ keycode(.D), keycode(.Arrow_Right), gamepad_gesture(.Left_Swipe_Right), gamepad_gesture(.Left_Swipe_Down) ];
     ib[.Cheat_Menu_Toggle]     = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
     
     for i := 0; i < ib.Capacity; ++i {
@@ -929,7 +930,7 @@ do_game_tick :: (client: *Client) {
         guy_entity := get_entity(client, client.my_entity_pid);
         guy := down(guy_entity, Guy);
 
-        read_any_input := client.hud.crafting_recipe_input_this_frame != .Count;
+        read_any_input := client.hud.crafting_recipe_input_this_frame != .Count || client.hud.cheat_input_this_frame != .Count;
         
         input: Guy_Input_Message = ---;
         input.entity_pid       = client.my_entity_pid;
@@ -938,6 +939,7 @@ do_game_tick :: (client: *Client) {
         input.aim_direction    = guy.physical_rotation;
         input.interaction_kind = .Count;
         input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
+        input.cheat            = client.hud.cheat_input_this_frame;
         
         if !client.hud.was_open_this_frame {
             if input_action_fired(client, .Move_North) {

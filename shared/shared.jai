@@ -340,6 +340,8 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
 
 Cheat :: enum {
     Give_Coin;
+    Give_Health;
+    Give_Strength;
 }
 
 direction_from_vector :: (vector: v2i) -> Direction {

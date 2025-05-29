@@ -1,6 +1,7 @@
 Hud :: struct {
     state: Hud_State;
     crafting_recipe_input_this_frame: Crafting_Recipe;
+    cheat_input_this_frame: Cheat;
     was_open_this_frame: bool;
     
     #using data: union {
@@ -20,6 +21,7 @@ Hud :: struct {
 create_hud :: (client: *Client) {
     client.hud.state = .Disabled;
     client.hud.crafting_recipe_input_this_frame = .Count;
+    client.hud.cheat_input_this_frame = .Count;
     client.hud.was_open_this_frame = false;
 }
 
@@ -37,6 +39,7 @@ update_hud :: (client: *Client) {
     // Clear out persistent state
     //
     hud.crafting_recipe_input_this_frame = .Count;
+    hud.cheat_input_this_frame = .Count;
     
     //
     // Toggle the active state
@@ -109,9 +112,9 @@ update_hud :: (client: *Client) {
         }
 
         if input_action_fired(client, .Crafting_Menu_Confirm) {
-            // @Incomplete: Actually send the cheating message.
-            play_sound(client, .Crafting_0, false);
+            hud.cheat_input_this_frame = hud.cheat_menu.selected_cheat;
             hud.state = .Disabled;
+            play_sound(client, .Crafting_0, false);
         }
 
         for i := 0; i < Cheat.Count; ++i {
@@ -187,7 +190,7 @@ draw_hud :: (client: *Client) {
             draw_icon(client, CHEAT_ICONS[i], screen_center, icon_radius, icon_size, theta, 0);
 
             // Draw the input action hint
-            if hud.crafting_menu.selected_recipe == i {
+            if hud.cheat_menu.selected_cheat == i {
                 confirm_sprite := get_sprite_index_for_input_action(client, .Crafting_Menu_Confirm);
                 draw_icon(client, confirm_sprite, screen_center, icon_radius * 0.6, .{ icon_size.x * 0.75, icon_size.y * 0.75 }, theta, 0);
             }
@@ -213,6 +216,8 @@ CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
 
 CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Coin,
+    .Health_Potion,
+    .Strength_Potion,
 ];
 
 set_available_crafting_recipes :: (client: *Client) -> s64 {

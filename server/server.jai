@@ -93,6 +93,7 @@ Log_Level :: enum {
 }
 
 logprint :: (level: Log_Level, format: string, args: ..Any) {
+    // @Incomplete: Make this atomic by using a custom Print_Buffer
     print("[SERVER][%] ", enum_names(Log_Level)[level]);
     print(format, ..args);
     print("\n");
@@ -616,6 +617,17 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             }
         }
     }
+    
+    //
+    // Handle cheating
+    //
+#if DEVELOPER {
+    if #complete guy.received_input.cheat == {
+      case .Give_Coin; try_to_give_item(server, guy, .Coin);
+      case .Give_Health; set_entity_health(server, guy, ENTITY_DEFAULT_HEALTH[.Guy]);
+      case .Give_Strength; guy.strength_t = STRENGTH_POTION_TIME;
+    }
+}
 }
 
 do_game_tick :: (server: *Server) {

@@ -604,6 +604,8 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
     return stack.item_kind;
 }
 
+// This will first try to put the item on the ground, and if that doesn't work it'll try to
+// place the item inside the guy's hand.
 try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
     if !position_in_bounds(server, target_position) return false;
 
@@ -650,6 +652,17 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
     }
     
     return success;
+}
+
+// This will first try to put the item inside the guy's hand, and if that doesn't work it'll try to
+// place the item on the ground
+try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
+    if guy.state == .Idle {
+        guy.state = .Carrying;
+        guy.carrying_item = kind;
+    } else {
+        try_to_put_item(server, guy.physical_position, kind, null);
+    }
 }
 
 
