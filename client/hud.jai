@@ -75,6 +75,16 @@ update_hud :: (client: *Client) {
                 play_sound(client, .Failure_0, false);
             }
         }
+
+        for i := 0; i < hud.crafting_menu.recipes.count; ++i {
+            if i == hud.crafting_menu.selected_recipe {
+                client.hud.crafting_menu.animation_t[i] += client.tick_time * 5;
+            } else {
+                client.hud.crafting_menu.animation_t[i] -= client.tick_time * 3;
+            }
+
+            client.hud.crafting_menu.animation_t[i] = clamp(client.hud.crafting_menu.animation_t[i], 0, 1);
+        }
     }
 }
 
@@ -85,68 +95,50 @@ draw_hud :: (client: *Client) {
       case .Disabled;
 
       case .Crafting_Menu;
-        // @Cleanup: Drawing the crafting menu is really, really ugly
-
         guy_entity := get_entity(client, client.my_entity_pid);
         screen_center := screen_from_world_position(client, guy_entity.visual_position);
+        outer_wheel_radius := cast(f32) client.window.h * 0.15;
+        inner_wheel_radius := cast(f32) client.window.h * 0.10;
 
         padding_per_recipe: f32 = ifx hud.crafting_menu.recipes.count > 1 then 0.1 / cast(f32) hud.crafting_menu.recipes.count else 0;
         theta_per_recipe := 1.0 / cast(f32) hud.crafting_menu.recipes.count;
-        outer_radius := cast(f32) client.window.h * 0.15;
-        inner_radius := cast(f32) client.window.h * 0.10;
         
         for i := 0; i < hud.crafting_menu.recipes.count; ++i {
             recipe := hud.crafting_menu.recipes[i];
+            theta  := (cast(f32) i + 0.5) * theta_per_recipe;
             
-            theta0 := cast(f32) i * theta_per_recipe + padding_per_recipe / 2;
-            theta1 := cast(f32) (i + 1) * theta_per_recipe - padding_per_recipe / 2;
-            theta  := (theta0 + theta1) * 0.5;
-            icon_scale := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
-            icon_theta :: cast(f32) 0.05;
-
+            icon_scale_factor := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
+            icon_size := v2f.{ (outer_wheel_radius - inner_wheel_radius) * icon_scale_factor, (outer_wheel_radius - inner_wheel_radius) * icon_scale_factor };
+            icon_radius := (inner_wheel_radius + outer_wheel_radius) * 0.5;
+            
             // Draw the circle segment
-            background_color := ge_mix_colors(.{ 40, 50, 60, 180 }, .{ 50, 89, 128, 180 }, client.hud.crafting_menu.animation_t[i]);
-            draw_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, background_color);
+            {
+                background_color := ge_mix_colors(.{ 40, 50, 60, 180 }, .{ 50, 89, 128, 180 }, client.hud.crafting_menu.animation_t[i]);
+                theta0 := theta - theta_per_recipe / 2 + padding_per_recipe / 2;
+                theta1 := theta + theta_per_recipe / 2 - padding_per_recipe / 2;
 
-            if hud.crafting_menu.selected_recipe == i {
-                draw_outlined_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
-                client.hud.crafting_menu.animation_t[i] = clamp(client.hud.crafting_menu.animation_t[i] + 5 * client.tick_time, 0, 1);
-            } else {
-                client.hud.crafting_menu.animation_t[i] = clamp(client.hud.crafting_menu.animation_t[i] - 3 * client.tick_time, 0, 1);
+                draw_circle_segment_screen_space(client, screen_center, outer_wheel_radius, inner_wheel_radius, theta0, theta1, background_color);
+
+                if hud.crafting_menu.selected_recipe == i {
+                    draw_outlined_circle_segment_screen_space(client, screen_center, outer_wheel_radius, inner_wheel_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
+                }
             }
-
-            // Draw the divider between input and output of the recipe
-            draw_line_screen_space(client, .{ screen_center.x + sinf(theta * FTAU) * inner_radius * 1.1, screen_center.y - cosf(theta * FTAU) * inner_radius * 1.1 }, .{ screen_center.x + sinf(theta * FTAU) * outer_radius * 0.9, screen_center.y - cosf(theta * FTAU) * outer_radius * 0.9 }, .{ 255, 255, 255, 255 }, 1);
-            
+                
             // Draw the required + result icons
             {
-                icon_size   := v2f.{ (outer_radius - inner_radius) * icon_scale, (outer_radius - inner_radius) * icon_scale };
-                radius      := (inner_radius + outer_radius) * 0.5;
-
                 for i := 0; i < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++i {
-                    icon_center := v2f.{ screen_center.x + sinf((theta + icon_theta * xx (i + 1)) * FTAU) * radius, screen_center.y - cosf((theta + icon_theta * xx (i + 1)) * FTAU) * radius };
-                    draw_sprite_screen_space(client, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][i]), icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+                    draw_icon(client, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][i]), screen_center, icon_radius, icon_size, theta, i + 1);
                 }
-                
-                icon_center := v2f.{ screen_center.x + sinf((theta - icon_theta * 1) * FTAU) * radius, screen_center.y - cosf((theta - icon_theta * 1) * FTAU) * radius };
-                draw_sprite_screen_space(client, CRAFTING_RECIPE_ICONS[recipe], icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+
+                draw_divider(client, screen_center, outer_wheel_radius, inner_wheel_radius, theta);
+
+                draw_icon(client, CRAFTING_RECIPE_ICONS[recipe], screen_center, icon_radius, icon_size, theta, -1);
             }
                 
             // Draw the input action hint
             if hud.crafting_menu.selected_recipe == i {
-                icon_size := v2f.{  (outer_radius - inner_radius) * icon_scale * 0.75, (outer_radius - inner_radius) * icon_scale * 0.75 };
-
-                /*
-                cancel_radius      := inner_radius * 0.5;
-                cancel_icon_center := v2f.{ screen_center.x + sinf(theta * FTAU) * cancel_radius, screen_center.y - cosf(theta * FTAU) * cancel_radius };
-                cancel_sprite := get_sprite_index_for_input_action(client, .Crafting_Menu_Toggle);
-                draw_sprite_screen_space(client, cancel_sprite, cancel_icon_center, icon_size, 0, .{ 255, 0, 0, 255 }, false);
-                */
-                
-                confirm_radius      := inner_radius * 0.8;
-                confirm_icon_center := v2f.{ screen_center.x + sinf(theta * FTAU) * confirm_radius, screen_center.y - cosf(theta * FTAU) * confirm_radius };
                 confirm_sprite := get_sprite_index_for_input_action(client, .Crafting_Menu_Confirm);
-                draw_sprite_screen_space(client, confirm_sprite, confirm_icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+                draw_icon(client, confirm_sprite, screen_center, icon_radius * 0.6, .{ icon_size.x * 0.75, icon_size.y * 0.75 }, theta, 0);
             }
         }
     }
@@ -217,4 +209,22 @@ crafting_recipe_is_enabled :: (client: *Client, recipe: Crafting_Recipe) -> bool
 
     // Check that the required enabler is present
     return CRAFTING_RECIPE_ENABLER[recipe] == .Count || find_entity_of_kind_at_position(client, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) != null;
+}
+
+draw_icon :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, icon_radius: f32, icon_size: v2f, theta: f32, index: s64) {
+    theta_per_icon :: cast(f32) 0.05;
+    radians := (theta + xx index * theta_per_icon) * FTAU;
+    icon_center := v2f.{ screen_center.x + sinf(radians) * icon_radius,
+                         screen_center.y - cosf(radians) * icon_radius };
+    draw_sprite_screen_space(client, sprite_index, icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+}
+
+draw_divider :: (client: *Client, screen_center: v2f, outer_radius, inner_radius: f32, theta: f32) {
+    radians := theta * FTAU;
+    inner_point := v2f.{ screen_center.x + sinf(radians) * inner_radius * 1.1,
+                         screen_center.y - cosf(radians) * inner_radius * 1.1 };
+    outer_point := v2f.{ screen_center.x + sinf(radians) * outer_radius * 0.9,
+                         screen_center.y - cosf(radians) * outer_radius * 0.9 };
+    
+    draw_line_screen_space(client, inner_point, outer_point, .{ 255, 255, 255, 255 }, 1);
 }
