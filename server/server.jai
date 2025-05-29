@@ -10,6 +10,7 @@
 #load "../shared/messages.jai";
 #load "../shared/shared.jai";
 #load "../shared/bucket_array.jai";
+#load "../shared/VERSION_STRING.jai";
 
 // Server
 #load "entity.jai";
@@ -202,7 +203,7 @@ read_incoming_packets :: (server: *Server) {
             
             if packet.header.packet_type == {
               case Packet_Type.Connection_Request;
-                send_connection_established_packet(*client.connection, 5);
+                send_connection_established_packet(*client.connection, 1, VERSION_STRING);
                 
               case Packet_Type.Connection_Closed;
                 client := find_client_by_pid(server, packet.header.sender_client_id);

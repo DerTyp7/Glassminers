@@ -141,6 +141,12 @@ set_info_text :: (client: *Client, time: f32, format: string, args: ..Any) {
     client.info_text_t = time;
 }
 
+set_temp_info_text :: (client: *Client, format: string, args: ..Any) {
+    deallocate_string(*client.engine_allocator, *client.info_text);
+    client.info_text = print_into_allocator(*client.engine_allocator, format, args);
+    client.info_text_t = 0;
+}
+
 
 
 Input_Device :: enum {
@@ -295,7 +301,7 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
         client.my_name    = copy_string(*client.engine_allocator, name);
         client.next_state = .Connecting;
     } else {
-        set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "Could not connect to server: %.", result);
+        set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
     }
@@ -304,7 +310,7 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
 disconnect_from_server :: (client: *Client) {
     logprint(.Debug, "Disconnecting from the server...");
 
-    send_connection_closed_packet(*client.connection, 5);
+    send_connection_closed_packet(*client.connection, 1, .[]);
     deallocate_string(*client.engine_allocator, *client.my_name);
     for i := 0; i < client.remote_clients.count; ++i {
         deallocate_string(*client.world_allocator, *array_get_pointer(*client.remote_clients, i).name);
@@ -501,10 +507,20 @@ read_incoming_packets :: (client: *Client) {
         update_virtual_connection_information_for_packet(*client.connection, *packet.header);
         
         if packet.header.packet_type == {
-          case Packet_Type.Connection_Request; // Ignore
-          
           case Packet_Type.Connection_Established;
             if client.next_state == .Connecting {
+                server_version: string = string.{ packet.body_size, packet.body };
+
+                valid_connection: bool = server_version == VERSION_STRING;
+                
+                if !valid_connection {
+                    set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server is running a different version than you (% vs %)!", server_version, VERSION_STRING);
+#if !DEVELOPER {
+    client.next_state = .Main_Menu;
+    break;
+}
+                }
+                
                 client.my_player_pid = packet.header.sender_client_id;
                 client.connection.info.client_id = client.my_player_pid;
                 client.next_state = .Lobby;
@@ -518,8 +534,6 @@ read_incoming_packets :: (client: *Client) {
           case Packet_Type.Connection_Closed;
             client.previous_game_result = .Connection_Lost;
             client.next_state = .Game_Over;
-
-          case Packet_Type.Ping;
             
           case Packet_Type.Message;
             msg: Message = ---;
@@ -608,7 +622,7 @@ do_main_menu :: (client: *Client) {
     }
 
     if client.server_data.state != .Closed {
-        set_info_text(client, 0.5, "Your local server is still closing...");
+        set_temp_info_text(client, "Your local server is still running...");
     }
     
     // Host Window
@@ -698,7 +712,7 @@ do_connecting_screen :: (client: *Client) {
     handle_server_timeout(client, .Main_Menu, "The server could not be reached.");
     
     if !client.sent_connection_request && has_tcp_handshake_occurred(*client.connection) {
-        send_connection_request_packet(*client.connection, 1);
+        send_connection_request_packet(*client.connection, 1, VERSION_STRING);
         client.sent_connection_request = true;
     }
     
@@ -820,8 +834,6 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
 }
 
 do_game_tick :: (client: *Client) {
-    client.tick_time = client.window.frame_time;
-    
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
 
@@ -1075,6 +1087,8 @@ main :: (args: []string) -> s32 {
         {
             update_window(*client.window);
             begin_ui_frame(*client.ui, .{ 128, 24 });
+
+            client.tick_time = client.window.frame_time;
             
             if #complete client.current_state == {
               case .Main_Menu;  do_main_menu(*client);
@@ -1083,8 +1097,6 @@ main :: (args: []string) -> s32 {
               case .Ingame;     do_game_tick(*client);
               case .Game_Over;  do_game_over_screen(*client);
             }
-
-            client.info_text_t -= client.tick_time;
         }
         
         //
@@ -1096,8 +1108,9 @@ main :: (args: []string) -> s32 {
             if #complete client.current_state == {
               case .Main_Menu, .Connecting, .Lobby, .Game_Over;
                 draw_text_screen_space(*client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, .{ 255, 255, 255, 255 });
-                if client.info_text_t > 0 {
+                if client.info_text_t >= 0 {
                     draw_text_screen_space(*client, *client.ui_font, client.info_text, .{ xx client.window.w / 2, xx (client.window.h / 4 + client.title_font.line_height) }, .Center | .Median, .{ 252, 238, 28, 255 });
+                    client.info_text_t -= client.tick_time;
                 }
             
               case .Ingame;
