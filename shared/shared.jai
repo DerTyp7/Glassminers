@@ -338,6 +338,10 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     false, // Strength Potion
 ];
 
+Cheat :: enum {
+    Give_Coin;
+}
+
 direction_from_vector :: (vector: v2i) -> Direction {
     if vector.x == 0 && vector.y == 0 {
         return .North;

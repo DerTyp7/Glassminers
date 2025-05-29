@@ -174,6 +174,8 @@ Input_Action :: enum {
     Crafting_Menu_Confirm;
     Crafting_Menu_Left;
     Crafting_Menu_Right;
+
+    Cheat_Menu_Toggle;
 }
 
 Input_Binding :: struct {
@@ -219,7 +221,7 @@ register_all_input_bindings :: (client: *Client) {
     // engine allocator later on.
     //
 
-    ib: [Input_Action.Count][]Input_Binding = ---;
+    ib: [Input_Action.Count][]Input_Binding = .[];
     ib[.Toggle_Pause_Menu]     = .[ keycode(.Escape), gamepad_button(.PS_Options), gamepad_button(.XBox_Start) ];
     ib[.Toggle_Fullscreen]     = .[ keycode(.F11) ];
     ib[.Move_North]            = .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up) ];
@@ -236,7 +238,8 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Crafting_Menu_Confirm] = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
     ib[.Crafting_Menu_Left]    = .[ keycode(.A), keycode(.Arrow_Left), gamepad_button(.Left_Bumper), gamepad_gesture(.Left_Swipe_Left) ];
     ib[.Crafting_Menu_Right]   = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper), gamepad_gesture(.Left_Swipe_Right) ];
-
+    ib[.Cheat_Menu_Toggle]     = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
+    
     for i := 0; i < ib.Capacity; ++i {
         client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);
     }
