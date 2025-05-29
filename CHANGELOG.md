@@ -4,6 +4,7 @@
 - Implemented for XBox Button Icons for input binding hints
 - Implemented a simple version check to avoid mismatches
 - Implemented a cheat menu for developers to get coins, health or strength
+- Implemented a limit to how many objects can be pushed at once by a guy
 - Improved the lingering of virtual connections to less likely drop crucial information (like client disconnect, game over)
 - Improved the error handling when a local server couldn't be started
 - Fixed a crash when two players dig at the same entity

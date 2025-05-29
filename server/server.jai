@@ -540,7 +540,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 
         distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved during this tick...
         
-        if distance_to_move == 1 && can_move_to_position(server, guy, guy.received_input.position) {
+        if distance_to_move == 1 && can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
             move_to_position(server, guy, guy.received_input.position);
         }
         

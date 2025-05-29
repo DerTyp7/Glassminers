@@ -339,10 +339,10 @@ position_in_bounds :: (server: *Server, position: v2i) -> bool {
     return position.x >= 0 && position.x < server.world_size.x && position.y >= 0 && position.y < server.world_size.y;
 }
 
-can_move_to_position :: (server: *Server, entity: *Entity, position: v2i) -> bool {
+can_move_to_position :: (server: *Server, entity: *Entity, position: v2i, strength: s64) -> bool {
     move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
     if move_delta.x != 0 || move_delta.y != 0 {
-        return recursive_move_check(server, entity, move_delta);
+        return recursive_move_check(server, entity, move_delta, strength);
     } else {
         return true;
     }
@@ -689,7 +689,7 @@ is_emitter_field_at :: (server: *Server, position: v2i) -> bool, Direction {
 
 #file_scope
 
-recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i) -> bool {
+recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i, strength: s64) -> bool {
     assert(move_delta.x != 0 || move_delta.y != 0, "Recursive move check with a delta of 0 leads to an infinite loop!");
 
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
@@ -714,7 +714,7 @@ recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i) -> b
     }
 
     if blocking_entity return false;
-    if pushable_entity && !recursive_move_check(server, pushable_entity, move_delta) return false;
+    if pushable_entity && (strength <= 0 || !recursive_move_check(server, pushable_entity, move_delta, strength - 1)) return false;
 
     return true;
 }
