@@ -96,7 +96,7 @@ Client :: struct {
     //
     // Networking
     //
-    server_data: Shared_Server_Data = .{ .Closed, 0 };
+    server_data: Shared_Server_Data;
     server_thread: Thread;
     connection: Virtual_Connection;
     sent_connection_request: bool;
@@ -272,14 +272,23 @@ input_action_fired :: (client: *Client, action: Input_Action) -> bool {
 
 
 
-host_server :: (client: *Client, port: u16) {
+host_server :: (client: *Client, port: u16) -> bool {
     logprint(.Debug, "Hosting server '%'...", port);
     server_entry_point :: (data: *Shared_Server_Data) -> u32 #foreign;
 
-    client.server_data.state = .Starting;
+    client.server_data.state          = .Starting;
     client.server_data.requested_port = port;
+    client.server_data.startup_error  = .Success;
+
     client.server_thread = create_thread(server_entry_point, *client.server_data, false);
     while atomic_load(cast(*s64) *client.server_data.state) == Server_State.Starting {}
+
+    if client.server_data.state != .Running {
+        set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be started: %.", client.server_data.startup_error);
+        client.next_state = .Main_Menu;
+    }
+
+    return client.server_data.state == .Running;
 }
 
 join_server :: (client: *Client, name: string, host: string, port: u16) {
@@ -621,7 +630,7 @@ do_main_menu :: (client: *Client) {
         return .{ screen.x / (cast(f32) client.window.w - WINDOW_WIDTH), screen.y / (cast(f32) client.window.h - APPROX_WINDOW_HEIGHT) };
     }
 
-    if client.server_data.state != .Closed {
+    if client.server_data.state != .Closed && client.info_text_t <= 0 { // Don't override other error conditions...
         set_temp_info_text(client, "Your local server is still running...");
     }
     
@@ -641,8 +650,7 @@ do_main_menu :: (client: *Client) {
             if !port.valid then { port._int = DEFAULT_PORT; port.valid = true; }
 }
     
-            if name.valid && port.valid {
-                host_server(client, port._int);
+            if name.valid && port.valid && host_server(client, port._int) {
                 join_server(client, name._string, "localhost", port._int);
                 client.immediately_start_game = false;
             }
@@ -658,8 +666,7 @@ do_main_menu :: (client: *Client) {
         do_campaign_selector(client);
         ui_divider(ui, true);
 
-        if client.server_data.state == .Closed && ui_button(ui, "Play!") {
-            host_server(client, DEFAULT_PORT);
+        if client.server_data.state == .Closed && ui_button(ui, "Play!") && host_server(client, DEFAULT_PORT) {
             join_server(client, "YOU", "localhost", DEFAULT_PORT);
             client.immediately_start_game = true;
         }

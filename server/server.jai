@@ -752,6 +752,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         atomic_store(*data.state, Server_State.Running);
     } else {
         logprint(.Error, "Failed to open the server connection: '%'. Shutting down!", result);
+        atomic_store(*data.startup_error, result);
         atomic_store(*data.state, Server_State.Closing);
     }
     

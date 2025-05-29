@@ -1,10 +1,13 @@
 ## 0.1.1 (unreleased)
 
-- Support for gamepad input on Linux
-- Support for XBox Button Icons for input binding hints
+- Implemented for gamepad input on Linux
+- Implemented for XBox Button Icons for input binding hints
+- Implemented a simple version check to avoid mismatches
 - Improved the lingering of virtual connections to less likely drop crucial information (like client disconnect, game over)
+- Improved the error handling when a local server couldn't be started
 - Fixed a crash when two players dig at the same entity
 - Fixed a crash when the game ends with the emitter running out of time
+- Fixed info messages in the main menu never disappearing
 
 ## 0.1.0 (25.05.2025)
 

@@ -77,15 +77,16 @@ find_nearest_point_on_line_segment :: (point: v2f, line: [2]v2f) -> v2f, f32, f3
 /* ----------------------------------------------- Shared Data ----------------------------------------------- */
 
 Server_State :: enum {
+    Closed;
     Starting;
     Running;
     Closing;
-    Closed;
 }
 
 Shared_Server_Data :: struct {
     state: Server_State;
     requested_port: u16;
+    startup_error: Socket_Error;
 }
 
 
