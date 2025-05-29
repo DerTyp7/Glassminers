@@ -8,6 +8,7 @@
 - Fixed a crash when two players dig at the same entity
 - Fixed a crash when the game ends with the emitter running out of time
 - Fixed info messages in the main menu never disappearing
+- Fixed the progress bar missing gaps in small window sizes
 
 ## 0.1.0 (25.05.2025)
 

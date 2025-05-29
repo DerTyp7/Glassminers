@@ -235,7 +235,7 @@ draw_text_screen_space :: (client: *Client, font: *Font, text: string, position:
 draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
     background :: GE_Color.{ 100, 100, 100, 200 };
 
-    gap_size := round(cast(f32) box_size * 0.1);
+    gap_size := ceil(cast(f32) box_size * 0.1);
     
     for i := 0; i < box_count; ++i {
         theta := cast(f32) i / cast(f32) box_count;
