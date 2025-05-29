@@ -698,10 +698,24 @@ recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i) -> b
     if !position_in_bounds(server, position) then return false;
 
     // Make sure the space is unoccupied or can be moved away
-    collision := find_entity_with_flags_at_position(server, .Blocks_Move, position);
-    if collision != null && (!bitfield_contains(*collision.entity_flags, Entity_Flags.Pushable) || !recursive_move_check(server, collision, move_delta)) then return false;
+    pushable_entity: *Entity = null;
+    blocking_entity: *Entity = null;
 
-    // Success!
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if !occupied || entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
+
+        if entity.entity_flags & .Pushable {
+            pushable_entity = entity;
+        } else if entity.entity_flags & .Blocks_Move {
+            blocking_entity = entity;
+            break;
+        }
+    }
+
+    if blocking_entity return false;
+    if pushable_entity && !recursive_move_check(server, pushable_entity, move_delta) return false;
+
     return true;
 }
 
