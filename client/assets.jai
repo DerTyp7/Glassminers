@@ -114,6 +114,30 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
     if !success return false;
 
     //
+    // Make sure all sprite indices are present in the pack
+    //
+    {
+        for i: Sprite_Index = 0; i < Sprite_Index.Count; ++i {
+            found := false;
+
+            for j := 0; j < entries.count; ++j {
+                entry := array_get_pointer(*entries, j);
+                if entry.sprite_index == i {
+                    found = true;
+                    break;
+                }
+            }
+
+            if !found {
+                logprint(.Error, "The sprite identifier '%' isn't present in the sprite pack.", i);
+                success = false;
+            }
+        }
+    }
+
+    if !success return false;
+    
+    //
     // Load all required sprite images into memory
     //
     {

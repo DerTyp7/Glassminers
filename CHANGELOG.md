@@ -9,6 +9,7 @@
 - Fixed a crash when the game ends with the emitter running out of time
 - Fixed info messages in the main menu never disappearing
 - Fixed the progress bar missing gaps in small window sizes
+- Fixed missing error handling when any sprite index is not part of a sprite pack (for developers)
 
 ## 0.1.0 (25.05.2025)
 
