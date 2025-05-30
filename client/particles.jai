@@ -10,7 +10,7 @@ Particle :: struct {
     speed: f32;
     size: v2f;
     color: GE_Color;
-    elapsed_time: f32;
+    elapsed: f32;
     lifetime: f32;
     random_zero_to_one: f32;
 }
@@ -33,6 +33,11 @@ Particle_Emitter :: struct {
         line_strings: []Line_String;
     };
 
+    force_uniform_scale := true;
+    random_initial_velocity := false;
+    turbulence: f32 = 0;
+    fadein, fadeout: f32 = 0.1, 0.3;
+    
     drag: f32 = 0;
     size: [2]v2f = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];
     speed: [2]f32 = .[ 2, 3 ];
@@ -66,7 +71,7 @@ create_particle_emitter :: (#using system: *Particle_System, emitter_index: s64,
     emitter.particles = allocate_array(allocator, Particle, particle_count);
 
     for i := 0; i < emitter.particles.count; ++i {
-        emitter.particles[i].elapsed_time = 0;
+        emitter.particles[i].elapsed = 0;
         emitter.particles[i].lifetime = 0;
     }
     
@@ -89,6 +94,15 @@ update_particle_system :: (#using system: *Particle_System, dt: f32) {
     }
 }
 
+prewarm_particle_system :: (#using system: *Particle_System, total_time: f32, step_time: f32) {
+    t: f32 = 0;
+
+    while t < total_time {
+        update_particle_system(system, step_time);
+        t += step_time;
+    }
+}
+
 
 
 #file_scope
@@ -99,7 +113,7 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
     for i := 0; i < emitter.particles.count; ++i {
         particle := *emitter.particles[i];
 
-        if particle.elapsed_time >= particle.lifetime {
+        if particle.elapsed >= particle.lifetime {
             if alive_t <= 0 || new_particle_accumulator < 1 {
                 continue;
             }
@@ -108,16 +122,16 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
             particle.velocity         = get_spawn_velocity(random, emitter, particle.local_position);
             particle.speed            = random_f32_in(random, emitter.speed[0], emitter.speed[1]);
             particle.size.x           = random_f32_in(random, emitter.size[0].x, emitter.size[1].x);
-            particle.size.y           = random_f32_in(random, emitter.size[0].y, emitter.size[1].y);
+            particle.size.y           = ifx !emitter.force_uniform_scale then random_f32_in(random, emitter.size[0].y, emitter.size[1].y) else particle.size.x;
             particle.color            = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(random));
-            particle.elapsed_time     = 0;
+            particle.elapsed          = 0;
             particle.lifetime         = random_f32_in(random, emitter.lifetime[0], emitter.lifetime[1]);
             particle.random_zero_to_one = random_f32_in(random, 0, 1);
             new_particle_accumulator -= 1;
         }
 
         if shape == .Line_String {
-            target_position, total_travel_distance := get_position_along_line_string(emitter, particle.elapsed_time * particle.speed, particle.random_zero_to_one * 0.7 - 0.35);
+            target_position, total_travel_distance := get_position_along_line_string(emitter, particle.elapsed * particle.speed, particle.random_zero_to_one * 0.7 - 0.35);
 
             // If the line string changed drastically, we don't want to teleport this particle
             // to the next position, since that looks bad. Instead, we just want to kill it.
@@ -130,13 +144,13 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
         } else {
             particle.local_position.x += particle.velocity.x * particle.speed * dt;
             particle.local_position.y += particle.velocity.y * particle.speed * dt;
-            particle.velocity.x += emitter.gravity.x * dt;
-            particle.velocity.y += emitter.gravity.y * dt;
+            particle.velocity.x += emitter.gravity.x * dt + emitter.turbulence * random_f32_in(random, -1, 1);
+            particle.velocity.y += emitter.gravity.y * dt + emitter.turbulence * random_f32_in(random, -1, 1);
             particle.velocity.x *= expf(-emitter.drag * dt);
             particle.velocity.y *= expf(-emitter.drag * dt);
         }
             
-        particle.elapsed_time += dt;
+        particle.elapsed += dt;
     }
 
     alive_t -= dt;
@@ -167,14 +181,17 @@ get_spawn_position :: (random: *Random_Generator, #using emitter: *Particle_Emit
 get_spawn_velocity :: (random: *Random_Generator, #using emitter: *Particle_Emitter, position: v2f) -> v2f {
     velocity: v2f = ---;
 
-    if #complete emitter.shape == {
-      case .Box; velocity = position;
-      case .Cone;
-        theta := random_f32_in(random, emitter.cone_angles[0], emitter.cone_angles[1]);
-        velocity = .{ sinf(theta * FTAU), -cosf(theta * FTAU) };
+    if !emitter.random_initial_velocity {
+        if #complete emitter.shape == {
+          case .Box; velocity = position;
+          case .Cone;
+            theta := random_f32_in(random, emitter.cone_angles[0], emitter.cone_angles[1]);
+            velocity = .{ sinf(theta * FTAU), -cosf(theta * FTAU) };
 
-      case .Line_String;
-        velocity = .{ 0, 0 };
+          case .Line_String; velocity = .{ 0, 0 };
+        }
+    } else {
+        velocity = .{ random_f32_in(random, -1, 1), random_f32_in(random, -1, 1) };
     }
 
     return velocity;

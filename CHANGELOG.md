@@ -1,5 +1,6 @@
 ## 0.1.2 (unreleased)
 
+- Implemented some basic dust particles around the level
 - Improved the logging behavior of client & server
 - Improved the lingering problem *again*. You should (^^) now always get a game over screen.
 

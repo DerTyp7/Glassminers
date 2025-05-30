@@ -382,7 +382,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         for i := 0; i < client.remote_clients.count; ++i {
             rc := array_get_pointer(*client.remote_clients, i);
             if rc.client_pid == msg.client_disconnect.client_pid {
-                deallocate_string(*client.world_allocator, *rc.name);
+                deallocate_string(*client.engine_allocator, *rc.name);
                 array_remove_index(*client.remote_clients, i);
             }        
         }
@@ -395,7 +395,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
                 rc            = array_push(*client.remote_clients);
                 rc.client_pid = msg.player_information.client_pid;
                 rc.entity_pid = msg.player_information.entity_pid;
-                rc.name       = copy_string(*client.world_allocator, msg.player_information.name);
+                rc.name       = copy_string(*client.engine_allocator, msg.player_information.name);
             } else if msg.player_information.entity_pid != INVALID_PID {
                 rc.entity_pid = msg.player_information.entity_pid;
             }
@@ -422,6 +422,25 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.game_seed  = msg.game_start.seed;
         client.world_size = msg.game_start.size;
         client.next_state = .Ingame;
+
+        // Create the dust particles
+        {
+            system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
+            emitter := create_particle_emitter(system, 0, client.world_size.x * 10);
+            emitter.shape = .Box;
+            emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
+            emitter.random_initial_velocity = true;
+            emitter.turbulence = 0.001;
+            emitter.fadein     = 1;
+            emitter.fadeout    = 3;
+            emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
+            emitter.speed      = .[ 0.05, 0.2 ];
+            emitter.lifetime   = .[ 2, 10 ];
+            emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
+            emitter.particles_per_second = xx client.world_size.x;
+
+            prewarm_particle_system(system, 5, 0.1);
+        }
         
       case .Game_Over;
         if msg.game_over.you_won {
@@ -607,11 +626,8 @@ switch_to_next_state :: (client: *Client) {
 
       case .Lobby;
         if client.next_state != .Ingame {
-            stop_all_sounds(client);
-            destroy_entity_manager(client);
             disconnect_from_server(client);
             maybe_shutdown_server(client);
-            reset_allocator(*client.world_allocator);
         }
         
       case .Ingame;
@@ -1072,7 +1088,7 @@ main :: (args: []string) -> s32 {
     create_sound_data(*client);
     register_all_input_bindings(*client);
     
-    client.remote_clients.allocator = *client.world_allocator;
+    client.remote_clients.allocator = *client.engine_allocator;
     client.current_state = .Count;
     client.next_state    = .Main_Menu;
     switch_to_next_state(*client);
