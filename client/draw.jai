@@ -610,7 +610,7 @@ draw_world :: (client: *Client) {
           case .Idle;
             
           case .Dead;
-            draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.epoch_time * FTAU) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
+            draw_circle_world_space(client, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.game_epoch_time * FTAU) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
 
           case .Digging;
             target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
@@ -689,11 +689,11 @@ get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []S
 }
 
 get_epoch_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index) -> Sprite_Index {
-    return get_time_animated_sprite_index(client, frame_time, frames, client.epoch_time, true);
+    return get_time_animated_sprite_index(client, frame_time, frames, client.game_epoch_time, true);
 }
 
 get_visual_hand_position_for_guy :: (client: *Client, guy: *Guy) -> v2f {
-    frame_index := cast(s64) floor(client.epoch_time / 0.5) % 2;
+    frame_index := cast(s64) floor(client.game_epoch_time / 0.5) % 2;
     ONE_PIXEL: f32 : 1 / 16;
 
     // The x and y coordinates are in pixels inside the guy's sprite.
@@ -894,7 +894,7 @@ draw_input_hint_for_guy :: (client: *Client, guy: *Guy) {
     if !target_entity return;
 
     vertical_icon_offset: f32 = 0;
-    icon_size: f32 = 0.25 + sinf(client.epoch_time * FTAU * 2) * 0.05;
+    icon_size: f32 = 0.25 + sinf(client.game_epoch_time * FTAU * 2) * 0.05;
     input_sprites: []Sprite_Index;
 
     if target_entity.entity_kind == {
@@ -1014,7 +1014,7 @@ build_mesh_for_beam :: (client: *Client, beam: *Beam_Data, first_field_as_v: boo
             add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ 0, HALF_HEIGHT * 0.8 }, .{ HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
         } else if i + 1 < beam.fields.count && field.incoming_direction != array_get(*beam.fields, i + 1).incoming_direction {
             mirror_rotation, valid_rotation := get_mirror_rotation_from_reflection(field.incoming_direction, array_get(*beam.fields, i + 1).incoming_direction);
-            assert(valid_rotation, "The Beam Data somehow has a valid corner.");
+            assert(valid_rotation, "The Beam Data somehow has an invalid corner.");
             add_triangle(*vertices, field, .{ -HALF_WIDTH, +HALF_WIDTH }, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ +HALF_WIDTH, -HALF_HEIGHT }, mirror_rotation);
             add_triangle(*vertices, field, .{ -HALF_WIDTH, +HALF_WIDTH }, .{ +HALF_HEIGHT, +HALF_WIDTH }, .{ +HALF_HEIGHT, -HALF_WIDTH }, mirror_rotation);
             add_triangle(*vertices, field, .{ -HALF_WIDTH, +HALF_WIDTH }, .{ +HALF_HEIGHT, -HALF_WIDTH }, .{ +HALF_WIDTH, -HALF_HEIGHT }, mirror_rotation);

@@ -149,7 +149,7 @@ draw_hud :: (client: *Client) {
             recipe := hud.crafting_menu.recipes[i];
             theta  := (cast(f32) i + 0.5) * angle_per_recipe;
             
-            icon_scale_factor := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
+            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
             icon_size := v2f.{ (outer_radius - inner_radius) * icon_scale_factor, (outer_radius - inner_radius) * icon_scale_factor };
             
             // Draw the circle segment
@@ -180,7 +180,7 @@ draw_hud :: (client: *Client) {
         for i := 0; i < Cheat.Count; ++i {
             theta := (cast(f32) i + 0.5) * angle_per_cheat;
 
-            icon_scale_factor := 0.9 + (sinf(client.epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.cheat_menu.animation_t[i];
+            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.cheat_menu.animation_t[i];
             icon_size := v2f.{ (outer_radius - inner_radius) * icon_scale_factor, (outer_radius - inner_radius) * icon_scale_factor };
 
             // Draw the circle segment

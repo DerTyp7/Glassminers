@@ -64,7 +64,6 @@ Client :: struct {
     
     engine_pool: Memory_Pool;
     engine_allocator: Allocator;
-    epoch_time: f32;
     
     current_state: Game_State;
     next_state: Game_State;
@@ -103,19 +102,30 @@ Client :: struct {
     remote_clients: [..]Remote_Client;
     my_client_pid: Pid;
     my_name: string;
+
+    //
+    // Lobby Screen
+    //
+    requested_campaign: Campaign = .Tutorial; // Lobby screen
+    immediately_start_game: bool = false; // Lobby screen, after pressing "single player" in the main menu
     
     //
     // Game Data
     //
     world_pool: Memory_Pool;
     world_allocator: Allocator;
-    requested_campaign: Campaign = .Tutorial; // Lobby screen
-    immediately_start_game: bool = false; // Lobby screen, when coming from a single player
+    tick_arena: Memory_Arena; // For stuff that only needs to live for one update tick. If the game is paused, one tick might span over a lot of frames, so we cannot use temp for this!
+    tick_allocator: Allocator;
+    
     pause_menu_open: bool;
     server_paused_game: bool;
+
     game_seed: s64;
     world_size: v2i;
+
     tick_time: f32;
+    game_epoch_time: f32;
+
     camera: Camera;
     hud: Hud;
     my_entity_pid: Pid;
@@ -391,6 +401,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Game_Pause;
         client.server_paused_game = msg.game_pause.should_pause;
+        toggle_all_game_sounds(client, client.server_paused_game);
         
       case .Game_Start;
         create_hud(client);
@@ -856,7 +867,9 @@ do_game_tick :: (client: *Client) {
     // Update all local entities based on the information received by the server.
     // This also does some basic client-side prediction
     //
-    {
+    if !client.server_paused_game {
+        reset_allocator(*client.tick_allocator);
+        
         for i := 0; i < client.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*client.emitters, i);
             if occupied then update_emitter(client, emitter);
@@ -886,6 +899,8 @@ do_game_tick :: (client: *Client) {
             system, occupied := index_bucket_array(*client.particle_systems, i);
             if occupied then update_particle_system(system, client.tick_time);
         }
+
+        client.game_epoch_time += client.window.frame_time;
     }
 
     outgoing_messages: [..]Message;
@@ -991,7 +1006,7 @@ do_game_tick :: (client: *Client) {
             if input_action_fired(client, .Interact_Secondary) { input.interaction_kind = .Secondary; read_any_input = true; }
         }
             
-        if !client.pause_menu_open && read_any_input {
+        if !client.pause_menu_open && !client.server_paused_game && read_any_input {
             msg := make_message_from(input);
             array_add(*outgoing_messages, msg);
         }
@@ -1021,7 +1036,9 @@ main :: (args: []string) -> s32 {
     client.engine_allocator = allocator_from_memory_pool(*client.engine_pool);
     create_memory_pool(*client.world_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     client.world_allocator = allocator_from_memory_pool(*client.world_pool);
-
+    create_memory_arena(*client.tick_arena, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes, false);
+    client.tick_allocator = allocator_from_memory_arena(*client.tick_arena);
+    
 #if DEVELOPER {
     create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
     if !pack_sprite_atlases_with_watchdog(*client, "data") return -1;
@@ -1163,7 +1180,6 @@ main :: (args: []string) -> s32 {
             update_mixer(*client.mixer);
         }
         
-        client.epoch_time += client.window.frame_time;
         release_temp_allocator(0);
         
         frame_end := os_get_hardware_time();
@@ -1182,6 +1198,7 @@ main :: (args: []string) -> s32 {
     destroy_ui(*client.ui);
     destroy_draw_data(*client);
     destroy_window(*client.window);
+    destroy_memory_arena(*client.tick_arena);
     destroy_memory_pool(*client.world_pool);
     destroy_memory_pool(*client.engine_pool);
     destroy_temp_allocator();

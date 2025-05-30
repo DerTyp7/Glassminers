@@ -416,7 +416,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
 }
 
 update_emitter :: (client: *Client, emitter: *Emitter) {
-    clear_beam_data(*emitter.beam_data);
+    clear_beam_data(client, *emitter.beam_data);
 
     if emitter.particles != INVALID_PID {
         particles := get_particle_system(client, emitter.particles);
@@ -451,7 +451,7 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
         particles.world_position = emitter.visual_position;
         
         particle_emitter := *particles.emitters[0];
-        particle_emitter.line_strings = allocate_array(*temp, Line_String, emitter.beam_data.fields.count);
+        particle_emitter.line_strings = allocate_array(*client.tick_allocator, Line_String, emitter.beam_data.fields.count);
 
         WIDTH: f32 : 0.9;
         
@@ -524,7 +524,7 @@ update_guy :: (client: *Client, guy: *Guy) {
 }
 
 update_frog :: (client: *Client, frog: *Frog) {
-    clear_beam_data(*frog.beam_data);
+    clear_beam_data(client, *frog.beam_data);
 
     if #complete frog.state == {
       case .Idle, .Recovering;
@@ -562,9 +562,9 @@ update_frog :: (client: *Client, frog: *Frog) {
 // Helpers
 //
 
-clear_beam_data :: (data: *Beam_Data) {
+clear_beam_data :: (client: *Client, data: *Beam_Data) {
     array_clear_without_deallocation(*data.fields);
-    data.fields.allocator = *temp;
+    data.fields.allocator = *client.tick_allocator;
 }
 
 recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction: Direction, include_initial_position: bool, max_length: s64) {

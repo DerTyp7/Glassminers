@@ -116,6 +116,19 @@ get_sound_length_in_seconds :: (client: *Client, sound_index: Sound_Index) -> f3
     return cast(f32) sound_data.available_frames / cast(f32) sound_data.sample_rate;
 }
 
+toggle_all_game_sounds :: (client: *Client, pause: bool) {
+    for i := 0; i < client.mixer.player.streams.count; ++i {
+        stream := *client.mixer.player.streams[i];
+
+        if stream.category == .Sound_Effect {
+            if stream.state == .Playing && pause {
+                stream.state = .Paused;
+            } else if stream.state == .Paused && !pause {
+                stream.state = .Playing;
+            }
+        }
+    }
+}
 
 
 #if DEVELOPER {

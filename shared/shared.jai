@@ -121,7 +121,7 @@ NETWORK_PING_INTERVAL: f32 : 0.25;
 // drop some data than wait forever until it actually arrived, but we still want good chances
 // of the data arriving. Therefore, this hack attempts to bring the OS to send the data, before
 // we then actually close the connection...
-NETWORK_DIE_TIME: f32 : 5;
+NETWORK_DIE_TIME: f32 : 3;
 
 #if DEVELOPER {
     NETWORK_TIMEOUT: f32 : 180; // Just to make debugging one endpoint easier

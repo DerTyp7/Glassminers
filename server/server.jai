@@ -658,100 +658,102 @@ do_game_tick :: (server: *Server) {
     read_incoming_packets(server);
     handle_client_timeouts(server);
 
-    //
-    // Update all emitters
-    //
-    for i := 0; i < server.emitters.slot_count; ++i {
-        emitter, occupied := index_bucket_array(*server.emitters, i);
-        if !occupied continue;
+    if !server.game_paused {
+        //
+        // Update all emitters
+        //
+        for i := 0; i < server.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*server.emitters, i);
+            if !occupied continue;
 
-        update_emitter(server, emitter);
+            update_emitter(server, emitter);
 
-        if emitter.time_left_in_seconds <= 0 {
+            if emitter.time_left_in_seconds <= 0 {
+                game_state = .Lost;
+            }
+        }
+        
+        //
+        // Update all receivers
+        //
+        for i := 0; i < server.receivers.slot_count; ++i {
+            receiver, occupied := index_bucket_array(*server.receivers, i);
+            if !occupied continue;
+
+            update_receiver(server, receiver);
+
+            if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
+                game_state = .Won;
+            }
+        }
+
+        //
+        // Update all slab
+        //
+        for i := 0; i < server.slabs.slot_count; ++i {
+            slab, occupied := index_bucket_array(*server.slabs, i);
+            if occupied update_slab(server, slab);
+        }
+        
+        //
+        // Update all frogs
+        //
+        for i := 0; i < server.frogs.slot_count; ++i {
+            frog, occupied := index_bucket_array(*server.frogs, i);
+            if occupied update_frog(server, frog);
+        }
+
+        //
+        // Update all goblins
+        //
+        for i := 0; i < server.goblins.slot_count; ++i {
+            goblin, occupied := index_bucket_array(*server.goblins, i);
+            if occupied update_goblin(server, goblin);
+        }
+        
+        //
+        // Update all guys
+        //
+        number_of_dead_guys := 0;
+        
+        for i := 0; i < server.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*server.guys, i);
+            if !occupied continue;
+
+            if guy.received_input_this_tick && guy.state != .Dead then handle_guy_input(server, guy);
+            guy.received_input_this_tick = false;
+
+            update_guy(server, guy);
+
+            if guy.state == .Dead ++number_of_dead_guys;
+        }
+        
+        //
+        // Update all other kinds entities
+        //
+        for i := 0; i < server.all_entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*server.all_entities, i);
+            if !occupied continue;
+
+            if entity.entity_kind == {
+                case .Trader; update_trader(server, entity);
+                case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
+            }
+        }
+        
+        if number_of_dead_guys == server.clients.count {
             game_state = .Lost;
         }
-    }
-    
-    //
-    // Update all receivers
-    //
-    for i := 0; i < server.receivers.slot_count; ++i {
-        receiver, occupied := index_bucket_array(*server.receivers, i);
-        if !occupied continue;
 
-        update_receiver(server, receiver);
-
-        if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
-            game_state = .Won;
+        if game_state != .Keep_Going {
+            msg := make_message(Game_Over_Message);
+            msg.game_over.you_won = game_state == .Won;
+            array_add(*server.outgoing_messages, msg);
+            server.next_state = .Game_Over;
+            logprint(.Debug, "Game Over!");
         }
     }
-
-    //
-    // Update all slab
-    //
-    for i := 0; i < server.slabs.slot_count; ++i {
-        slab, occupied := index_bucket_array(*server.slabs, i);
-        if occupied update_slab(server, slab);
-    }
-    
-    //
-    // Update all frogs
-    //
-    for i := 0; i < server.frogs.slot_count; ++i {
-        frog, occupied := index_bucket_array(*server.frogs, i);
-        if occupied update_frog(server, frog);
-    }
-
-    //
-    // Update all goblins
-    //
-    for i := 0; i < server.goblins.slot_count; ++i {
-        goblin, occupied := index_bucket_array(*server.goblins, i);
-        if occupied update_goblin(server, goblin);
-    }
-    
-    //
-    // Update all guys
-    //
-    number_of_dead_guys := 0;
-    
-    for i := 0; i < server.guys.slot_count; ++i {
-        guy, occupied := index_bucket_array(*server.guys, i);
-        if !occupied continue;
-
-        if guy.received_input_this_tick && guy.state != .Dead then handle_guy_input(server, guy);
-        guy.received_input_this_tick = false;
-
-        update_guy(server, guy);
-
-        if guy.state == .Dead ++number_of_dead_guys;
-    }
-    
-    //
-    // Update all other kinds entities
-    //
-    for i := 0; i < server.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*server.all_entities, i);
-        if !occupied continue;
-
-        if entity.entity_kind == {
-            case .Trader; update_trader(server, entity);
-            case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
-        }
-    }
-    
-    if number_of_dead_guys == server.clients.count {
-        game_state = .Lost;
-    }
-
-    if game_state != .Keep_Going {
-        msg := make_message(Game_Over_Message);
-        msg.game_over.you_won = game_state == .Won;
-        array_add(*server.outgoing_messages, msg);
-        server.next_state = .Game_Over;
-        logprint(.Debug, "Game Over!");
-    }
-
+        
     //
     // Send all updates to clients.
     //
