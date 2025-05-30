@@ -1,3 +1,7 @@
+## 0.1.2 (unreleased)
+
+- Improved the logging behavior of client & server
+
 ## 0.1.1 (30.05.2025)
 
 - Implemented for gamepad input on Linux

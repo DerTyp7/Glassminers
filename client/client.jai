@@ -136,15 +136,25 @@ Client :: struct {
 
 Log_Level :: enum {
     Debug;
+    Info;
     Warning;
     Error;
 }
 
 logprint :: (level: Log_Level, format: string, args: ..Any) {
-    // @Incomplete: Make this atomic by using a custom Print_Buffer
-    print("[CLIENT][%] ", enum_names(Log_Level)[level]);
-    print(format, ..args);
-    print("\n");
+    ff :: (value: s64) -> Print_Format {
+        return format_int(value, .Decimal, true, false, 2);
+    }
+
+    time := os_get_time(.Local);
+
+    buffer: Print_Buffer = ---;
+    create_stdio_printer(*buffer, *temp);
+    print_into_buffer(*buffer, "[%:%:%]", ff(time.hour), ff(time.minute), ff(time.second));
+    print_into_buffer(*buffer, "[CLIENT][%] ", enum_names(Log_Level)[level]);
+    print_into_buffer(*buffer, format, ..args);
+    print_into_buffer(*buffer, "\n");
+    flush_print_buffer(*buffer);
 }
 
 set_info_text :: (client: *Client, time: f32, format: string, args: ..Any) {
@@ -584,7 +594,7 @@ handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: s
 
 
 switch_to_next_state :: (client: *Client) {
-    logprint(.Debug, "Switching from '%' to '%'...", client.current_state, client.next_state);
+    // logprint(.Debug, "Switching from '%' to '%'...", client.current_state, client.next_state);
 
     if #complete client.current_state == {
       case .Main_Menu, .Game_Over;
@@ -1030,6 +1040,8 @@ main :: (args: []string) -> s32 {
     set_working_directory_to_executable_path();
     os_enable_high_resolution_timer();
     create_temp_allocator(128 * Memory_Unit.Megabytes);
+
+    logprint(.Info, "Starting the client...");
     
     client: Client;
     create_memory_pool(*client.engine_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
@@ -1201,6 +1213,9 @@ main :: (args: []string) -> s32 {
     destroy_memory_arena(*client.tick_arena);
     destroy_memory_pool(*client.world_pool);
     destroy_memory_pool(*client.engine_pool);
+
+    logprint(.Info, "Stopped the client.");
+
     destroy_temp_allocator();
     return 0;
 }

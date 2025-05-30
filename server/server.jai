@@ -90,15 +90,25 @@ Server :: struct {
 
 Log_Level :: enum {
     Debug;
+    Info;
     Warning;
     Error;
 }
 
 logprint :: (level: Log_Level, format: string, args: ..Any) {
-    // @Incomplete: Make this atomic by using a custom Print_Buffer
-    print("[SERVER][%] ", enum_names(Log_Level)[level]);
-    print(format, ..args);
-    print("\n");
+    ff :: (value: s64) -> Print_Format {
+        return format_int(value, .Decimal, true, false, 2);
+    }
+
+    time := os_get_time(.Local);
+
+    buffer: Print_Buffer = ---;
+    create_stdio_printer(*buffer, *temp);
+    print_into_buffer(*buffer, "[%:%:%]", ff(time.hour), ff(time.minute), ff(time.second));
+    print_into_buffer(*buffer, "[SERVER][%] ", enum_names(Log_Level)[level]);
+    print_into_buffer(*buffer, format, ..args);
+    print_into_buffer(*buffer, "\n");
+    flush_print_buffer(*buffer);
 }
 
 find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
@@ -271,7 +281,7 @@ handle_client_timeouts :: (server: *Server) {
 
 
 switch_to_next_state :: (server: *Server) {
-    logprint(.Debug, "Switching from '%' to '%'...", server.current_state, server.next_state);
+    // logprint(.Debug, "Switching from '%' to '%'...", server.current_state, server.next_state);
 
     if #complete server.current_state == {
       case .Lobby; // Ignore
@@ -775,6 +785,8 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     os_enable_high_resolution_timer();
     create_temp_allocator(128 * Memory_Unit.Megabytes);
 
+    logprint(.Info, "Starting the server...");
+
     server: Server;
     create_memory_pool(*server.engine_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     server.engine_allocator = allocator_from_memory_pool(*server.engine_pool);
@@ -795,8 +807,6 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     server.current_state = .Count;
     server.next_state    = .Count;
     server.client_pid_counter = 1;
-    
-    logprint(.Debug, "Started the server.");
     
     server.next_state = .Lobby;
     switch_to_next_state(*server);
@@ -835,7 +845,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     destroy_memory_pool(*server.engine_pool);
     destroy_temp_allocator();
 
-    logprint(.Debug, "Stopped the server.");
+    logprint(.Info, "Stopped the server.");
     
     atomic_store(*data.state, Server_State.Closed);
 
