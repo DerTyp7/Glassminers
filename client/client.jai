@@ -48,7 +48,7 @@ Previous_Game_Result :: enum {
 }
 
 Remote_Client :: struct {
-    player_pid: Pid;
+    client_pid: Pid;
     entity_pid: Pid;
     name: string;
 }
@@ -101,7 +101,7 @@ Client :: struct {
     connection: Virtual_Connection;
     sent_connection_request: bool;
     remote_clients: [..]Remote_Client;
-    my_player_pid: Pid;
+    my_client_pid: Pid;
     my_name: string;
     
     //
@@ -112,6 +112,7 @@ Client :: struct {
     requested_campaign: Campaign = .Tutorial; // Lobby screen
     immediately_start_game: bool = false; // Lobby screen, when coming from a single player
     pause_menu_open: bool;
+    server_paused_game: bool;
     game_seed: s64;
     world_size: v2i;
     tick_time: f32;
@@ -344,20 +345,10 @@ maybe_shutdown_server :: (client: *Client) {
     if success detach_thread(*client.server_thread);
 }
 
-remove_client_by_pid :: (client: *Client, pid: Pid) {
-    for i := 0; i < client.remote_clients.count; ++i {
-        rc := array_get_pointer(*client.remote_clients, i);
-        if rc.player_pid == pid {
-            deallocate_string(*client.world_allocator, *rc.name);
-            array_remove_index(*client.remote_clients, i);
-        }        
-    }
-}
-
 find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
     for i := 0; i < client.remote_clients.count; ++i {
         rc := array_get_pointer(*client.remote_clients, i);
-        if rc.player_pid == pid return rc;
+        if rc.client_pid == pid return rc;
     }
     
     return null;
@@ -366,16 +357,25 @@ find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
       case .Request_Game_Start, .Guy_Input; // Ignore
-
+    
+      case .Client_Disconnect;
+        for i := 0; i < client.remote_clients.count; ++i {
+            rc := array_get_pointer(*client.remote_clients, i);
+            if rc.client_pid == msg.client_disconnect.client_pid {
+                deallocate_string(*client.world_allocator, *rc.name);
+                array_remove_index(*client.remote_clients, i);
+            }        
+        }
+        
       case .Player_Information;
-        if msg.player_information.player_pid != client.my_player_pid {
-            rc := find_client_by_pid(client, msg.player_information.player_pid);
+        if msg.player_information.client_pid != client.my_client_pid {
+            rc := find_client_by_pid(client, msg.player_information.client_pid);
             
             if rc == null {
                 rc            = array_push(*client.remote_clients);
-                rc.player_pid = msg.player_information.player_pid;
-                rc.name       = copy_string(*client.world_allocator, msg.player_information.name);
+                rc.client_pid = msg.player_information.client_pid;
                 rc.entity_pid = msg.player_information.entity_pid;
+                rc.name       = copy_string(*client.world_allocator, msg.player_information.name);
             } else if msg.player_information.entity_pid != INVALID_PID {
                 rc.entity_pid = msg.player_information.entity_pid;
             }
@@ -387,15 +387,17 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             update_camera_matrices(*client.camera, *client.window); // Initialize the camera size
             client.camera.center = calculate_camera_target_position(client, player.physical_position);
         }
-    
-      case .Player_Disconnect;
-        remove_client_by_pid(client, msg.player_disconnect.player_pid);
 
+
+      case .Game_Pause;
+        client.server_paused_game = msg.game_pause.should_pause;
+        
       case .Game_Start;
         create_hud(client);
         create_entity_manager(client);
         client.my_entity_pid = INVALID_PID;
         client.pause_menu_open = false;
+        client.server_paused_game = false;
         client.game_seed  = msg.game_start.seed;
         client.world_size = msg.game_start.size;
         client.next_state = .Ingame;
@@ -534,12 +536,12 @@ read_incoming_packets :: (client: *Client) {
 }
                 }
                 
-                client.my_player_pid = packet.header.sender_client_id;
-                client.connection.info.client_id = client.my_player_pid;
+                client.my_client_pid = packet.header.sender_client_id;
+                client.connection.info.client_id = client.my_client_pid;
                 client.next_state = .Lobby;
                 
                 msg := make_message(Player_Information_Message);
-                msg.player_information.player_pid = client.my_player_pid;
+                msg.player_information.client_pid = client.my_client_pid;
                 msg.player_information.name = client.my_name;
                 send_reliable_message(*client.connection, *msg);
             }
@@ -891,7 +893,14 @@ do_game_tick :: (client: *Client) {
 
     // Do the pause menu
     {
-        if input_action_fired(client, .Toggle_Pause_Menu) client.pause_menu_open = !client.pause_menu_open;
+        if input_action_fired(client, .Toggle_Pause_Menu) {
+            client.pause_menu_open = !client.pause_menu_open;
+
+            msg := make_message(Game_Pause_Message);
+            msg.game_pause.client_pid = client.my_client_pid;
+            msg.game_pause.should_pause = client.pause_menu_open;
+            array_add(*outgoing_messages, msg);
+        }
 
         if client.pause_menu_open {
             ui :: *client.ui;
@@ -1128,7 +1137,14 @@ main :: (args: []string) -> s32 {
               case .Ingame;
                 draw_world(*client);
                 draw_hud(*client);
-                if client.pause_menu_open draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
+
+                if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
+
+                if client.server_paused_game {
+                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2 + 2, xx client.window.h * 0.33 + 2 }, .Center | .Median, .{ 100, 100, 100, 255 });
+                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2, xx client.window.h * 0.33 }, .Center | .Median, .{ 255, 166, 0, 255 });
+                }
+                
                 ge_imm2d_flush(*client.graphics);
             }
 

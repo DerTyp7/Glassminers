@@ -45,9 +45,10 @@ BAKE_ASSETS :: !DEVELOPER;
     
 Remote_Client :: struct {
     connection: Virtual_Connection;
-    player_pid: Pid = INVALID_PID;
+    client_pid: Pid = INVALID_PID;
     entity_pid: Pid = INVALID_PID;
     name: string = "";
+    currently_requesting_pause := false;
 }
 
 Game_State :: enum {
@@ -82,6 +83,7 @@ Server :: struct {
     world_allocator: Allocator;
     game_seed: s64;
     tick_time: f32;
+    game_paused := false;
     world_size: v2i;
     #using em: Entity_Manager;
 }
@@ -102,22 +104,22 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
 find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        if client.player_pid == pid return client;
+        if client.client_pid == pid return client;
     }
     
     return null;
 }
 
 handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
-    logprint(.Debug, "Disconnected from client '%'.", client.player_pid);
+    logprint(.Debug, "Disconnected from client '%'.", client.client_pid);
 
     if server.current_state == .Ingame {
         entity := get_entity(server, client.entity_pid);
         remove_entity(server, entity);
     }
         
-    msg := make_message(Player_Disconnect_Message);
-    msg.player_disconnect.player_pid = client.player_pid;
+    msg := make_message(Client_Disconnect_Message);
+    msg.client_disconnect.client_pid = client.client_pid;
     array_add(*server.outgoing_messages, msg);
     
     if client.name deallocate_string(*server.engine_allocator, *client.name);
@@ -136,15 +138,15 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Player_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Frog_State, .Goblin_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Frog_State, .Goblin_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
-        target := find_client_by_pid(server, msg.player_information.player_pid);
+        target := find_client_by_pid(server, msg.player_information.client_pid);
         for i := 0; i < server.clients.count; ++i {
             source := array_get_pointer(*server.clients, i);
             target_msg := make_message(Player_Information_Message);
-            target_msg.player_information.player_pid = source.player_pid;
+            target_msg.player_information.client_pid = source.client_pid;
             target_msg.player_information.name       = source.name;
             target_msg.player_information.entity_pid = source.entity_pid;
             send_reliable_message(*target.connection, *target_msg);
@@ -154,18 +156,38 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         if target.name deallocate_string(*server.engine_allocator, *target.name);
         target.name = copy_string(*server.engine_allocator, msg.player_information.name);
 
-        logprint(.Debug, "Player '%' set their name to '%'.", target.player_pid, target.name);
+        logprint(.Debug, "Player '%' set their name to '%'.", target.client_pid, target.name);
         
         // Broadcast the message along
         broadcasted_msg := make_message(Player_Information_Message);
-        broadcasted_msg.player_information.player_pid = target.player_pid;
-        broadcasted_msg.player_information.name       = target.name;
+        broadcasted_msg.player_information.client_pid = target.client_pid;
         broadcasted_msg.player_information.entity_pid = target.entity_pid;
+        broadcasted_msg.player_information.name       = target.name;
         array_add(*server.outgoing_messages, broadcasted_msg);
         
       case .Request_Game_Start;
         server.campaign = msg.request_game_start.campaign;
         server.next_state = .Ingame;
+
+      case .Game_Pause;
+        target := find_client_by_pid(server, msg.game_pause.client_pid);
+        target.currently_requesting_pause = msg.game_pause.should_pause;
+
+        paused_before := server.game_paused;
+        server.game_paused = false;
+
+        for i := 0; i < server.clients.count; ++i {
+            if array_get_pointer(*server.clients, i).currently_requesting_pause {
+                server.game_paused = true;
+            }
+        }
+
+        if paused_before != server.game_paused {
+            msg := make_message(Game_Pause_Message);
+            msg.game_pause.client_pid = INVALID_PID;
+            msg.game_pause.should_pause = server.game_paused;
+            array_add(*server.outgoing_messages, msg);
+        }
         
       case .Guy_Input;
         entity := get_entity(server, msg.guy_input.entity_pid);
@@ -185,12 +207,12 @@ read_incoming_packets :: (server: *Server) {
         while found_client {
             client := array_push(*server.clients);
             client.connection = client_connection;
-            client.player_pid = server.client_pid_counter;
+            client.client_pid = server.client_pid_counter;
             client.entity_pid = INVALID_PID;
-            client.connection.info.client_id = client.player_pid;
+            client.connection.info.client_id = client.client_pid;
             ++server.client_pid_counter;
             
-            logprint(.Debug, "Connected to client '%'.", client.player_pid);
+            logprint(.Debug, "Connected to client '%'.", client.client_pid);
 
             found_client, client_connection = accept_tcp_remote_client_connection(*server.connection);
         }
@@ -446,9 +468,9 @@ create_the_game :: (server: *Server) {
         client.entity_pid = entity.pid;
         
         msg := make_message(Player_Information_Message);
-        msg.player_information.player_pid = client.player_pid;
-        msg.player_information.name       = client.name;
+        msg.player_information.client_pid = client.client_pid;
         msg.player_information.entity_pid = client.entity_pid;
+        msg.player_information.name       = client.name;
         array_add(*server.outgoing_messages, msg);            
     }
 

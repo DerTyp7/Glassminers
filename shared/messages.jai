@@ -1,7 +1,8 @@
 Message_Type :: enum {
-    Player_Information :: 0x1;
-    Player_Disconnect;
+    Client_Disconnect :: 0x1;
+    Player_Information;
     Request_Game_Start;
+    Game_Pause;
     Game_Start;
     Game_Over;
     Create_Entity;
@@ -17,21 +18,27 @@ Message_Type :: enum {
     Goblin_State;
 }
 
-Player_Information_Message :: struct {
-    MSG_TYPE :: Message_Type.Player_Information;
-    player_pid: Pid;
-    name: string;
-    entity_pid: Pid;
+Client_Disconnect_Message :: struct {
+    MSG_TYPE :: Message_Type.Client_Disconnect;
+    client_pid: Pid;
 }
 
-Player_Disconnect_Message :: struct {
-    MSG_TYPE :: Message_Type.Player_Disconnect;
-    player_pid: Pid;
+Player_Information_Message :: struct {
+    MSG_TYPE :: Message_Type.Player_Information;
+    client_pid: Pid;
+    entity_pid: Pid;
+    name: string;
 }
 
 Request_Game_Start_Message :: struct {
     MSG_TYPE :: Message_Type.Request_Game_Start;
     campaign: Campaign;
+}
+
+Game_Pause_Message :: struct {
+    MSG_TYPE :: Message_Type.Game_Pause;
+    client_pid: Pid;
+    should_pause: bool;
 }
 
 Game_Start_Message :: struct {
@@ -127,9 +134,10 @@ Message :: struct {
     local_type_id: Type;
     
     #using underlying: union {
+        client_disconnect:  Client_Disconnect_Message;
         player_information: Player_Information_Message;
-        player_disconnect: Player_Disconnect_Message;
         request_game_start: Request_Game_Start_Message;
+        game_pause: Game_Pause_Message;
         game_start: Game_Start_Message;
         game_over: Game_Over_Message;
         create_entity: Create_Entity_Message;
@@ -221,9 +229,10 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
     result: Type = type_id(void);
 
     if #complete type == {
+      case .Client_Disconnect;  result = type_id(Client_Disconnect_Message);
       case .Player_Information; result = type_id(Player_Information_Message);
-      case .Player_Disconnect;  result = type_id(Player_Disconnect_Message);
       case .Request_Game_Start; result = type_id(Request_Game_Start_Message);
+      case .Game_Pause;         result = type_id(Game_Pause_Message);
       case .Game_Start;         result = type_id(Game_Start_Message);
       case .Game_Over;          result = type_id(Game_Over_Message);
       case .Create_Entity;      result = type_id(Create_Entity_Message);
@@ -334,9 +343,10 @@ print_message :: (message: *Message, prefix: string) {
     sprint(*builder, "%", message.msg_type);
     
     if #complete message.msg_type == {
+      case .Client_Disconnect;  sprint(*builder, "%", message.client_disconnect);
       case .Player_Information; sprint(*builder, "%", message.player_information);
-      case .Player_Disconnect;  sprint(*builder, "%", message.player_disconnect);
       case .Request_Game_Start; sprint(*builder, "%", message.request_game_start);
+      case .Game_Pause;         sprint(*builder, "%", message.game_pause);
       case .Game_Start;         sprint(*builder, "%", message.game_start);
       case .Game_Over;          sprint(*builder, "%", message.game_over);
       case .Create_Entity;      sprint(*builder, "%", message.create_entity);
