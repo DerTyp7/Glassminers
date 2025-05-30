@@ -284,19 +284,10 @@ switch_to_next_state :: (server: *Server) {
     // logprint(.Debug, "Switching from '%' to '%'...", server.current_state, server.next_state);
 
     if #complete server.current_state == {
-      case .Lobby; // Ignore
+      case .Lobby, .Game_Over; // Ignore
       case .Ingame;
         destroy_entity_manager(server);
         reset_allocator(*server.world_allocator);
-
-      case .Game_Over;
-        // Give the clients time to cleanly disconnect from the server, see:
-        // https://stackoverflow.com/questions/3757289/when-is-tcp-option-so-linger-0-required
-        for i := 0; i < server.clients.count; ++i {
-            client := array_get(*server.clients, i);
-            destroy_connection(*client.connection);
-        }
-        array_clear(*server.clients);
     }
     
     server.current_state = server.next_state;
@@ -760,7 +751,6 @@ do_game_tick :: (server: *Server) {
             msg.game_over.you_won = game_state == .Won;
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
-            logprint(.Debug, "Game Over!");
         }
     }
         
@@ -824,7 +814,9 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         if #complete server.current_state == {
           case .Lobby; do_lobby_tick(*server);
           case .Ingame; do_game_tick(*server);
-          case .Game_Over; atomic_store(*data.state, Server_State.Closed);
+          case .Game_Over;
+            atomic_store(*data.state, Server_State.Closing);
+            server.next_state = .Count;
         }
 
         release_temp_allocator(0);
@@ -832,13 +824,19 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         tick_end := os_get_hardware_time();
         os_sleep_to_tick_rate(tick_start, tick_end, TICK_RATE);
     }
-
-    server.next_state = .Count; // Shut down all resources that might currently be in use
-    switch_to_next_state(*server);
     
+    logprint(.Info, "Game over, shutting down...");
     atomic_store(*data.state, Server_State.Closing);
+    
+    // Give the TCP connection time to ensure the Game_Over message has reached all clients...
+    // https://stackoverflow.com/questions/3757289/when-is-tcp-option-so-linger-0-required
+    os_sleep(NETWORK_DIE_TIME);
 
-    os_sleep(NETWORK_DIE_TIME); // Give the TCP connection time to ensure the Game_Over message has reached all clients...
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get(*server.clients, i);
+        destroy_connection(*client.connection);
+    }
+    array_clear(*server.clients);
     
     destroy_connection(*server.connection);
     destroy_memory_pool(*server.world_pool);
