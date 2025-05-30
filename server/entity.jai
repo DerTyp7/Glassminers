@@ -68,7 +68,7 @@ Frog :: struct {
     beam_data: Beam_Data = ---;
     state: Frog_State;
     state_t: f32; // How much time this frog spent in the current state
-    damaged_entities_this_attack: [..]Pid; // @Leak when the entity is destroyed
+    damaged_entities_this_attack: [3]Pid; // We don't want to have to dynamically allocate this, because then we'd also have to free it...
 }
 
 Goblin :: struct {
@@ -497,8 +497,7 @@ update_frog :: (server: *Server, frog: *Frog) {
                 // The target guy is actually in reach for the frog's beam. Since we are
                 // checking for line-of-sight, we know the beam can actually reach the guy
                 // like this.
-                array_clear(*frog.damaged_entities_this_attack);
-                frog.damaged_entities_this_attack.allocator = *server.world_allocator;
+                frog.damaged_entities_this_attack = .[ INVALID_PID ];
                 switch_state(server, frog, .Attacking);
             }
         }
@@ -509,9 +508,27 @@ update_frog :: (server: *Server, frog: *Frog) {
         for i := 0; i < frog.beam_data.fields.count; ++i {
             field := array_get(*frog.beam_data.fields, i);
             entity := find_entity_with_flags_at_position(server, .Living, field);
-            if entity && !array_contains(*frog.damaged_entities_this_attack, entity.pid) {
+            if !entity continue;
+            
+            already_damaged := false;
+            first_empty_slot: s64 = -1;
+            for i := 0; i < frog.damaged_entities_this_attack.Capacity; ++i {
+                if frog.damaged_entities_this_attack[i] == INVALID_PID {
+                    first_empty_slot = i;
+                    break;
+                } else if frog.damaged_entities_this_attack[i] == entity.pid {
+                    already_damaged = true;
+                    break;
+                }
+            }
+            
+            if !already_damaged {
                 damage_and_maybe_kill_entity(server, entity, HEALTH_PER_HEART);
-                array_add(*frog.damaged_entities_this_attack, entity.pid);
+                if first_empty_slot != -1 {
+                    frog.damaged_entities_this_attack[first_empty_slot] = entity.pid;
+                } else {
+                    logprint(.Warning, "A frog ran out of available slots in the damaged_entities_this_attack array.");
+                }
             }
         }
         

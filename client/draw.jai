@@ -159,7 +159,7 @@ reload_sprite_atlases_from_disk :: (client: *Client) {
     }
 }
 
-get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index { // @Temporary: The argument must be replaced with Item_Kind once that exists!
+get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
     index: Sprite_Index = ---;
 
     if #complete item == {
@@ -551,7 +551,7 @@ draw_world :: (client: *Client) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        draw_beam(client, *emitter.beam_data, .{ 255, 229, 167, 220 }, emitter.beam_intensity, true);
+        draw_beam(client, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, true);
 
         if emitter.time_left_in_seconds > 0 {
             draw_progress_bar_world_space(client, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
