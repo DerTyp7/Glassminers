@@ -909,6 +909,8 @@ draw_input_hint_for_guy :: (client: *Client, guy: *Guy) {
       case .Mirror;
         if guy.state == .Idle {
             input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary), get_sprite_index_for_input_action(client, .Interact_Secondary) ];
+        } else if guy.state == .Carrying {
+            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Secondary) ];
         }
       case .Emitter;
         if guy.state == .Carrying && guy.carrying_item == .Coal {

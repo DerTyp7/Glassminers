@@ -1,10 +1,11 @@
-## 0.1.1 (unreleased)
+## 0.1.1 (30.05.2025)
 
 - Implemented for gamepad input on Linux
 - Implemented for XBox Button Icons for input binding hints
-- Implemented a simple version check to avoid mismatches
+- Implemented a simple version check between client & server to avoid mismatches
 - Implemented a cheat menu for developers to get coins, health or strength
 - Implemented a limit to how many objects can be pushed at once by a guy
+- Implemented pausing the game (on the server & all clients) if any client has the pause menu open
 - Improved the lingering of virtual connections to less likely drop crucial information (like client disconnect, game over)
 - Improved the error handling when a local server couldn't be started
 - Fixed a crash when two players dig at the same entity
@@ -13,6 +14,7 @@
 - Fixed the progress bar missing gaps in small window sizes
 - Fixed missing error handling when any sprite index is not part of a sprite pack (for developers)
 - Fixed a bug where other guys could be pushed out of lava (by walking into lava themselves)
+- Fixed a missing input hint for turning a mirror if a guy is carrying an item
 
 ## 0.1.0 (25.05.2025)
 
