@@ -1,9 +1,10 @@
-## 0.1.2 (unreleased)
+## 0.1.2 (31.05.2025)
 
 - Added some basic dust particles around the level
 - Added some basic lava particles
 - Added some basic particle effects when digging
 - Added some basic particle effect when taking damage
+- Added some basic particle effect when healing
 - Improved the logging behavior of client & server
 - Improved the lingering problem *again*. You should (^^) now always get a game over screen.
 

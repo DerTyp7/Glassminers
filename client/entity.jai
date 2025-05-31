@@ -48,7 +48,7 @@ Guy :: struct {
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;
     strength_t: f32 = 0;
-    strength_and_heal_particles: Pid = INVALID_PID;
+    strength_particles: Pid = INVALID_PID;
     digging_particles: Pid = INVALID_PID;
 }
 
@@ -423,15 +423,16 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
     //
     if entity.entity_flags & .Living && floor(entity.health / HEALTH_PER_HEART) < floor(entity.previous_tick_health / HEALTH_PER_HEART) {
         system := create_particle_system(client, 1.0, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1);
-        emitter := create_particle_emitter(system, 0, 32);
+        emitter := create_particle_emitter(system, 0, 64);
         emitter.shape = .Box;
-        emitter.box_half_size = .{ 0.1, 0.1 };
+        emitter.box_half_size = .{ 0.15, 0.15 };
         emitter.drag     = 0.7;
         emitter.size     = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];
         emitter.speed    = .[ 3, 5 ];
-        emitter.lifetime = .[ 0.9, 1.0 ];
+        emitter.lifetime = .[ 0.6, 1.0 ];
         emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
         emitter.particles_per_second = 1024;
+        emitter.alive_t  = 0.6;
     }
     
     //
@@ -536,6 +537,18 @@ update_slab :: (client: *Client, slab: *Slab) {
 }
 
 update_guy :: (client: *Client, guy: *Guy) {
+    create_halo_particles :: (client: *Client, guy: *Guy, ttl: f32) -> *Particle_System, *Particle_Emitter {
+        particles := create_particle_system(client, ttl, .{ guy.visual_position.x, guy.visual_position.y - 0.35 }, 1);
+        emitter := create_particle_emitter(particles, 0, 64);
+        emitter.drag = 0.95;
+        emitter.box_half_size = .{ 0.45, 0.15 };
+        emitter.shape_cutout_factor = 0.95;
+        emitter.lifetime = .[ 0.5, 0.7 ];
+        emitter.speed = .[ 0.3, 0.5 ];
+        emitter.gravity = .{ 0, -2 };
+        return particles, emitter;
+    }
+    
     if guy.state == .Resurrecting {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
@@ -543,23 +556,16 @@ update_guy :: (client: *Client, guy: *Guy) {
     //
     // Manage strength particles
     //
-    if guy.strength_t > 0 && guy.strength_and_heal_particles == INVALID_PID {
-        particles := create_particle_system(client, STRENGTH_POTION_TIME, guy.visual_position, 1);
-        emitter := create_particle_emitter(particles, 0, 64);
-        emitter.drag = 0.95;
-        emitter.box_half_size = .{ 0.45, 0.15 };
-        emitter.shape_cutout_factor = 0.95;
-        emitter.lifetime = .[ 0.5, 0.7 ];
-        emitter.speed = .[ 0.3, 0.5 ];
+    if guy.strength_t > 0 && guy.strength_particles == INVALID_PID {
+        system, emitter := create_halo_particles(client, guy, STRENGTH_POTION_TIME);
         emitter.color = .[ .{ 103, 34, 130, 170 }, .{ 164, 37, 214, 170 } ];
-        emitter.gravity = .{ 0, -2 };
-        guy.strength_and_heal_particles = particles.pid;
-    } else if !particle_system_exists(client, guy.strength_and_heal_particles) {
-        guy.strength_and_heal_particles = INVALID_PID;
+        guy.strength_particles = system.pid;
+    } else if !particle_system_exists(client, guy.strength_particles) {
+        guy.strength_particles = INVALID_PID;
     }
 
-    if guy.strength_and_heal_particles != INVALID_PID {
-        particles := get_particle_system(client, guy.strength_and_heal_particles);
+    if guy.strength_particles != INVALID_PID {
+        particles := get_particle_system(client, guy.strength_particles);
         particles.time_to_live = guy.strength_t;
         particles.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
 
@@ -571,6 +577,15 @@ update_guy :: (client: *Client, guy: *Guy) {
         }
     }
 
+    //
+    // Manage heal particles
+    //
+    if guy.health > guy.previous_tick_health {
+        system, emitter := create_halo_particles(client, guy, 1);
+        emitter.alive_t  = 0.5;
+        emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
+    }
+    
     //
     // Manage digging particles
     //
