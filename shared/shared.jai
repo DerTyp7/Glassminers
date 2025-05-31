@@ -8,7 +8,7 @@ v2f :: Vector2_Base(f32);
 Pid :: u32;
 INVALID_PID: Pid : -1;
 
-MAX_LOCAL_PLAYERS :: 1;
+MAX_LOCAL_PLAYERS :: 4;
 
 LOG_MESSAGES :: false;
 

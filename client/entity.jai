@@ -1,6 +1,9 @@
 Camera :: struct {
     DESIRED_VERTICAL_UNITS: f32 : 6.3;
 
+    // @Cleanup: If this remembered the screen space viewport, we could probably save us a lot of
+    // passing the local_player_index around in the draw code...
+    
     ratio: f32;
     world_to_screen: v2f;
     size: v2f;
@@ -150,24 +153,28 @@ destroy_entity_manager :: (client: *Client) {
 // Camera
 //
 
-screen_from_world_position :: (client: *Client, world: v2f) -> v2f {
-    return .{ round((world.x - client.camera.center.x) * client.camera.world_to_screen.x + cast(f32) client.window.w / 2),
-              round((world.y - client.camera.center.y) * client.camera.world_to_screen.y + cast(f32) client.window.h / 2) };
+screen_from_world_position :: (client: *Client, local_player_index: s64, world: v2f) -> v2f {
+    viewport := client.local_players[local_player_index].viewport;
+    camera := *client.local_players[local_player_index].camera;
+    return .{ round((world.x - camera.center.x) * camera.world_to_screen.x + (viewport[2] - viewport[0]) * 0.5),
+              round((world.y - camera.center.y) * camera.world_to_screen.y + (viewport[3] - viewport[1]) * 0.5) };
 }
 
-screen_from_world_size :: (client: *Client, world: v2f) -> v2f {
-    return .{ round(world.x * client.camera.world_to_screen.x), round(world.y * client.camera.world_to_screen.y) };
+screen_from_world_size :: (client: *Client, local_player_index: s64, world: v2f) -> v2f {
+    camera := *client.local_players[local_player_index].camera;
+    return .{ round(world.x * camera.world_to_screen.x), round(world.y * camera.world_to_screen.y) };
 }
 
-screen_from_world_height :: (client: *Client, height: f32) -> f32 {
-    return round(height * client.camera.world_to_screen.y);
+screen_from_world_height :: (client: *Client, local_player_index: s64, height: f32) -> f32 {
+    camera := *client.local_players[local_player_index].camera;
+    return round(height * camera.world_to_screen.y);
 }
 
-update_camera_matrices :: (camera: *Camera, window: *Window) {
-    camera.ratio             = xx window.w / xx window.h;
+update_camera_matrices :: (camera: *Camera, viewport: [4]f32) {
+    camera.ratio             = (viewport[2] - viewport[0]) / (viewport[3] - viewport[1]);
     camera.size.y            = camera.DESIRED_VERTICAL_UNITS;
     camera.size.x            = camera.DESIRED_VERTICAL_UNITS * camera.ratio;
-    camera.world_to_screen.y = xx window.h / camera.DESIRED_VERTICAL_UNITS;
+    camera.world_to_screen.y = (viewport[3] - viewport[1]) / camera.DESIRED_VERTICAL_UNITS;
     camera.world_to_screen.x = camera.world_to_screen.y;
 }
 

@@ -18,20 +18,21 @@ Hud :: struct {
     };
 }
 
-create_hud :: (client: *Client) {
-    client.hud.state = .Disabled;
-    client.hud.crafting_recipe_input_this_frame = .Count;
-    client.hud.cheat_input_this_frame = .Count;
-    client.hud.was_open_this_frame = false;
+create_hud :: (client: *Client, local_player_index: s64) {
+    hud := *client.local_players[local_player_index].hud;
+    hud.state = .Disabled;
+    hud.crafting_recipe_input_this_frame = .Count;
+    hud.cheat_input_this_frame = .Count;
+    hud.was_open_this_frame = false;
 }
 
-update_hud :: (client: *Client) {
-    hud :: *client.hud;
+update_hud :: (client: *Client, local_player_index: s64) {
+    hud := *client.local_players[local_player_index].hud;
 
     hud.was_open_this_frame = hud.state != .Disabled;
     
     if client.pause_menu_open {
-        close_hud(client);
+        close_hud(client, local_player_index);
         return;
     }
     
@@ -47,9 +48,9 @@ update_hud :: (client: *Client) {
     if input_action_fired(client, .Crafting_Menu_Toggle) {
         if hud.state != .Crafting_Menu {
             hud.crafting_menu.selected_recipe = 0;
-            if set_available_crafting_recipes(client) then hud.state = .Crafting_Menu;
+            if set_available_crafting_recipes(client, local_player_index) then hud.state = .Crafting_Menu;
         } else {
-            close_hud(client);
+            close_hud(client, local_player_index);
         }
     }
 
@@ -59,7 +60,7 @@ update_hud :: (client: *Client) {
             hud.state = .Cheat_Menu;
             hud.cheat_menu.selected_cheat = 0;
         } else {
-            close_hud(client);
+            close_hud(client, local_player_index);
         }
     }
 }
@@ -85,7 +86,7 @@ update_hud :: (client: *Client) {
             hud.crafting_recipe_input_this_frame = hud.crafting_menu.recipes[hud.crafting_menu.selected_recipe];
             hud.state = .Disabled;
 
-            if crafting_recipe_looks_doable(client, hud.crafting_recipe_input_this_frame) {
+            if crafting_recipe_looks_doable(client, local_player_index, hud.crafting_recipe_input_this_frame) {
                 play_sound(client, .Crafting_0, false);
             } else {
                 play_sound(client, .Failure_0, false);
@@ -94,12 +95,12 @@ update_hud :: (client: *Client) {
 
         for i := 0; i < hud.crafting_menu.recipes.count; ++i {
             if i == hud.crafting_menu.selected_recipe {
-                client.hud.crafting_menu.animation_t[i] += client.tick_time * 5;
+                hud.crafting_menu.animation_t[i] += client.tick_time * 5;
             } else {
-                client.hud.crafting_menu.animation_t[i] -= client.tick_time * 3;
+                hud.crafting_menu.animation_t[i] -= client.tick_time * 3;
             }
 
-            client.hud.crafting_menu.animation_t[i] = clamp(client.hud.crafting_menu.animation_t[i], 0, 1);
+            hud.crafting_menu.animation_t[i] = clamp(hud.crafting_menu.animation_t[i], 0, 1);
         }
 
       case .Cheat_Menu;
@@ -119,23 +120,24 @@ update_hud :: (client: *Client) {
 
         for i := 0; i < Cheat.Count; ++i {
             if i == hud.cheat_menu.selected_cheat {
-                client.hud.cheat_menu.animation_t[i] += client.tick_time * 5;
+                hud.cheat_menu.animation_t[i] += client.tick_time * 5;
             } else {
-                client.hud.cheat_menu.animation_t[i] -= client.tick_time * 3;
+                hud.cheat_menu.animation_t[i] -= client.tick_time * 3;
             }
 
-            client.hud.cheat_menu.animation_t[i] = clamp(client.hud.cheat_menu.animation_t[i], 0, 1);
+            hud.cheat_menu.animation_t[i] = clamp(hud.cheat_menu.animation_t[i], 0, 1);
         }
     }
 }
 
-draw_hud :: (client: *Client) {
-    hud :: *client.hud;
-
-    guy_entity := get_entity(client, client.my_guy_pid);
-    screen_center := screen_from_world_position(client, guy_entity.visual_position);
-    outer_radius := cast(f32) client.window.h * 0.15;
-    inner_radius := cast(f32) client.window.h * 0.10;
+draw_hud :: (client: *Client, local_player_index: s64) {
+    hud := *client.local_players[local_player_index].hud;
+    local_player := *client.local_players[local_player_index];
+    
+    guy_entity := get_entity(client, local_player.guy_pid);
+    screen_center := screen_from_world_position(client, local_player_index, guy_entity.visual_position);
+    outer_radius := (local_player.viewport[3] - local_player.viewport[1]) * 0.15;
+    inner_radius := (local_player.viewport[3] - local_player.viewport[1]) * 0.10;
     icon_radius  := (inner_radius + outer_radius) * 0.5;
 
     if #complete hud.state == {
@@ -149,7 +151,7 @@ draw_hud :: (client: *Client) {
             recipe := hud.crafting_menu.recipes[i];
             theta  := (cast(f32) i + 0.5) * angle_per_recipe;
             
-            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.crafting_menu.animation_t[i];
+            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * hud.crafting_menu.animation_t[i];
             icon_size := v2f.{ (outer_radius - inner_radius) * icon_scale_factor, (outer_radius - inner_radius) * icon_scale_factor };
             
             // Draw the circle segment
@@ -180,7 +182,7 @@ draw_hud :: (client: *Client) {
         for i := 0; i < Cheat.Count; ++i {
             theta := (cast(f32) i + 0.5) * angle_per_cheat;
 
-            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * client.hud.cheat_menu.animation_t[i];
+            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * hud.cheat_menu.animation_t[i];
             icon_size := v2f.{ (outer_radius - inner_radius) * icon_scale_factor, (outer_radius - inner_radius) * icon_scale_factor };
 
             // Draw the circle segment
@@ -220,22 +222,24 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Strength_Potion,
 ];
 
-set_available_crafting_recipes :: (client: *Client) -> s64 {
+set_available_crafting_recipes :: (client: *Client, local_player_index: s64) -> s64 {
+    hud := *client.local_players[local_player_index].hud;
+
     recipe_count := 0;
 
     for i := 0; i < Crafting_Recipe.Count; ++i {
-        if crafting_recipe_is_enabled(client, i) then ++recipe_count;
+        if crafting_recipe_is_enabled(client, local_player_index, i) then ++recipe_count;
     }
 
     if recipe_count != 0 {
-        client.hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
-        client.hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipe_count);
+        hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
+        hud.crafting_menu.animation_t = allocate_array(*client.world_allocator, f32, recipe_count);
 
         recipe_index := 0;
         for i := 0; i < Crafting_Recipe.Count; ++i {
-            if crafting_recipe_is_enabled(client, i) {
-                client.hud.crafting_menu.recipes[recipe_index] = i;
-                client.hud.crafting_menu.animation_t[recipe_index] = 0;
+            if crafting_recipe_is_enabled(client, local_player_index, i) {
+                hud.crafting_menu.recipes[recipe_index] = i;
+                hud.crafting_menu.animation_t[recipe_index] = 0;
                 ++recipe_index;
             }
         }
@@ -244,21 +248,21 @@ set_available_crafting_recipes :: (client: *Client) -> s64 {
     return recipe_count;
 }
 
-close_hud :: (client: *Client) {
-    hud :: *client.hud;
+close_hud :: (client: *Client, local_player_index: s64) {
+    hud := *client.local_players[local_player_index].hud;
 
     if #complete hud.state == {
       case .Disabled, .Cheat_Menu;
       case .Crafting_Menu;
-        deallocate_array(*client.world_allocator, *client.hud.crafting_menu.recipes);
-        deallocate_array(*client.world_allocator, *client.hud.crafting_menu.animation_t);
+        deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
+        deallocate_array(*client.world_allocator, *hud.crafting_menu.animation_t);
     }
 
     hud.state = .Disabled;
 }
 
-crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bool {
-    guy_entity := get_entity(client, client.my_guy_pid);
+crafting_recipe_looks_doable :: (client: *Client, local_player_index: s64, recipe: Crafting_Recipe) -> bool {
+    guy_entity := get_entity(client, client.local_players[local_player_index].guy_pid);
     guy := down(guy_entity, Guy);
     
     // Check that the target position is actually empty, if required
@@ -271,8 +275,8 @@ crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bo
     return true;
 }
 
-crafting_recipe_is_enabled :: (client: *Client, recipe: Crafting_Recipe) -> bool {
-    guy_entity := get_entity(client, client.my_guy_pid);
+crafting_recipe_is_enabled :: (client: *Client, local_player_index: s64, recipe: Crafting_Recipe) -> bool {
+    guy_entity := get_entity(client, client.local_players[local_player_index].guy_pid);
     guy := down(guy_entity, Guy);
 
     // Check that the target position is actually empty, if required

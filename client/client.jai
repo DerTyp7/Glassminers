@@ -48,10 +48,18 @@ Previous_Game_Result :: enum {
 }
 
 Remote_Player :: struct {
-    local_player_index: s64;
-    client_pid: Pid;
-    guy_pid: Pid;
-    name: string;
+    local_player_index: s64 = -1;
+    client_pid: Pid = INVALID_PID;
+    guy_pid: Pid = INVALID_PID;
+    name: string = "";
+}
+
+Local_Player :: struct {
+    name := "";
+    guy_pid: Pid = INVALID_PID;
+    viewport: [4]f32;
+    camera: Camera;
+    hud: Hud;
 }
 
 Client :: struct {
@@ -102,8 +110,7 @@ Client :: struct {
     sent_connection_request: bool;
     remote_players: [..]Remote_Player;
     my_client_pid: Pid;
-    my_name: string;
-
+    
     //
     // Lobby Screen
     //
@@ -127,9 +134,9 @@ Client :: struct {
     tick_time: f32;
     game_epoch_time: f32;
 
-    camera: Camera;
-    hud: Hud;
-    my_guy_pid: Pid;
+    local_players: [MAX_LOCAL_PLAYERS]Local_Player;
+    local_player_count := 0;
+
     #using em: Entity_Manager;
 }
 
@@ -333,7 +340,8 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
 
     result := create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port);
     if result == .Success {
-        client.my_name    = copy_string(*client.engine_allocator, name);
+        client.local_player_count = 1;
+        client.local_players[0].name = copy_string(*client.engine_allocator, name);
         client.next_state = .Connecting;
     } else {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
@@ -346,7 +354,9 @@ disconnect_from_server :: (client: *Client) {
     logprint(.Debug, "Disconnecting from the server...");
 
     send_connection_closed_packet(*client.connection, 1, .[]);
-    deallocate_string(*client.engine_allocator, *client.my_name);
+    for i := 0; i < client.local_player_count; ++i {
+        deallocate_string(*client.engine_allocator, *client.local_players[i].name);
+    }
     for i := 0; i < client.remote_players.count; ++i {
         deallocate_string(*client.world_allocator, *array_get_pointer(*client.remote_players, i).name);
     }
@@ -404,12 +414,14 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
                 remote_player.guy_pid = msg.player_information.guy_pid;
             }
         } else if msg.player_information.guy_pid != INVALID_PID {
-            client.my_guy_pid = msg.player_information.guy_pid;
+            local_player := *client.local_players[msg.player_information.local_player_index];
+            
+            local_player.guy_pid = msg.player_information.guy_pid;
 
             // Calculate the initial camera position to avoid lerping the first few frames...
-            guy := get_entity(client, client.my_guy_pid);
-            update_camera_matrices(*client.camera, *client.window); // Initialize the camera size
-            client.camera.center = calculate_camera_target_position(client, guy.physical_position);
+            guy := get_entity(client, local_player.guy_pid);
+            update_camera_matrices(*local_player.camera, local_player.viewport); // Initialize the camera size
+            local_player.camera.center = calculate_camera_target_position(client, *local_player.camera, guy.physical_position);
         }
 
       case .Game_Pause;
@@ -417,9 +429,13 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         toggle_all_game_sounds(client, client.server_paused_game);
         
       case .Game_Start;
-        create_hud(client);
         create_entity_manager(client);
-        client.my_guy_pid = INVALID_PID;
+
+        for i := 0; i < client.local_player_count; ++i {
+            create_hud(client, i);
+            client.local_players[i].guy_pid = INVALID_PID;
+        }
+        
         client.pause_menu_open = false;
         client.server_paused_game = false;
         client.game_seed  = msg.game_start.seed;
@@ -582,12 +598,14 @@ read_incoming_packets :: (client: *Client) {
                 client.my_client_pid = packet.header.sender_client_id;
                 client.connection.info.client_id = client.my_client_pid;
                 client.next_state = .Lobby;
-                
-                msg := make_message(Player_Information_Message);
-                msg.player_information.local_player_index = 0;
-                msg.player_information.client_pid = client.my_client_pid;
-                msg.player_information.name = client.my_name;
-                send_reliable_message(*client.connection, *msg);
+
+                for i := 0; i < client.local_player_count; ++i {
+                    msg := make_message(Player_Information_Message);
+                    msg.player_information.local_player_index = i;
+                    msg.player_information.client_pid = client.my_client_pid;
+                    msg.player_information.name = client.local_players[i].name;
+                    send_reliable_message(*client.connection, *msg);
+                }
             }
           
           case Packet_Type.Connection_Closed;
@@ -643,6 +661,26 @@ switch_to_next_state :: (client: *Client) {
     }
 
     client.current_state = client.next_state;
+}
+
+calculate_local_player_viewports :: (client: *Client) {
+    if client.local_player_count < 4 {
+        left_x: f32 = 0;
+        for i := 0; i < client.local_player_count; ++i {
+            // @Cleanup: This won't work well with different window widths...
+            right_x := left_x + (cast(f32) client.window.w / cast(f32) (client.local_player_count + 1));
+            client.local_players[0].viewport = .[ left_x, 0, right_x, xx client.window.h ];
+        }
+    } else if client.local_player_count == 4 {
+        center_x: f32 = xx client.window.w * 0.5;
+        center_y: f32 = xx client.window.h * 0.5;
+        client.local_players[0].viewport = .[ 0, 0, center_x, center_y ];
+        client.local_players[1].viewport = .[ center_x, 0, xx client.window.w, center_y ];
+        client.local_players[2].viewport = .[ 0, center_y, xx client.window.w * 0.5, xx client.window.h ];
+        client.local_players[3].viewport = .[ center_x, center_y, xx client.window.w, xx client.window.h ];
+    } else {
+        panic("Unsupported player amount in calculate_local_player_viewports().");
+    }
 }
 
 
@@ -797,7 +835,9 @@ do_lobby_screen :: (client: *Client) {
         ui_push_width(ui, .Pixels, 256, 1);
         ui_push_window(ui, "Lobby!", .Default, .{ .5, .5 });
         
-        ui_label(ui, false, client.my_name);
+        for i := 0; i < client.local_player_count; ++i {
+            ui_label(ui, false, client.local_players[i].name);
+        }
         
         for i := 0; i < client.remote_players.count; ++i {
             player := array_get_pointer(*client.remote_players, i);
@@ -839,7 +879,7 @@ do_game_over_screen :: (client: *Client) {
     ui_pop_width(ui);
 }
 
-calculate_camera_target_position :: (client: *Client, target_center_position: v2i) -> v2f {
+calculate_camera_target_position :: (client: *Client, camera: *Camera, target_center_position: v2i) -> v2f {
     custom_clamp :: (value, low, high: $T) -> T {
         if low < high {
             return clamp(value, low, high);
@@ -851,7 +891,7 @@ calculate_camera_target_position :: (client: *Client, target_center_position: v2
     room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
                            floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
 
-    half_size := v2f.{ client.camera.size.x / 2 - 0.5, client.camera.size.y / 2 - 0.5 };
+    half_size := v2f.{ camera.size.x / 2 - 0.5, camera.size.y / 2 - 0.5 };
     
     target_camera_position := v2f.{
         custom_clamp(room_position.x, half_size.x, xx client.world_size.x - half_size.x - 1),
@@ -860,11 +900,11 @@ calculate_camera_target_position :: (client: *Client, target_center_position: v2
     return target_camera_position;
 }
 
-calculate_camera_position :: (client: *Client, current_camera_position: v2f, target_center_position: v2i) -> v2f {
-    target_camera_position := calculate_camera_target_position(client, target_center_position);
+calculate_camera_position :: (client: *Client, camera: *Camera, target_center_position: v2i) -> v2f {
+    target_camera_position := calculate_camera_target_position(client, camera, target_center_position);
     speed := 10 * client.tick_time;
-    return .{ lerp_with_snap(current_camera_position.x, target_camera_position.x, speed),
-              lerp_with_snap(current_camera_position.y, target_camera_position.y, speed) };
+    return .{ lerp_with_snap(camera.center.x, target_camera_position.x, speed),
+              lerp_with_snap(camera.center.y, target_camera_position.y, speed) };
 }
 
 get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind {
@@ -978,82 +1018,86 @@ do_game_tick :: (client: *Client) {
             ui_pop_window(ui);
         }
     }
-    
-    // Update the camera
-    {
-        guy := get_entity(client, client.my_guy_pid);
-        client.camera.center = calculate_camera_position(client, client.camera.center, .{ xx guy.physical_position.x, xx guy.physical_position.y });
-        update_camera_matrices(*client.camera, *client.window);
-    }
 
-    // Update the hud
-    {
-        update_hud(client);
-    }
-
-    // Forward guy input to the server
-    {
-        guy_entity := get_entity(client, client.my_guy_pid);
-        guy := down(guy_entity, Guy);
-
-        read_any_input := client.hud.crafting_recipe_input_this_frame != .Count || client.hud.cheat_input_this_frame != .Count;
+    for i := 0; i < client.local_player_count; ++i {
+        local_player := *client.local_players[i];
         
-        input: Guy_Input_Message = ---;
-        input.guy_pid          = client.my_guy_pid;
-        input.position         = guy.physical_position;
-        input.wants_to_move    = false;
-        input.aim_direction    = guy.physical_rotation;
-        input.interaction_kind = .Count;
-        input.crafting_recipe  = client.hud.crafting_recipe_input_this_frame;
-        input.cheat            = client.hud.cheat_input_this_frame;
-        
-        if !client.hud.was_open_this_frame {
-            if input_action_fired(client, .Move_North) {
-                input.position.x    = guy.physical_position.x;
-                input.position.y    = guy.physical_position.y - 1;
-                input.aim_direction = .North;
-                input.wants_to_move = true;
-                read_any_input = true;
-            }
-
-            if input_action_fired(client, .Move_West) {
-                input.position.x    = guy.physical_position.x - 1;
-                input.position.y    = guy.physical_position.y;
-                input.aim_direction = .West;
-                input.wants_to_move = true;
-                read_any_input = true;
-            }
-
-            if input_action_fired(client, .Move_South) {
-                input.position.x    = guy.physical_position.x;
-                input.position.y    = guy.physical_position.y + 1;
-                input.aim_direction = .South;
-                input.wants_to_move = true;
-                read_any_input = true;
-            }
-
-            if input_action_fired(client, .Move_East) {
-                input.position.x    = guy.physical_position.x + 1;
-                input.position.y    = guy.physical_position.y;
-                input.aim_direction = .East;
-                input.wants_to_move = true;
-                read_any_input = true;
-            }
-
-            if input_action_fired(client, .Look_North) { input.aim_direction = .North; read_any_input = true; }
-            if input_action_fired(client, .Look_West)  { input.aim_direction = .West;  read_any_input = true; }
-            if input_action_fired(client, .Look_South) { input.aim_direction = .South; read_any_input = true; }
-            if input_action_fired(client, .Look_East)  { input.aim_direction = .East;  read_any_input = true; }
-            if input_action_fired(client, .Interact_Primary)   { input.interaction_kind = .Primary; read_any_input = true; }
-            if input_action_fired(client, .Interact_Secondary) { input.interaction_kind = .Secondary; read_any_input = true; }
+        // Update the camera
+        {
+            guy := get_entity(client, local_player.guy_pid);
+            local_player.camera.center = calculate_camera_position(client, *local_player.camera, .{ xx guy.physical_position.x, xx guy.physical_position.y });
+            update_camera_matrices(*local_player.camera, local_player.viewport);
         }
+
+        // Update the hud
+        {
+            update_hud(client, i);
+        }
+
+        // Forward guy input to the server
+        {
+            guy_entity := get_entity(client, local_player.guy_pid);
+            guy := down(guy_entity, Guy);
+
+            read_any_input := local_player.hud.crafting_recipe_input_this_frame != .Count || local_player.hud.cheat_input_this_frame != .Count;
             
-        if !client.pause_menu_open && !client.server_paused_game && read_any_input {
-            msg := make_message_from(input);
-            array_add(*outgoing_messages, msg);
+            input: Guy_Input_Message = ---;
+            input.guy_pid          = local_player.guy_pid;
+            input.position         = guy.physical_position;
+            input.wants_to_move    = false;
+            input.aim_direction    = guy.physical_rotation;
+            input.interaction_kind = .Count;
+            input.crafting_recipe  = local_player.hud.crafting_recipe_input_this_frame;
+            input.cheat            = local_player.hud.cheat_input_this_frame;
+            
+            if !local_player.hud.was_open_this_frame {
+                if input_action_fired(client, .Move_North) {
+                    input.position.x    = guy.physical_position.x;
+                    input.position.y    = guy.physical_position.y - 1;
+                    input.aim_direction = .North;
+                    input.wants_to_move = true;
+                    read_any_input = true;
+                }
+
+                if input_action_fired(client, .Move_West) {
+                    input.position.x    = guy.physical_position.x - 1;
+                    input.position.y    = guy.physical_position.y;
+                    input.aim_direction = .West;
+                    input.wants_to_move = true;
+                    read_any_input = true;
+                }
+
+                if input_action_fired(client, .Move_South) {
+                    input.position.x    = guy.physical_position.x;
+                    input.position.y    = guy.physical_position.y + 1;
+                    input.aim_direction = .South;
+                    input.wants_to_move = true;
+                    read_any_input = true;
+                }
+
+                if input_action_fired(client, .Move_East) {
+                    input.position.x    = guy.physical_position.x + 1;
+                    input.position.y    = guy.physical_position.y;
+                    input.aim_direction = .East;
+                    input.wants_to_move = true;
+                    read_any_input = true;
+                }
+
+                if input_action_fired(client, .Look_North) { input.aim_direction = .North; read_any_input = true; }
+                if input_action_fired(client, .Look_West)  { input.aim_direction = .West;  read_any_input = true; }
+                if input_action_fired(client, .Look_South) { input.aim_direction = .South; read_any_input = true; }
+                if input_action_fired(client, .Look_East)  { input.aim_direction = .East;  read_any_input = true; }
+                if input_action_fired(client, .Interact_Primary)   { input.interaction_kind = .Primary; read_any_input = true; }
+                if input_action_fired(client, .Interact_Secondary) { input.interaction_kind = .Secondary; read_any_input = true; }
+            }
+            
+            if !client.pause_menu_open && !client.server_paused_game && read_any_input {
+                msg := make_message_from(input);
+                array_add(*outgoing_messages, msg);
+            }
         }
     }
-
+        
     // Send all outgoing messages
     {
         for i := 0; i < outgoing_messages.count; ++i {
@@ -1169,7 +1213,8 @@ main :: (args: []string) -> s32 {
         {
             update_window(*client.window);
             begin_ui_frame(*client.ui, .{ 128, 24 });
-
+            calculate_local_player_viewports(*client);
+            
             client.tick_time = client.window.frame_time;
             
             if #complete client.current_state == {
@@ -1196,8 +1241,10 @@ main :: (args: []string) -> s32 {
                 }
             
               case .Ingame;
-                draw_world(*client);
-                draw_hud(*client);
+                for i := 0; i < client.local_player_count; ++i {
+                    draw_world(*client, i);
+                    draw_hud(*client, i);
+                }
 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
