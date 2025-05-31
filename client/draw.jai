@@ -1039,7 +1039,8 @@ draw_particle_system :: (client: *Client, system: *Particle_System) {
             particle := *emitter.particles[j];
             
             if particle.elapsed < particle.lifetime {
-                local_alpha := smoothstep(particle.elapsed, 0, emitter.fadein) * (1 - smoothstep(particle.elapsed, particle.lifetime - emitter.fadeout, particle.lifetime));
+                lifetime := min(particle.lifetime, system.time_to_live);
+                local_alpha := smoothstep(particle.elapsed, 0, emitter.fadein) * (1 - smoothstep(particle.elapsed, lifetime - emitter.fadeout, lifetime));
 
                 color := GE_Color.{ particle.color.r, particle.color.g, particle.color.b, cast(u8) (cast(f32) particle.color.a * system.global_alpha * local_alpha) };
                 world_position := v2f.{ particle.local_position.x + local_to_world_position.x, particle.local_position.y + local_to_world_position.y };

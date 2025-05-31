@@ -47,7 +47,8 @@ Guy :: struct {
     carrying_item: Item_Kind = 0;
     resurrection_t: f32 = 0;
     strength_t: f32 = 0;
-    particles: Pid = INVALID_PID;
+    strength_and_heal_particles: Pid = INVALID_PID;
+    digging_particles: Pid = INVALID_PID;
 }
 
 Emitter :: struct {
@@ -494,7 +495,10 @@ update_guy :: (client: *Client, guy: *Guy) {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
 
-    if guy.strength_t > 0 && guy.particles == INVALID_PID {
+    //
+    // Manage strength particles
+    //
+    if guy.strength_t > 0 && guy.strength_and_heal_particles == INVALID_PID {
         particles := create_particle_system(client, STRENGTH_POTION_TIME, guy.visual_position, 1);
         emitter := create_particle_emitter(particles, 0, 64);
         emitter.drag = 0.95;
@@ -504,22 +508,48 @@ update_guy :: (client: *Client, guy: *Guy) {
         emitter.speed = .[ 0.3, 0.5 ];
         emitter.color = .[ .{ 103, 34, 130, 170 }, .{ 164, 37, 214, 170 } ];
         emitter.gravity = .{ 0, -2 };
-        guy.particles = particles.pid;
-    } else if !particle_system_exists(client, guy.particles) {
-        guy.particles = INVALID_PID;
+        guy.strength_and_heal_particles = particles.pid;
+    } else if !particle_system_exists(client, guy.strength_and_heal_particles) {
+        guy.strength_and_heal_particles = INVALID_PID;
     }
 
-    if guy.particles != INVALID_PID {
-        particles := get_particle_system(client, guy.particles);
-        
+    if guy.strength_and_heal_particles != INVALID_PID {
+        particles := get_particle_system(client, guy.strength_and_heal_particles);
         particles.time_to_live = guy.strength_t;
         particles.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
+
         t := guy.strength_t / 10;
         if t <= 1 {
             particles.global_alpha = clamp(1 - powf(1 - t, 2), 0, 1);
         } else {
             particles.global_alpha = 1;
         }
+    }
+
+    //
+    // Manage digging particles
+    //
+    if guy.state == .Digging && guy.digging_particles == INVALID_PID {
+        target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
+        if target_entity {
+            estimated_digging_time: f32 = target_entity.health / GUY_DPS;
+            particles := create_particle_system(client, estimated_digging_time, .{ xx guy.target_position.x, xx guy.target_position.y }, 1);
+            emitter := create_particle_emitter(particles, 0, 32);
+            emitter.shape = .Box;
+            emitter.box_half_size = .{ 0.35, 0.35 };
+            emitter.drag = 4;
+            emitter.lifetime = .[ 0.4, 0.8 ];
+            emitter.color = get_colors_for_digging_particles(target_entity);
+            emitter.particles_per_second = xx emitter.particles.count / emitter.lifetime[1];
+            guy.digging_particles = particles.pid;
+        }
+    } else if guy.state != .Digging && guy.digging_particles != INVALID_PID {
+        if particle_system_exists(client, guy.digging_particles) { // The system might've already been cleaned up by TTL
+            particles := get_particle_system(client, guy.digging_particles);
+            particles.emitters[0].particles_per_second = 0;
+            particles.time_to_live = 0.5;
+        }
+        guy.digging_particles = INVALID_PID;
     }
 }
 
@@ -609,4 +639,17 @@ visual_size_for_entity :: (entity: *Entity) -> v2f {
     }
     
     return size;
+}
+
+get_colors_for_digging_particles :: (target_entity: *Entity) -> [2]GE_Color {
+    colors: [2] GE_Color = ---;
+
+    if target_entity.entity_kind == {
+      case .Bedrock; colors = .[ .{ 102, 102, 102, 220 }, .{ 130, 130, 130, 220 } ];
+      case .Crystal, .Mirror; colors = .[ .{ 70, 115, 206, 150 }, .{ 154, 172, 206, 150 } ];
+      case .Coal; colors = .[ .{ 76, 49, 53, 255 }, .{ 62, 58, 58, 255 } ];
+      case .Rock; colors = .[ .{ 134, 134, 134, 255 }, .{ 192, 192, 192, 255 } ];
+    }
+    
+    return colors;
 }
