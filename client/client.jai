@@ -340,8 +340,10 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
 
     result := create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port);
     if result == .Success {
-        client.local_player_count = 1;
+        // @Temporary
+        client.local_player_count = 2;
         client.local_players[0].name = copy_string(*client.engine_allocator, name);
+        client.local_players[1].name = concatenate_strings(*client.engine_allocator, name, "#1");
         client.next_state = .Connecting;
     } else {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
@@ -668,8 +670,9 @@ calculate_local_player_viewports :: (client: *Client) {
         left_x: f32 = 0;
         for i := 0; i < client.local_player_count; ++i {
             // @Cleanup: This won't work well with different window widths...
-            right_x := left_x + (cast(f32) client.window.w / cast(f32) (client.local_player_count + 1));
-            client.local_players[0].viewport = .[ left_x, 0, right_x, xx client.window.h ];
+            right_x := left_x + (cast(f32) client.window.w / cast(f32) client.local_player_count);
+            client.local_players[i].viewport = .[ left_x, 0, right_x, xx client.window.h ];
+            left_x = right_x + 1;
         }
     } else if client.local_player_count == 4 {
         center_x: f32 = xx client.window.w * 0.5;
@@ -1030,12 +1033,12 @@ do_game_tick :: (client: *Client) {
         }
 
         // Update the hud
-        {
+        if i == 0 {
             update_hud(client, i);
         }
 
         // Forward guy input to the server
-        {
+        if i == 0 {
             guy_entity := get_entity(client, local_player.guy_pid);
             guy := down(guy_entity, Guy);
 
@@ -1246,6 +1249,12 @@ main :: (args: []string) -> s32 {
                     draw_hud(*client, i);
                 }
 
+                for i := 0; i < client.local_player_count; ++i {
+                    for j := i + 1; j < client.local_player_count; ++j {
+                        draw_viewport_borders(*client, *client.local_players[i], *client.local_players[j]);
+                    }
+                }
+                
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
                 if client.server_paused_game {

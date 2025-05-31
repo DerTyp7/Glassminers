@@ -680,6 +680,21 @@ draw_world :: (client: *Client, local_player_index: s64) {
     }
 }
 
+draw_viewport_borders :: (client: *Client, A, B: *Local_Player) {
+    THICKNESS: f32 : 10;
+    COLOR :: GE_Color.{ 255, 255, 255, 255 };
+
+    // @Incomplete: Also support horizontal borders, and vertical border if A is actually on the right
+    
+    if A.viewport[2] + 1 == B.viewport[0] {
+        // These viewports collide share a vertical border
+        x := A.viewport[2] + 1;
+        y0 := min(A.viewport[1], B.viewport[1]);
+        y1 := max(A.viewport[3], B.viewport[3]);
+        draw_line_screen_space(client, .{ x, y0 }, .{ x, y1 }, COLOR, THICKNESS);
+    }
+}
+
 
 
 #file_scope

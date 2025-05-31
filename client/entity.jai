@@ -156,8 +156,8 @@ destroy_entity_manager :: (client: *Client) {
 screen_from_world_position :: (client: *Client, local_player_index: s64, world: v2f) -> v2f {
     viewport := client.local_players[local_player_index].viewport;
     camera := *client.local_players[local_player_index].camera;
-    return .{ round((world.x - camera.center.x) * camera.world_to_screen.x + (viewport[2] - viewport[0]) * 0.5),
-              round((world.y - camera.center.y) * camera.world_to_screen.y + (viewport[3] - viewport[1]) * 0.5) };
+    return .{ round((world.x - camera.center.x) * camera.world_to_screen.x + (viewport[2] - viewport[0]) * 0.5 + viewport[0]),
+              round((world.y - camera.center.y) * camera.world_to_screen.y + (viewport[3] - viewport[1]) * 0.5 + viewport[1]) };
 }
 
 screen_from_world_size :: (client: *Client, local_player_index: s64, world: v2f) -> v2f {
