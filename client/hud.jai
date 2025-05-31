@@ -27,7 +27,8 @@ create_hud :: (client: *Client, local_player_index: s64) {
 }
 
 update_hud :: (client: *Client, local_player_index: s64) {
-    hud := *client.local_players[local_player_index].hud;
+    local_player := *client.local_players[local_player_index];
+    hud := *local_player.hud;
 
     hud.was_open_this_frame = hud.state != .Disabled;
     
@@ -45,7 +46,7 @@ update_hud :: (client: *Client, local_player_index: s64) {
     //
     // Toggle the active state
     //
-    if input_action_fired(client, .Crafting_Menu_Toggle) {
+    if input_action_fired(client, local_player.using_input_devices, .Crafting_Menu_Toggle) {
         if hud.state != .Crafting_Menu {
             hud.crafting_menu.selected_recipe = 0;
             if set_available_crafting_recipes(client, local_player_index) then hud.state = .Crafting_Menu;
@@ -55,7 +56,7 @@ update_hud :: (client: *Client, local_player_index: s64) {
     }
 
 #if DEVELOPER {
-    if input_action_fired(client, .Cheat_Menu_Toggle) {
+    if input_action_fired(client, local_player.using_input_devices, .Cheat_Menu_Toggle) {
         if hud.state != .Cheat_Menu {
             hud.state = .Cheat_Menu;
             hud.cheat_menu.selected_cheat = 0;
@@ -74,15 +75,15 @@ update_hud :: (client: *Client, local_player_index: s64) {
       case .Crafting_Menu;
         if !hud.crafting_menu.recipes.count break;
         
-        if input_action_fired(client, .Crafting_Menu_Left) {
+        if input_action_fired(client, local_player.using_input_devices, .Crafting_Menu_Left) {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe - 1) % hud.crafting_menu.recipes.count;
         }
 
-        if input_action_fired(client, .Crafting_Menu_Right) {
+        if input_action_fired(client, local_player.using_input_devices, .Crafting_Menu_Right) {
             hud.crafting_menu.selected_recipe = (hud.crafting_menu.selected_recipe + 1) % hud.crafting_menu.recipes.count;
         }
 
-        if input_action_fired(client, .Crafting_Menu_Confirm) {
+        if input_action_fired(client, local_player.using_input_devices, .Crafting_Menu_Confirm) {
             hud.crafting_recipe_input_this_frame = hud.crafting_menu.recipes[hud.crafting_menu.selected_recipe];
             hud.state = .Disabled;
 
@@ -104,15 +105,15 @@ update_hud :: (client: *Client, local_player_index: s64) {
         }
 
       case .Cheat_Menu;
-        if input_action_fired(client, .Crafting_Menu_Left) {
+        if input_action_fired(client, local_player.using_input_devices, .Crafting_Menu_Left) {
             hud.cheat_menu.selected_cheat = (hud.cheat_menu.selected_cheat - 1) % Cheat.Count;
         }
 
-        if input_action_fired(client, .Crafting_Menu_Right) {
+        if input_action_fired(client, local_player.using_input_devices, .Crafting_Menu_Right) {
             hud.cheat_menu.selected_cheat = (hud.cheat_menu.selected_cheat + 1) % Cheat.Count;
         }
 
-        if input_action_fired(client, .Crafting_Menu_Confirm) {
+        if input_action_fired(client, local_player.using_input_devices, .Crafting_Menu_Confirm) {
             hud.cheat_input_this_frame = hud.cheat_menu.selected_cheat;
             hud.state = .Disabled;
             play_sound(client, .Crafting_0, false);

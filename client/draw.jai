@@ -678,6 +678,8 @@ draw_world :: (client: *Client, local_player_index: s64) {
             draw_label(client, local_player_index, local_player.name, local_player.guy_pid);
         }
     }
+
+    ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w, xx client.window.h ]);
 }
 
 draw_viewport_borders :: (client: *Client, A, B: *Local_Player) {
