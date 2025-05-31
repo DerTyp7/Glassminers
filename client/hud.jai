@@ -132,7 +132,7 @@ update_hud :: (client: *Client) {
 draw_hud :: (client: *Client) {
     hud :: *client.hud;
 
-    guy_entity := get_entity(client, client.my_entity_pid);
+    guy_entity := get_entity(client, client.my_guy_pid);
     screen_center := screen_from_world_position(client, guy_entity.visual_position);
     outer_radius := cast(f32) client.window.h * 0.15;
     inner_radius := cast(f32) client.window.h * 0.10;
@@ -258,7 +258,7 @@ close_hud :: (client: *Client) {
 }
 
 crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bool {
-    guy_entity := get_entity(client, client.my_entity_pid);
+    guy_entity := get_entity(client, client.my_guy_pid);
     guy := down(guy_entity, Guy);
     
     // Check that the target position is actually empty, if required
@@ -272,7 +272,7 @@ crafting_recipe_looks_doable :: (client: *Client, recipe: Crafting_Recipe) -> bo
 }
 
 crafting_recipe_is_enabled :: (client: *Client, recipe: Crafting_Recipe) -> bool {
-    guy_entity := get_entity(client, client.my_entity_pid);
+    guy_entity := get_entity(client, client.my_guy_pid);
     guy := down(guy_entity, Guy);
 
     // Check that the target position is actually empty, if required

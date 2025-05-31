@@ -601,7 +601,7 @@ draw_world :: (client: *Client) {
         guy, occupied := index_bucket_array(*client.guys, i);
         if !occupied continue;
 
-        if guy.pid == client.my_entity_pid && guy.state != .Dead && position_in_bounds(client, guy.target_position) {
+        if guy.pid == client.my_guy_pid && guy.state != .Dead && position_in_bounds(client, guy.target_position) {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
             draw_outlined_rect_world_space(client, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
         }
@@ -630,7 +630,7 @@ draw_world :: (client: *Client) {
             draw_progress_bar_world_space(client, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
         }
 
-        if guy.pid == client.my_entity_pid then draw_input_hint_for_guy(client, guy);
+        if guy.pid == client.my_guy_pid then draw_input_hint_for_guy(client, guy);
     }
 
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
@@ -659,15 +659,15 @@ draw_world :: (client: *Client) {
     //
     // Draw the guy's name above their entities
     //
-    for i := 0; i < client.remote_clients.count; ++i {
-        rc := array_get_pointer(*client.remote_clients, i);
-        draw_label(client, rc.name, rc.entity_pid);
+    for i := 0; i < client.remote_players.count; ++i {
+        player := array_get_pointer(*client.remote_players, i);
+        draw_label(client, player.name, player.guy_pid);
     }
 
     //
     // Draw an indicate above this guy's entity
     //
-    draw_label(client, "v YOU v", client.my_entity_pid);
+    draw_label(client, "v YOU v", client.my_guy_pid);
 }
 
 

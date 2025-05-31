@@ -42,13 +42,13 @@ BAKE_ASSETS :: !DEVELOPER;
         "", // Hard
     ];
 }
-    
+
 Remote_Client :: struct {
     connection: Virtual_Connection;
     client_pid: Pid = INVALID_PID;
-    entity_pid: Pid = INVALID_PID;
-    name: string = "";
     currently_requesting_pause := false;
+    local_players: [MAX_LOCAL_PLAYERS]struct { guy_pid: Pid = INVALID_PID; name: string = ""; };
+    local_player_count: s64;
 }
 
 Game_State :: enum {
@@ -124,15 +124,19 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
     logprint(.Debug, "Disconnected from client '%'.", client.client_pid);
 
     if server.current_state == .Ingame {
-        entity := get_entity(server, client.entity_pid);
-        remove_entity(server, entity);
+        for i := 0; i < client.local_player_count; ++i {
+            entity := get_entity(server, client.local_players[i].guy_pid);
+            remove_entity(server, entity);
+        }
     }
         
     msg := make_message(Client_Disconnect_Message);
     msg.client_disconnect.client_pid = client.client_pid;
     array_add(*server.outgoing_messages, msg);
     
-    if client.name deallocate_string(*server.engine_allocator, *client.name);
+    for i := 0; i < client.local_player_count; ++i {
+        if client.local_players[i].name deallocate_string(*server.engine_allocator, *client.local_players[i].name);
+    }
     
     array_remove_value_pointer(*server.clients, client);
 }
@@ -152,27 +156,36 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
-        target := find_client_by_pid(server, msg.player_information.client_pid);
+        local_client := find_client_by_pid(server, msg.player_information.client_pid);
         for i := 0; i < server.clients.count; ++i {
-            source := array_get_pointer(*server.clients, i);
-            target_msg := make_message(Player_Information_Message);
-            target_msg.player_information.client_pid = source.client_pid;
-            target_msg.player_information.name       = source.name;
-            target_msg.player_information.entity_pid = source.entity_pid;
-            send_reliable_message(*target.connection, *target_msg);
+            other_client := array_get_pointer(*server.clients, i);
+
+            for i := 0; i < other_client.local_player_count; ++i {
+                other_player := *other_client.local_players[i];
+                
+                target_msg := make_message(Player_Information_Message);
+                target_msg.player_information.local_player_index = i;
+                target_msg.player_information.client_pid = other_client.client_pid;
+                target_msg.player_information.name       = other_player.name;
+                target_msg.player_information.guy_pid    = other_player.guy_pid;
+                send_reliable_message(*local_client.connection, *target_msg);
+            }
         }
         
         // Store the information locally
-        if target.name deallocate_string(*server.engine_allocator, *target.name);
-        target.name = copy_string(*server.engine_allocator, msg.player_information.name);
-
-        logprint(.Debug, "Player '%' set their name to '%'.", target.client_pid, target.name);
+        local_client.local_player_count = max(local_client.local_player_count, msg.player_information.local_player_index + 1);
+        local_player := *local_client.local_players[msg.player_information.local_player_index];
+        if local_player.name deallocate_string(*server.engine_allocator, *local_player.name);
+        local_player.name = copy_string(*server.engine_allocator, msg.player_information.name);
+        
+        logprint(.Debug, "Client '%' set their '%'th name to '%'.", local_client.client_pid, msg.player_information.local_player_index, local_player.name);
         
         // Broadcast the message along
         broadcasted_msg := make_message(Player_Information_Message);
-        broadcasted_msg.player_information.client_pid = target.client_pid;
-        broadcasted_msg.player_information.entity_pid = target.entity_pid;
-        broadcasted_msg.player_information.name       = target.name;
+        broadcasted_msg.player_information.local_player_index = msg.player_information.local_player_index;
+        broadcasted_msg.player_information.client_pid = local_client.client_pid;
+        broadcasted_msg.player_information.guy_pid    = local_player.guy_pid;
+        broadcasted_msg.player_information.name       = local_player.name;
         array_add(*server.outgoing_messages, broadcasted_msg);
         
       case .Request_Game_Start;
@@ -200,7 +213,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         }
         
       case .Guy_Input;
-        entity := get_entity(server, msg.guy_input.entity_pid);
+        entity := get_entity(server, msg.guy_input.guy_pid);
         guy := down(entity, Guy);
 
         // We want to ensure a deterministic order in which entities are updated on the server.
@@ -213,18 +226,19 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
 
 read_incoming_packets :: (server: *Server) {
     if server.current_state == .Lobby {
-        found_client, client_connection := accept_tcp_remote_client_connection(*server.connection);
-        while found_client {
+        client_connection, valid_connection := accept_tcp_remote_client_connection(*server.connection);
+
+        while valid_connection {
             client := array_push(*server.clients);
-            client.connection = client_connection;
-            client.client_pid = server.client_pid_counter;
-            client.entity_pid = INVALID_PID;
+            client.connection   = client_connection;
+            client.client_pid   = server.client_pid_counter;
+            client.local_player_count = 0;
             client.connection.info.client_id = client.client_pid;
             ++server.client_pid_counter;
             
             logprint(.Debug, "Connected to client '%'.", client.client_pid);
 
-            found_client, client_connection = accept_tcp_remote_client_connection(*server.connection);
+            client_connection, valid_connection = accept_tcp_remote_client_connection(*server.connection);
         }
     }
     
@@ -463,16 +477,25 @@ create_the_game :: (server: *Server) {
     //
     // Generate one entity for each player and attach it to the player
     //
+    total_index := 0;
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
-        entity := create_entity(server, .Guy, .{ 2 + i, 2 }, .North);
-        client.entity_pid = entity.pid;
-        
-        msg := make_message(Player_Information_Message);
-        msg.player_information.client_pid = client.client_pid;
-        msg.player_information.entity_pid = client.entity_pid;
-        msg.player_information.name       = client.name;
-        array_add(*server.outgoing_messages, msg);            
+
+        for j := 0; j < client.local_player_count; ++j {
+            player := *client.local_players[j];
+
+            entity := create_entity(server, .Guy, .{ 2 + total_index, 2 }, .North);
+            player.guy_pid = entity.pid;
+            
+            msg := make_message(Player_Information_Message);
+            msg.player_information.local_player_index = j;
+            msg.player_information.client_pid = client.client_pid;
+            msg.player_information.guy_pid    = player.guy_pid;
+            msg.player_information.name       = player.name;
+            array_add(*server.outgoing_messages, msg);
+
+            ++total_index;
+        }
     }
 
     if server.campaign == .Tutorial || server.campaign == .Developer {

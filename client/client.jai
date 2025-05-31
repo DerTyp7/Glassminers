@@ -47,9 +47,10 @@ Previous_Game_Result :: enum {
     Connection_Lost;
 }
 
-Remote_Client :: struct {
+Remote_Player :: struct {
+    local_player_index: s64;
     client_pid: Pid;
-    entity_pid: Pid;
+    guy_pid: Pid;
     name: string;
 }
 
@@ -99,7 +100,7 @@ Client :: struct {
     server_thread: Thread;
     connection: Virtual_Connection;
     sent_connection_request: bool;
-    remote_clients: [..]Remote_Client;
+    remote_players: [..]Remote_Player;
     my_client_pid: Pid;
     my_name: string;
 
@@ -128,7 +129,7 @@ Client :: struct {
 
     camera: Camera;
     hud: Hud;
-    my_entity_pid: Pid;
+    my_guy_pid: Pid;
     #using em: Entity_Manager;
 }
 
@@ -346,10 +347,10 @@ disconnect_from_server :: (client: *Client) {
 
     send_connection_closed_packet(*client.connection, 1, .[]);
     deallocate_string(*client.engine_allocator, *client.my_name);
-    for i := 0; i < client.remote_clients.count; ++i {
-        deallocate_string(*client.world_allocator, *array_get_pointer(*client.remote_clients, i).name);
+    for i := 0; i < client.remote_players.count; ++i {
+        deallocate_string(*client.world_allocator, *array_get_pointer(*client.remote_players, i).name);
     }
-    array_clear(*client.remote_clients);
+    array_clear(*client.remote_players);
 
     destroy_connection(*client.connection);
 }
@@ -365,10 +366,10 @@ maybe_shutdown_server :: (client: *Client) {
     if success detach_thread(*client.server_thread);
 }
 
-find_client_by_pid :: (client: *Client, pid: Pid) -> *Remote_Client {
-    for i := 0; i < client.remote_clients.count; ++i {
-        rc := array_get_pointer(*client.remote_clients, i);
-        if rc.client_pid == pid return rc;
+find_remote_player_by_pid_and_local_index :: (client: *Client, pid: Pid, index: s64) -> *Remote_Player {
+    for i := 0; i < client.remote_players.count; ++i {
+        remote_player := array_get_pointer(*client.remote_players, i);
+        if remote_player.client_pid == pid && remote_player.local_player_index == index return remote_player;
     }
     
     return null;
@@ -379,35 +380,37 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Request_Game_Start, .Guy_Input; // Ignore
     
       case .Client_Disconnect;
-        for i := 0; i < client.remote_clients.count; ++i {
-            rc := array_get_pointer(*client.remote_clients, i);
-            if rc.client_pid == msg.client_disconnect.client_pid {
-                deallocate_string(*client.engine_allocator, *rc.name);
-                array_remove_index(*client.remote_clients, i);
-            }        
+        for i := 0; i < client.remote_players.count; {
+            remote_player := array_get_pointer(*client.remote_players, i);
+            if remote_player.client_pid == msg.client_disconnect.client_pid {
+                deallocate_string(*client.engine_allocator, *remote_player.name);
+                array_remove_index(*client.remote_players, i);
+            } else {
+                ++i;
+            }
         }
         
       case .Player_Information;
         if msg.player_information.client_pid != client.my_client_pid {
-            rc := find_client_by_pid(client, msg.player_information.client_pid);
+            remote_player := find_remote_player_by_pid_and_local_index(client, msg.player_information.client_pid, msg.player_information.local_player_index);
             
-            if rc == null {
-                rc            = array_push(*client.remote_clients);
-                rc.client_pid = msg.player_information.client_pid;
-                rc.entity_pid = msg.player_information.entity_pid;
-                rc.name       = copy_string(*client.engine_allocator, msg.player_information.name);
-            } else if msg.player_information.entity_pid != INVALID_PID {
-                rc.entity_pid = msg.player_information.entity_pid;
+            if remote_player == null {
+                remote_player = array_push(*client.remote_players);
+                remote_player.local_player_index = msg.player_information.local_player_index;
+                remote_player.client_pid = msg.player_information.client_pid;
+                remote_player.guy_pid    = msg.player_information.guy_pid;
+                remote_player.name       = copy_string(*client.engine_allocator, msg.player_information.name);
+            } else if msg.player_information.guy_pid != INVALID_PID {
+                remote_player.guy_pid = msg.player_information.guy_pid;
             }
-        } else if msg.player_information.entity_pid != INVALID_PID {
-            client.my_entity_pid = msg.player_information.entity_pid;
+        } else if msg.player_information.guy_pid != INVALID_PID {
+            client.my_guy_pid = msg.player_information.guy_pid;
 
             // Calculate the initial camera position to avoid lerping the first few frames...
-            player := get_entity(client, client.my_entity_pid);
+            guy := get_entity(client, client.my_guy_pid);
             update_camera_matrices(*client.camera, *client.window); // Initialize the camera size
-            client.camera.center = calculate_camera_target_position(client, player.physical_position);
+            client.camera.center = calculate_camera_target_position(client, guy.physical_position);
         }
-
 
       case .Game_Pause;
         client.server_paused_game = msg.game_pause.should_pause;
@@ -416,7 +419,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Start;
         create_hud(client);
         create_entity_manager(client);
-        client.my_entity_pid = INVALID_PID;
+        client.my_guy_pid = INVALID_PID;
         client.pause_menu_open = false;
         client.server_paused_game = false;
         client.game_seed  = msg.game_start.seed;
@@ -581,6 +584,7 @@ read_incoming_packets :: (client: *Client) {
                 client.next_state = .Lobby;
                 
                 msg := make_message(Player_Information_Message);
+                msg.player_information.local_player_index = 0;
                 msg.player_information.client_pid = client.my_client_pid;
                 msg.player_information.name = client.my_name;
                 send_reliable_message(*client.connection, *msg);
@@ -795,9 +799,9 @@ do_lobby_screen :: (client: *Client) {
         
         ui_label(ui, false, client.my_name);
         
-        for i := 0; i < client.remote_clients.count; ++i {
-            rc := array_get_pointer(*client.remote_clients, i);
-            ui_label(ui, false, rc.name);
+        for i := 0; i < client.remote_players.count; ++i {
+            player := array_get_pointer(*client.remote_players, i);
+            ui_label(ui, false, player.name);
         }
 
         ui_divider(ui, true);
@@ -977,7 +981,7 @@ do_game_tick :: (client: *Client) {
     
     // Update the camera
     {
-        guy := get_entity(client, client.my_entity_pid);
+        guy := get_entity(client, client.my_guy_pid);
         client.camera.center = calculate_camera_position(client, client.camera.center, .{ xx guy.physical_position.x, xx guy.physical_position.y });
         update_camera_matrices(*client.camera, *client.window);
     }
@@ -989,13 +993,13 @@ do_game_tick :: (client: *Client) {
 
     // Forward guy input to the server
     {
-        guy_entity := get_entity(client, client.my_entity_pid);
+        guy_entity := get_entity(client, client.my_guy_pid);
         guy := down(guy_entity, Guy);
 
         read_any_input := client.hud.crafting_recipe_input_this_frame != .Count || client.hud.cheat_input_this_frame != .Count;
         
         input: Guy_Input_Message = ---;
-        input.entity_pid       = client.my_entity_pid;
+        input.guy_pid          = client.my_guy_pid;
         input.position         = guy.physical_position;
         input.wants_to_move    = false;
         input.aim_direction    = guy.physical_rotation;
@@ -1100,7 +1104,7 @@ main :: (args: []string) -> s32 {
     create_sound_data(*client);
     register_all_input_bindings(*client);
     
-    client.remote_clients.allocator = *client.engine_allocator;
+    client.remote_players.allocator = *client.engine_allocator;
     client.current_state = .Count;
     client.next_state    = .Main_Menu;
     switch_to_next_state(*client);

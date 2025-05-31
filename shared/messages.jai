@@ -25,8 +25,9 @@ Client_Disconnect_Message :: struct {
 
 Player_Information_Message :: struct {
     MSG_TYPE :: Message_Type.Player_Information;
+    local_player_index: s64;
     client_pid: Pid;
-    entity_pid: Pid;
+    guy_pid: Pid;
     name: string;
 }
 
@@ -89,7 +90,7 @@ Guy_State_Message :: struct {
 
 Guy_Input_Message :: struct {
     MSG_TYPE :: Message_Type.Guy_Input;
-    entity_pid: Pid;
+    guy_pid: Pid;
     position: v2i;
     wants_to_move: bool;
     aim_direction: Direction;
