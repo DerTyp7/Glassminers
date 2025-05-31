@@ -60,7 +60,8 @@ Local_Player :: struct {
     viewport: [4]f32;
     camera: Camera;
     hud: Hud;
-    using_input_devices: Input_Device = 0;
+    allowed_input_devices: Input_Device = 0;
+    active_input_device: Input_Device;
 }
 
 Client :: struct {
@@ -100,7 +101,6 @@ Client :: struct {
     // Input System
     //
     input_bindings: [Input_Action.Count][]Input_Binding;
-    active_input_device: Input_Device;
     
     //
     // Networking
@@ -277,31 +277,50 @@ register_all_input_bindings :: (client: *Client) {
     }
 }
     
-input_action_fired :: (client: *Client, using_input_device: Input_Device, action: Input_Action) -> bool {
+input_action_fired_for_local_player :: (client: *Client, local_player: *Local_Player, action: Input_Action) -> bool {
     for i := 0; i < client.input_bindings[action].count; ++i {
         binding := client.input_bindings[action][i];
         
         if #complete binding.kind == {
           case .Keyboard;
-            if !bitfield_contains(*using_input_device, Input_Device.Keyboard) break;
+            if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Keyboard) break;
             if client.window.keys[binding.keycode] & .Pressed {
-                client.active_input_device = .Keyboard;
+                local_player.active_input_device = .Keyboard;
                 return true;
             }
             
           case .Gamepad_Button;
-            if !bitfield_contains(*using_input_device, Input_Device.Gamepad) break;
+            if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
             if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed {
-                client.active_input_device = .Gamepad;
+                local_player.active_input_device = .Gamepad;
                 return true;
             }
 
           case .Gamepad_Gesture;
-            if !bitfield_contains(*using_input_device, Input_Device.Gamepad) break;
+            if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
             if client.window.connected_gamepads && client.window.gamepads[0].gestures[binding.gamepad_gesture] {
-                client.active_input_device = .Gamepad;
+                local_player.active_input_device = .Gamepad;
                 return true;
             }
+        }
+    }
+
+    return false;
+}
+
+input_action_fired_for_global :: (client: *Client, action: Input_Action) -> bool {
+    for i := 0; i < client.input_bindings[action].count; ++i {
+        binding := client.input_bindings[action][i];
+        
+        if #complete binding.kind == {
+          case .Keyboard;
+            if client.window.keys[binding.keycode] & .Pressed return true;
+            
+          case .Gamepad_Button;
+            if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed return true;
+
+          case .Gamepad_Gesture;
+            if client.window.connected_gamepads && client.window.gamepads[0].gestures[binding.gamepad_gesture] return true;
         }
     }
 
@@ -348,9 +367,9 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
         // @Temporary
         client.local_player_count = 2;
         client.local_players[0].name = copy_string(*client.engine_allocator, name);
-        client.local_players[0].using_input_devices = .Keyboard;
+        client.local_players[0].allowed_input_devices = .Keyboard | .Gamepad;
         client.local_players[1].name = concatenate_strings(*client.engine_allocator, name, "#1");
-        client.local_players[1].using_input_devices = .Gamepad;
+        client.local_players[1].allowed_input_devices = .Gamepad;
         client.next_state = .Connecting;
     } else {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
@@ -833,6 +852,10 @@ do_connecting_screen :: (client: *Client) {
 }
 
 do_lobby_screen :: (client: *Client) {
+    sprite_index_widget :: (client: *Client, index: Sprite_Index) {
+        // @Incomplete
+    }
+
     read_incoming_packets(client);
     handle_server_timeout(client, .Main_Menu, "The server died.");
 
@@ -846,7 +869,10 @@ do_lobby_screen :: (client: *Client) {
         ui_push_window(ui, "Lobby!", .Default, .{ .5, .5 });
         
         for i := 0; i < client.local_player_count; ++i {
+            ui_push_container(ui, .Horizontal);
             ui_label(ui, false, client.local_players[i].name);
+            // @Incomplete
+            ui_pop_container(ui);
         }
         
         for i := 0; i < client.remote_players.count; ++i {
@@ -1000,7 +1026,7 @@ do_game_tick :: (client: *Client) {
 
     // Do the pause menu
     {
-        if input_action_fired(client, .ALL, .Toggle_Pause_Menu) {
+        if input_action_fired_for_global(client, .Toggle_Pause_Menu) {
             client.pause_menu_open = !client.pause_menu_open;
 
             msg := make_message(Game_Pause_Message);
@@ -1061,7 +1087,7 @@ do_game_tick :: (client: *Client) {
             input.cheat            = local_player.hud.cheat_input_this_frame;
             
             if !local_player.hud.was_open_this_frame {
-                if input_action_fired(client, local_player.using_input_devices, .Move_North) {
+                if input_action_fired_for_local_player(client, local_player, .Move_North) {
                     input.position.x    = guy.physical_position.x;
                     input.position.y    = guy.physical_position.y - 1;
                     input.aim_direction = .North;
@@ -1069,7 +1095,7 @@ do_game_tick :: (client: *Client) {
                     read_any_input = true;
                 }
 
-                if input_action_fired(client, local_player.using_input_devices, .Move_West) {
+                if input_action_fired_for_local_player(client, local_player, .Move_West) {
                     input.position.x    = guy.physical_position.x - 1;
                     input.position.y    = guy.physical_position.y;
                     input.aim_direction = .West;
@@ -1077,7 +1103,7 @@ do_game_tick :: (client: *Client) {
                     read_any_input = true;
                 }
 
-                if input_action_fired(client, local_player.using_input_devices, .Move_South) {
+                if input_action_fired_for_local_player(client, local_player, .Move_South) {
                     input.position.x    = guy.physical_position.x;
                     input.position.y    = guy.physical_position.y + 1;
                     input.aim_direction = .South;
@@ -1085,7 +1111,7 @@ do_game_tick :: (client: *Client) {
                     read_any_input = true;
                 }
 
-                if input_action_fired(client, local_player.using_input_devices, .Move_East) {
+                if input_action_fired_for_local_player(client, local_player, .Move_East) {
                     input.position.x    = guy.physical_position.x + 1;
                     input.position.y    = guy.physical_position.y;
                     input.aim_direction = .East;
@@ -1093,12 +1119,12 @@ do_game_tick :: (client: *Client) {
                     read_any_input = true;
                 }
 
-                if input_action_fired(client, local_player.using_input_devices, .Look_North) { input.aim_direction = .North; read_any_input = true; }
-                if input_action_fired(client, local_player.using_input_devices, .Look_West)  { input.aim_direction = .West;  read_any_input = true; }
-                if input_action_fired(client, local_player.using_input_devices, .Look_South) { input.aim_direction = .South; read_any_input = true; }
-                if input_action_fired(client, local_player.using_input_devices, .Look_East)  { input.aim_direction = .East;  read_any_input = true; }
-                if input_action_fired(client, local_player.using_input_devices, .Interact_Primary)   { input.interaction_kind = .Primary; read_any_input = true; }
-                if input_action_fired(client, local_player.using_input_devices, .Interact_Secondary) { input.interaction_kind = .Secondary; read_any_input = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_North) { input.aim_direction = .North; read_any_input = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_West)  { input.aim_direction = .West;  read_any_input = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_South) { input.aim_direction = .South; read_any_input = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_East)  { input.aim_direction = .East;  read_any_input = true; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Primary)   { input.interaction_kind = .Primary; read_any_input = true; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary) { input.interaction_kind = .Secondary; read_any_input = true; }
             }
             
             if !client.pause_menu_open && !client.server_paused_game && read_any_input {
@@ -1209,7 +1235,7 @@ main :: (args: []string) -> s32 {
         //
         if client.current_state != client.next_state switch_to_next_state(*client);
         
-        if input_action_fired(*client, .ALL, .Toggle_Fullscreen) {
+        if input_action_fired_for_global(*client, .Toggle_Fullscreen) {
             if client.window.fullscreen {
                 set_window_style(*client.window, .Maximized);
             } else {

@@ -172,7 +172,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
     return index;
 }
 
-get_sprite_index_for_input_action :: (client: *Client, action: Input_Action) -> Sprite_Index {
+get_sprite_index_for_input_action :: (client: *Client, local_player_index: s64, action: Input_Action) -> Sprite_Index {
     is_vendor_appropriate_gamepad_binding :: (gamepad: *Window_Gamepad, button: Window_Gamepad_Button_Code) -> bool {
         result: bool = ---;
 
@@ -188,20 +188,22 @@ get_sprite_index_for_input_action :: (client: *Client, action: Input_Action) -> 
         return result;
     }
 
+    local_player := *client.local_players[local_player_index];
+    
     for i := 0; i < client.input_bindings[action].count; ++i {
         binding := *client.input_bindings[action][i];
 
         if #complete binding.kind == {
           case .Keyboard;
-            if client.active_input_device == .Keyboard {
+            if local_player.active_input_device == .Keyboard {
                 return get_sprite_index_for_key_code(binding.keycode);
             }
           case .Gamepad_Button;
-            if client.active_input_device == .Gamepad && is_vendor_appropriate_gamepad_binding(*client.window.gamepads[0], binding.gamepad_button) {
+            if local_player.active_input_device == .Gamepad && is_vendor_appropriate_gamepad_binding(*client.window.gamepads[0], binding.gamepad_button) {
                 return get_sprite_index_for_gamepad_button(binding.gamepad_button);
             }
           case .Gamepad_Gesture;
-            if client.active_input_device == .Gamepad {
+            if local_player.active_input_device == .Gamepad {
                 return get_sprite_index_for_gamepad_gesture(binding.gamepad_gesture);
             }
         }
@@ -927,36 +929,36 @@ draw_input_hint_for_guy :: (client: *Client, local_player_index: s64, guy: *Guy)
     if target_entity.entity_kind == {
       case .Bedrock, .Crystal, .Rock, .Coal;
         if guy.state == .Idle {
-            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
         }
       case .Lava;
         if guy.state == .Carrying && guy.carrying_item == .Stone {
-            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
         }
       case .Mirror;
         if guy.state == .Idle {
-            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary), get_sprite_index_for_input_action(client, .Interact_Secondary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary), get_sprite_index_for_input_action(client, local_player_index, .Interact_Secondary) ];
         } else if guy.state == .Carrying {
-            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Secondary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Secondary) ];
         }
       case .Emitter;
         if guy.state == .Carrying && guy.carrying_item == .Coal {
-            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
         }
       case .Trader;
         if guy.state == .Idle || guy.state == .Carrying {
-            input_sprites = .[ get_sprite_index_for_input_action(client, .Crafting_Menu_Toggle) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Crafting_Menu_Toggle) ];
         }
       case .Guy;
         if guy.state == .Idle {
             other_guy := down(target_entity, Guy);
             if other_guy.state == .Dead {
-                input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+                input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
             }
         }
       case .Item_Stack;
         if guy.state == .Idle {
-            input_sprites = .[ get_sprite_index_for_input_action(client, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
             vertical_icon_offset = 0.25;
         }
     }
