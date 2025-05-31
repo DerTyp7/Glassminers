@@ -1,6 +1,7 @@
 Message_Type :: enum {
     Client_Disconnect :: 0x1;
     Player_Information;
+    Remove_Local_Player;
     Request_Game_Start;
     Game_Pause;
     Game_Start;
@@ -29,6 +30,12 @@ Player_Information_Message :: struct {
     client_pid: Pid;
     guy_pid: Pid;
     name: string;
+}
+
+Remove_Local_Player_Message :: struct {
+    MSG_TYPE :: Message_Type.Remove_Local_Player;
+    local_player_index: s64;
+    client_pid: Pid;
 }
 
 Request_Game_Start_Message :: struct {
@@ -137,6 +144,7 @@ Message :: struct {
     #using underlying: union {
         client_disconnect:  Client_Disconnect_Message;
         player_information: Player_Information_Message;
+        remove_local_player: Remove_Local_Player_Message;
         request_game_start: Request_Game_Start_Message;
         game_pause: Game_Pause_Message;
         game_start: Game_Start_Message;
@@ -232,6 +240,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
     if #complete type == {
       case .Client_Disconnect;  result = type_id(Client_Disconnect_Message);
       case .Player_Information; result = type_id(Player_Information_Message);
+      case .Remove_Local_Player; result = type_id(Remove_Local_Player_Message);
       case .Request_Game_Start; result = type_id(Request_Game_Start_Message);
       case .Game_Pause;         result = type_id(Game_Pause_Message);
       case .Game_Start;         result = type_id(Game_Start_Message);
@@ -346,6 +355,7 @@ print_message :: (message: *Message, prefix: string) {
     if #complete message.msg_type == {
       case .Client_Disconnect;  sprint(*builder, "%", message.client_disconnect);
       case .Player_Information; sprint(*builder, "%", message.player_information);
+      case .Remove_Local_Player; sprint(*builder, "%", message.remove_local_player);
       case .Request_Game_Start; sprint(*builder, "%", message.request_game_start);
       case .Game_Pause;         sprint(*builder, "%", message.game_pause);
       case .Game_Start;         sprint(*builder, "%", message.game_start);

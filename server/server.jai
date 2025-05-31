@@ -43,11 +43,16 @@ BAKE_ASSETS :: !DEVELOPER;
     ];
 }
 
+Local_Player :: struct {
+    guy_pid: Pid = INVALID_PID;
+    name := "";
+}
+
 Remote_Client :: struct {
     connection: Virtual_Connection;
     client_pid: Pid = INVALID_PID;
     currently_requesting_pause := false;
-    local_players: [MAX_LOCAL_PLAYERS]struct { guy_pid: Pid = INVALID_PID; name: string = ""; };
+    local_players: [MAX_LOCAL_PLAYERS]Local_Player;
     local_player_count: s64;
 }
 
@@ -160,11 +165,11 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         for i := 0; i < server.clients.count; ++i {
             other_client := array_get_pointer(*server.clients, i);
 
-            for i := 0; i < other_client.local_player_count; ++i {
-                other_player := *other_client.local_players[i];
+            for j := 0; j < other_client.local_player_count; ++j {
+                other_player := *other_client.local_players[j];
                 
                 target_msg := make_message(Player_Information_Message);
-                target_msg.player_information.local_player_index = i;
+                target_msg.player_information.local_player_index = j;
                 target_msg.player_information.client_pid = other_client.client_pid;
                 target_msg.player_information.name       = other_player.name;
                 target_msg.player_information.guy_pid    = other_player.guy_pid;
@@ -186,6 +191,19 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         broadcasted_msg.player_information.client_pid = local_client.client_pid;
         broadcasted_msg.player_information.guy_pid    = local_player.guy_pid;
         broadcasted_msg.player_information.name       = local_player.name;
+        array_add(*server.outgoing_messages, broadcasted_msg);
+
+      case .Remove_Local_Player;
+        local_client := find_client_by_pid(server, msg.remove_local_player.client_pid);
+        if msg.remove_local_player.local_player_index + 1 < local_client.local_player_count {
+            copy_memory(*local_client.local_players[msg.remove_local_player.local_player_index], *local_client.local_players[msg.remove_local_player.local_player_index + 1], (local_client.local_player_count - msg.remove_local_player.local_player_index - 1) * size_of(Local_Player));
+        }
+        --local_client.local_player_count;
+
+        // Broadcast the message along
+        broadcasted_msg := make_message(Remove_Local_Player_Message);
+        broadcasted_msg.remove_local_player.local_player_index = msg.remove_local_player.local_player_index;
+        broadcasted_msg.remove_local_player.client_pid = local_client.client_pid;
         array_add(*server.outgoing_messages, broadcasted_msg);
         
       case .Request_Game_Start;

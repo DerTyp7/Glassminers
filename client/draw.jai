@@ -1,6 +1,10 @@
 Sprite_Index :: enum {
     // HUD
     Heart;
+
+    Hud_Keyboard;
+    Hud_Gamepad;
+    Hud_Keyboard_Gamepad;
     Hud_PS_Circle;
     Hud_PS_Cross;
     Hud_PS_Triangle;

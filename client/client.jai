@@ -364,12 +364,9 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
 
     result := create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port);
     if result == .Success {
-        // @Temporary
-        client.local_player_count = 2;
+        client.local_player_count = 1;
         client.local_players[0].name = copy_string(*client.engine_allocator, name);
         client.local_players[0].allowed_input_devices = .Keyboard | .Gamepad;
-        client.local_players[1].name = concatenate_strings(*client.engine_allocator, name, "#1");
-        client.local_players[1].allowed_input_devices = .Gamepad;
         client.next_state = .Connecting;
     } else {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
@@ -386,7 +383,7 @@ disconnect_from_server :: (client: *Client) {
         deallocate_string(*client.engine_allocator, *client.local_players[i].name);
     }
     for i := 0; i < client.remote_players.count; ++i {
-        deallocate_string(*client.world_allocator, *array_get_pointer(*client.remote_players, i).name);
+        deallocate_string(*client.engine_allocator, *array_get_pointer(*client.remote_players, i).name);
     }
     array_clear(*client.remote_players);
 
@@ -421,6 +418,19 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         for i := 0; i < client.remote_players.count; {
             remote_player := array_get_pointer(*client.remote_players, i);
             if remote_player.client_pid == msg.client_disconnect.client_pid {
+                deallocate_string(*client.engine_allocator, *remote_player.name);
+                array_remove_index(*client.remote_players, i);
+            } else {
+                ++i;
+            }
+        }
+
+      case .Remove_Local_Player;
+        if msg.remove_local_player.client_pid == client.my_client_pid break;
+        
+        for i := 0; i < client.remote_players.count; {
+            remote_player := array_get_pointer(*client.remote_players, i);
+            if remote_player.client_pid == msg.remove_local_player.client_pid && remote_player.local_player_index == msg.remove_local_player.local_player_index {
                 deallocate_string(*client.engine_allocator, *remote_player.name);
                 array_remove_index(*client.remote_players, i);
             } else {
@@ -602,6 +612,14 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
     }
 }
 
+send_player_information_message :: (client: *Client, local_player_index: s64) {
+    msg := make_message(Player_Information_Message);
+    msg.player_information.local_player_index = local_player_index;
+    msg.player_information.client_pid = client.my_client_pid;
+    msg.player_information.name = client.local_players[local_player_index].name;
+    send_reliable_message(*client.connection, *msg);
+}
+
 read_incoming_packets :: (client: *Client) {
     while read_packet(*client.connection) {
         packet :: *client.connection.incoming_packet;
@@ -628,11 +646,7 @@ read_incoming_packets :: (client: *Client) {
                 client.next_state = .Lobby;
 
                 for i := 0; i < client.local_player_count; ++i {
-                    msg := make_message(Player_Information_Message);
-                    msg.player_information.local_player_index = i;
-                    msg.player_information.client_pid = client.my_client_pid;
-                    msg.player_information.name = client.local_players[i].name;
-                    send_reliable_message(*client.connection, *msg);
+                    send_player_information_message(client, i);
                 }
             }
           
@@ -852,8 +866,41 @@ do_connecting_screen :: (client: *Client) {
 }
 
 do_lobby_screen :: (client: *Client) {
-    sprite_index_widget :: (client: *Client, index: Sprite_Index) {
-        // @Incomplete
+    input_device_widget :: (client: *Client, label: string, allowed_devices: *Input_Device) {
+        Custom_State :: struct {
+            allowed_devices: *Input_Device;
+        }
+
+        draw_input_device_widget :: (client: *Client, element: *UI_Element, state: *Custom_State) {
+            index: Sprite_Index = ---;
+
+            if ~state.allowed_devices == .Keyboard {
+                index = .Hud_Keyboard;
+            } else if ~state.allowed_devices == .Gamepad {
+                index = .Hud_Gamepad;
+            } else if ~state.allowed_devices == .ALL {
+                index = .Hud_Keyboard_Gamepad;
+            }
+
+            center: GE_Vector2 = .{ round(element.screen_position.x + element.screen_size.x * 0.5), round(element.screen_position.y + element.screen_size.y * 0.5) };
+            draw_sprite_screen_space(client, index, center, .{ element.screen_size.x, element.screen_size.y }, 0, .{ 255, 255, 255, 255 }, false);
+        }
+
+        update_input_device_widget :: (client: *Client, element: *UI_Element, state: *Custom_State) {
+            if element.signals & .Clicked {
+                if ~state.allowed_devices == .Keyboard {
+                    ~state.allowed_devices = .Gamepad;
+                } else if ~state.allowed_devices == .Gamepad {
+                    ~state.allowed_devices = .ALL;
+                } else if ~state.allowed_devices == .ALL {
+                    ~state.allowed_devices = .Keyboard;
+                }
+            }
+        }
+
+        data := ui_custom_widget(*client.ui, label, .Animate_Size_On_Hover, update_input_device_widget, draw_input_device_widget, size_of(Sprite_Index));
+        state := cast(*Custom_State) data.custom_state;
+        state.allowed_devices = allowed_devices;
     }
 
     read_incoming_packets(client);
@@ -869,10 +916,19 @@ do_lobby_screen :: (client: *Client) {
         ui_push_window(ui, "Lobby!", .Default, .{ .5, .5 });
         
         for i := 0; i < client.local_player_count; ++i {
+            local_player := *client.local_players[i];
+
+            ui_push_height(ui, .Pixels, 32, 1);
             ui_push_container(ui, .Horizontal);
-            ui_label(ui, false, client.local_players[i].name);
-            // @Incomplete
+            ui_set_width(ui, .Pixels, 256, 0);
+            ui_label(ui, false, local_player.name);
+
+            ui_push_width(ui, .Pixels, 32, 1);
+            input_device_widget(client, tprint("local_player_input_devices%", i), *local_player.allowed_input_devices);
+            ui_pop_width(ui);
+            
             ui_pop_container(ui);
+            ui_pop_height(ui);
         }
         
         for i := 0; i < client.remote_players.count; ++i {
@@ -881,8 +937,38 @@ do_lobby_screen :: (client: *Client) {
         }
 
         ui_divider(ui, true);
-        do_campaign_selector(client);
+        
+        if client.local_player_count < MAX_LOCAL_PLAYERS {
+            ui_label(ui, true, "Local Players");
+            
+            ui_push_container(ui, .Horizontal);
+            ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
+            data := ui_text_input(ui, "Name", .Everything);
+            if ui_button(ui, "Add!") && data.valid && data._string.count {
+                client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, data._string);
+                client.local_players[client.local_player_count].allowed_input_devices = .Gamepad;
+                ++client.local_player_count;
 
+                if client.local_players[0].allowed_input_devices == .ALL then client.local_players[0].allowed_input_devices = .Keyboard;
+
+                send_player_information_message(client, client.local_player_count - 1);
+            }
+            ui_pop_width(ui);
+            ui_pop_container(ui);
+
+            if client.local_player_count > 1 && ui_button(ui, "Remove Local Player!") {
+                deallocate_string(*client.engine_allocator, *client.local_players[client.local_player_count - 1].name);
+                msg := make_message(Remove_Local_Player_Message);
+                msg.remove_local_player.client_pid = client.my_client_pid;
+                msg.remove_local_player.local_player_index = client.local_player_count - 1;
+                send_reliable_message(*client.connection, *msg);
+                --client.local_player_count;
+            }
+        }
+
+        ui_divider(ui, true);
+        do_campaign_selector(client);
+        
         if ui_button(ui, "Start!") {
             start_lobby(client);
         }
