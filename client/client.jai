@@ -60,8 +60,9 @@ Local_Player :: struct {
     viewport: [4]f32;
     camera: Camera;
     hud: Hud;
-    allowed_input_devices: Input_Device = 0;
     active_input_device: Input_Device;
+    allowed_input_devices: Input_Device = 0;
+    gamepad_index := 0;
 }
 
 Client :: struct {
@@ -291,14 +292,14 @@ input_action_fired_for_local_player :: (client: *Client, local_player: *Local_Pl
             
           case .Gamepad_Button;
             if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
-            if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed {
+            if client.window.connected_gamepads > local_player.gamepad_index && client.window.gamepads[local_player.gamepad_index].buttons[binding.gamepad_button] & .Pressed {
                 local_player.active_input_device = .Gamepad;
                 return true;
             }
 
           case .Gamepad_Gesture;
             if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
-            if client.window.connected_gamepads && client.window.gamepads[0].gestures[binding.gamepad_gesture] {
+            if client.window.connected_gamepads > local_player.gamepad_index && client.window.gamepads[local_player.gamepad_index].gestures[binding.gamepad_gesture] {
                 local_player.active_input_device = .Gamepad;
                 return true;
             }
@@ -705,7 +706,7 @@ switch_to_next_state :: (client: *Client) {
     client.current_state = client.next_state;
 }
 
-calculate_local_player_viewports :: (client: *Client) {
+recalculate_local_player_viewports :: (client: *Client) {
     if client.local_player_count < 4 {
         left_x: f32 = 0;
         for i := 0; i < client.local_player_count; ++i {
@@ -723,6 +724,15 @@ calculate_local_player_viewports :: (client: *Client) {
         client.local_players[3].viewport = .[ center_x, center_y, xx client.window.w, xx client.window.h ];
     } else {
         panic("Unsupported player amount in calculate_local_player_viewports().");
+    }
+}
+
+reassign_gamepad_indices :: (client: *Client) {
+    index := 0;
+
+    for i := 0; i < client.local_player_count; ++i {
+        client.local_players[i].gamepad_index = index;
+        if client.local_players[i].allowed_input_devices & .Gamepad ++index;
     }
 }
 
@@ -1335,7 +1345,8 @@ main :: (args: []string) -> s32 {
         {
             update_window(*client.window);
             begin_ui_frame(*client.ui, .{ 128, 24 });
-            calculate_local_player_viewports(*client);
+            recalculate_local_player_viewports(*client);
+            reassign_gamepad_indices(*client);
             
             client.tick_time = client.window.frame_time;
             
