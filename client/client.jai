@@ -884,6 +884,18 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
 }
 
 do_game_tick :: (client: *Client) {
+    //
+    // Prepare all local entities for this new tick by storing previous state.
+    // This can allow us to basically diff this tick with the previous, which is required for
+    // certain functionality.
+    //
+    if !client.server_paused_game {
+        for i := 0; i < client.all_entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*client.all_entities, i);
+            if occupied then entity.previous_tick_health = entity.health;
+        }
+    }
+    
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
 

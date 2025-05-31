@@ -21,6 +21,7 @@ Entity :: struct {
     entity_kind: Entity_Kind;
     marked_for_removal: bool;
 
+    previous_tick_health: f32;
     health: f32;
     entity_flags: Entity_Flags;
     
@@ -417,6 +418,22 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         entity.visual_rotation = lerp_with_wrap_and_snap(entity.visual_rotation, target_rotation, speed, 0, 1);
     }
 
+    //
+    // Play a hit particle effect if this entity was damaged (and is living)
+    //
+    if entity.entity_flags & .Living && floor(entity.health / HEALTH_PER_HEART) < floor(entity.previous_tick_health / HEALTH_PER_HEART) {
+        system := create_particle_system(client, 1.0, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1);
+        emitter := create_particle_emitter(system, 0, 32);
+        emitter.shape = .Box;
+        emitter.box_half_size = .{ 0.1, 0.1 };
+        emitter.drag     = 0.7;
+        emitter.size     = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];
+        emitter.speed    = .[ 3, 5 ];
+        emitter.lifetime = .[ 0.9, 1.0 ];
+        emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
+        emitter.particles_per_second = 1024;
+    }
+    
     //
     // Update the entity's sounds
     //

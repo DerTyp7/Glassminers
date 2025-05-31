@@ -3,6 +3,7 @@
 - Added some basic dust particles around the level
 - Added some basic lava particles
 - Added some basic particle effects when digging
+- Added some basic particle effect when taking damage
 - Improved the logging behavior of client & server
 - Improved the lingering problem *again*. You should (^^) now always get a game over screen.
 

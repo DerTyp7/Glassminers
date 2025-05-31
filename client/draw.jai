@@ -430,7 +430,7 @@ draw_health_bar_world_space :: (client: *Client, world_center: v2f, world_size: 
     screen_size   := screen_from_world_height(client, world_size);
 
     box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
-    draw_filling_sprites_screen_space(client, .Heart, screen_center, box_count, screen_size, health / max_health);    
+    draw_filling_sprites_screen_space(client, .Heart, screen_center, box_count, screen_size, health / max_health);
 }
 
 draw_sprite_world_space :: (client: *Client, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
