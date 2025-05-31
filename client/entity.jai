@@ -186,7 +186,8 @@ create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitt
     system.world_position = world_position;
     system.global_alpha   = 1;
     system.emitters       = allocate_array(system.allocator, Particle_Emitter, emitter_count);
-    seed_random_generator(*system.random, system.random.DEFAULT_X, system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
+
+    seed_random_generator(*system.random, os_get_hardware_time(), system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
 
     if cast(f32) client.particle_pid_lookup.count / cast(f32) client.particle_pid_lookup.buckets.count >= 0.7 {
         probed_hash_table_resize(*client.particle_pid_lookup, client.particle_pid_lookup.buckets.count * 2);
@@ -276,6 +277,33 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
         entity.derived = null;
     }
 
+    if entity.entity_kind == .Lava {
+        // Create a lava particle system
+        system := create_particle_system(client, MAX_F32, entity.visual_position, 2);
+
+        smoke := create_particle_emitter(system, 0, 8);
+        smoke.shape    = .Box;
+        smoke.box_half_size           = .{ 0.5, 0.5 };
+        smoke.random_initial_velocity = true;
+        smoke.turbulence              = 0.05;
+        smoke.particles_per_second    = 1.5;
+        smoke.size     = .[ .{ 0.05, 0.05 }, .{ 0.15, 0.15 } ];
+        smoke.speed    = .[ 0.05, 0.2 ];
+        smoke.lifetime = .[ 4, 8 ];
+        smoke.color    = .[ .{ 40, 40, 40, 200 }, .{ 80, 80, 80, 150 } ];
+
+        fire := create_particle_emitter(system, 1, 16);
+        fire.shape    = .Box;
+        fire.box_half_size           = .{ 0.5, 0.5 };
+        fire.random_initial_velocity = true;
+        fire.turbulence              = 0.05;
+        fire.particles_per_second    = 4;
+        fire.size     = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];
+        fire.speed    = .[ 0.5, 0.8 ];
+        fire.lifetime = .[ 0.5, 2 ];
+        fire.color    = .[ .{ 107, 16, 42, 200 }, .{ 255, 210, 103, 200 } ];
+    }
+    
     return entity;
 }
 

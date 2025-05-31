@@ -37,6 +37,8 @@ Particle_Emitter :: struct {
     random_initial_velocity := false;
     turbulence: f32 = 0;
     fadein, fadeout: f32 = 0.1, 0.3;
+    particles_per_second: f32 = 256;
+    alive_t: f32 = MAX_F32; // An emitter will only spawn new particles if it is alive
     
     drag: f32 = 0;
     size: [2]v2f = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];
@@ -44,8 +46,6 @@ Particle_Emitter :: struct {
     lifetime: [2]f32 = .[ 2, 3 ];
     color: [2]GE_Color = .[ .{ 0, 0, 0, 255 }, .{ 255, 255, 255, 255 } ];
     gravity: v2f = .{ 0, 0 };
-    particles_per_second: f32 = 256;
-    alive_t: f32 = MAX_F32; // An emitter will only spawn new particles if it is alive
 
     // Internal State
     particles: []Particle;
