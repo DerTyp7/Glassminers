@@ -4,6 +4,11 @@ Support for local multiplayer! Each client can now support up to 4 local players
     This also means that you can now have up to 4 gamepads connected. Each local player (that uses gamepad input) will use a different gamepad for input.
     This required quite a lot of changes in the server and the client to get working, so it's a breaking change, but one that I'm very happy with.
 
+Some minor improvements are also included:
+- Added sensical defaults to all main menu options
+- The main menu options are now restored after connecting & disconnecting
+- The local player setup (names and input devices) are restored between games
+
 ## 0.1.2 (31.05.2025)
 
 - Added some basic dust particles around the level

@@ -939,12 +939,20 @@ do_lobby_screen :: (client: *Client) {
 
             ui_push_height(ui, .Pixels, 32, 1);
             ui_push_container(ui, .Horizontal);
-            ui_set_width(ui, .Pixels, 256, 0);
-            ui_label(ui, false, local_player.name);
 
+            ui_push_width(ui, .Pixels, 256, 0);
+            ui_label(ui, false, local_player.name);
+            ui_pop_width(ui);
+            
             ui_push_width(ui, .Pixels, 32, 1);
             input_device_widget(client, tprint("local_player_input_devices%", i), *local_player.allowed_input_devices);
             ui_pop_width(ui);
+
+            if local_player.allowed_input_devices & .Gamepad && local_player.gamepad_index >= client.window.connected_gamepads {
+                ui_push_width(ui, .Label_Size, 5, 1);
+                ui_label(ui, true, "!");
+                ui_pop_width(ui);
+            }
             
             ui_pop_container(ui);
             ui_pop_height(ui);
@@ -1439,6 +1447,10 @@ main :: (args: []string) -> s32 {
                     draw_sprite_screen_space(*client, input.sprite_index, .{ x + 16, y }, .{ 32, 32 }, 0, color, false);
                     
                     y -= 34;
+                }
+
+                if !client.test_inputs.count {
+                    draw_text_screen_space(*client, *client.ui_font, "Press some buttons...", .{ x + 32, y }, .Right | .Median, .{ 200, 200, 200, 255 });
                 }
                 
               case .Main_Menu, .Connecting, .Game_Over;
