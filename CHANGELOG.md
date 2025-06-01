@@ -8,6 +8,8 @@ Some minor improvements are also included:
 - Added sensical defaults to all main menu options
 - The main menu options are now restored after connecting & disconnecting
 - The local player setup (names and input devices) are restored between games
+- Background tiles are now visibility culled
+- Particle Emitters are now visibility culled
 
 ## 0.1.2 (31.05.2025)
 

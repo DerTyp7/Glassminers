@@ -1097,6 +1097,8 @@ draw_particle_system :: (client: *Client, local_player: *Local_Player, system: *
 
         local_to_world_position := v2f.{ emitter.local_position.x + system.world_position.x, emitter.local_position.y + system.world_position.y };
 
+        if !visibility_check_box(local_player, .{ emitter.local_bounding_box[0].x + local_to_world_position.x, emitter.local_bounding_box[0].y + local_to_world_position.y }, .{ emitter.local_bounding_box[1].x + local_to_world_position.x, emitter.local_bounding_box[1].y + local_to_world_position.y }) continue;
+        
         for j := 0; j < emitter.particles.count; ++j {
             particle := *emitter.particles[j];
             

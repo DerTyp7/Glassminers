@@ -50,6 +50,7 @@ Particle_Emitter :: struct {
     // Internal State
     particles: []Particle;
     new_particle_accumulator: f32 = 0;
+    local_bounding_box: [2]v2f;
 }
 
 Particle_System :: struct {
@@ -109,6 +110,8 @@ prewarm_particle_system :: (#using system: *Particle_System, total_time: f32, st
 
 update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle_Emitter, dt: f32) {
     new_particle_accumulator += particles_per_second * dt;
+
+    local_bounding_box = .[ .{ MAX_F32, MAX_F32 }, .{ MIN_F32, MIN_F32 } ];
     
     for i := 0; i < emitter.particles.count; ++i {
         particle := *emitter.particles[i];
@@ -149,8 +152,13 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
             particle.velocity.x *= expf(-emitter.drag * dt);
             particle.velocity.y *= expf(-emitter.drag * dt);
         }
-            
+        
         particle.elapsed += dt;
+
+        local_bounding_box[0].x = min(local_bounding_box[0].x, particle.local_position.x - particle.size.x);
+        local_bounding_box[0].y = min(local_bounding_box[0].y, particle.local_position.y - particle.size.y);
+        local_bounding_box[1].x = max(local_bounding_box[1].x, particle.local_position.x + particle.size.x);
+        local_bounding_box[1].y = max(local_bounding_box[1].y, particle.local_position.y + particle.size.y);
     }
 
     alive_t -= dt;
