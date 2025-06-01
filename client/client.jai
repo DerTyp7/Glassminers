@@ -1386,7 +1386,7 @@ main :: (args: []string) -> s32 {
                     draw_hud(*client, i);
                 }
 
-                draw_viewport_borders(*client);
+                draw_viewports(*client);
                 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 

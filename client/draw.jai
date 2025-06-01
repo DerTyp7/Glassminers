@@ -234,7 +234,7 @@ draw_outlined_rect_screen_space :: (client: *Client, c0, c1: v2f, thickness: f32
     ge_imm2d_colored_rect_outline(*client.graphics, c0.x, c0.y, c1.x, c1.y, thickness, color);
 }
 
-draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: UI_Color) {
+draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: GE_Color) {
     ge_draw_text(*client.graphics, font, text, position.x, position.y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
 }
 
@@ -688,12 +688,17 @@ draw_world :: (client: *Client, local_player_index: s64) {
     ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w, xx client.window.h ]);
 }
 
-draw_viewport_borders :: (client: *Client) {
+draw_viewports :: (client: *Client) {
     THICKNESS: f32 : 5;
     COLOR :: GE_Color.{ 255, 255, 255, 255 };
 
     #assert(MAX_LOCAL_PLAYERS == 4);
 
+    draw_viewport_label :: (client: *Client, player: *Local_Player) {
+        if client.game_epoch_time > 15 return;
+        draw_text_screen_space(client, *client.ui_font, player.name, .{ player.viewport[2] - 10, player.viewport[3] - 10 }, .Right | .Bottom, COLOR);
+    }
+    
     if client.local_player_count == {
       case 2;
         center_x: f32 = floor(cast(f32) client.window.w * 0.5);
@@ -703,6 +708,12 @@ draw_viewport_borders :: (client: *Client) {
         center_y: f32 = floor(cast(f32) client.window.h * 0.5);
         draw_line_screen_space(client, .{ center_x, 0 }, .{ center_x, xx client.window.h }, COLOR, THICKNESS);
         draw_line_screen_space(client, .{ 0, center_y }, .{ xx client.window.w, center_y }, COLOR, THICKNESS);
+    }
+
+    if client.local_player_count > 1 {
+        for i := 0; i < client.local_player_count; ++i {
+            draw_viewport_label(client, *client.local_players[i]);
+        }
     }
 }
 
