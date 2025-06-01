@@ -65,6 +65,12 @@ Local_Player :: struct {
     gamepad_index := 0;
 }
 
+Test_Input :: struct {
+    hwtime: Hardware_Time;
+    local_player_index: s64;
+    sprite_index: Sprite_Index;
+}
+
 Client :: struct {
     //
     // Engine structure
@@ -118,6 +124,7 @@ Client :: struct {
     //
     requested_campaign: Campaign = .Tutorial; // Lobby screen
     immediately_start_game: bool = false; // Lobby screen, after pressing "single player" in the main menu
+    test_inputs: [..]Test_Input;
     
     //
     // Game Data
@@ -694,6 +701,8 @@ switch_to_next_state :: (client: *Client) {
             disconnect_from_server(client);
             maybe_shutdown_server(client);
         }
+
+        array_clear(*client.test_inputs);
         
       case .Ingame;
         stop_all_sounds(client);
@@ -924,7 +933,8 @@ do_lobby_screen :: (client: *Client) {
     if client.immediately_start_game {
         start_lobby(client);
     }
-    
+
+    // Do the lobby UI
     {
         ui :: *client.ui;
         ui_push_width(ui, .Pixels, 256, 1);
@@ -996,6 +1006,44 @@ do_lobby_screen :: (client: *Client) {
         }
         ui_pop_window(ui);
         ui_pop_width(ui);
+    }
+
+    // Handle test inputs. This can help in figuring out which player uses which gamepad in
+    // local multiplayer.
+    {
+        register_test_input :: (client: *Client, local_player_index: s64, sprite_index: Sprite_Index) {
+            input := array_push(*client.test_inputs);
+            input.hwtime = os_get_hardware_time();
+            input.local_player_index = local_player_index;
+            input.sprite_index = sprite_index;
+        }
+
+        now := os_get_hardware_time();
+        for i := 0; i < client.test_inputs.count; {
+            input := array_get_pointer(*client.test_inputs, i);
+            if os_convert_hardware_time(now - input.hwtime, .Seconds) > 2 {
+                array_remove_index(*client.test_inputs, i);
+            } else {
+                ++i;
+            }
+        }
+        
+        for i := 0; i < client.local_player_count; ++i {
+            local_player := *client.local_players[i];
+
+            if bitfield_contains(*local_player.allowed_input_devices, Input_Device.Keyboard) {
+                if client.window.keys[.Space] & .Pressed then register_test_input(client, i, .Hud_Key_Space);
+                if client.window.keys[.Shift] & .Pressed then register_test_input(client, i, .Hud_Key_Shift);
+            }
+
+            if bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) && local_player.gamepad_index < client.window.connected_gamepads {
+                gamepad := *client.window.gamepads[local_player.gamepad_index];
+                if gamepad.buttons[.XBox_A] & .Pressed then register_test_input(client, i, .Hud_XBox_A);
+                if gamepad.buttons[.XBox_X] & .Pressed then register_test_input(client, i, .Hud_XBox_X);
+                if gamepad.buttons[.PS_Cross] & .Pressed then register_test_input(client, i, .Hud_PS_Cross);
+                if gamepad.buttons[.PS_Square] & .Pressed then register_test_input(client, i, .Hud_PS_Square);
+            }
+        }
     }
 }
 
@@ -1288,6 +1336,7 @@ main :: (args: []string) -> s32 {
     register_all_input_bindings(*client);
     
     client.remote_players.allocator = *client.engine_allocator;
+    client.test_inputs.allocator    = *client.engine_allocator;
     client.current_state = .Count;
     client.next_state    = .Main_Menu;
     switch_to_next_state(*client);
@@ -1373,13 +1422,34 @@ main :: (args: []string) -> s32 {
             ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
             
             if #complete client.current_state == {
-              case .Main_Menu, .Connecting, .Lobby, .Game_Over;
+              case .Lobby #through;
+                y: f32 = xx client.window.h - 34;
+                x: f32 = xx client.window.w * 0.8;
+                
+                now := os_get_hardware_time();
+
+                for i := client.test_inputs.count - 1; i >= 0; --i {
+                    input := array_get_pointer(*client.test_inputs, i);
+                    if input.local_player_index >= client.local_player_count continue;
+
+                    time := os_convert_hardware_time(now - input.hwtime, .Seconds);
+                    alpha := 1 - smoothstep(time, 1, 2);
+                    color := GE_Color.{ 200, 200, 200, cast(u8) (alpha * 255) };
+
+                    text := tprint("%: ", client.local_players[input.local_player_index].name);
+                    draw_text_screen_space(*client, *client.ui_font, text, .{ x, y }, .Right | .Median, color);
+                    draw_sprite_screen_space(*client, input.sprite_index, .{ x + 16, y }, .{ 32, 32 }, 0, color, false);
+                    
+                    y -= 34;
+                }
+                
+              case .Main_Menu, .Connecting, .Game_Over;
                 draw_text_screen_space(*client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, .{ 255, 255, 255, 255 });
                 if client.info_text_t >= 0 {
                     draw_text_screen_space(*client, *client.ui_font, client.info_text, .{ xx client.window.w / 2, xx (client.window.h / 4 + client.title_font.line_height) }, .Center | .Median, .{ 252, 238, 28, 255 });
                     client.info_text_t -= client.tick_time;
                 }
-            
+                
               case .Ingame;
                 for i := 0; i < client.local_player_count; ++i {
                     draw_world(*client, i);
