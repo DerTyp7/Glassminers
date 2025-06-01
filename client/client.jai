@@ -707,23 +707,28 @@ switch_to_next_state :: (client: *Client) {
 }
 
 recalculate_local_player_viewports :: (client: *Client) {
-    if client.local_player_count < 4 {
-        left_x: f32 = 0;
-        for i := 0; i < client.local_player_count; ++i {
-            // @Cleanup: This won't work well with different window widths...
-            right_x := left_x + (cast(f32) client.window.w / cast(f32) client.local_player_count);
-            client.local_players[i].viewport = .[ left_x, 0, right_x, xx client.window.h ];
-            left_x = right_x + 1;
-        }
-    } else if client.local_player_count == 4 {
-        center_x: f32 = xx client.window.w * 0.5;
-        center_y: f32 = xx client.window.h * 0.5;
+    #assert(MAX_LOCAL_PLAYERS == 4);
+
+    if client.local_player_count == {
+      case 1;
+        client.local_players[0].viewport = .[ 0, 0, xx client.window.w, xx client.window.h ];
+      case 2;
+        center_x: f32 = floor(cast(f32) client.window.w * 0.5);
+        client.local_players[0].viewport = .[ 0, 0, center_x, xx client.window.h ];
+        client.local_players[1].viewport = .[ center_x + 1, 0, xx client.window.w, xx client.window.h ];
+      case 3;
+        center_x: f32 = floor(cast(f32) client.window.w * 0.5);
+        center_y: f32 = floor(cast(f32) client.window.h * 0.5);
         client.local_players[0].viewport = .[ 0, 0, center_x, center_y ];
-        client.local_players[1].viewport = .[ center_x, 0, xx client.window.w, center_y ];
-        client.local_players[2].viewport = .[ 0, center_y, xx client.window.w * 0.5, xx client.window.h ];
-        client.local_players[3].viewport = .[ center_x, center_y, xx client.window.w, xx client.window.h ];
-    } else {
-        panic("Unsupported player amount in calculate_local_player_viewports().");
+        client.local_players[1].viewport = .[ center_x + 1, 0, xx client.window.w, center_y ];
+        client.local_players[2].viewport = .[ 0, center_y + 1, center_x, xx client.window.h ];
+      case 4;
+        center_x: f32 = floor(cast(f32) client.window.w * 0.5);
+        center_y: f32 = floor(cast(f32) client.window.h * 0.5);
+        client.local_players[0].viewport = .[ 0, 0, center_x, center_y ];
+        client.local_players[1].viewport = .[ center_x + 1, 0, xx client.window.w, center_y ];
+        client.local_players[2].viewport = .[ 0, center_y + 1, center_x, xx client.window.h ];
+        client.local_players[3].viewport = .[ center_x + 1, center_y + 1, xx client.window.w, xx client.window.h ];
     }
 }
 
@@ -923,7 +928,7 @@ do_lobby_screen :: (client: *Client) {
     {
         ui :: *client.ui;
         ui_push_width(ui, .Pixels, 256, 1);
-        ui_push_window(ui, "Lobby!", .Default, .{ .5, .5 });
+        ui_push_window(ui, "Lobby!", .Default, .{ .5, .4 });
         
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
@@ -948,24 +953,26 @@ do_lobby_screen :: (client: *Client) {
 
         ui_divider(ui, true);
         
-        if client.local_player_count < MAX_LOCAL_PLAYERS {
+        {
             ui_label(ui, true, "Local Players");
-            
-            ui_push_container(ui, .Horizontal);
-            ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
-            data := ui_text_input(ui, "Name", .Everything);
-            if ui_button(ui, "Add!") && data.valid && data._string.count {
-                client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, data._string);
-                client.local_players[client.local_player_count].allowed_input_devices = .Gamepad;
-                ++client.local_player_count;
 
-                if client.local_players[0].allowed_input_devices == .ALL then client.local_players[0].allowed_input_devices = .Keyboard;
+            if client.local_player_count < MAX_LOCAL_PLAYERS {
+                ui_push_container(ui, .Horizontal);
+                ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
+                data := ui_text_input(ui, "Name", .Everything);
+                if ui_button(ui, "Add!") && data.valid && data._string.count {
+                    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, data._string);
+                    client.local_players[client.local_player_count].allowed_input_devices = .Gamepad;
+                    ++client.local_player_count;
 
-                send_player_information_message(client, client.local_player_count - 1);
+                    if client.local_players[0].allowed_input_devices == .ALL then client.local_players[0].allowed_input_devices = .Keyboard;
+
+                    send_player_information_message(client, client.local_player_count - 1);
+                }
+                ui_pop_width(ui);
+                ui_pop_container(ui);
             }
-            ui_pop_width(ui);
-            ui_pop_container(ui);
-
+            
             if client.local_player_count > 1 && ui_button(ui, "Remove Local Player!") {
                 deallocate_string(*client.engine_allocator, *client.local_players[client.local_player_count - 1].name);
                 msg := make_message(Remove_Local_Player_Message);
@@ -1379,11 +1386,7 @@ main :: (args: []string) -> s32 {
                     draw_hud(*client, i);
                 }
 
-                for i := 0; i < client.local_player_count; ++i {
-                    for j := i + 1; j < client.local_player_count; ++j {
-                        draw_viewport_borders(*client, *client.local_players[i], *client.local_players[j]);
-                    }
-                }
+                draw_viewport_borders(*client);
                 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 

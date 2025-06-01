@@ -688,18 +688,21 @@ draw_world :: (client: *Client, local_player_index: s64) {
     ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w, xx client.window.h ]);
 }
 
-draw_viewport_borders :: (client: *Client, A, B: *Local_Player) {
-    THICKNESS: f32 : 10;
+draw_viewport_borders :: (client: *Client) {
+    THICKNESS: f32 : 5;
     COLOR :: GE_Color.{ 255, 255, 255, 255 };
 
-    // @Incomplete: Also support horizontal borders, and vertical border if A is actually on the right
-    
-    if A.viewport[2] + 1 == B.viewport[0] {
-        // These viewports collide share a vertical border
-        x := A.viewport[2] + 1;
-        y0 := min(A.viewport[1], B.viewport[1]);
-        y1 := max(A.viewport[3], B.viewport[3]);
-        draw_line_screen_space(client, .{ x, y0 }, .{ x, y1 }, COLOR, THICKNESS);
+    #assert(MAX_LOCAL_PLAYERS == 4);
+
+    if client.local_player_count == {
+      case 2;
+        center_x: f32 = floor(cast(f32) client.window.w * 0.5);
+        draw_line_screen_space(client, .{ center_x, 0 }, .{ center_x, xx client.window.h }, COLOR, THICKNESS);
+      case 3, 4;
+        center_x: f32 = floor(cast(f32) client.window.w * 0.5);
+        center_y: f32 = floor(cast(f32) client.window.h * 0.5);
+        draw_line_screen_space(client, .{ center_x, 0 }, .{ center_x, xx client.window.h }, COLOR, THICKNESS);
+        draw_line_screen_space(client, .{ 0, center_y }, .{ xx client.window.w, center_y }, COLOR, THICKNESS);
     }
 }
 
