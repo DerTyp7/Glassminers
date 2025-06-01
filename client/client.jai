@@ -470,10 +470,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             
             local_player.guy_pid = msg.player_information.guy_pid;
 
-            // Calculate the initial camera position to avoid lerping the first few frames...
+            // Calculate the initial camera position to avoid lerping the first few frames
             guy := get_entity(client, local_player.guy_pid);
-            update_camera_matrices(*local_player.camera, local_player.viewport); // Initialize the camera size
-            local_player.camera.center = calculate_camera_target_position(client, *local_player.camera, guy.physical_position);
+            update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, 1);
         }
 
       case .Game_Pause;
@@ -1076,34 +1075,6 @@ do_game_over_screen :: (client: *Client) {
     ui_pop_width(ui);
 }
 
-calculate_camera_target_position :: (client: *Client, camera: *Camera, target_center_position: v2i) -> v2f {
-    custom_clamp :: (value, low, high: $T) -> T {
-        if low < high {
-            return clamp(value, low, high);
-        } else {
-            return (low + high) * 0.5;
-        }
-    }
-
-    room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
-                           floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
-
-    half_size := v2f.{ camera.size.x / 2 - 0.5, camera.size.y / 2 - 0.5 };
-    
-    target_camera_position := v2f.{
-        custom_clamp(room_position.x, half_size.x, xx client.world_size.x - half_size.x - 1),
-        custom_clamp(room_position.y, half_size.y, xx client.world_size.y - half_size.y - 1) };
-    
-    return target_camera_position;
-}
-
-calculate_camera_position :: (client: *Client, camera: *Camera, target_center_position: v2i) -> v2f {
-    target_camera_position := calculate_camera_target_position(client, camera, target_center_position);
-    speed := 10 * client.tick_time;
-    return .{ lerp_with_snap(camera.center.x, target_camera_position.x, speed),
-              lerp_with_snap(camera.center.y, target_camera_position.y, speed) };
-}
-
 get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind {
     result: [..]Item_Kind;
     result.allocator = *temp;
@@ -1222,8 +1193,7 @@ do_game_tick :: (client: *Client) {
         // Update the camera
         {
             guy := get_entity(client, local_player.guy_pid);
-            local_player.camera.center = calculate_camera_position(client, *local_player.camera, .{ xx guy.physical_position.x, xx guy.physical_position.y });
-            update_camera_matrices(*local_player.camera, local_player.viewport);
+            update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
         }
 
         // Update the hud
@@ -1470,8 +1440,8 @@ main :: (args: []string) -> s32 {
                 
               case .Ingame;
                 for i := 0; i < client.local_player_count; ++i {
-                    draw_world(*client, i);
-                    draw_hud(*client, i);
+                    draw_world(*client, *client.local_players[i]);
+                    draw_hud(*client, *client.local_players[i]);
                 }
 
                 draw_viewports(*client);

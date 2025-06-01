@@ -131,12 +131,11 @@ update_hud :: (client: *Client, local_player_index: s64) {
     }
 }
 
-draw_hud :: (client: *Client, local_player_index: s64) {
-    hud := *client.local_players[local_player_index].hud;
-    local_player := *client.local_players[local_player_index];
+draw_hud :: (client: *Client, local_player: *Local_Player) {
+    hud := *local_player.hud;
     
     guy_entity := get_entity(client, local_player.guy_pid);
-    screen_center := screen_from_world_position(client, local_player_index, guy_entity.visual_position);
+    screen_center := screen_from_world_position(*local_player.camera, guy_entity.visual_position);
     outer_radius := (local_player.viewport[3] - local_player.viewport[1]) * 0.15;
     inner_radius := (local_player.viewport[3] - local_player.viewport[1]) * 0.10;
     icon_radius  := (inner_radius + outer_radius) * 0.5;
@@ -171,7 +170,7 @@ draw_hud :: (client: *Client, local_player_index: s64) {
 
             // Draw the input action hint
             if hud.crafting_menu.selected_recipe == i {
-                confirm_sprite := get_sprite_index_for_input_action(client, local_player_index, .Crafting_Menu_Confirm);
+                confirm_sprite := get_sprite_index_for_input_action(client, local_player, .Crafting_Menu_Confirm);
                 draw_icon(client, confirm_sprite, screen_center, icon_radius * 0.6, .{ icon_size.x * 0.75, icon_size.y * 0.75 }, theta, 0);
             }
         }
@@ -194,7 +193,7 @@ draw_hud :: (client: *Client, local_player_index: s64) {
 
             // Draw the input action hint
             if hud.cheat_menu.selected_cheat == i {
-                confirm_sprite := get_sprite_index_for_input_action(client, local_player_index, .Crafting_Menu_Confirm);
+                confirm_sprite := get_sprite_index_for_input_action(client, local_player, .Crafting_Menu_Confirm);
                 draw_icon(client, confirm_sprite, screen_center, icon_radius * 0.6, .{ icon_size.x * 0.75, icon_size.y * 0.75 }, theta, 0);
             }
         }

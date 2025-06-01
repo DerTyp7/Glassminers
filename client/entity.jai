@@ -1,13 +1,11 @@
 Camera :: struct {
     DESIRED_VERTICAL_UNITS: f32 : 6.3;
 
-    // @Cleanup: If this remembered the screen space viewport, we could probably save us a lot of
-    // passing the local_player_index around in the draw code...
-    
-    ratio: f32;
+    aspect_ratio: f32;
     world_to_screen: v2f;
-    size: v2f;
-    center: v2f;
+    world_area: v2f;
+    world_center: v2f;
+    viewport: [4]f32;
 }
 
 Beam_Data :: struct {
@@ -153,29 +151,30 @@ destroy_entity_manager :: (client: *Client) {
 // Camera
 //
 
-screen_from_world_position :: (client: *Client, local_player_index: s64, world: v2f) -> v2f {
-    viewport := client.local_players[local_player_index].viewport;
-    camera := *client.local_players[local_player_index].camera;
-    return .{ round((world.x - camera.center.x) * camera.world_to_screen.x + (viewport[2] - viewport[0]) * 0.5 + viewport[0]),
-              round((world.y - camera.center.y) * camera.world_to_screen.y + (viewport[3] - viewport[1]) * 0.5 + viewport[1]) };
+screen_from_world_position :: (camera: *Camera, world: v2f) -> v2f {
+    return .{ round((world.x - camera.world_center.x) * camera.world_to_screen.x + (camera.viewport[2] - camera.viewport[0]) * 0.5 + camera.viewport[0]),
+              round((world.y - camera.world_center.y) * camera.world_to_screen.y + (camera.viewport[3] - camera.viewport[1]) * 0.5 + camera.viewport[1]) };
 }
 
-screen_from_world_size :: (client: *Client, local_player_index: s64, world: v2f) -> v2f {
-    camera := *client.local_players[local_player_index].camera;
+screen_from_world_size :: (camera: *Camera, world: v2f) -> v2f {
     return .{ round(world.x * camera.world_to_screen.x), round(world.y * camera.world_to_screen.y) };
 }
 
-screen_from_world_height :: (client: *Client, local_player_index: s64, height: f32) -> f32 {
-    camera := *client.local_players[local_player_index].camera;
+screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
     return round(height * camera.world_to_screen.y);
 }
 
-update_camera_matrices :: (camera: *Camera, viewport: [4]f32) {
-    camera.ratio             = (viewport[2] - viewport[0]) / (viewport[3] - viewport[1]);
-    camera.size.y            = camera.DESIRED_VERTICAL_UNITS;
-    camera.size.x            = camera.DESIRED_VERTICAL_UNITS * camera.ratio;
+update_camera :: (client: *Client, camera: *Camera, tracking_entity_position: v2i, viewport: [4]f32, interpolation: f32) {
+    camera.aspect_ratio      = (viewport[2] - viewport[0]) / (viewport[3] - viewport[1]);
     camera.world_to_screen.y = (viewport[3] - viewport[1]) / camera.DESIRED_VERTICAL_UNITS;
     camera.world_to_screen.x = camera.world_to_screen.y;
+    camera.world_area.y      = camera.DESIRED_VERTICAL_UNITS;
+    camera.world_area.x      = camera.DESIRED_VERTICAL_UNITS * camera.aspect_ratio;
+    camera.viewport          = viewport;
+
+    target_world_center := calculate_camera_target_position(client, camera, .{ xx tracking_entity_position.x, xx tracking_entity_position.y });
+    camera.world_center.x = lerp_with_snap(camera.world_center.x, target_world_center.x, interpolation);
+    camera.world_center.y = lerp_with_snap(camera.world_center.y, target_world_center.y, interpolation);
 }
 
 
@@ -658,6 +657,27 @@ update_frog :: (client: *Client, frog: *Frog) {
 //
 // Helpers
 //
+
+calculate_camera_target_position :: (client: *Client, camera: *Camera, target_center_position: v2i) -> v2f {
+    custom_clamp :: (value, low, high: $T) -> T {
+        if low < high {
+            return clamp(value, low, high);
+        } else {
+            return (low + high) * 0.5;
+        }
+    }
+
+    room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
+                           floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
+
+    world_half_size := v2f.{ camera.world_area.x / 2 - 0.5, camera.world_area.y / 2 - 0.5 };
+    
+    target_camera_position := v2f.{
+        custom_clamp(room_position.x, world_half_size.x, xx client.world_size.x - world_half_size.x - 1),
+        custom_clamp(room_position.y, world_half_size.y, xx client.world_size.y - world_half_size.y - 1) };
+    
+    return target_camera_position;
+}
 
 clear_beam_data :: (client: *Client, data: *Beam_Data) {
     array_clear_without_deallocation(*data.fields);

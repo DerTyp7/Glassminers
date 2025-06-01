@@ -176,7 +176,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
     return index;
 }
 
-get_sprite_index_for_input_action :: (client: *Client, local_player_index: s64, action: Input_Action) -> Sprite_Index {
+get_sprite_index_for_input_action :: (client: *Client, local_player: *Local_Player, action: Input_Action) -> Sprite_Index {
     is_vendor_appropriate_gamepad_binding :: (gamepad: *Window_Gamepad, button: Window_Gamepad_Button_Code) -> bool {
         result: bool = ---;
 
@@ -191,8 +191,6 @@ get_sprite_index_for_input_action :: (client: *Client, local_player_index: s64, 
         
         return result;
     }
-
-    local_player := *client.local_players[local_player_index];
     
     for i := 0; i < client.input_bindings[action].count; ++i {
         binding := *client.input_bindings[action][i];
@@ -406,40 +404,40 @@ draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen
 // World Space Drawing
 //
 
-draw_rect_world_space :: (client: *Client, local_player_index: s64, world_c0, world_c1: v2f, color: GE_Color) {
-    screen_c0 := screen_from_world_position(client, local_player_index, world_c0);
-    screen_c1 := screen_from_world_position(client, local_player_index, world_c1);
+draw_rect_world_space :: (client: *Client, local_player: *Local_Player, world_c0, world_c1: v2f, color: GE_Color) {
+    screen_c0 := screen_from_world_position(*local_player.camera, world_c0);
+    screen_c1 := screen_from_world_position(*local_player.camera, world_c1);
     draw_rect_screen_space(client, screen_c0, screen_c1, color);
 }
 
-draw_outlined_rect_world_space :: (client: *Client, local_player_index: s64, world_c0, world_c1: v2f, screen_thickness: f32, color: GE_Color) {
-    screen_c0 := screen_from_world_position(client, local_player_index, world_c0);
-    screen_c1 := screen_from_world_position(client, local_player_index, world_c1);
+draw_outlined_rect_world_space :: (client: *Client, local_player: *Local_Player, world_c0, world_c1: v2f, screen_thickness: f32, color: GE_Color) {
+    screen_c0 := screen_from_world_position(*local_player.camera, world_c0);
+    screen_c1 := screen_from_world_position(*local_player.camera, world_c1);
     draw_outlined_rect_screen_space(client, screen_c0, screen_c1, screen_thickness, color);
 }
 
-draw_circle_world_space :: (client: *Client, local_player_index: s64, world_center: v2f, inner_world_radius, outer_world_radius: f32, color: GE_Color) {
-    screen_center := screen_from_world_position(client, local_player_index, world_center);
-    inner_screen_radius := screen_from_world_height(client, local_player_index, inner_world_radius);
-    outer_screen_radius := screen_from_world_height(client, local_player_index, outer_world_radius);
+draw_circle_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, inner_world_radius, outer_world_radius: f32, color: GE_Color) {
+    screen_center := screen_from_world_position(*local_player.camera, world_center);
+    inner_screen_radius := screen_from_world_height(*local_player.camera, inner_world_radius);
+    outer_screen_radius := screen_from_world_height(*local_player.camera, outer_world_radius);
     draw_circle_screen_space(client, screen_center, inner_screen_radius, outer_screen_radius, color);
 }
 
-draw_progress_bar_world_space :: (client: *Client, local_player_index: s64, world_center: v2f, world_size: f32, percentage: f32) {
-    screen_center := screen_from_world_position(client, local_player_index, world_center);
-    screen_size   := screen_from_world_height(client, local_player_index, world_size);
+draw_progress_bar_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, world_size: f32, percentage: f32) {
+    screen_center := screen_from_world_position(*local_player.camera, world_center);
+    screen_size   := screen_from_world_height(*local_player.camera, world_size);
     draw_progress_bar_screen_space(client, screen_center, screen_size, percentage);
 }
 
-draw_health_bar_world_space :: (client: *Client, local_player_index: s64, world_center: v2f, world_size: f32, health, max_health: f32) {
-    screen_center := screen_from_world_position(client, local_player_index, world_center);
-    screen_size   := screen_from_world_height(client, local_player_index, world_size);
+draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, world_size: f32, health, max_health: f32) {
+    screen_center := screen_from_world_position(*local_player.camera, world_center);
+    screen_size   := screen_from_world_height(*local_player.camera, world_size);
 
     box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
     draw_filling_sprites_screen_space(client, .Heart, screen_center, box_count, screen_size, health / max_health);
 }
 
-draw_sprite_world_space :: (client: *Client, local_player_index: s64, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
+draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
     atlas_index    := sprite_index / SPRITES_PER_ATLAS;
     index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
 
@@ -454,7 +452,7 @@ draw_sprite_world_space :: (client: *Client, local_player_index: s64, sprite_ind
     texture := client.sprite_atlases[atlas_index];
 
     for i := 0; i < indices.Capacity; ++i {
-        screen_position := screen_from_world_position(client, local_player_index, v2f.{ world_center.x + world_vertices[indices[i]].x, world_center.y + world_vertices[indices[i]].y });
+        screen_position := screen_from_world_position(*local_player.camera, v2f.{ world_center.x + world_vertices[indices[i]].x, world_center.y + world_vertices[indices[i]].y });
         ge_imm2d_textured_vertex(*client.graphics, screen_position.x, screen_position.y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
     }
 }
@@ -465,23 +463,23 @@ draw_sprite_world_space :: (client: *Client, local_player_index: s64, sprite_ind
 // World Drawing
 //
 
-draw_world :: (client: *Client, local_player_index: s64) {
-    draw_beam :: (client: *Client, local_player_index: s64, beam: *Beam_Data, color: GE_Color, intensity: f32, first_field_as_v: bool) {
+draw_world :: (client: *Client, local_player: *Local_Player) {
+    draw_beam :: (client: *Client, local_player: *Local_Player, beam: *Beam_Data, color: GE_Color, intensity: f32, first_field_as_v: bool) {
         intense_color := GE_Color.{ color.r, color.g, color.b, cast(u8) (cast(f32) color.a * intensity) };
 
-        vertices: []v2f = build_mesh_for_beam(client, beam, first_field_as_v);
+        vertices: []v2f = build_mesh_for_beam(beam, first_field_as_v);
 
         for i := 0; i < vertices.count; ++i {
             world_space := vertices[i];
-            screen_space := screen_from_world_position(client, local_player_index, world_space);
+            screen_space := screen_from_world_position(*local_player.camera, world_space);
             ge_imm2d_colored_vertex(*client.graphics, screen_space.x, screen_space.y, intense_color);
         }
     }
     
-    draw_label :: (client: *Client, local_player_index: s64, label: string, entity_pid: Pid) {
+    draw_label :: (client: *Client, local_player: *Local_Player, label: string, entity_pid: Pid) {
         entity := get_entity(client, entity_pid);
         if entity {
-            screen_center := screen_from_world_position(client, local_player_index, v2f.{ entity.visual_position.x, entity.visual_position.y - 0.55 });
+            screen_center := screen_from_world_position(*local_player.camera, v2f.{ entity.visual_position.x, entity.visual_position.y - 0.55 });
             screen_size   := v2f.{ xx get_string_width_in_pixels(*client.ui_font, label) + 5, xx client.ui_font.line_height };
             
             draw_rect_screen_space(client, .{ screen_center.x - screen_size.x / 2,
@@ -495,7 +493,6 @@ draw_world :: (client: *Client, local_player_index: s64) {
 
     PROGRESS_BAR_WORLD_SIZE: f32 : 0.9 * 0.13333;
 
-    local_player := *client.local_players[local_player_index];
     ge_set_scissors(*client.graphics, local_player.viewport);
     ge_set_pipeline(*client.graphics, client.entity_pipeline);
     
@@ -503,11 +500,11 @@ draw_world :: (client: *Client, local_player_index: s64) {
     // Draw implicit background inanimates
     //
     for x := 0; x < client.world_size.x; ++x {
-        draw_sprite_world_space(client, local_player_index, .World_Edge, .{ xx x, -1 }, .{ 1, 1 }, 0.5, .{ 255, 255, 255, 255 }, false);
-        draw_sprite_world_space(client, local_player_index, .World_Edge, .{ xx x, xx client.world_size.y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
+        draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, -1 }, .{ 1, 1 }, 0.5, .{ 255, 255, 255, 255 }, false);
+        draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, xx client.world_size.y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
 
         for y := 0; y < client.world_size.y; ++y {
-            draw_sprite_world_space(client, local_player_index, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
+            draw_sprite_world_space(client, local_player, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
         }
     }
     
@@ -525,7 +522,7 @@ draw_world :: (client: *Client, local_player_index: s64) {
         
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied && visibility_check_entity(client, local_player_index, entity) then array_add(*entities_to_draw, entity);
+            if occupied && visibility_check_entity(local_player, entity) then array_add(*entities_to_draw, entity);
         }
         
         quick_sort([]*Entity.{ entities_to_draw.count, entities_to_draw.data }, compare_entities_by_depth);
@@ -539,17 +536,17 @@ draw_world :: (client: *Client, local_player_index: s64) {
                 count := min(VISUAL_ITEM_STACK_CAPACITY, item_stack.count);
                 for i := 0; i < count; ++i {
                     world_position: v2f = .{ entity.visual_position.x + VISUAL_ITEM_STACK_OFFSETS[i].x, entity.visual_position.y + VISUAL_ITEM_STACK_OFFSETS[i].y };
-                    draw_sprite_world_space(client, local_player_index, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+                    draw_sprite_world_space(client, local_player, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
                 }
             } else {
-                draw_sprite_world_space(client, local_player_index, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+                draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
             }
         }
     }
 
     for i := 0; i < client.particle_systems.slot_count; ++i {
         system, occupied := index_bucket_array(*client.particle_systems, i);
-        if occupied then draw_particle_system(client, local_player_index, system);
+        if occupied then draw_particle_system(client, local_player, system);
     }
     
     //
@@ -559,10 +556,10 @@ draw_world :: (client: *Client, local_player_index: s64) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        draw_beam(client, local_player_index, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, true);
+        draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, true);
 
         if emitter.time_left_in_seconds > 0 {
-            draw_progress_bar_world_space(client, local_player_index, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
+            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
         }
     }
 
@@ -574,7 +571,7 @@ draw_world :: (client: *Client, local_player_index: s64) {
         if !occupied continue;
 
         if receiver.progress_time_in_seconds > 0 {
-            draw_progress_bar_world_space(client, local_player_index, receiver.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
+            draw_progress_bar_world_space(client, local_player, receiver.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
         }
     }
 
@@ -586,7 +583,7 @@ draw_world :: (client: *Client, local_player_index: s64) {
         if !occupied continue;
 
         intensity := smoothstep(FROG_ATTACK_TIME - frog.state_t, 0, 0.5);
-        draw_beam(client, local_player_index, *frog.beam_data, .{ 255, 82, 0, 150 }, intensity, false);
+        draw_beam(client, local_player, *frog.beam_data, .{ 255, 82, 0, 150 }, intensity, false);
     }
 
     //
@@ -597,7 +594,7 @@ draw_world :: (client: *Client, local_player_index: s64) {
         if !occupied continue;
 
         if item_stack.count > VISUAL_ITEM_STACK_CAPACITY {
-            screen_center := screen_from_world_position(client, local_player_index, v2f.{ item_stack.visual_position.x + 0.3, item_stack.visual_position.y + 0.3 });
+            screen_center := screen_from_world_position(*local_player.camera, v2f.{ item_stack.visual_position.x + 0.3, item_stack.visual_position.y + 0.3 });
             draw_text_screen_space(client, *client.ui_font, tprint("%", item_stack.count), screen_center, .Center | .Median, .{ 255, 255, 255, 255 });
         }
     }
@@ -611,19 +608,19 @@ draw_world :: (client: *Client, local_player_index: s64) {
 
         if guy.pid == local_player.guy_pid && guy.state != .Dead && position_in_bounds(client, guy.target_position) {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
-            draw_outlined_rect_world_space(client, local_player_index, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
+            draw_outlined_rect_world_space(client, local_player, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
         }
         
         if #complete guy.state == {
           case .Idle;
             
           case .Dead;
-            draw_circle_world_space(client, local_player_index, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.game_epoch_time * FTAU) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
+            draw_circle_world_space(client, local_player, .{ xx guy.visual_position.x, xx (guy.visual_position.y - 0.3 - sinf(client.game_epoch_time * FTAU) * 0.05) }, 0.25, 0.25 * 1.2, .{ 255, 238, 116, 255 });
 
           case .Digging;
             target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
             if target_entity {
-                draw_progress_bar_world_space(client, local_player_index, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / ENTITY_DEFAULT_HEALTH[target_entity.entity_kind]);
+                draw_progress_bar_world_space(client, local_player, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / ENTITY_DEFAULT_HEALTH[target_entity.entity_kind]);
             }
 
           case .Carrying;
@@ -632,13 +629,13 @@ draw_world :: (client: *Client, local_player_index: s64) {
             world_position := get_visual_hand_position_for_guy(client, guy);
             world_size := visual_size_for_item_kind(guy.carrying_item);
             sprite_index := get_sprite_index_for_item(guy.carrying_item);
-            draw_sprite_world_space(client, local_player_index, sprite_index, world_position, world_size, 0, .{ 255, 255, 255, 255 }, false);
+            draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, .{ 255, 255, 255, 255 }, false);
 
           case .Resurrecting;
-            draw_progress_bar_world_space(client, local_player_index, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
+            draw_progress_bar_world_space(client, local_player, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
         }
 
-        if guy.pid == local_player.guy_pid then draw_input_hint_for_guy(client, local_player_index, guy);
+        if guy.pid == local_player.guy_pid then draw_input_hint_for_guy(client, local_player, guy);
     }
 
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
@@ -660,7 +657,7 @@ draw_world :: (client: *Client, local_player_index: s64) {
         }
         
         if draw_health {
-            draw_health_bar_world_space(client, local_player_index, .{ entity.visual_position.x, entity.visual_position.y + 0.1 }, PROGRESS_BAR_WORLD_SIZE * 2, entity.health, ENTITY_DEFAULT_HEALTH[entity.entity_kind]);
+            draw_health_bar_world_space(client, local_player, .{ entity.visual_position.x, entity.visual_position.y + 0.1 }, PROGRESS_BAR_WORLD_SIZE * 2, entity.health, ENTITY_DEFAULT_HEALTH[entity.entity_kind]);
         }
     }
     
@@ -669,19 +666,19 @@ draw_world :: (client: *Client, local_player_index: s64) {
     //
     for i := 0; i < client.remote_players.count; ++i {
         remote_player := array_get_pointer(*client.remote_players, i);
-        draw_label(client, local_player_index, remote_player.name, remote_player.guy_pid);
+        draw_label(client, local_player, remote_player.name, remote_player.guy_pid);
     }
 
     //
     // Draw an indicate above this guy's entity
     //
     for i := 0; i < client.local_player_count; ++i {
-        local_player := *client.local_players[i];
+        other_local_player := *client.local_players[i];
 
-        if i == local_player_index {
-            draw_label(client, local_player_index, "v YOU v", local_player.guy_pid);
+        if local_player == other_local_player {
+            draw_label(client, local_player, tprint("v % v", local_player.name), local_player.guy_pid);
         } else {
-            draw_label(client, local_player_index, local_player.name, local_player.guy_pid);
+            draw_label(client, local_player, other_local_player.name, other_local_player.guy_pid);
         }
     }
 
@@ -934,8 +931,8 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     return index, tint, horizontally_mirrored;
 }
 
-draw_input_hint_for_guy :: (client: *Client, local_player_index: s64, guy: *Guy) {
-    if client.local_players[local_player_index].hud.was_open_this_frame return;
+draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
+    if local_player.hud.was_open_this_frame return;
 
     target_entity := find_any_entity_at_position(client, guy.target_position);
     if !target_entity return;
@@ -947,43 +944,43 @@ draw_input_hint_for_guy :: (client: *Client, local_player_index: s64, guy: *Guy)
     if target_entity.entity_kind == {
       case .Bedrock, .Crystal, .Rock, .Coal;
         if guy.state == .Idle {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
         }
       case .Lava;
         if guy.state == .Carrying && guy.carrying_item == .Stone {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
         }
       case .Mirror;
         if guy.state == .Idle {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary), get_sprite_index_for_input_action(client, local_player_index, .Interact_Secondary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary), get_sprite_index_for_input_action(client, local_player, .Interact_Secondary) ];
         } else if guy.state == .Carrying {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Secondary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Secondary) ];
         }
       case .Emitter;
         if guy.state == .Carrying && guy.carrying_item == .Coal {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
         }
       case .Trader;
         if guy.state == .Idle || guy.state == .Carrying {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Crafting_Menu_Toggle) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Crafting_Menu_Toggle) ];
         }
       case .Guy;
         if guy.state == .Idle {
             other_guy := down(target_entity, Guy);
             if other_guy.state == .Dead {
-                input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
+                input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
             }
         }
       case .Item_Stack;
         if guy.state == .Idle {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player_index, .Interact_Primary) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
             vertical_icon_offset = 0.25;
         }
     }
 
     for i := 0; i < input_sprites.count; ++i {
         offset: f32 = (cast(f32) (i - input_sprites.count / 2) + cast(f32) (1 - input_sprites.count % 2) * 0.5) * 0.4;
-        draw_sprite_world_space(client, local_player_index, input_sprites[i], .{ target_entity.visual_position.x + offset, target_entity.visual_position.y + vertical_icon_offset }, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, false);
+        draw_sprite_world_space(client, local_player, input_sprites[i], .{ target_entity.visual_position.x + offset, target_entity.visual_position.y + vertical_icon_offset }, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, false);
     }
 }
 
@@ -1008,17 +1005,17 @@ calculate_uv_box_for_index_in_atlas :: (index: s64, horizontally_mirrored: bool)
     return .[ .{ x0, y0 }, .{ x1, y0 }, .{ x1, y1 }, .{ x0, y1 } ];
 }
 
-visibility_check_entity :: (client: *Client, local_player_index: s64, entity: *Entity) -> bool {
-    camera := *client.local_players[local_player_index].camera;
+visibility_check_entity :: (local_player: *Local_Player, entity: *Entity) -> bool {
+    camera := *local_player.camera;
 
     entity_top_left := v2f.{ entity.visual_position.x - entity.visual_size.x / 2, entity.visual_position.y - entity.visual_size.y / 2 };
     entity_bottom_right := v2f.{ entity.visual_position.x + entity.visual_size.x / 2, entity.visual_position.y + entity.visual_size.y / 2 };
 
-    screen_top_left     := v2f.{ camera.center.x - camera.size.x / 2, camera.center.y - camera.size.y / 2 };
-    screen_bottom_right := v2f.{ camera.center.x + camera.size.x / 2, camera.center.y + camera.size.y / 2 };
+    visible_top_left     := v2f.{ camera.world_center.x - camera.world_area.x / 2, camera.world_center.y - camera.world_area.y / 2 };
+    visible_bottom_right := v2f.{ camera.world_center.x + camera.world_area.x / 2, camera.world_center.y + camera.world_area.y / 2 };
     
-    return (entity_bottom_right.x >= screen_top_left.x && entity_bottom_right.y >= screen_top_left.y) &&
-        (entity_top_left.x <= screen_bottom_right.x && entity_top_left.y <= screen_bottom_right.y);
+    return (entity_bottom_right.x >= visible_top_left.x && entity_bottom_right.y >= visible_top_left.y) &&
+        (entity_top_left.x <= visible_bottom_right.x && entity_top_left.y <= visible_bottom_right.y);
 }
 
 draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector2, foreground: UI_Color, background: UI_Color) {
@@ -1039,7 +1036,7 @@ clear_ui_scissors :: (client: *Client) {
     ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w - 1, xx client.window.h - 1 ]);
 }
 
-build_mesh_for_beam :: (client: *Client, beam: *Beam_Data, first_field_as_v: bool) -> []v2f {
+build_mesh_for_beam :: (beam: *Beam_Data, first_field_as_v: bool) -> []v2f {
     vertices: [..]v2f;
     vertices.allocator = *temp;
 
@@ -1078,7 +1075,7 @@ build_mesh_for_beam :: (client: *Client, beam: *Beam_Data, first_field_as_v: boo
     return .{ vertices.count, vertices.data };
 }
 
-draw_particle_system :: (client: *Client, local_player_index: s64, system: *Particle_System) {
+draw_particle_system :: (client: *Client, local_player: *Local_Player, system: *Particle_System) {
     for i := 0; i < system.emitters.count; ++i {
         emitter := *system.emitters[i];
 
@@ -1093,8 +1090,8 @@ draw_particle_system :: (client: *Client, local_player_index: s64, system: *Part
 
                 color := GE_Color.{ particle.color.r, particle.color.g, particle.color.b, cast(u8) (cast(f32) particle.color.a * system.global_alpha * local_alpha) };
                 world_position := v2f.{ particle.local_position.x + local_to_world_position.x, particle.local_position.y + local_to_world_position.y };
-                c0 := screen_from_world_position(client, local_player_index, .{ world_position.x - particle.size.x / 2, world_position.y - particle.size.y / 2 });
-                c1 := screen_from_world_position(client, local_player_index, .{ world_position.x + particle.size.x / 2, world_position.y + particle.size.y / 2 });
+                c0 := screen_from_world_position(*local_player.camera, .{ world_position.x - particle.size.x / 2, world_position.y - particle.size.y / 2 });
+                c1 := screen_from_world_position(*local_player.camera, .{ world_position.x + particle.size.x / 2, world_position.y + particle.size.y / 2 });
                 ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, color);
             }
         }
