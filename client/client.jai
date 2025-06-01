@@ -60,7 +60,7 @@ Local_Player :: struct {
     viewport: [4]f32;
     camera: Camera;
     hud: Hud;
-    active_input_device: Input_Device;
+    active_input_device:   Input_Device = 0;
     allowed_input_devices: Input_Device = 0;
     gamepad_index := 0;
 }
@@ -1038,9 +1038,9 @@ do_lobby_screen :: (client: *Client) {
 
             if bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) && local_player.gamepad_index < client.window.connected_gamepads {
                 gamepad := *client.window.gamepads[local_player.gamepad_index];
-                if gamepad.buttons[.XBox_A] & .Pressed then register_test_input(client, i, .Hud_XBox_A);
-                if gamepad.buttons[.XBox_X] & .Pressed then register_test_input(client, i, .Hud_XBox_X);
-                if gamepad.buttons[.PS_Cross] & .Pressed then register_test_input(client, i, .Hud_PS_Cross);
+                if gamepad.buttons[.XBox_A]    & .Pressed then register_test_input(client, i, .Hud_XBox_A);
+                if gamepad.buttons[.XBox_X]    & .Pressed then register_test_input(client, i, .Hud_XBox_X);
+                if gamepad.buttons[.PS_Cross]  & .Pressed then register_test_input(client, i, .Hud_PS_Cross);
                 if gamepad.buttons[.PS_Square] & .Pressed then register_test_input(client, i, .Hud_PS_Square);
             }
         }
