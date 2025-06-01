@@ -617,7 +617,8 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
 
         if guy.pid == local_player.guy_pid && guy.state != .Dead && position_in_bounds(client, guy.target_position) {
             TARGET_RECT_HALF_SIZE: f32 : 0.9 / 2;
-            draw_outlined_rect_world_space(client, local_player, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, 4, .{ 255, 255, 255, 255 });
+            thickness: f32 = ceil((local_player.viewport[3] - local_player.viewport[1]) / 180);
+            draw_outlined_rect_world_space(client, local_player, .{ xx guy.target_position.x - TARGET_RECT_HALF_SIZE, xx guy.target_position.y - TARGET_RECT_HALF_SIZE }, .{ xx guy.target_position.x + TARGET_RECT_HALF_SIZE, xx guy.target_position.y + TARGET_RECT_HALF_SIZE }, thickness, .{ 255, 255, 255, 255 });
         }
         
         if #complete guy.state == {

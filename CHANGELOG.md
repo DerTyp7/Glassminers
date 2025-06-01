@@ -10,6 +10,7 @@ Some minor improvements are also included:
 - The local player setup (names and input devices) are restored between games
 - Background tiles are now visibility culled
 - Particle Emitters are now visibility culled
+- The target rectangle's thickness is now scaled to the viewport size
 
 ## 0.1.2 (31.05.2025)
 
