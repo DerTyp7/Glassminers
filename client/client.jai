@@ -901,7 +901,9 @@ do_lobby_screen :: (client: *Client) {
             }
 
             center: GE_Vector2 = .{ round(element.screen_position.x + element.screen_size.x * 0.5), round(element.screen_position.y + element.screen_size.y * 0.5) };
-            draw_sprite_screen_space(client, index, center, .{ element.screen_size.x, element.screen_size.y }, 0, .{ 255, 255, 255, 255 }, false);
+            size_animation_factor := sinf(element.size_t * 10) * 0.2 + 1;
+            size: GE_Vector2 = .{ element.screen_size.x * size_animation_factor, element.screen_size.y * size_animation_factor };
+            draw_sprite_screen_space(client, index, center, size, 0, .{ 255, 255, 255, 255 }, false);
         }
 
         update_input_device_widget :: (client: *Client, element: *UI_Element, state: *Custom_State) {
@@ -916,7 +918,7 @@ do_lobby_screen :: (client: *Client) {
             }
         }
 
-        data := ui_custom_widget(*client.ui, label, .Animate_Size_On_Hover, update_input_device_widget, draw_input_device_widget, size_of(Sprite_Index));
+        data := ui_custom_widget(*client.ui, label, .Animate_Size_On_Hover | .Animate_Size_On_Activation, update_input_device_widget, draw_input_device_widget, size_of(Sprite_Index));
         state := cast(*Custom_State) data.custom_state;
         state.allowed_devices = allowed_devices;
     }
