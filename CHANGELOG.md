@@ -11,6 +11,7 @@ Some minor improvements are also included:
 - Background tiles are now visibility culled
 - Particle Emitters are now visibility culled
 - The target rectangle's thickness is now scaled to the viewport size
+- Prevented the client from spamming game start requests when using the "single player" option in the main menu
 
 ## 0.1.2 (31.05.2025)
 

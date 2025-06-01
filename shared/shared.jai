@@ -10,7 +10,7 @@ INVALID_PID: Pid : -1;
 
 MAX_LOCAL_PLAYERS :: 4;
 
-LOG_MESSAGES :: false;
+LOG_MESSAGES :: true;
 
 Campaign :: enum {
     Developer;

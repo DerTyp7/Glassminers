@@ -928,6 +928,7 @@ do_lobby_screen :: (client: *Client) {
 
     if client.immediately_start_game {
         start_lobby(client);
+        client.immediately_start_game = false;
     }
 
     // Do the lobby UI
