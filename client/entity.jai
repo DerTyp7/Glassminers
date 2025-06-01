@@ -485,8 +485,9 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
 
     recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
 
-    t := (1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME) * 3;
-    emitter.beam_intensity = smoothstep(cosf(powf(t, 5) * FTAU) * 0.5 + 0.5, 0, (t * t) / 30);
+    x := 1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME;
+    t := cosf(powf(x * 2, 8)) * 0.5 + 0.5;
+    emitter.beam_intensity = smoothstep(t, 0, powf(x, 4) / 3);
 
     if emitter.particles == INVALID_PID {
         particles := create_particle_system(client, MAX_F32, emitter.visual_position, 1);
