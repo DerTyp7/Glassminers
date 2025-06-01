@@ -73,6 +73,7 @@ Test_Input :: struct {
 
 UI_State :: struct {
     account_name: string;
+    local_player_name: string = ""; // So that we can clear the text input when a player was added
     network_host: string;
     network_port := 9876;
 }
@@ -973,16 +974,21 @@ do_lobby_screen :: (client: *Client) {
             if client.local_player_count < MAX_LOCAL_PLAYERS {
                 ui_push_container(ui, .Horizontal);
                 ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
-                data := ui_text_input(ui, "Name", .Everything);
-                if ui_button(ui, "Add!") && data.valid && data._string.count {
-                    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, data._string);
+
+                ui_text_input_with_string(ui, "Name", *client.ui_state.local_player_name, *client.engine_allocator);
+
+                if ui_button(ui, "Add!") && client.ui_state.local_player_name {
+                    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, client.ui_state.local_player_name);
                     client.local_players[client.local_player_count].allowed_input_devices = .Gamepad;
                     ++client.local_player_count;
 
                     if client.local_players[0].allowed_input_devices == .ALL then client.local_players[0].allowed_input_devices = .Keyboard;
 
                     send_player_information_message(client, client.local_player_count - 1);
+
+                    deallocate_string(*client.engine_allocator, *client.ui_state.local_player_name);
                 }
+
                 ui_pop_width(ui);
                 ui_pop_container(ui);
             }
