@@ -71,6 +71,12 @@ Test_Input :: struct {
     sprite_index: Sprite_Index;
 }
 
+UI_State :: struct {
+    account_name: string;
+    network_host: string;
+    network_port := 9876;
+}
+
 Client :: struct {
     //
     // Engine structure
@@ -82,6 +88,8 @@ Client :: struct {
     
     engine_pool: Memory_Pool;
     engine_allocator: Allocator;
+
+    ui_state: UI_State;
     
     current_state: Game_State;
     next_state: Game_State;
@@ -144,7 +152,7 @@ Client :: struct {
     game_epoch_time: f32;
 
     local_players: [MAX_LOCAL_PLAYERS]Local_Player;
-    local_player_count := 0;
+    local_player_count := 1;
 
     #using em: Entity_Manager;
 }
@@ -372,9 +380,8 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
 
     result := create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port);
     if result == .Success {
-        client.local_player_count = 1;
         client.local_players[0].name = copy_string(*client.engine_allocator, name);
-        client.local_players[0].allowed_input_devices = .Keyboard | .Gamepad;
+        if client.local_players[0].allowed_input_devices == 0 then client.local_players[0].allowed_input_devices = .Keyboard | .Gamepad;
         client.next_state = .Connecting;
     } else {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
@@ -387,9 +394,7 @@ disconnect_from_server :: (client: *Client) {
     logprint(.Debug, "Disconnecting from the server...");
 
     send_connection_closed_packet(*client.connection, 1, .[]);
-    for i := 0; i < client.local_player_count; ++i {
-        deallocate_string(*client.engine_allocator, *client.local_players[i].name);
-    }
+
     for i := 0; i < client.remote_players.count; ++i {
         deallocate_string(*client.engine_allocator, *array_get_pointer(*client.remote_players, i).name);
     }
@@ -790,20 +795,15 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Host", .Default, window_position(client, -1));
         ui_label(ui, false, "Name:");
-        name := ui_text_input(ui, "Enter your name", .Everything);
+        ui_text_input_with_string(ui, "Enter your name", *client.ui_state.account_name, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Port");
-        port := ui_text_input(ui, "Enter the port", .Integer);
+        ui_text_input_with_int(ui, "Enter the port", *client.ui_state.network_port);
         ui_divider(ui, true);
         
         if client.server_data.state == .Closed && ui_button(ui, "Host!") {
-#if DEVELOPER {
-            if !name._string.count then { name._string = "Victor"; name.valid = true; }
-            if !port.valid then { port._int = DEFAULT_PORT; port.valid = true; }
-}
-    
-            if name.valid && port.valid && host_server(client, port._int) {
-                join_server(client, name._string, "localhost", port._int);
+            if client.ui_state.account_name && host_server(client, client.ui_state.network_port) {
+                join_server(client, client.ui_state.account_name, "localhost", client.ui_state.network_port);
                 client.immediately_start_game = false;
             }
         }
@@ -830,23 +830,17 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Join", .Default, window_position(client, +1));
         ui_label(ui, false, "Name:");
-        name := ui_text_input(ui, "Enter your name", .Everything);
+        ui_text_input_with_string(ui, "Enter your name", *client.ui_state.account_name, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Host");
-        host := ui_text_input(ui, "Enter the address", .Everything);
+        ui_text_input_with_string(ui, "Enter the address", *client.ui_state.network_host, *client.engine_allocator);
         ui_label(ui, false, "Port");
-        port := ui_text_input(ui, "Enter the port", .Integer);
+        ui_text_input_with_int(ui, "Enter the port", *client.ui_state.network_port);
         ui_divider(ui, true);
         
         if client.server_data.state == .Closed && ui_button(ui, "Join!") {
-#if DEVELOPER {
-            if !name._string.count then { name._string = "Surreal"; name.valid = true; }
-            if !host._string.count then { host._string = "localhost"; host.valid = true; }
-            if !port.valid then { port._int = DEFAULT_PORT; port.valid = true; }
-}
-                
-            if name.valid && host.valid && port.valid {
-                join_server(client, name._string, host._string, port._int);
+            if client.ui_state.account_name && client.ui_state.network_host {
+                join_server(client, client.ui_state.account_name, client.ui_state.network_host, client.ui_state.network_port);
                 client.immediately_start_game = false;
             }
         }
@@ -1031,7 +1025,7 @@ do_lobby_screen :: (client: *Client) {
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
 
-            if bitfield_contains(*local_player.allowed_input_devices, Input_Device.Keyboard) {
+            if bitfield_contains(*local_player.allowed_input_devices, Input_Device.Keyboard) && !client.ui.active_text_input {
                 if client.window.keys[.Space] & .Pressed then register_test_input(client, i, .Hud_Key_Space);
                 if client.window.keys[.Shift] & .Pressed then register_test_input(client, i, .Hud_Key_Shift);
             }
@@ -1313,6 +1307,10 @@ main :: (args: []string) -> s32 {
     client.world_allocator = allocator_from_memory_pool(*client.world_pool);
     create_memory_arena(*client.tick_arena, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes, false);
     client.tick_allocator = allocator_from_memory_arena(*client.tick_arena);
+
+    client.ui_state.account_name = os_get_user_name(*client.engine_allocator);
+    client.ui_state.network_host = copy_string(*client.engine_allocator, "tealfire.de");
+    client.ui_state.network_port = 9876;
     
 #if DEVELOPER {
     create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
