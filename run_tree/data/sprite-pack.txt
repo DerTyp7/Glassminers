@@ -1,7 +1,8 @@
 #
 # HUD
 #
-Heart            sprites/items/heart.png
+Heart_Full            sprites/hud/heart-full.png
+Heart_Empty           sprites/hud/heart-empty.png
 
 Hud_Keyboard     sprites/hud/Hud-Keyboard.png
 Hud_Gamepad      sprites/hud/Hud-Gamepad.png

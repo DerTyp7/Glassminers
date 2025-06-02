@@ -1,6 +1,7 @@
 Sprite_Index :: enum {
     // HUD
-    Heart;
+    Heart_Full;
+    Heart_Empty;
 
     Hud_Keyboard;
     Hud_Gamepad;
@@ -260,29 +261,6 @@ draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_count: s64
     }
 }
 
-draw_filling_sprites_screen_space :: (client: *Client, sprite_index: Sprite_Index, center: v2f, sprite_count: s64, sprite_size: f32, percentage: f32) {
-    background :: GE_Color.{ 100, 100, 100, 200 };
-
-    gap_size := round(cast(f32) sprite_size * 0.1);
-    leftmost_center := center.x - xx (sprite_count - 1) * cast(f32) 0.5 * (sprite_size + gap_size);
-    
-    for i := 0; i < sprite_count; ++i {
-        theta := cast(f32) i / cast(f32) sprite_count;
-
-        sprite_center := v2f.{ leftmost_center + xx i * (sprite_size + gap_size), center.y };
-
-        t: f32 = ---;
-        if theta + (cast(f32) 1 / cast(f32) sprite_count) <= percentage then
-            t = 0;
-        else
-            t = 1 - clamp((percentage - theta) / (cast(f32) 1 / cast(f32) sprite_count), 0, 1);
-
-        tint := ge_mix_colors(.{ 255, 255, 255, 255 }, background, t);
-
-        draw_sprite_screen_space(client, sprite_index, sprite_center, .{ sprite_size, sprite_size }, 0, tint, false);
-    }
-}
-
 draw_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius, inner_radius: f32, theta0, theta1: f32, color: GE_Color) {
     subsegments :: 24;
     
@@ -429,12 +407,27 @@ draw_progress_bar_world_space :: (client: *Client, local_player: *Local_Player, 
     draw_progress_bar_screen_space(client, screen_center, screen_size, percentage);
 }
 
-draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, world_size: f32, health, max_health: f32) {
-    screen_center := screen_from_world_position(*local_player.camera, world_center);
+draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, entity: *Entity, world_size: f32) {
+    screen_center := screen_from_world_position(*local_player.camera, .{ entity.visual_position.x, entity.visual_position.y + 0.35 });
     screen_size   := screen_from_world_height(*local_player.camera, world_size);
 
-    box_count: s64 = cast(s64) ceil(max_health / HEALTH_PER_HEART);
-    draw_filling_sprites_screen_space(client, .Heart, screen_center, box_count, screen_size, health / max_health);
+    heart_count: s64 = cast(s64) ceil(ENTITY_DEFAULT_HEALTH[entity.entity_kind] / HEALTH_PER_HEART);
+
+    gap_size := round(cast(f32) screen_size * 0.1);
+    leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
+    
+    for i := 0; i < heart_count; ++i {
+        heart_value := (cast(f32) i) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
+        sprite_center := v2f.{ leftmost_center + xx i * (screen_size + gap_size), screen_center.y };
+
+        sprite_index: Sprite_Index = ---;
+        if heart_value < entity.health then
+            sprite_index = .Heart_Full;
+        else
+            sprite_index = .Heart_Empty;
+
+        draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, .{ 255, 255, 255, 255 }, false);
+    }
 }
 
 draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
@@ -667,7 +660,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         }
         
         if draw_health {
-            draw_health_bar_world_space(client, local_player, .{ entity.visual_position.x, entity.visual_position.y + 0.1 }, PROGRESS_BAR_WORLD_SIZE * 2, entity.health, ENTITY_DEFAULT_HEALTH[entity.entity_kind]);
+            draw_health_bar_world_space(client, local_player, entity, PROGRESS_BAR_WORLD_SIZE * 2);
         }
     }
     
