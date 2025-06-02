@@ -225,7 +225,7 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
     //
     msg := make_message(Entity_Health_Message);
     msg.entity_health.entity_pid = entity.pid;
-    msg.entity_health.current_health = entity.health;
+    msg.entity_health.new_health = entity.health;
     array_add(*server.outgoing_messages, msg);
 
     return has_died;
@@ -278,7 +278,7 @@ set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
     entity.health = health;
     msg := make_message(Entity_Health_Message);
     msg.entity_health.entity_pid = entity.pid;
-    msg.entity_health.current_health = entity.health;
+    msg.entity_health.new_health = entity.health;
     array_add(*server.outgoing_messages, msg);
 }
 

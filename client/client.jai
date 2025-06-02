@@ -540,7 +540,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
-        entity.health = msg.entity_health.current_health;
 
         // Play damage sounds
         sound_index: Sound_Index = .Count;
@@ -554,6 +553,30 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             entity.sound_pid      = play_sound_once_per_frame(client, sound_index);
             entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
         }
+
+        // Play damage particles
+        if entity.entity_flags & .Living && floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART) {
+            system := create_particle_system(client, 1.0, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1);
+            emitter := create_particle_emitter(system, 0, 64);
+            emitter.shape = .Box;
+            emitter.box_half_size = .{ 0.15, 0.15 };
+            emitter.drag     = 0.7;
+            emitter.size     = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];
+            emitter.speed    = .[ 3, 5 ];
+            emitter.lifetime = .[ 0.6, 1.0 ];
+            emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
+            emitter.particles_per_second = 1024;
+            emitter.alive_t  = 0.6;
+        }
+
+        // Play heal particles
+        if entity.entity_flags & .Living && floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART) {
+            system, emitter := create_halo_particles(client, entity, 1);
+            emitter.alive_t  = 0.5;
+            emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
+        }
+        
+        entity.health = msg.entity_health.new_health;
         
       case .Guy_State;
         entity := get_entity(client, msg.guy_state.entity_pid);
@@ -1097,18 +1120,6 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
 }
 
 do_game_tick :: (client: *Client) {
-    //
-    // Prepare all local entities for this new tick by storing previous state.
-    // This can allow us to basically diff this tick with the previous, which is required for
-    // certain functionality.
-    //
-    if !client.server_paused_game {
-        for i := 0; i < client.all_entities.slot_count; ++i {
-            entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied then entity.previous_tick_health = entity.health;
-        }
-    }
-    
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
 

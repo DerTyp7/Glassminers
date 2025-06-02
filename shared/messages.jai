@@ -83,7 +83,7 @@ Move_Entity_Message :: struct {
 Entity_Health_Message :: struct {
     MSG_TYPE :: Message_Type.Entity_Health;
     entity_pid: Pid;
-    current_health: f32;
+    new_health: f32;
 }
 
 Guy_State_Message :: struct {

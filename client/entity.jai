@@ -22,7 +22,6 @@ Entity :: struct {
     entity_kind: Entity_Kind;
     marked_for_removal: bool;
 
-    previous_tick_health: f32;
     health: f32;
     entity_flags: Entity_Flags;
     
@@ -228,6 +227,17 @@ get_particle_system :: (client: *Client, pid: Pid) -> *Particle_System {
     return ~pointer;
 }
 
+create_halo_particles :: (client: *Client, entity: *Entity, ttl: f32) -> *Particle_System, *Particle_Emitter {
+    particles := create_particle_system(client, ttl, .{ entity.visual_position.x, entity.visual_position.y - 0.35 }, 1);
+    emitter := create_particle_emitter(particles, 0, 64);
+    emitter.drag = 0.95;
+    emitter.box_half_size = .{ 0.45, 0.15 };
+    emitter.shape_cutout_factor = 0.95;
+    emitter.lifetime = .[ 0.5, 0.7 ];
+    emitter.speed = .[ 0.3, 0.5 ];
+    emitter.gravity = .{ 0, -2 };
+    return particles, emitter;
+}
 
 
 
@@ -423,23 +433,6 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         target_rotation := visual_from_physical_rotation(entity.physical_rotation);
         entity.visual_rotation = lerp_with_wrap_and_snap(entity.visual_rotation, target_rotation, speed, 0, 1);
     }
-
-    //
-    // Play a hit particle effect if this entity was damaged (and is living)
-    //
-    if entity.entity_flags & .Living && floor(entity.health / HEALTH_PER_HEART) < floor(entity.previous_tick_health / HEALTH_PER_HEART) {
-        system := create_particle_system(client, 1.0, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1);
-        emitter := create_particle_emitter(system, 0, 64);
-        emitter.shape = .Box;
-        emitter.box_half_size = .{ 0.15, 0.15 };
-        emitter.drag     = 0.7;
-        emitter.size     = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];
-        emitter.speed    = .[ 3, 5 ];
-        emitter.lifetime = .[ 0.6, 1.0 ];
-        emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
-        emitter.particles_per_second = 1024;
-        emitter.alive_t  = 0.6;
-    }
     
     //
     // Update the entity's sounds
@@ -544,18 +537,6 @@ update_slab :: (client: *Client, slab: *Slab) {
 }
 
 update_guy :: (client: *Client, guy: *Guy) {
-    create_halo_particles :: (client: *Client, guy: *Guy, ttl: f32) -> *Particle_System, *Particle_Emitter {
-        particles := create_particle_system(client, ttl, .{ guy.visual_position.x, guy.visual_position.y - 0.35 }, 1);
-        emitter := create_particle_emitter(particles, 0, 64);
-        emitter.drag = 0.95;
-        emitter.box_half_size = .{ 0.45, 0.15 };
-        emitter.shape_cutout_factor = 0.95;
-        emitter.lifetime = .[ 0.5, 0.7 ];
-        emitter.speed = .[ 0.3, 0.5 ];
-        emitter.gravity = .{ 0, -2 };
-        return particles, emitter;
-    }
-    
     if guy.state == .Resurrecting {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
@@ -582,15 +563,6 @@ update_guy :: (client: *Client, guy: *Guy) {
         } else {
             particles.global_alpha = 1;
         }
-    }
-
-    //
-    // Manage heal particles
-    //
-    if guy.health > guy.previous_tick_health {
-        system, emitter := create_halo_particles(client, guy, 1);
-        emitter.alive_t  = 0.5;
-        emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
     }
     
     //
