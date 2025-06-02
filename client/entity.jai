@@ -22,6 +22,9 @@ Entity :: struct {
     entity_kind: Entity_Kind;
     marked_for_removal: bool;
 
+    health_bar_damage_animation_t: f32; // Time of the health bar animation, in [1 -> 0]
+    health_bar_damage_animation_base: f32; // Health value when the damage animation started
+    
     health: f32;
     entity_flags: Entity_Flags;
     
@@ -433,6 +436,12 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         target_rotation := visual_from_physical_rotation(entity.physical_rotation);
         entity.visual_rotation = lerp_with_wrap_and_snap(entity.visual_rotation, target_rotation, speed, 0, 1);
     }
+
+    //
+    // Interpolate the health bar damage animation
+    //
+    HEALTH_BAR_DAMAGE_ANIMATION_SPEED: f32 : 2;
+    entity.health_bar_damage_animation_t = clamp(entity.health_bar_damage_animation_t - client.tick_time * HEALTH_BAR_DAMAGE_ANIMATION_SPEED, 0, 1);
     
     //
     // Update the entity's sounds

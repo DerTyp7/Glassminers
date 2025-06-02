@@ -549,13 +549,16 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
           case .Goblin; sound_index = .Goblin_Hurt_0;
         }
 
+        dropped_heart := floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART);
+        gained_heart  := floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART);
+        
         if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound_pid) {
             entity.sound_pid      = play_sound_once_per_frame(client, sound_index);
             entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
         }
 
-        // Play damage particles
-        if entity.entity_flags & .Living && floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART) {
+        // Play damage particles & health bar animation
+        if entity.entity_flags & .Living && dropped_heart {
             system := create_particle_system(client, 1.0, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1);
             emitter := create_particle_emitter(system, 0, 64);
             emitter.shape = .Box;
@@ -569,13 +572,18 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             emitter.alive_t  = 0.6;
         }
 
+        if entity.entity_flags & .Living {
+            entity.health_bar_damage_animation_t = 1;
+            entity.health_bar_damage_animation_base = ceil(entity.health / HEALTH_PER_HEART) * HEALTH_PER_HEART; // This is the heart that we just lost, since we want to animate that one.
+        }
+        
         // Play heal particles
-        if entity.entity_flags & .Living && floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART) {
+        if entity.entity_flags & .Living && gained_heart {
             system, emitter := create_halo_particles(client, entity, 1);
             emitter.alive_t  = 0.5;
             emitter.color    = .[ .{ 255, 0, 0, 255 }, .{ 184, 4, 70, 255 } ];
         }
-        
+            
         entity.health = msg.entity_health.new_health;
         
       case .Guy_State;

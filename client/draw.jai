@@ -1,7 +1,8 @@
 Sprite_Index :: enum {
     // HUD
     Heart_Full;
-    Heart_Empty;
+    Heart_Damaged_0;
+    Heart_Damaged_1;
 
     Hud_Keyboard;
     Hud_Gamepad;
@@ -423,16 +424,31 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
 
         sprite_index: Sprite_Index = ---;
         tint: GE_Color = ---;
-        if heart_1 < entity.health {
-            sprite_index = .Heart_Full;
-            tint = .{ 255, 255, 255, 255 };
-        } else if heart_0 > entity.health {
-            sprite_index = .Heart_Full;
-            tint = .{ 100, 100, 100, 255 };
+
+        if entity.health_bar_damage_animation_t > 0 {
+            if heart_1 <= entity.health {
+                sprite_index = .Heart_Full;
+                tint = .{ 255, 255, 255, 255 };
+            } else if heart_0 >= entity.health_bar_damage_animation_base {
+                sprite_index = .Heart_Full;
+                tint = .{ 100, 100, 100, 255 };
+            } else {
+                t := (entity.health - heart_0) / (heart_1 - heart_0);
+                sprite_index = ifx entity.health_bar_damage_animation_t <= 0.5 then .Heart_Damaged_0 else .Heart_Damaged_1;
+                tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
+            }
         } else {
-            t := (entity.health - heart_0) / (heart_1 - heart_0);
-            sprite_index = .Heart_Full;
-            tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
+            if heart_1 <= entity.health {
+                sprite_index = .Heart_Full;
+                tint = .{ 255, 255, 255, 255 };
+            } else if heart_0 >= entity.health {
+                sprite_index = .Heart_Full;
+                tint = .{ 100, 100, 100, 255 };
+            } else {
+                t := (entity.health - heart_0) / (heart_1 - heart_0);
+                sprite_index = .Heart_Full;
+                tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
+            }
         }
             
         draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, tint, false);
