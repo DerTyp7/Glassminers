@@ -2,7 +2,7 @@
 # HUD
 #
 Heart_Full            sprites/hud/heart-full.png
-Heart_Empty           sprites/hud/heart-empty.png
+Heart_Empty           sprites/hud/heart-empty.png    # Not actually used at the moment, because health bar rendering manually tints the full heart texture
 
 Hud_Keyboard     sprites/hud/Hud-Keyboard.png
 Hud_Gamepad      sprites/hud/Hud-Gamepad.png

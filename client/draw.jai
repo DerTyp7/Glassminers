@@ -417,16 +417,25 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
     leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
     
     for i := 0; i < heart_count; ++i {
-        heart_value := (cast(f32) i) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
+        heart_0 := (cast(f32) i) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
+        heart_1 := (cast(f32) i + 1) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
         sprite_center := v2f.{ leftmost_center + xx i * (screen_size + gap_size), screen_center.y };
 
         sprite_index: Sprite_Index = ---;
-        if heart_value < entity.health then
+        tint: GE_Color = ---;
+        if heart_1 < entity.health {
             sprite_index = .Heart_Full;
-        else
-            sprite_index = .Heart_Empty;
-
-        draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, .{ 255, 255, 255, 255 }, false);
+            tint = .{ 255, 255, 255, 255 };
+        } else if heart_0 > entity.health {
+            sprite_index = .Heart_Full;
+            tint = .{ 100, 100, 100, 255 };
+        } else {
+            t := (entity.health - heart_0) / (heart_1 - heart_0);
+            sprite_index = .Heart_Full;
+            tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
+        }
+            
+        draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, tint, false);
     }
 }
 
