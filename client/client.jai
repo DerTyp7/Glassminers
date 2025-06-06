@@ -21,12 +21,13 @@
 #load "../shared/VERSION_STRING.jai";
 
 // Client
-#load "draw.jai";
 #load "entity.jai";
-#load "assets.jai";
-#load "hud.jai";
-#load "sounds.jai";
 #load "particles.jai";
+#load "assets.jai";
+#load "sounds.jai";
+#load "animation.jai";
+#load "hud.jai";
+#load "draw.jai";
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
@@ -105,6 +106,7 @@ Client :: struct {
     ui_pipeline: *GE_Pipeline;
     entity_pipeline: *GE_Pipeline;
     sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
+    animations: [Animation_Index.Count]Animation;
     sounds: [Sound_Index.Count]Sound_Data;
     sounds_played_this_frame: [Sound_Index.Count]bool;
     
@@ -1322,6 +1324,8 @@ main :: (args: []string) -> s32 {
     create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
     if !pack_sprite_atlases_with_watchdog(*client, "data") return -1;
 }
+
+    if !create_animation_data(*client) return -1;
 
     window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
     window_width: s32 = ifx DEVELOPER then cast(s32) (720 * 1.8) else cast(s32) WINDOW_DONT_CARE;

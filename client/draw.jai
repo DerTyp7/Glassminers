@@ -119,6 +119,21 @@ Sprite_Index :: enum {
     Trader_Idle_Side_1;
 }
 
+find_sprite_index_from_name :: (name: string) -> s64, bool {
+    enum_info := cast(*Type_Info_Enum) type_info(Sprite_Index);
+
+    for i := 0; i < enum_info.members.count; ++i {
+        member := *enum_info.members[i];
+
+        if member.display_name == name {
+            return member.integral_value, true;
+        }
+    }
+
+    return 0, false;
+}
+
+
 //
 // Draw Context
 //
@@ -425,25 +440,25 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
         sprite_index: Sprite_Index = ---;
         tint: GE_Color = ---;
 
-            if heart_1 > entity.health && heart_0 < entity.health_bar_damage_animation_base {
-                t := (entity.health - heart_0) / (heart_1 - heart_0);
+        if heart_1 > entity.health && heart_0 < entity.health_bar_damage_animation_base {
+            t := (entity.health - heart_0) / (heart_1 - heart_0);
 
-                if entity.health_bar_damage_animation_t > 0.5 {
-                    sprite_index = .Heart_Damaged_1;
-                } else if entity.health_bar_damage_animation_t > 0.0 {
-                    sprite_index = .Heart_Damaged_0;
-                } else {
-                    sprite_index = .Heart_Full;
-                }
-
-                tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
-            } else if heart_1 <= entity.health {
+            if entity.health_bar_damage_animation_t > 0.5 {
+                sprite_index = .Heart_Damaged_1;
+            } else if entity.health_bar_damage_animation_t > 0.0 {
+                sprite_index = .Heart_Damaged_0;
+            } else {
                 sprite_index = .Heart_Full;
-                tint = .{ 255, 255, 255, 255 };
-            } else if heart_0 >= entity.health_bar_damage_animation_base {
-                sprite_index = .Heart_Full;
-                tint = .{ 100, 100, 100, 255 };
             }
+
+            tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
+        } else if heart_1 <= entity.health {
+            sprite_index = .Heart_Full;
+            tint = .{ 255, 255, 255, 255 };
+        } else if heart_0 >= entity.health_bar_damage_animation_base {
+            sprite_index = .Heart_Full;
+            tint = .{ 100, 100, 100, 255 };
+        }
             
         draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, tint, false);
     }
