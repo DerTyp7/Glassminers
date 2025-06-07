@@ -1,4 +1,42 @@
-:Guy_Walk_Side 0.33 true
+#
+# GUY ANIMATIONS
+#
+
+:Guy_Idle_Side 0.5 loop flip    is_idle
+Guy_Idle_Side_0
+Guy_Idle_Side_1
+
+:Guy_Idle_Back 0.5 loop   is_idle
+Guy_Idle_Back_0
+Guy_Idle_Back_1
+
+:Guy_Idle_Front 0.5 loop   is_idle
+Guy_Idle_Front_0
+Guy_Idle_Front_1
+
+
+:Guy_Walk_Side 0.15 flip   is_walk
 Guy_Walk_Side_0
 Guy_Walk_Side_1
 Guy_Walk_Side_2
+
+:Guy_Walk_Back 0.15   is_walk
+Guy_Walk_Back_0
+Guy_Walk_Back_1
+Guy_Walk_Back_2
+
+:Guy_Walk_Front 0.15   is_walk
+Guy_Walk_Front_0
+Guy_Walk_Front_1
+Guy_Walk_Front_2
+
+
+:Guy_Dead_Side 0 loop flip
+Guy_Dead_Side
+
+:Guy_Dead_Back 0 loop
+Guy_Dead_Back
+
+:Guy_Dead_Front 0 loop
+Guy_Dead_Front
+

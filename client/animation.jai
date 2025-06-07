@@ -3,14 +3,30 @@ MAX_ANIMATION_FRAMES :: 4;
 Animation_Index :: enum {
     None;
 
+    Guy_Idle_Side;
+    Guy_Idle_Back;
+    Guy_Idle_Front;
     Guy_Walk_Side;
+    Guy_Walk_Back;
+    Guy_Walk_Front;
+    Guy_Dead_Side;
+    Guy_Dead_Front;
+    Guy_Dead_Back;
+}
+
+Animation_Flags :: enum bitfield {
+    Loop;
+    Flip;
+
+    Is_Idle;
+    Is_Walk;
 }
 
 Animation :: struct {
     frames: [MAX_ANIMATION_FRAMES]Sprite_Index = ---;
     frame_count: s32;
     frame_time: f32;
-    looping: bool;
+    flags: Animation_Flags;
 }
 
 create_animation_data :: (client: *Client) -> bool {
@@ -58,8 +74,8 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
             //
             active_animation_index = .Count;
             
-            if args.count != 3 {
-                logprint(.Error, "%:%: A declaration of an animation was expected here, in the syntax ':<name> <frame_time> <looping>'.", filepath, line_number);
+            if args.count < 2 {
+                logprint(.Error, "%:%: A declaration of an animation was expected here, in the syntax ':<name> <frame_time> <...flags>'.", filepath, line_number);
                 success = false;
                 continue;
             }
@@ -81,16 +97,21 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
                 continue;
             }
 
-            looping, looping_valid := string_to_bool(array_get(*args, 2));
-            if !looping_valid {
-                logprint(.Error, "%:%: '%' is not a valid bool, the looping property was expected here.", filepath, line_number, array_get(*args, 2));
-                success = false;
-                continue;
+            flags: Animation_Flags = 0;
+
+            for i := 2; i < args.count; ++i {
+                flag := find_animation_flag_from_name(array_get(*args, i));
+                flags |= flag;
+                
+                if flag == 0 {
+                    logprint(.Error, "%:%: '%' is not a known animation flag.", filepath, line_number, array_get(*args, i));
+                    success = false;
+                }
             }
 
             animations[active_animation_index].frame_count = 0;
             animations[active_animation_index].frame_time  = xx frame_time;
-            animations[active_animation_index].looping     = looping;
+            animations[active_animation_index].flags       = flags;
         } else if active_animation_index < .Count {
             //
             // Append a new frame to the current animation
@@ -137,11 +158,23 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
 find_animation_index_from_name :: (name: string) -> Animation_Index {
     names :: enum_names(Animation_Index);
     
-    for i := 0; i < Animation_Index.Count; ++i {
+    for i := 0; i < names.count; ++i {
         if strings_equal(names[i], name, .Case_Insensitive) {
             return i;
         }
     }
 
     return .Count;
+}
+
+find_animation_flag_from_name :: (name: string) -> Animation_Flags {
+    names := enum_names(Animation_Flags);
+    
+    for i := 0; i < names.count; ++i {
+        if strings_equal(names[i], name, .Case_Insensitive) {
+            return 1 << i;
+        }
+    }
+    
+    return 0;
 }

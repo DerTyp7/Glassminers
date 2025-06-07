@@ -540,6 +540,19 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity.physical_position = msg.move_entity.position;
         entity.physical_rotation = msg.move_entity.rotation;
 
+        // Play walking animations
+        if entity.entity_kind == .Guy {
+            walk_animation := Animation_Index.Count;
+
+            if entity.physical_rotation == {
+              case .North; walk_animation = .Guy_Walk_Back;
+              case .South; walk_animation = .Guy_Walk_Front;
+              case .East, .West; walk_animation = .Guy_Walk_Side;
+            }
+
+            maybe_replace_animation(client, entity, .Is_Idle | .Is_Walk, walk_animation);
+        }
+        
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
 
@@ -1317,8 +1330,13 @@ main :: (args: []string) -> s32 {
     client.tick_allocator = allocator_from_memory_arena(*client.tick_arena);
 
     client.ui_state.account_name = os_get_user_name(*client.engine_allocator);
-    client.ui_state.network_host = copy_string(*client.engine_allocator, "tealfire.de");
     client.ui_state.network_port = 9876;
+
+#if DEVELOPER {
+    client.ui_state.network_host = copy_string(*client.engine_allocator, "localhost");
+} #else {
+    client.ui_state.network_host = copy_string(*client.engine_allocator, "tealfire.de");
+}
     
 #if DEVELOPER {
     create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);

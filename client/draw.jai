@@ -362,7 +362,7 @@ draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, 
     draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
 }
 
-draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
+draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flip: bool) {
     if sprite_index == .Count return; // This makes it more convenient when drawing input action hints, because we might not have sprites for every input binding...
 
     atlas_index    := sprite_index / SPRITES_PER_ATLAS;
@@ -383,7 +383,7 @@ draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen
     vertices[3].x = round(vertices[3].x);
     vertices[3].y = round(vertices[3].y);
     
-    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, flip);
     indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
     texture := client.sprite_atlases[atlas_index];
 
@@ -464,7 +464,7 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
     }
 }
 
-draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, horizontally_mirrored: bool) {
+draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, flip: bool) {
     atlas_index    := sprite_index / SPRITES_PER_ATLAS;
     index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
 
@@ -474,7 +474,7 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
         v2_rotate(v2f.{ +world_size.x / 2, +world_size.y / 2 }, rotation),
         v2_rotate(v2f.{ -world_size.x / 2, +world_size.y / 2 }, rotation) ];
     
-    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, horizontally_mirrored);
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, flip);
     indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
     texture := client.sprite_atlases[atlas_index];
 
@@ -565,17 +565,18 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         
         for i := 0; i < entities_to_draw.count; ++i {
             entity := array_get(*entities_to_draw, i);
-            sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, entity);
+            tint :: GE_Color.{ 255, 255, 255, 255 };
+            sprite_index, flip := get_sprite_index_for_entity(client, entity);
 
             if entity.entity_kind == .Item_Stack {
                 item_stack := down(entity, Item_Stack);
                 count := min(VISUAL_ITEM_STACK_CAPACITY, item_stack.count);
                 for i := 0; i < count; ++i {
                     world_position: v2f = .{ entity.visual_position.x + VISUAL_ITEM_STACK_OFFSETS[i].x, entity.visual_position.y + VISUAL_ITEM_STACK_OFFSETS[i].y };
-                    draw_sprite_world_space(client, local_player, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+                    draw_sprite_world_space(client, local_player, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, flip);
                 }
             } else {
-                draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, horizontally_mirrored);
+                draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, flip);
             }
         }
     }
@@ -661,12 +662,13 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
             }
 
           case .Carrying;
-            active_guy_sprite_index, tint, horizontally_mirrored := get_sprite_index_for_entity(client, guy);
+            tint :: GE_Color.{ 255, 255, 255, 255 };
+            active_guy_sprite_index, flip := get_sprite_index_for_entity(client, guy);
 
             world_position := get_visual_hand_position_for_guy(client, guy);
             world_size := visual_size_for_item_kind(guy.carrying_item);
             sprite_index := get_sprite_index_for_item(guy.carrying_item);
-            draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, .{ 255, 255, 255, 255 }, false);
+            draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, tint, false);
 
           case .Resurrecting;
             draw_progress_bar_world_space(client, local_player, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
@@ -817,18 +819,56 @@ get_sprite_index_for_gamepad_gesture :: (gesture: Window_Gamepad_Gesture_Code) -
     return .Count;
 }
 
-get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, GE_Color, bool {
-    entity_is_moving :: (entity: *Entity) -> bool {
-        EPSILON: f32 : 0.01;
-        target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
-        return abs(entity.visual_position.x - target_position.x) > EPSILON ||
-            abs(entity.visual_position.y - target_position.y) > EPSILON;
+get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, bool {
+    index: Sprite_Index = ---;
+    flip := false;
+    
+    if entity.animation == .Count {
+        //
+        // Default sprite index for this entity
+        //
+        if #complete entity.entity_kind == {
+          case .Guy;        index = .Guy_Idle_Front_0;
+          case .Emitter;    index = .Emitter;
+          case .Receiver;   index = .Receiver;
+          case .Mirror;     index = .Mirror;
+          case .Bedrock;    index = .Bedrock;
+          case .Rock;       index = .Rock;
+          case .Coal;       index = .Coal_Block;
+          case .Crystal;    index = .Crystal;
+          case .Item_Stack; index = get_sprite_index_for_item(down(entity, Item_Stack).item_kind);
+          case .Lava;       index = .Lava_0;
+          case .Slab;       index = .Slab_0;
+          case .Frog;       index = .Frog_Idle_Front_0;
+          case .Goblin;     index = .Goblin_Idle_Front_0;
+          case .Trader;     index = .Trader_Idle_Front_0;
+        }
+    } else {
+        //
+        // Get the sprite index in the current animation
+        //
+        animation := *client.animations[entity.animation];
+        total_animation_time := xx animation.frame_count * animation.frame_time;
+        frame_index: s64 = ---;
+
+        if animation.frame_time == 0 {
+            frame_index = 0;
+        } else if animation.flags & .Loop {
+            frame_index = cast(s64) floor(fmodf(entity.animation_t, total_animation_time) / animation.frame_time);
+        } else {
+            frame_index = min(cast(s64) floor(entity.animation_t / animation.frame_time), animation.frame_count - 1);
+        }
+        
+        if animation.flags & .Flip && (entity.physical_rotation == .East || entity.physical_rotation == .South) {
+            flip = true;
+        }
+        
+        index = animation.frames[frame_index];
     }
 
-    index: Sprite_Index = ---;
-    tint: GE_Color = .{ 255, 255, 255, 255 };
-    horizontally_mirrored := false;
-    
+    return index, flip;
+
+/*    
     if #complete entity.entity_kind == {
       case .Guy;
         guy := down(entity, Guy);
@@ -965,7 +1005,8 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         index = get_epoch_time_animated_sprite_index(client, 0.5, frames);
     }
     
-    return index, tint, horizontally_mirrored;
+    return index, horizontally_mirrored;
+*/
 }
 
 draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
@@ -1021,7 +1062,7 @@ draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *
     }
 }
 
-calculate_uv_box_for_index_in_atlas :: (index: s64, horizontally_mirrored: bool) -> [4]v2f {
+calculate_uv_box_for_index_in_atlas :: (index: s64, flip: bool) -> [4]v2f {
     WIDTH:  f32 : 1.0 / xx SPRITE_ATLAS_COLUMNS;
     HEIGHT: f32 : 1.0 / xx SPRITE_ATLAS_ROWS;
     
@@ -1033,7 +1074,7 @@ calculate_uv_box_for_index_in_atlas :: (index: s64, horizontally_mirrored: bool)
     x1 := x0 + WIDTH;
     y1 := y0 + HEIGHT;
 
-    if horizontally_mirrored {
+    if flip {
         tmp := x0;
         x0 = x1;
         x1 = tmp;

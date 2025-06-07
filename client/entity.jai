@@ -22,6 +22,9 @@ Entity :: struct {
     entity_kind: Entity_Kind;
     marked_for_removal: bool;
 
+    animation_t: f32;
+    animation: Animation_Index = .Count;
+
     health_bar_damage_animation_t: f32; // Time of the health bar animation, in [1 -> 0]
     health_bar_damage_animation_base: f32; // Health value when the damage animation started
     
@@ -248,13 +251,6 @@ create_halo_particles :: (client: *Client, entity: *Entity, ttl: f32) -> *Partic
 // Base Entity
 //
 
-down :: (entity: *Entity, $T: Type) -> *T {
-#if DEVELOPER {
-    assert(entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");
-}
-    return cast(*T) entity.derived;
-}
-
 create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, position: v2i, rotation: Direction) -> *Entity {
     make_derived :: (entity: *Entity, array: *Bucket_Array($T)) {
         derived := push_bucket_array(array);
@@ -291,7 +287,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Slab;       make_derived(entity, *client.slabs);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
-      case .Frog;     make_derived(entity, *client.frogs);
+      case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Crystal, .Bedrock, .Mirror, .Rock, .Coal, .Lava, .Trader;
         entity.derived = null;
@@ -331,6 +327,106 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
     pointer := probed_hash_table_query(*client.entity_pid_lookup, pid);
     assert(pointer != null, "Tried to get a non-existent entity.");
     return ~pointer;
+}
+
+down :: (entity: *Entity, $T: Type) -> *T {
+#if DEVELOPER {
+    assert(entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");
+}
+    return cast(*T) entity.derived;
+}
+
+interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
+    //
+    // Interpolate the entity's visual transform
+    //
+    approx_distance_to_move: f32 = ---;
+    
+    {
+        speed := client.tick_time * 10;
+        target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
+        approx_distance_to_move = abs((target_position.x - entity.visual_position.x) + (target_position.y - entity.visual_position.y));
+
+        entity.visual_position.x = lerp_with_snap(entity.visual_position.x, target_position.x, speed);
+        entity.visual_position.y = lerp_with_snap(entity.visual_position.y, target_position.y, speed);
+    }
+
+    entity.visual_size = visual_size_for_entity(entity);
+    
+    if disable_visual_rotation {
+        // This is a hack, but for certain entities (e.g. guys) we have sprites for the all
+        // the different physical rotations (because these are from different "perspectives").
+        // For those sprites, we don't actually want to rotate them visually, because the sprites
+        // themselves are "rotated"...
+        entity.visual_rotation = 0;
+    } else {
+        speed := client.tick_time * 20;
+        target_rotation := visual_from_physical_rotation(entity.physical_rotation);
+        entity.visual_rotation = lerp_with_wrap_and_snap(entity.visual_rotation, target_rotation, speed, 0, 1);
+    }
+
+    //
+    // Interpolate the animations
+    //
+    HEALTH_BAR_DAMAGE_ANIMATION_SPEED: f32 : 2;
+    entity.health_bar_damage_animation_t = clamp(entity.health_bar_damage_animation_t - client.tick_time * HEALTH_BAR_DAMAGE_ANIMATION_SPEED, 0, 1);
+    entity.animation_t += client.tick_time;
+    
+    //
+    // Update the entity's sounds
+    //
+    if approx_distance_to_move > 0.25 && !sound_active(client, entity.sound_pid) {
+        // Play move sound
+        pick_random_sound :: (sounds: []Sound_Index) -> Sound_Index {
+            time := rdtsc();
+            return sounds[time % sounds.count];
+        }
+
+        sound_index: Sound_Index = .Count;
+
+        if entity.entity_kind == {
+          case .Guy; sound_index = pick_random_sound(.[ .Concrete_Footsteps_0, .Concrete_Footsteps_1 ]);
+          case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
+        }
+
+        if sound_index != .Count {
+            entity.sound_pid = play_sound_once_per_frame(client, sound_index);
+        }
+    }
+
+    if entity.sound_cooldown > 0 {
+        entity.sound_cooldown -= client.tick_time;
+    }
+}
+
+// Definitely switches animation
+play_animation :: (entity: *Entity, animation: Animation_Index) {
+    entity.animation_t = 0;
+    entity.animation = animation;
+}
+
+// Switches animation if the current animation is of a specific kind (e.g. of "lower priority")
+maybe_replace_animation :: (client: *Client, entity: *Entity, if_any_current_flag: Animation_Flags, new_animation: Animation_Index) {
+    if entity.animation < .Count {
+        current_animation := *client.animations[entity.animation];
+        if current_animation.flags & if_any_current_flag {
+            play_animation(entity, new_animation);
+        }
+    } else {
+        play_animation(entity, new_animation);
+    }
+}
+
+// Switches animation if the previous animation has concluded
+maybe_succeed_animation :: (client: *Client, entity: *Entity, new_animation: Animation_Index) {
+    if entity.animation < .Count {
+        current_animation := *client.animations[entity.animation];
+        if entity.animation_t >= cast(f32) current_animation.frame_count * current_animation.frame_time {
+            play_animation(entity, new_animation);
+        }
+    } else {
+        play_animation(entity, new_animation);
+    }
 }
 
 find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
@@ -407,68 +503,6 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
 //
 // Derived Types
 //
-
-interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
-    //
-    // Interpolate the entity's visuals
-    //
-    approx_distance_to_move: f32 = ---;
-    
-    {
-        speed := client.tick_time * 10;
-        target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
-        approx_distance_to_move = abs((target_position.x - entity.visual_position.x) + (target_position.y - entity.visual_position.y));
-
-        entity.visual_position.x = lerp_with_snap(entity.visual_position.x, target_position.x, speed);
-        entity.visual_position.y = lerp_with_snap(entity.visual_position.y, target_position.y, speed);
-    }
-
-    entity.visual_size = visual_size_for_entity(entity);
-    
-    if disable_visual_rotation {
-        // This is a hack, but for certain entities (e.g. guys) we have sprites for the all
-        // the different physical rotations (because these are from different "perspectives").
-        // For those sprites, we don't actually want to rotate them visually, because the sprites
-        // themselves are "rotated"...
-        entity.visual_rotation = 0;
-    } else {
-        speed := client.tick_time * 20;
-        target_rotation := visual_from_physical_rotation(entity.physical_rotation);
-        entity.visual_rotation = lerp_with_wrap_and_snap(entity.visual_rotation, target_rotation, speed, 0, 1);
-    }
-
-    //
-    // Interpolate the health bar damage animation
-    //
-    HEALTH_BAR_DAMAGE_ANIMATION_SPEED: f32 : 2;
-    entity.health_bar_damage_animation_t = clamp(entity.health_bar_damage_animation_t - client.tick_time * HEALTH_BAR_DAMAGE_ANIMATION_SPEED, 0, 1);
-    
-    //
-    // Update the entity's sounds
-    //
-    if approx_distance_to_move > 0.25 && !sound_active(client, entity.sound_pid) {
-        // Play move sound
-        pick_random_sound :: (sounds: []Sound_Index) -> Sound_Index {
-            time := rdtsc();
-            return sounds[time % sounds.count];
-        }
-
-        sound_index: Sound_Index = .Count;
-
-        if entity.entity_kind == {
-          case .Guy; sound_index = pick_random_sound(.[ .Concrete_Footsteps_0, .Concrete_Footsteps_1 ]);
-          case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
-        }
-
-        if sound_index != .Count {
-            entity.sound_pid = play_sound_once_per_frame(client, sound_index);
-        }
-    }
-
-    if entity.sound_cooldown > 0 {
-        entity.sound_cooldown -= client.tick_time;
-    }
-}
 
 update_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(client, *emitter.beam_data);
@@ -548,6 +582,20 @@ update_slab :: (client: *Client, slab: *Slab) {
 update_guy :: (client: *Client, guy: *Guy) {
     if guy.state == .Resurrecting {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
+    }
+
+    if guy.state == .Dead {
+        if guy.physical_rotation == {
+          case .North; play_animation(guy, .Guy_Dead_Back);
+          case .South; play_animation(guy, .Guy_Dead_Front);
+          case .East, .West; play_animation(guy, .Guy_Dead_Side);
+        }
+    } else {
+        if guy.physical_rotation == {
+          case .North; maybe_succeed_animation(client, guy, .Guy_Idle_Back);
+          case .South; maybe_succeed_animation(client, guy, .Guy_Idle_Front);
+          case .East, .West; maybe_succeed_animation(client, guy, .Guy_Idle_Side);
+        }
     }
 
     //
