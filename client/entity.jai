@@ -281,6 +281,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     successfully_added := probed_hash_table_add(*client.entity_pid_lookup, pid, entity);
     assert(successfully_added, "For some reason we failed to register the entity pid on the client.");
 
+    // Create the derived pointers
     if #complete entity.entity_kind == {
       case .Guy;        make_derived(entity, *client.guys);
       case .Emitter;    make_derived(entity, *client.emitters);
@@ -293,8 +294,8 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
         entity.derived = null;
     }
 
+    // Create a lava particle system
     if entity.entity_kind == .Lava {
-        // Create a lava particle system
         system := create_particle_system(client, MAX_F32, entity.visual_position, 2);
 
         smoke := create_particle_emitter(system, 0, 8);
@@ -318,6 +319,12 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
         fire.speed    = .[ 0.5, 0.8 ];
         fire.lifetime = .[ 0.5, 2 ];
         fire.color    = .[ .{ 107, 16, 42, 200 }, .{ 255, 210, 103, 200 } ];
+    }
+
+    // Set the initial animation
+    if entity.entity_kind == {
+      case .Guy;  play_animation_from_group(client, entity, .Guy_Idle);
+      case .Frog; play_animation_from_group(client, entity, .Frog_Idle);
     }
     
     return entity;
