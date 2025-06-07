@@ -17,7 +17,7 @@ Texture_Data :: struct {
 
 #if BAKE_ASSETS {
     BAKED_SPRITE_ATLASES :: #run bake_all_sprite_atlases("run_tree/data");
-    BAKED_ANIMATIONS :: #run bake_all_animations("run_tree/data/animation-pack.txt");
+    BAKED_ANIMATIONS, BAKED_ANIMATION_GROUPS :: #run bake_all_animations("run_tree/data/animation-pack.txt");
     BAKED_SOUNDS :: #run bake_all_sounds("run_tree/data/sounds");
     BAKED_FONT :: #run bake_raw_file("run_tree/data/font.ttf");
 }
@@ -292,15 +292,16 @@ bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
     return result;
 }
 
-bake_all_animations :: (filepath: string) -> [Animation_Index.Count]Animation {
-    result: [Animation_Index.Count]Animation = ---;
-
-    if !load_animation_file(result, filepath) {
+bake_all_animations :: (filepath: string) -> [Animation_Index.Count]Animation, [Animation_Group_Index.Count]Animation_Group {
+    animations: [Animation_Index.Count]Animation = ---;
+    animation_groups: [Animation_Group_Index.Count]Animation_Group = ---;
+    
+    if !load_animation_file(animations, animation_groups, filepath) {
         compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the animation pack '%'.\n", filepath));
         compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));            
     }
     
-    return result;
+    return animations, animation_groups;
 }
 
 bake_raw_file :: (filepath: string) -> string {

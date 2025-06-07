@@ -405,27 +405,32 @@ play_animation :: (entity: *Entity, animation: Animation_Index) {
     entity.animation = animation;
 }
 
+play_animation_from_group :: (client: *Client, entity: *Entity, animation_group: Animation_Group_Index) {
+    group := *client.animation_groups[animation_group];
+    play_animation(entity, group.for_direction[entity.physical_rotation]);
+}
+
 // Switches animation if the current animation is of a specific kind (e.g. of "lower priority")
-maybe_replace_animation :: (client: *Client, entity: *Entity, if_any_current_flag: Animation_Flags, new_animation: Animation_Index) {
+maybe_switch_to_animation_from_group :: (client: *Client, entity: *Entity, if_any_current_flag: Animation_Flags, new_animation_group: Animation_Group_Index) {
     if entity.animation < .Count {
         current_animation := *client.animations[entity.animation];
         if current_animation.flags & if_any_current_flag {
-            play_animation(entity, new_animation);
+            play_animation_from_group(client, entity, new_animation_group);
         }
     } else {
-        play_animation(entity, new_animation);
+        play_animation_from_group(client, entity, new_animation_group);
     }
 }
 
 // Switches animation if the previous animation has concluded
-maybe_succeed_animation :: (client: *Client, entity: *Entity, new_animation: Animation_Index) {
+maybe_succeed_with_animation_from_group :: (client: *Client, entity: *Entity, new_animation_group: Animation_Group_Index) {
     if entity.animation < .Count {
         current_animation := *client.animations[entity.animation];
         if entity.animation_t >= cast(f32) current_animation.frame_count * current_animation.frame_time {
-            play_animation(entity, new_animation);
+            play_animation_from_group(client, entity, new_animation_group);
         }
     } else {
-        play_animation(entity, new_animation);
+        play_animation_from_group(client, entity, new_animation_group);
     }
 }
 
@@ -585,17 +590,9 @@ update_guy :: (client: *Client, guy: *Guy) {
     }
 
     if guy.state == .Dead {
-        if guy.physical_rotation == {
-          case .North; play_animation(guy, .Guy_Dead_Back);
-          case .South; play_animation(guy, .Guy_Dead_Front);
-          case .East, .West; play_animation(guy, .Guy_Dead_Side);
-        }
+        play_animation_from_group(client, guy, .Guy_Dead);
     } else {
-        if guy.physical_rotation == {
-          case .North; maybe_succeed_animation(client, guy, .Guy_Idle_Back);
-          case .South; maybe_succeed_animation(client, guy, .Guy_Idle_Front);
-          case .East, .West; maybe_succeed_animation(client, guy, .Guy_Idle_Side);
-        }
+        maybe_succeed_with_animation_from_group(client, guy, .Guy_Idle);
     }
 
     //

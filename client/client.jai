@@ -107,6 +107,7 @@ Client :: struct {
     entity_pipeline: *GE_Pipeline;
     sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
     animations: [Animation_Index.Count]Animation;
+    animation_groups: [Animation_Group_Index.Count]Animation_Group;
     sounds: [Sound_Index.Count]Sound_Data;
     sounds_played_this_frame: [Sound_Index.Count]bool;
     
@@ -542,15 +543,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         // Play walking animations
         if entity.entity_kind == .Guy {
-            walk_animation := Animation_Index.Count;
-
-            if entity.physical_rotation == {
-              case .North; walk_animation = .Guy_Walk_Back;
-              case .South; walk_animation = .Guy_Walk_Front;
-              case .East, .West; walk_animation = .Guy_Walk_Side;
-            }
-
-            maybe_replace_animation(client, entity, .Is_Idle | .Is_Walk, walk_animation);
+            maybe_switch_to_animation_from_group(client, entity, .Is_Idle | .Is_Walk, .Guy_Walk);
         }
         
       case .Entity_Health;

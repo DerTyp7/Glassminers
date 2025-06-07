@@ -27,18 +27,40 @@ Animation :: struct {
     frame_count: s32;
     frame_time: f32;
     flags: Animation_Flags;
+
+#if DEVELOPER {
+    encountered_in_file := false;
 }
+}
+
+Animation_Group_Index :: enum {
+    None;
+
+    Guy_Idle;
+    Guy_Walk;
+    Guy_Dead;
+}
+
+Animation_Group :: struct {
+    for_direction: [Direction.Count]Animation_Index;
+
+#if DEVELOPER {
+    encountered_in_file := false;
+}
+}
+
+
 
 create_animation_data :: (client: *Client) -> bool {
 #if BAKE_ASSETS {
     client.animations = BAKED_ANIMATIONS;
     return true;
 } #else {
-    return load_animation_file(client.animations, "data/animation-pack.txt");
+    return load_animation_file(client.animations, client.animation_groups, "data/animation-pack.txt");
 }
 }
 
-load_animation_file :: (animations: []Animation, filepath: string) -> bool {
+load_animation_file :: (animations: []Animation, groups: []Animation_Group, filepath: string) -> bool {
     original_file_content, success := read_entire_file(Default_Allocator, filepath);
     if !success {
         logprint(.Error, "Failed to open the animation-pack file '%'!", filepath);
@@ -48,7 +70,8 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
     defer free_file_content(Default_Allocator, *original_file_content);
 
     file_content := original_file_content;
-    active_animation_index := Animation_Index.Count + 1;
+    active_animation := Animation_Index.Count + 1;
+    active_animation_group := Animation_Group_Index.Count + 1;
     line_number := 0;
 
     while file_content.count {
@@ -67,12 +90,14 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
         }
 
         args := string_split(line, #char " ", true, *temp);
+        identifier := array_get(*args, 0);
         
-        if array_get(*args, 0)[0] == #char ":" {
+        if identifier[0] == #char ":" {
             //
             // Declaration of a new animation
             //
-            active_animation_index = .Count;
+            active_animation_group = .Count;
+            active_animation = .Count;
             
             if args.count < 2 {
                 logprint(.Error, "%:%: A declaration of an animation was expected here, in the syntax ':<name> <frame_time> <...flags>'.", filepath, line_number);
@@ -80,11 +105,10 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
                 continue;
             }
 
-            name := array_get(*args, 0);
-            name = substring_view(name, 1, name.count);
-            active_animation_index = find_animation_index_from_name(name);
+            name := substring_view(identifier, 1, identifier.count);
+            active_animation = find_animation_index_from_name(name);
 
-            if active_animation_index >= .Count {
+            if active_animation >= .Count {
                 logprint(.Error, "%:%: '%' is not a known animation.", filepath, line_number, name);
                 success = false;
                 continue;
@@ -109,10 +133,33 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
                 }
             }
 
-            animations[active_animation_index].frame_count = 0;
-            animations[active_animation_index].frame_time  = xx frame_time;
-            animations[active_animation_index].flags       = flags;
-        } else if active_animation_index < .Count {
+            animations[active_animation].frame_count = 0;
+            animations[active_animation].frame_time  = xx frame_time;
+            animations[active_animation].flags       = flags;
+
+            #if DEVELOPER {
+                animations[active_animation].encountered_in_file = true;
+            }
+        } else if array_get(*args, 0)[0] == #char "@" {
+            //
+            // Declaration of a new group
+            //
+            active_animation_group = .Count;
+            active_animation = .Count;
+
+            name := substring_view(identifier, 1, identifier.count);
+            active_animation_group = find_animation_group_index_from_name(name);
+
+            if active_animation_group >= .Count {
+                logprint(.Error, "%:%: '%' is not a known animation group.", filepath, line_number, name);
+                success = false;
+                continue;
+            }
+
+            #if DEVELOPER {
+                groups[active_animation_group].encountered_in_file = true;
+            }
+        } else if active_animation < .Count {
             //
             // Append a new frame to the current animation
             //
@@ -122,7 +169,7 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
                 continue;
             }
 
-            animation := *animations[active_animation_index];
+            animation := *animations[active_animation];
             
             name := array_get(*args, 0);
             sprite_index, valid_sprite_index := find_sprite_index_from_name(name);
@@ -134,7 +181,7 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
             }
             
             if animation.frame_count == MAX_ANIMATION_FRAMES {
-                logprint(.Error, "%:%: The animation '%' reached the maximum limit of % frames.", filepath, line_number, enum_names(Animation_Index)[active_animation_index], MAX_ANIMATION_FRAMES);
+                logprint(.Error, "%:%: The animation '%' reached the maximum limit of % frames.", filepath, line_number, enum_names(Animation_Index)[active_animation], MAX_ANIMATION_FRAMES);
                 success = false;
                 continue;
             }
@@ -142,13 +189,60 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
             
             animation.frames[animation.frame_count] = sprite_index;
             ++animation.frame_count;
-        } else if active_animation_index == Animation_Index.Count + 1 {
-            logprint(.Error, "%:%: An animation declaration must come before the first frame.", filepath, line_number);
+        } else if active_animation_group < .Count {
+            //
+            // Append a new animation to the current group
+            //
+            if args.count != 2 {
+                logprint(.Error, "%:%: A mapping from a direction to an animation was expected here, in the syntax '<direction> <animation>'.", filepath, line_number);
+                success = false;
+                continue;
+            }
+
+            direction := find_direction_from_name(array_get(*args, 0));
+            if direction == .Count {
+                logprint(.Error, "%:%: '%' is not a valid direction.", filepath, line_number, array_get(*args, 0));
+                success = false;
+                continue;
+            }
+            
+            animation_index := find_animation_index_from_name(array_get(*args, 1));
+            
+            if animation_index >= .Count {
+                logprint(.Error, "%:%: '%' is not a known animation.", filepath, line_number, array_get(*args, 1));
+                success = false;
+                continue;
+            }
+
+            groups[active_animation_group].for_direction[direction] = animation_index;
+        } else if active_animation == Animation_Index.Count + 1 && active_animation_group == Animation_Group_Index.Count + 1 {
+            logprint(.Error, "%:%: An animation or group declaration must come before the first frame.", filepath, line_number);
             success = false;
         }
     }
 
     return success;
+}
+
+get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> Sprite_Index, bool {
+    total_animation_time := xx animation.frame_count * animation.frame_time;
+
+    flip := false;
+    frame_index: s64 = ---;
+
+    if animation.frame_time == 0 {
+        frame_index = 0;
+    } else if animation.flags & .Loop {
+        frame_index = cast(s64) floor(fmodf(t, total_animation_time) / animation.frame_time);
+    } else {
+        frame_index = min(cast(s64) floor(t / animation.frame_time), animation.frame_count - 1);
+    }
+    
+    if animation.flags & .Flip && (rotation == .East || rotation == .South) {
+        flip = true;
+    }
+    
+    return animation.frames[frame_index], flip;
 }
 
 
@@ -157,6 +251,18 @@ load_animation_file :: (animations: []Animation, filepath: string) -> bool {
 
 find_animation_index_from_name :: (name: string) -> Animation_Index {
     names :: enum_names(Animation_Index);
+    
+    for i := 0; i < names.count; ++i {
+        if strings_equal(names[i], name, .Case_Insensitive) {
+            return i;
+        }
+    }
+
+    return .Count;
+}
+
+find_animation_group_index_from_name :: (name: string) -> Animation_Group_Index {
+    names :: enum_names(Animation_Group_Index);
     
     for i := 0; i < names.count; ++i {
         if strings_equal(names[i], name, .Case_Insensitive) {
@@ -177,4 +283,18 @@ find_animation_flag_from_name :: (name: string) -> Animation_Flags {
     }
     
     return 0;
+}
+
+find_direction_from_name :: (name: string) -> Direction {
+    if strings_equal("North", name, .Case_Insensitive) {
+        return .North;
+    } else if strings_equal("East", name, .Case_Insensitive) {
+        return .East;
+    } else if strings_equal("South", name, .Case_Insensitive) {
+        return .South;
+    } else if strings_equal("West", name, .Case_Insensitive) {
+        return .West;
+    } else {
+        return .Count;
+    }
 }

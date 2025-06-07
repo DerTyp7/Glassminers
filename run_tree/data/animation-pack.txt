@@ -40,3 +40,21 @@ Guy_Dead_Back
 :Guy_Dead_Front 0 loop
 Guy_Dead_Front
 
+
+@Guy_Idle
+North Guy_Idle_Back
+South Guy_Idle_Front
+West  Guy_Idle_Side
+East  Guy_Idle_Side
+
+@Guy_Walk
+North Guy_Walk_Back
+South Guy_Walk_Front
+West  Guy_Walk_Side
+East  Guy_Walk_Side
+
+@Guy_Dead
+North Guy_Dead_Back
+South Guy_Dead_Front
+West  Guy_Dead_Side
+East  Guy_Dead_Side

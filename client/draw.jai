@@ -848,22 +848,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         // Get the sprite index in the current animation
         //
         animation := *client.animations[entity.animation];
-        total_animation_time := xx animation.frame_count * animation.frame_time;
-        frame_index: s64 = ---;
-
-        if animation.frame_time == 0 {
-            frame_index = 0;
-        } else if animation.flags & .Loop {
-            frame_index = cast(s64) floor(fmodf(entity.animation_t, total_animation_time) / animation.frame_time);
-        } else {
-            frame_index = min(cast(s64) floor(entity.animation_t / animation.frame_time), animation.frame_count - 1);
-        }
-        
-        if animation.flags & .Flip && (entity.physical_rotation == .East || entity.physical_rotation == .South) {
-            flip = true;
-        }
-        
-        index = animation.frames[frame_index];
+        index, flip = get_animation_frame(animation, entity.physical_rotation, entity.animation_t);
     }
 
     return index, flip;
