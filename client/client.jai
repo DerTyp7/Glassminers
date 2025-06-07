@@ -543,7 +543,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         // Play walking animations
         if entity.entity_kind == .Guy {
-            maybe_switch_to_animation_from_group(client, entity, .Is_Idle | .Is_Walk, .Guy_Walk);
+            maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Walk);
         }
         
       case .Entity_Health;
@@ -606,7 +606,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Digging;      guy.sound_pid = play_sound(client, .Pickaxe_0, true);
               case .Carrying;     guy.sound_pid = play_sound(client, .Pickup_0, false);
               case .Resurrecting; guy.resurrection_t = 0;
-              case .Dead;         guy.sound_pid = play_sound(client, .Guy_Death_0, false);
+              case .Dead;
+                guy.sound_pid = play_sound(client, .Guy_Death_0, false);
+                play_animation_from_group(client, guy, .Guy_Dead);
               case .Idle; if guy.state == .Carrying guy.sound_pid = play_sound(client, .Placedown_0, false);
             }
         }
@@ -640,8 +642,13 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             frog.state_t = 0;
 
             if msg.frog_state.state == {
+              case .Idle;
+                play_animation_from_group(client, frog, .Frog_Idle);
+              case .Recovering;
+                play_animation_from_group(client, frog, .Frog_Recovering);
               case .Attacking;
                 frog.sound_pid = play_sound_once_per_frame(client, .Frog_Attack_0);
+                play_animation_from_group(client, frog, .Frog_Attacking);
             }
         }
 

@@ -3,6 +3,7 @@ MAX_ANIMATION_FRAMES :: 4;
 Animation_Index :: enum {
     None;
 
+    // Guy Animations
     Guy_Idle_Side;
     Guy_Idle_Back;
     Guy_Idle_Front;
@@ -12,6 +13,17 @@ Animation_Index :: enum {
     Guy_Dead_Side;
     Guy_Dead_Front;
     Guy_Dead_Back;
+
+    // Frog Animations
+    Frog_Idle_Side;
+    Frog_Idle_Back;
+    Frog_Idle_Front;
+    Frog_Attacking_Side;
+    Frog_Attacking_Back;
+    Frog_Attacking_Front;
+    Frog_Recovering_Side;
+    Frog_Recovering_Back;
+    Frog_Recovering_Front;
 }
 
 Animation_Flags :: enum bitfield {
@@ -39,6 +51,10 @@ Animation_Group_Index :: enum {
     Guy_Idle;
     Guy_Walk;
     Guy_Dead;
+
+    Frog_Idle;
+    Frog_Attacking;
+    Frog_Recovering;
 }
 
 Animation_Group :: struct {

@@ -58,3 +58,74 @@ North Guy_Dead_Back
 South Guy_Dead_Front
 West  Guy_Dead_Side
 East  Guy_Dead_Side
+
+
+#
+# FROG ANIMATIONS
+#
+
+:Frog_Idle_Side 0.33 loop flip   is_idle
+Frog_Idle_Side_0
+Frog_Idle_Side_1
+Frog_Idle_Side_2
+Frog_Idle_Side_3
+
+:Frog_Idle_Back 0.33 loop   is_idle
+Frog_Idle_Back_0
+Frog_Idle_Back_1
+Frog_Idle_Back_2
+Frog_Idle_Back_3
+
+:Frog_Idle_Front 0.33 loop   is_idle
+Frog_Idle_Front_0
+Frog_Idle_Front_1
+Frog_Idle_Front_2
+Frog_Idle_Front_3
+
+
+:Frog_Attacking_Side 0.33 flip
+Frog_Attacking_Side_0
+Frog_Attacking_Side_1
+Frog_Attacking_Side_2
+
+:Frog_Attacking_Back 0.33
+Frog_Attacking_Back_0
+Frog_Attacking_Back_1
+Frog_Attacking_Back_2
+
+:Frog_Attacking_Front 0.33
+Frog_Attacking_Front_0
+Frog_Attacking_Front_1
+Frog_Attacking_Front_2
+
+
+:Frog_Recovering_Side 2.5 flip
+Frog_Recovering_Side_0
+Frog_Recovering_Side_1
+
+:Frog_Recovering_Back 2.5
+Frog_Recovering_Back_0
+Frog_Recovering_Back_1
+
+:Frog_Recovering_Front 2.5
+Frog_Recovering_Front_0
+Frog_Recovering_Front_1
+
+
+@Frog_Idle
+North Frog_Idle_Back
+South Frog_Idle_Front
+East Frog_Idle_Side
+West Frog_Idle_Side
+
+@Frog_Attacking
+North Frog_Attacking_Back
+South Frog_Attacking_Front
+East  Frog_Attacking_Side
+West  Frog_Attacking_Side
+
+@Frog_Recovering
+North Frog_Recovering_Back
+South Frog_Recovering_Front
+East  Frog_Recovering_Side
+West  Frog_Recovering_Side

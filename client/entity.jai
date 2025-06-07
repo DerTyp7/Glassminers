@@ -411,7 +411,7 @@ play_animation_from_group :: (client: *Client, entity: *Entity, animation_group:
 }
 
 // Switches animation if the current animation is of a specific kind (e.g. of "lower priority")
-maybe_switch_to_animation_from_group :: (client: *Client, entity: *Entity, if_any_current_flag: Animation_Flags, new_animation_group: Animation_Group_Index) {
+maybe_play_animation_from_group_instead :: (client: *Client, entity: *Entity, if_any_current_flag: Animation_Flags, new_animation_group: Animation_Group_Index) {
     if entity.animation < .Count {
         current_animation := *client.animations[entity.animation];
         if current_animation.flags & if_any_current_flag {
@@ -423,7 +423,7 @@ maybe_switch_to_animation_from_group :: (client: *Client, entity: *Entity, if_an
 }
 
 // Switches animation if the previous animation has concluded
-maybe_succeed_with_animation_from_group :: (client: *Client, entity: *Entity, new_animation_group: Animation_Group_Index) {
+maybe_play_animation_from_group_after :: (client: *Client, entity: *Entity, new_animation_group: Animation_Group_Index) {
     if entity.animation < .Count {
         current_animation := *client.animations[entity.animation];
         if entity.animation_t >= cast(f32) current_animation.frame_count * current_animation.frame_time {
@@ -589,11 +589,7 @@ update_guy :: (client: *Client, guy: *Guy) {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
 
-    if guy.state == .Dead {
-        play_animation_from_group(client, guy, .Guy_Dead);
-    } else {
-        maybe_succeed_with_animation_from_group(client, guy, .Guy_Idle);
-    }
+    maybe_play_animation_from_group_after(client, guy, .Guy_Idle);
 
     //
     // Manage strength particles
