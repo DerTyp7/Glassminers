@@ -1,4 +1,4 @@
-## 0.2.0 (unreleased)
+## 0.2.0 (08.06.2025)
 
 Support for local multiplayer! Each client can now support up to 4 local players, which still talk to the server as before. This means you can mix and match local and online multiplayer.
     This also means that you can now have up to 4 gamepads connected. Each local player (that uses gamepad input) will use a different gamepad for input.
