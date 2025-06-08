@@ -104,7 +104,6 @@ destroy_animation_data :: (client: *Client) {
     client.animation_groups = .[];
 }
 
-#if DEVELOPER {
 load_animation_file :: (animations: []Animation, groups: []Animation_Group, filepath: string) -> bool {
     original_file_content, success := read_entire_file(Default_Allocator, filepath);
     if !success {
@@ -134,7 +133,9 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
             if !line.count continue;
         }
 
-        args := string_split(line, #char " ", true, *temp);
+        args := string_split(line, #char " ", true, Default_Allocator);
+        defer array_clear(*args);
+        
         identifier := array_get(*args, 0);
         
         if identifier[0] == #char ":" {
@@ -286,7 +287,6 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
     }
         
     return success;
-}
 }
     
 get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> Sprite_Index, bool {

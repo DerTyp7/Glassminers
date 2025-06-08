@@ -174,10 +174,7 @@ destroy_draw_data :: (client: *Client) {
     ge_destroy(*client.graphics);
 }
 
-draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
-    return .{ client, draw_ui_text, draw_ui_rect, set_ui_scissors, clear_ui_scissors };
-}
-
+#if DEVELOPER {
 reload_sprite_atlases_from_disk :: (client: *Client) {
     if !pack_sprite_atlases_with_watchdog(client, "data") return;
 
@@ -187,7 +184,12 @@ reload_sprite_atlases_from_disk :: (client: *Client) {
         client.sprite_atlases[i] = ge_create_texture_from_file(*client.graphics, file_path, .Filter_Nearest | .Wrap_Clamp_To_Edge);
     }
 }
+}
 
+draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
+    return .{ client, draw_ui_text, draw_ui_rect, set_ui_scissors, clear_ui_scissors };
+}
+    
 get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
     index: Sprite_Index = ---;
 
