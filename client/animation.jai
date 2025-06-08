@@ -24,6 +24,17 @@ Animation_Index :: enum {
     Frog_Recovering_Side;
     Frog_Recovering_Back;
     Frog_Recovering_Front;
+
+    // Goblin Animations
+    Goblin_Idle_Side;
+    Goblin_Idle_Back;
+    Goblin_Idle_Front;
+    Goblin_Attacking_Side;
+    Goblin_Attacking_Back;
+    Goblin_Attacking_Front;
+    Goblin_Recovering_Side;
+    Goblin_Recovering_Back;
+    Goblin_Recovering_Front;
 }
 
 Animation_Flags :: enum bitfield {
@@ -55,6 +66,10 @@ Animation_Group_Index :: enum {
     Frog_Idle;
     Frog_Attacking;
     Frog_Recovering;
+
+    Goblin_Idle;
+    Goblin_Attacking;
+    Goblin_Recovering;
 }
 
 Animation_Group :: struct {

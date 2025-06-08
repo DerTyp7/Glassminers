@@ -129,3 +129,63 @@ North Frog_Recovering_Back
 South Frog_Recovering_Front
 East  Frog_Recovering_Side
 West  Frog_Recovering_Side
+
+
+#
+# Goblin Animations
+#
+
+:Goblin_Idle_Side 0.33 loop flip   is_idle
+Goblin_Idle_Side_0
+Goblin_Idle_Side_1
+
+:Goblin_Idle_Back 0.33 loop   is_idle
+Goblin_Idle_Back_0
+Goblin_Idle_Back_1
+
+:Goblin_Idle_Front 0.33 loop   is_idle
+Goblin_Idle_Front_0
+Goblin_Idle_Front_1
+
+
+:Goblin_Attacking_Side 0 flip
+Goblin_Attacking_Side
+
+:Goblin_Attacking_Back 0
+Goblin_Attacking_Back
+
+:Goblin_Attacking_Front 0
+Goblin_Attacking_Front
+
+
+:Goblin_Recovering_Side 0.5 flip 
+Goblin_Recovering_Side_0
+Goblin_Recovering_Side_1
+
+:Goblin_Recovering_Back 0.5 flip 
+Goblin_Recovering_Back_0
+Goblin_Recovering_Back_1
+
+:Goblin_Recovering_Front 0.5 flip 
+Goblin_Recovering_Front_0
+Goblin_Recovering_Front_1
+
+
+
+@Goblin_Idle
+North Goblin_Idle_Back
+South Goblin_Idle_Front
+East  Goblin_Idle_Side
+West  Goblin_Idle_Side
+
+@Goblin_Attacking
+North Goblin_Attacking_Back
+South Goblin_Attacking_Front
+East  Goblin_Attacking_Side
+West  Goblin_Attacking_Side
+
+@Goblin_Recovering
+North Goblin_Recovering_Back
+South Goblin_Recovering_Front
+East  Goblin_Recovering_Side
+West  Goblin_Recovering_Side

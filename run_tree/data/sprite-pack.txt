@@ -118,15 +118,21 @@ Frog_Recovering_Front_1     sprites/frog/frog-recovering-front-1.png
 #
 # Goblin
 #
-Goblin_Idle_Back_0    sprites/goblin/goblin-idle-back-0.png
-Goblin_Idle_Back_1    sprites/goblin/goblin-idle-back-1.png
-Goblin_Idle_Front_0   sprites/goblin/goblin-idle-front-0.png
-Goblin_Idle_Front_1   sprites/goblin/goblin-idle-front-1.png
-Goblin_Idle_Side_0    sprites/goblin/goblin-idle-side-0.png
-Goblin_Idle_Side_1    sprites/goblin/goblin-idle-side-1.png
-Goblin_Attack_Back    sprites/goblin/goblin-attack-back.png
-Goblin_Attack_Front   sprites/goblin/goblin-attack-front.png
-Goblin_Attack_Side    sprites/goblin/goblin-attack-side.png
+Goblin_Idle_Back_0       sprites/goblin/goblin-idle-back-0.png
+Goblin_Idle_Back_1       sprites/goblin/goblin-idle-back-1.png
+Goblin_Idle_Front_0      sprites/goblin/goblin-idle-front-0.png
+Goblin_Idle_Front_1      sprites/goblin/goblin-idle-front-1.png
+Goblin_Idle_Side_0       sprites/goblin/goblin-idle-side-0.png
+Goblin_Idle_Side_1       sprites/goblin/goblin-idle-side-1.png
+Goblin_Attacking_Back    sprites/goblin/goblin-attacking-back.png
+Goblin_Attacking_Front   sprites/goblin/goblin-attacking-front.png
+Goblin_Attacking_Side    sprites/goblin/goblin-attacking-side.png
+Goblin_Recovering_Back_0       sprites/goblin/goblin-recovering-back-0.png
+Goblin_Recovering_Back_1       sprites/goblin/goblin-recovering-back-1.png
+Goblin_Recovering_Front_0      sprites/goblin/goblin-recovering-front-0.png
+Goblin_Recovering_Front_1      sprites/goblin/goblin-recovering-front-1.png
+Goblin_Recovering_Side_0       sprites/goblin/goblin-recovering-side-0.png
+Goblin_Recovering_Side_1       sprites/goblin/goblin-recovering-side-1.png
 
 #
 # Trader

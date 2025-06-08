@@ -642,10 +642,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             frog.state_t = 0;
 
             if msg.frog_state.state == {
-              case .Idle;
-                play_animation_from_group(client, frog, .Frog_Idle);
-              case .Recovering;
-                play_animation_from_group(client, frog, .Frog_Recovering);
+              case .Idle; play_animation_from_group(client, frog, .Frog_Idle);
+              case .Recovering; play_animation_from_group(client, frog, .Frog_Recovering);
               case .Attacking;
                 frog.sound_pid = play_sound_once_per_frame(client, .Frog_Attack_0);
                 play_animation_from_group(client, frog, .Frog_Attacking);
@@ -662,8 +660,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             goblin.state_t = 0;
 
             if msg.goblin_state.state == {
+              case .Idle; play_animation_from_group(client, goblin, .Goblin_Idle);
+              case .Recovering; play_animation_from_group(client, goblin, .Goblin_Recovering);
               case .Attacking;
                 goblin.sound_pid = play_sound_once_per_frame(client, .Goblin_Attack_0);
+                play_animation_from_group(client, goblin, .Goblin_Attacking);
             }
         }
 

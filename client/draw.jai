@@ -106,9 +106,15 @@ Sprite_Index :: enum {
     Goblin_Idle_Front_1;
     Goblin_Idle_Side_0;
     Goblin_Idle_Side_1;
-    Goblin_Attack_Back;
-    Goblin_Attack_Front;
-    Goblin_Attack_Side;
+    Goblin_Attacking_Back;
+    Goblin_Attacking_Front;
+    Goblin_Attacking_Side;
+    Goblin_Recovering_Back_0;
+    Goblin_Recovering_Back_1;
+    Goblin_Recovering_Front_0;
+    Goblin_Recovering_Front_1;
+    Goblin_Recovering_Side_0;
+    Goblin_Recovering_Side_1;
 
     // Trader
     Trader_Idle_Back_0;
@@ -853,7 +859,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
 
     return index, flip;
 
-/*    
+/*     @RemoveMe
     if #complete entity.entity_kind == {
       case .Guy;
         guy := down(entity, Guy);
