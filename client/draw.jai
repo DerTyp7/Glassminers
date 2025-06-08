@@ -786,12 +786,13 @@ get_epoch_time_animated_sprite_index :: (client: *Client, frame_time: f32, frame
 }
 
 get_visual_hand_position_for_guy :: (client: *Client, guy: *Guy) -> v2f {
-    frame_index := cast(s64) floor(client.game_epoch_time / 0.5) % 2;
     ONE_PIXEL: f32 : 1 / 16;
 
+    frame_index, flip := get_animation_frame_index(*client.animations[guy.animation], guy.physical_rotation, guy.animation_t);
+
     // The x and y coordinates are in pixels inside the guy's sprite.
-    x: f32 = ifx guy.physical_rotation == .West then 1 else 14;
-    y: f32 = 12 + xx frame_index;
+    x: f32 = ifx flip then 14 else 1;
+    y: f32 = 12 + xx (frame_index % 2);
 
     return .{ guy.visual_position.x + (x * ONE_PIXEL - 0.5), guy.visual_position.y + (y * ONE_PIXEL - 0.5) };
 }

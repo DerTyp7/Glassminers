@@ -15,6 +15,8 @@ Some minor improvements are also included:
 - The target rectangle's thickness is now scaled to the viewport size
 - Prevented the client from spamming game start requests when using the "single player" option in the main menu
 - Tried to improve the feeling of the light beam flickering
+- Added a cheat to get a coal item
+- The selected option in crafting menus now tries to stay persistent if possible, and avoids junky animations
 
 ## 0.1.2 (31.05.2025)
 

@@ -289,8 +289,8 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
     return success;
 }
     
-get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> Sprite_Index, bool {
-    if animation.frame_count == 0 return .Count, false;
+get_animation_frame_index :: (animation: *Animation, rotation: Direction, t: f32) -> s64, bool {
+    if animation.frame_count == 0 return -1, false;
 
     total_animation_time := xx animation.frame_count * animation.frame_time;
 
@@ -309,7 +309,12 @@ get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> S
         flip = true;
     }
     
-    return animation.frames[frame_index], flip;
+    return frame_index, flip;
+}
+
+get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> Sprite_Index, bool {
+    frame_index, flip := get_animation_frame_index(animation, rotation, t);
+    return ifx frame_index >= 0 then animation.frames[frame_index] else .Count, flip;
 }
 
 

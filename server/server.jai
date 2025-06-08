@@ -688,6 +688,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 #if DEVELOPER {
     if #complete guy.received_input.cheat == {
       case .Give_Coin; try_to_give_item(server, guy, .Coin);
+      case .Give_Coal; try_to_give_item(server, guy, .Coal);
       case .Give_Health; set_entity_health(server, guy, ENTITY_DEFAULT_HEALTH[.Guy]);
       case .Give_Strength; guy.strength_t = STRENGTH_POTION_TIME;
     }

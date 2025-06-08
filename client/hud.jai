@@ -1,5 +1,6 @@
 Hud :: struct {
     state: Hud_State;
+    previously_opened_state: Hud_State;
     crafting_recipe_input_this_frame: Crafting_Recipe;
     cheat_input_this_frame: Cheat;
     was_open_this_frame: bool;
@@ -48,8 +49,15 @@ update_hud :: (client: *Client, local_player_index: s64) {
     //
     if input_action_fired_for_local_player(client, local_player, .Crafting_Menu_Toggle) {
         if hud.state != .Crafting_Menu {
-            hud.crafting_menu.selected_recipe = 0;
-            if set_available_crafting_recipes(client, local_player_index) then hud.state = .Crafting_Menu;
+            if hud.previously_opened_state != .Crafting_Menu {
+                hud.crafting_menu.selected_recipe = 0;
+            }
+
+            if set_available_crafting_recipes(client, local_player_index) {
+                hud.crafting_menu.selected_recipe = hud.crafting_menu.selected_recipe % hud.crafting_menu.recipes.count;
+                hud.state = .Crafting_Menu;
+                hud.previously_opened_state = .Crafting_Menu;
+            }
         } else {
             close_hud(client, local_player_index);
         }
@@ -58,8 +66,14 @@ update_hud :: (client: *Client, local_player_index: s64) {
 #if DEVELOPER {
     if input_action_fired_for_local_player(client, local_player, .Cheat_Menu_Toggle) {
         if hud.state != .Cheat_Menu {
+            if hud.previously_opened_state != .Cheat_Menu {
+                hud.cheat_menu.selected_cheat = 0;
+                hud.cheat_menu.animation_t = .[];
+            }
+
+            hud.cheat_menu.selected_cheat = hud.cheat_menu.selected_cheat % Cheat.Count;
             hud.state = .Cheat_Menu;
-            hud.cheat_menu.selected_cheat = 0;
+            hud.previously_opened_state = .Cheat_Menu;
         } else {
             close_hud(client, local_player_index);
         }
@@ -218,6 +232,7 @@ CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
 
 CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Coin,
+    .Coal_Item,
     .Health_Potion,
     .Strength_Potion,
 ];
