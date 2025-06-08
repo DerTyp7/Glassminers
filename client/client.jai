@@ -114,6 +114,7 @@ Client :: struct {
 #if DEVELOPER {
     sound_watchdog: File_Watcher;
     sprite_watchdog: File_Watcher;
+    pack_watchdog: File_Watcher;
 }
 
     //
@@ -1347,8 +1348,9 @@ main :: (args: []string) -> s32 {
 }
     
 #if DEVELOPER {
-    create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
-    if !pack_sprite_atlases_with_watchdog(*client, "data") return -1;
+    create_file_watcher(*client.pack_watchdog, *client.engine_allocator);
+    add_file_to_watch(*client.pack_watchdog, "data/animation-pack.txt");
+    add_file_to_watch(*client.pack_watchdog, "data/sprite-pack.txt");
 }
 
     if !create_animation_data(*client) return -1;
@@ -1392,9 +1394,7 @@ main :: (args: []string) -> s32 {
 #if DEVELOPER {
     changed_sprites := update_file_watcher(*client.sprite_watchdog, *temp);
     if changed_sprites.count {
-        if pack_sprite_atlases_with_watchdog(*client, "data") {
-            reload_sprite_atlases_from_disk(*client);
-        }
+        reload_sprite_atlases_from_disk(*client);
     }
 
     changed_sounds := update_file_watcher(*client.sound_watchdog, *temp);
@@ -1412,6 +1412,17 @@ main :: (args: []string) -> s32 {
             }
         } else {
             logprint(.Warning, "Registered a non-cataloged sound change: '%'.", filepath);
+        }
+    }
+
+    changed_packs := update_file_watcher(*client.pack_watchdog, *temp);
+    for i := 0; i < changed_packs.count; ++i {
+        filepath := array_get(*changed_packs, i);
+        if filepath == "data/animation-pack.txt" {
+            destroy_animation_data(*client);
+            create_animation_data(*client);
+        } else if filepath == "data/sprite-pack.txt" {
+            reload_sprite_atlases_from_disk(*client);
         }
     }
 }

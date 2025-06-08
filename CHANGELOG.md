@@ -4,6 +4,8 @@ Support for local multiplayer! Each client can now support up to 4 local players
     This also means that you can now have up to 4 gamepads connected. Each local player (that uses gamepad input) will use a different gamepad for input.
     This required quite a lot of changes in the server and the client to get working, so it's a breaking change, but one that I'm very happy with.
 
+Support for our new internal animation file format! This is only relevant for the development process, but it should make it much nicer to structure sprite animations, because I no longer have to hardcode animations in one specific place.
+
 Some minor improvements are also included:
 - Added sensical defaults to all main menu options
 - The main menu options are now restored after connecting & disconnecting

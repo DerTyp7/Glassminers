@@ -96,10 +96,16 @@ Animation_Group :: struct {
 create_animation_data :: (client: *Client) -> bool {
 #if BAKE_ASSETS {
     client.animations = BAKED_ANIMATIONS;
+    client.animation_groups = BAKED_ANIMATION_GROUPS;
     return true;
 } #else {
     return load_animation_file(client.animations, client.animation_groups, "data/animation-pack.txt");
 }
+}
+
+destroy_animation_data :: (client: *Client) {
+    client.animations = .[];
+    client.animation_groups = .[];
 }
 
 load_animation_file :: (animations: []Animation, groups: []Animation_Group, filepath: string) -> bool {

@@ -179,6 +179,8 @@ draw_ui_callbacks :: (client: *Client) -> UI_Callbacks {
 }
 
 reload_sprite_atlases_from_disk :: (client: *Client) {
+    if !pack_sprite_atlases_with_watchdog(client, "data") return;
+
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         file_path := tprint("data/sprite_atlas_%.png", i);
         if client.sprite_atlases[i] ge_destroy_texture(*client.graphics, client.sprite_atlases[i]);
@@ -858,146 +860,6 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     }
 
     return index, flip;
-
-/*     @RemoveMe
-    if #complete entity.entity_kind == {
-      case .Guy;
-        guy := down(entity, Guy);
-
-        frames: []Sprite_Index = ---;
-        frame_time: f32 = ---;
-
-        if guy.state == .Dead {
-            frame_time = 0.5;
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Guy_Dead_Back ];
-              case .South; frames = .[ .Guy_Dead_Front ];
-              case .East, .West; frames = .[ .Guy_Dead_Side ];
-            }
-        } else if entity_is_moving(entity) {
-            frame_time = 0.2;
-
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Guy_Walk_Back_0, .Guy_Walk_Back_1, .Guy_Walk_Back_2 ];
-              case .South; frames = .[ .Guy_Walk_Front_0, .Guy_Walk_Front_1, .Guy_Walk_Front_2 ];
-              case .East, .West; frames = .[ .Guy_Walk_Side_0, .Guy_Walk_Side_1, .Guy_Walk_Side_2 ];
-            }
-        } else {
-            frame_time = 0.5;
-
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Guy_Idle_Back_0, .Guy_Idle_Back_1 ];
-              case .South; frames = .[ .Guy_Idle_Front_0, .Guy_Idle_Front_1 ];
-              case .East, .West; frames = .[ .Guy_Idle_Side_0, .Guy_Idle_Side_1 ];
-            }
-        }
-        
-        horizontally_mirrored = entity.physical_rotation == .East;
-        index = get_epoch_time_animated_sprite_index(client, frame_time, frames);
-
-      case .Emitter;   index = .Emitter;
-      case .Receiver;  index = .Receiver;
-      case .Mirror;    index = .Mirror;
-            
-      case .Bedrock;   index = .Bedrock;
-      case .Rock;      index = .Rock;
-      case .Coal; index = .Coal_Block;
-      case .Crystal;   index = .Crystal;
-
-      case .Item_Stack;
-        stack := down(entity, Item_Stack);
-        index = get_sprite_index_for_item(stack.item_kind);
-
-      case .Lava;
-        index = get_epoch_time_animated_sprite_index(client, 0.75, .[ .Lava_0, .Lava_1, .Lava_2, .Lava_3, .Lava_4 ]);
-
-      case .Slab;
-        slab := down(entity, Slab);
-        frames: []Sprite_Index = .[ .Slab_0, .Slab_1, .Slab_2, .Slab_3, .Slab_4 ];
-        index = get_time_animated_sprite_index(client, SLAB_TIME_TO_LIVE / cast(f32) frames.count, frames, SLAB_TIME_TO_LIVE - slab.time_left_in_seconds, false);
-        
-      case .Frog;
-        frog := down(entity, Frog);
-        frames: []Sprite_Index = ---;
-        
-        if #complete frog.state == {
-          case .Idle;
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Frog_Idle_Back_0, .Frog_Idle_Back_1, .Frog_Idle_Back_2, .Frog_Idle_Back_3 ];
-              case .South; frames = .[ .Frog_Idle_Front_0, .Frog_Idle_Front_1, .Frog_Idle_Front_2, .Frog_Idle_Front_3 ];
-              case .East, .West; frames = .[ .Frog_Idle_Side_0, .Frog_Idle_Side_1, .Frog_Idle_Side_2, .Frog_Idle_Side_3 ];
-            }
-            index = get_epoch_time_animated_sprite_index(client, 0.33, frames);
-            
-          case .Attacking;
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Frog_Attacking_Back_0, .Frog_Attacking_Back_1, .Frog_Attacking_Back_2 ];
-              case .South; frames = .[ .Frog_Attacking_Front_0, .Frog_Attacking_Front_1, .Frog_Attacking_Front_2 ];
-              case .East, .West; frames = .[ .Frog_Attacking_Side_0, .Frog_Attacking_Side_1, .Frog_Attacking_Side_2 ];
-            }
-            index = get_time_animated_sprite_index(client, FROG_ATTACK_TIME / xx frames.count, frames, frog.state_t, false);
-
-          case .Recovering;
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Frog_Recovering_Back_0, .Frog_Recovering_Back_1 ];
-              case .South; frames = .[ .Frog_Recovering_Front_0, .Frog_Recovering_Front_1 ];
-              case .East, .West; frames = .[ .Frog_Recovering_Side_0, .Frog_Recovering_Side_1 ];
-            }
-            index = get_time_animated_sprite_index(client, FROG_RECOVER_TIME / xx frames.count, frames, frog.state_t, false);
-        }
-
-        horizontally_mirrored = frog.physical_rotation == .East;
-
-      case .Goblin;
-        goblin := down(entity, Goblin);
-        frames: []Sprite_Index = ---;
-        
-        if #complete goblin.state == {
-          case .Idle;
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Goblin_Idle_Back_0, .Goblin_Idle_Back_1 ];
-              case .South; frames = .[ .Goblin_Idle_Front_0, .Goblin_Idle_Front_1 ];
-              case .East, .West; frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
-            }
-
-            index = get_epoch_time_animated_sprite_index(client, 0.33, frames);
-
-          case .Attacking;
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Goblin_Attack_Back ];
-              case .South; frames = .[ .Goblin_Attack_Front ];
-              case .East, .West; frames = .[ .Goblin_Attack_Side ];
-            }
-
-            index = get_epoch_time_animated_sprite_index(client, GOBLIN_ATTACK_TIME, frames);
-
-          case .Recovering;
-            if #complete entity.physical_rotation == {
-              case .North; frames = .[ .Goblin_Idle_Back_0, .Goblin_Idle_Back_1 ];
-              case .South; frames = .[ .Goblin_Idle_Front_0, .Goblin_Idle_Front_1 ];
-              case .East, .West; frames = .[ .Goblin_Idle_Side_0, .Goblin_Idle_Side_1 ];
-            }
-
-            index = get_epoch_time_animated_sprite_index(client, 0.5, frames);
-        }
-        
-        horizontally_mirrored = entity.physical_rotation == .East;
-
-      case .Trader;
-        frames: []Sprite_Index = ---;
-
-        if #complete entity.physical_rotation == {
-          case .North; frames = .[ .Trader_Idle_Back_0, .Trader_Idle_Back_1 ];
-          case .South; frames = .[ .Trader_Idle_Front_0, .Trader_Idle_Front_1 ];
-          case .East, .West; frames = .[ .Trader_Idle_Side_0, .Trader_Idle_Side_1 ];
-        }
-
-        horizontally_mirrored = entity.physical_rotation == .East;
-        index = get_epoch_time_animated_sprite_index(client, 0.5, frames);
-    }
-    
-    return index, horizontally_mirrored;
-*/
 }
 
 draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *Guy) {

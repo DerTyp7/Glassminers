@@ -22,6 +22,22 @@ Texture_Data :: struct {
     BAKED_FONT :: #run bake_raw_file("run_tree/data/font.ttf");
 }
 
+#if DEVELOPER {
+    pack_sprite_atlases_with_watchdog :: (client: *Client, directory: string) -> bool {
+        filepaths: [..]string;
+        filepaths.allocator = *temp;
+        if !pack_sprite_atlases(directory, *filepaths) return false;
+
+        destroy_file_watcher(*client.sprite_watchdog);
+        create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
+        add_files_to_watch(*client.sprite_watchdog, filepaths);
+        return true;
+    }
+}
+
+    
+#file_scope
+
 pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
     Entry :: struct {
         ident: string;
@@ -219,22 +235,6 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
     
     return success;
 }
-
-#if DEVELOPER {
-    pack_sprite_atlases_with_watchdog :: (client: *Client, directory: string) -> bool {
-        filepaths: [..]string;
-        filepaths.allocator = *temp;
-        if !pack_sprite_atlases(directory, *filepaths) return false;
-
-        destroy_file_watcher(*client.sprite_watchdog);
-        create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
-        add_files_to_watch(*client.sprite_watchdog, filepaths);
-        return true;
-    }
-}
-
-    
-#file_scope
 
 load_texture_data :: (allocator: *Allocator, filepath: string) -> Texture_Data, bool {
     file_content, success := read_entire_file(allocator, filepath);
