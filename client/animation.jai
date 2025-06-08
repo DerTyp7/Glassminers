@@ -1,8 +1,6 @@
 MAX_ANIMATION_FRAMES :: 8;
 
 Animation_Index :: enum {
-    None;
-
     // Guy Animations
     Guy_Idle_Side;
     Guy_Idle_Back;
@@ -66,8 +64,6 @@ Animation :: struct {
 }
 
 Animation_Group_Index :: enum {
-    None;
-
     Guy_Idle;
     Guy_Walk;
     Guy_Dead;
@@ -108,6 +104,7 @@ destroy_animation_data :: (client: *Client) {
     client.animation_groups = .[];
 }
 
+#if DEVELOPER {
 load_animation_file :: (animations: []Animation, groups: []Animation_Group, filepath: string) -> bool {
     original_file_content, success := read_entire_file(Default_Allocator, filepath);
     if !success {
@@ -223,7 +220,7 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
             sprite_index, valid_sprite_index := find_sprite_index_from_name(name);
 
             if !valid_sprite_index {
-                logprint(.Error, "%:%: '%' is not a know sprite name.", filepath, line_number, name);
+                logprint(.Error, "%:%: '%' is not a known sprite name.", filepath, line_number, name);
                 success = false;
                 continue;
             }
@@ -269,10 +266,32 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
         }
     }
 
+    //
+    // Check for missing entries and report errors on them
+    //
+    #if DEVELOPER {
+        for i: Animation_Index = 0; i < animations.count; ++i {
+            if !animations[i].encountered_in_file {
+                logprint(.Error, "The animation '%' is missing in the animation pack.", i);
+                success = false;
+            }
+        }
+
+        for i: Animation_Group_Index = 0; i < groups.count; ++i {
+            if !groups[i].encountered_in_file {
+                logprint(.Error, "The animation group '%' is missing in the animation pack.", i);
+                success = false;
+            }
+        }
+    }
+        
     return success;
 }
-
+}
+    
 get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> Sprite_Index, bool {
+    if animation.frame_count == 0 return .Count, false;
+
     total_animation_time := xx animation.frame_count * animation.frame_time;
 
     flip := false;

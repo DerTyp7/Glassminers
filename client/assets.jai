@@ -67,7 +67,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
     //
     {
         if !success {
-            logprint(.Error, "Failed to open the sprite-pack file '%'!", filepath);
+            logprint(.Error, "The sprite pack file '%' does not exist!", filepath);
             return false;
         }
 
@@ -91,7 +91,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
 
             space_index, space_found := search_string(line, #char " ");
             if !space_found {
-                logprint(.Error, "The sprite-pack file is erroneous on line %: A sprite name and a file path, with a space between them were expected.");
+                logprint(.Error, "%:%: A mapping from a sprite identifier to a filepath was expected here, in the syntax '<identifier> <filepath>'.", filepath, line_number);
                 success = false;
                 continue;
             }
@@ -103,7 +103,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
             found_sprite_index: bool = ---;
             entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
             if !found_sprite_index {
-                logprint(.Error, "The sprite identifier '%' is not known in the system.", entry.ident);
+                logprint(.Error, "%: %: '%' is not known in the system.", filepath, line_number, entry.ident);
                 success = false;
                 continue;
             }
@@ -117,7 +117,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
     if !success return false;
 
     //
-    // Make sure all sprite indices are present in the pack
+    // Check for missing entries and report errors on them
     //
     {
         for i: Sprite_Index = 0; i < Sprite_Index.Count; ++i {
@@ -132,13 +132,11 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
             }
 
             if !found {
-                logprint(.Error, "The sprite identifier '%' isn't present in the sprite pack.", i);
+                logprint(.Error, "The sprite '%' is missing in the sprite pack '%'.", i, filepath);
                 success = false;
             }
         }
     }
-
-    if !success return false;
     
     //
     // Load all required sprite images into memory
@@ -154,14 +152,14 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
                 logprint(.Error, "The source sprite file '%' does not exist!", entry.filepath);
                 success = false;
             } else if entry.texture.channels != SPRITE_ATLAS_CHANNELS || entry.texture.width != SPRITE_WIDTH || entry.texture.height != SPRITE_HEIGHT {
-                logprint(.Error, "Each source sprite file was expected to be '%x%' with % channels, but '%' was '%x%' with % channels.", SPRITE_WIDTH, SPRITE_HEIGHT, SPRITE_ATLAS_CHANNELS, entry.filepath, entry.texture.width, entry.texture.height, entry.texture.channels);
+                logprint(.Error, "Each source sprite file was expected to be %x% with % channels, but '%' was %x% with % channels.", SPRITE_WIDTH, SPRITE_HEIGHT, SPRITE_ATLAS_CHANNELS, entry.filepath, entry.texture.width, entry.texture.height, entry.texture.channels);
                 success = false;
             }
         }
     }
 
     if !success return false;
-
+    
     //
     // Put all entries into the sprite atlases
     //
@@ -218,10 +216,10 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
             result := stbi_write_png(filepath.data, atlas.width, atlas.height, atlas.channels, atlas.pixels.data, atlas.width * atlas.channels);
             
             if result == 0 {
-                logprint(.Error, "Failed to export the sprite atlas '%'.", filepath);
+                logprint(.Error, "The sprite atlas '%' could not be written to disk.", filepath);
                 success = false;
             } else {
-                logprint(.Debug, "Packed sprite atlas '%'.", filepath);
+                logprint(.Debug, "Packed the sprite atlas '%'.", filepath);
             }
         }
     }

@@ -1353,8 +1353,6 @@ main :: (args: []string) -> s32 {
     add_file_to_watch(*client.pack_watchdog, "data/sprite-pack.txt");
 }
 
-    if !create_animation_data(*client) return -1;
-
     window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
     window_width: s32 = ifx DEVELOPER then cast(s32) (720 * 1.8) else cast(s32) WINDOW_DONT_CARE;
     window_height: s32 = ifx DEVELOPER then 720 else cast(s32) WINDOW_DONT_CARE;
@@ -1366,6 +1364,7 @@ main :: (args: []string) -> s32 {
 }
     
     create_draw_data(*client);
+    create_animation_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 16);
     create_sound_data(*client);
