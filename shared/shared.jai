@@ -164,14 +164,17 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Mirror
 
     // Environment
+    .Blocks_Move, // Lava
     .Blocks_Move | .Diggable | .Blocks_Beam | .Blocks_Los, // Bedrock
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Rock
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Crystal
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
-    0, // Item Stack
-    .Blocks_Move, // Lava
-    0, // Slab
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Crystal
 
+    // Creations
+    0, // Item Stack
+    0, // Slab
+    0, // Torch
+    
     // Beings
     .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy
     .Living | .Blocks_Move | .Disable_Visual_Rotation, // Frog
@@ -186,13 +189,16 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     30, // Mirror
 
     // Environment
+    0,   // Lava
     120, // Bedrock
-    50, // Rock
-    30, // Crystal
-    40, // Coal
-    0,  // Item Stack
-    0,  // Lava
-    0,  // Slab
+    50,  // Rock
+    40,  // Coal
+    30,  // Crystal
+    
+    // Creations
+    0, // Item Stack
+    0, // Slab
+    0, // Torch
     
     // Beings
     30, // Guy
@@ -202,20 +208,28 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
 ];
 
 ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
-        .East,  // Emitter
-        .West,  // Receiver
-        .North, // Mirror
-        .North, // Bedrock
-        .North, // Rock
-        .North, // Coal
-        .North, // Crystal
-        .North, // Item Stack
-        .North, // Lava
-        .North, // Slab
-        .North, // Guy
-        .South, // Frog
-        .South, // Goblin
-        .South, // Trader
+    // Beams
+    .East,  // Emitter
+    .West,  // Receiver
+    .North, // Mirror
+
+    // Environment
+    .North, // Lava
+    .North, // Bedrock
+    .North, // Rock
+    .North, // Coal
+    .North, // Crystal
+
+    // Creations
+    .North, // Item Stack
+    .North, // Slab
+    .North, // Torch
+    
+    // Beings
+    .North, // Guy
+    .South, // Frog
+    .South, // Goblin
+    .South, // Trader
 ];
 
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
@@ -225,14 +239,17 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     2, // Mirror
 
     // Environment
+    0, // Lava
     2, // Bedrock
     2, // Rock
-    2, // Crystal
     2, // Coal
-    1, // Item Stack
-    0, // Lava
-    0, // Slab
+    2, // Crystal
 
+    // Creations
+    1, // Item Stack
+    0, // Slab
+    1, // Torch
+    
     // Beings
     3, // Guy
     3, // Frog
@@ -254,13 +271,16 @@ Entity_Kind :: enum {
     Mirror;
 
     // Environment
+    Lava;
     Bedrock;
     Rock;
     Coal;
     Crystal;
+
+    // Creations
     Item_Stack;
-    Lava;
     Slab;
+    Torch;
     
     // Beings
     Guy;

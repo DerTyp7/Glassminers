@@ -1363,13 +1363,13 @@ main :: (args: []string) -> s32 {
     set_window_icon_from_resource_name(*client.window, "IDI_ICON1");
 }
     
-    create_draw_data(*client);
-    create_animation_data(*client);
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, 16);
-    create_sound_data(*client);
     register_all_input_bindings(*client);
-    
+
+    startup_success := create_draw_data(*client) && create_animation_data(*client) && create_sound_data(*client);
+    if !startup_success return -1;
+        
     client.remote_players.allocator = *client.engine_allocator;
     client.test_inputs.allocator    = *client.engine_allocator;
     client.current_state = .Count;

@@ -420,16 +420,24 @@ get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
 
 fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
+        // Beams
         #char "e", // Emitter
         #char "r", // Receiver
         #char "m", // Mirror
+
+        // Environment
+        #char "l", // Lava
         #char "b", // Bedrock
         #char "s", // Rock
         #char "c", // Coal
         #char "@", // Crystal
+
+        // Creations
         #char "i", // Item Stack
-        #char "l", // Lava
         #char "_", // Slab
+        #char "T", // Torch
+        
+        // Beings
         #char "!", // Guy
         #char "f", // Frog
         #char "g", // Goblin

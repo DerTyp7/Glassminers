@@ -23,22 +23,31 @@ Texture_Data :: struct {
 }
 
 #if DEVELOPER {
-    pack_sprite_atlases_with_watchdog :: (client: *Client, directory: string) -> bool {
+    pack_sprite_atlases_with_watchdog :: (client: *Client, directory: string) -> Sprite_Packing_Result {
         filepaths: [..]string;
         filepaths.allocator = *temp;
-        if !pack_sprite_atlases(directory, *filepaths) return false;
+        result := pack_sprite_atlases(directory, *filepaths);
 
-        destroy_file_watcher(*client.sprite_watchdog);
-        create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
-        add_files_to_watch(*client.sprite_watchdog, filepaths);
-        return true;
+        if result != .Complete_Failure {
+            destroy_file_watcher(*client.sprite_watchdog);
+            create_file_watcher(*client.sprite_watchdog, *client.engine_allocator);
+            add_files_to_watch(*client.sprite_watchdog, filepaths);
+        }
+        
+        return result;
     }
 }
 
     
 #file_scope
 
-pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
+Sprite_Packing_Result :: enum {
+    Success;
+    Complete_Failure;
+    Partial_Failure;
+}
+
+pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Packing_Result {
     Entry :: struct {
         ident: string;
         sprite_index: s64;
@@ -58,17 +67,18 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
     };
 
     filepath := print_into_allocator(*allocator, "%/sprite-pack.txt", directory);
-    original_file_content, success := read_entire_file(*allocator, filepath);
+    original_file_content, file_found := read_entire_file(*allocator, filepath);
     
     highest_sprite_index: s64 = 0;
+    result: Sprite_Packing_Result = .Success;
     
     //
     // Parse the Sprite Pack file
     //
     {
-        if !success {
+        if !file_found {
             logprint(.Error, "The sprite pack file '%' does not exist!", filepath);
-            return false;
+            return .Complete_Failure;
         }
 
         file_content := original_file_content;
@@ -92,7 +102,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
             space_index, space_found := search_string(line, #char " ");
             if !space_found {
                 logprint(.Error, "%:%: A mapping from a sprite identifier to a filepath was expected here, in the syntax '<identifier> <filepath>'.", filepath, line_number);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
@@ -104,7 +114,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
             entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
             if !found_sprite_index {
                 logprint(.Error, "%: %: '%' is not known in the system.", filepath, line_number, entry.ident);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
@@ -113,8 +123,6 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
             if filepaths array_add(filepaths, copy_string(filepaths.allocator, entry.filepath));
         }
     }
-
-    if !success return false;
 
     //
     // Check for missing entries and report errors on them
@@ -133,7 +141,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
 
             if !found {
                 logprint(.Error, "The sprite '%' is missing in the sprite pack '%'.", i, filepath);
-                success = false;
+                result = .Partial_Failure;
             }
         }
     }
@@ -150,16 +158,14 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
 
             if !found_sprite {
                 logprint(.Error, "The source sprite file '%' does not exist!", entry.filepath);
-                success = false;
+                result = .Complete_Failure;
             } else if entry.texture.channels != SPRITE_ATLAS_CHANNELS || entry.texture.width != SPRITE_WIDTH || entry.texture.height != SPRITE_HEIGHT {
                 logprint(.Error, "Each source sprite file was expected to be %x% with % channels, but '%' was %x% with % channels.", SPRITE_WIDTH, SPRITE_HEIGHT, SPRITE_ATLAS_CHANNELS, entry.filepath, entry.texture.width, entry.texture.height, entry.texture.channels);
-                success = false;
+                result = .Complete_Failure;
             }
         }
     }
 
-    if !success return false;
-    
     //
     // Put all entries into the sprite atlases
     //
@@ -171,7 +177,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
 
         if atlas_count != SPRITE_ATLAS_COUNT {
             logprint(.Error, "The SPRITE_ATLAS_COUNT constant is no longer correct... Victor needs to change it!");
-            success = false;
+            result = .Complete_Failure;
         }
 
         atlases := allocate_array(*allocator, Texture_Data, atlas_count);
@@ -213,25 +219,25 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> bool {
 
             filepath := print_into_allocator(*allocator, "%/sprite_atlas_%.png\0", directory, i);
 
-            result := stbi_write_png(filepath.data, atlas.width, atlas.height, atlas.channels, atlas.pixels.data, atlas.width * atlas.channels);
+            file_written := stbi_write_png(filepath.data, atlas.width, atlas.height, atlas.channels, atlas.pixels.data, atlas.width * atlas.channels);
             
-            if result == 0 {
+            if file_written == 0 {
                 logprint(.Error, "The sprite atlas '%' could not be written to disk.", filepath);
-                success = false;
+                result = .Complete_Failure;
             } else {
                 logprint(.Debug, "Packed the sprite atlas '%'.", filepath);
             }
         }
     }
-
-    if success {
+    
+    if result == .Success {
         end := os_get_hardware_time();
         #if ALLOCATOR_STATISTICS {
             logprint(.Debug, "Sprite packing took %ms, %mb.", os_convert_hardware_time(end - start, .Milliseconds), cast(f64) allocator.stats.working_set / 1_000_000.0);
         }
     }
     
-    return success;
+    return result;
 }
 
 load_texture_data :: (allocator: *Allocator, filepath: string) -> Texture_Data, bool {
@@ -253,15 +259,19 @@ free_texture_data :: (data: *Texture_Data) {
 }
 
 bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Data {
-    pack_sprite_atlases(directory, null);
+    sprites: [SPRITE_ATLAS_COUNT]Texture_Data = ---;
 
-    result: [SPRITE_ATLAS_COUNT]Texture_Data = ---;
+    packing_result := pack_sprite_atlases(directory, null);
+    if packing_result != .Success {
+        compiler_report_error("Failed to pack the sprite atlases.");
+        return sprites;
+    }
 
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         filepath := print_into_allocator(Default_Allocator, "%/sprite_atlas_%.png", directory, i);
 
         success: bool = ---;
-        result[i], success = load_texture_data(Default_Allocator, filepath);
+        sprites[i], success = load_texture_data(Default_Allocator, filepath);
 
         if !success {
             compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the texture '%': The file does not exist.\n", filepath));
@@ -269,7 +279,7 @@ bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Da
         }
     }
 
-    return result;
+    return sprites;
 }
 
 bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {

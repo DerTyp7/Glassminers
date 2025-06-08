@@ -37,11 +37,12 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "goblin-death-0.wav",
 ];
 
-create_sound_data :: (client: *Client) {
+create_sound_data :: (client: *Client) -> bool {
 #if BAKE_ASSETS {
     for i := 0; i < client.sounds.Capacity; ++i {
         client.sounds[i] = BAKED_SOUNDS[i];
     }
+    return true;
 } #else {
     create_file_watcher(*client.sound_watchdog, *client.engine_allocator);
 
@@ -54,6 +55,8 @@ create_sound_data :: (client: *Client) {
         
         if status != .Success logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
     }
+    
+    return true;
 }
 }
 

@@ -38,7 +38,7 @@ Sprite_Index :: enum {
     Receiver;
     Mirror;
 
-    // Environment
+    // Animates
     Lava_0;
     Lava_1;
     Lava_2;
@@ -49,6 +49,7 @@ Sprite_Index :: enum {
     Slab_2;
     Slab_3;
     Slab_4;
+    Torch_0;
     
     // Guy
     Guy_Idle_Side_0;
@@ -144,7 +145,7 @@ find_sprite_index_from_name :: (name: string) -> s64, bool {
 // Draw Context
 //
 
-create_draw_data :: (client: *Client) {
+create_draw_data :: (client: *Client) -> bool {
     ge_create(*client.graphics, *client.window, *client.engine_allocator);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
@@ -155,10 +156,11 @@ create_draw_data :: (client: *Client) {
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         client.sprite_atlases[i] = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLASES[i].width, BAKED_SPRITE_ATLASES[i].height, BAKED_SPRITE_ATLASES[i].channels, BAKED_SPRITE_ATLASES[i].pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
     }
+    return true;
 } #else {
     ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
-    reload_sprite_atlases_from_disk(client);
+    return reload_sprite_atlases_from_disk(client);
 }
 }
 
@@ -175,14 +177,17 @@ destroy_draw_data :: (client: *Client) {
 }
 
 #if DEVELOPER {
-reload_sprite_atlases_from_disk :: (client: *Client) {
-    if !pack_sprite_atlases_with_watchdog(client, "data") return;
+reload_sprite_atlases_from_disk :: (client: *Client) -> bool {
+    result := pack_sprite_atlases_with_watchdog(client, "data");
+    if result == .Complete_Failure return false;
 
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         file_path := tprint("data/sprite_atlas_%.png", i);
         if client.sprite_atlases[i] ge_destroy_texture(*client.graphics, client.sprite_atlases[i]);
         client.sprite_atlases[i] = ge_create_texture_from_file(*client.graphics, file_path, .Filter_Nearest | .Wrap_Clamp_To_Edge);
     }
+
+    return true;
 }
 }
 
@@ -839,17 +844,18 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         // Default sprite index for this entity
         //
         if #complete entity.entity_kind == {
-          case .Guy;        index = .Guy_Idle_Front_0;
           case .Emitter;    index = .Emitter;
           case .Receiver;   index = .Receiver;
           case .Mirror;     index = .Mirror;
+          case .Lava;       index = .Lava_0;
           case .Bedrock;    index = .Bedrock;
           case .Rock;       index = .Rock;
           case .Coal;       index = .Coal_Block;
           case .Crystal;    index = .Crystal;
           case .Item_Stack; index = get_sprite_index_for_item(down(entity, Item_Stack).item_kind);
-          case .Lava;       index = .Lava_0;
           case .Slab;       index = .Slab_0;
+          case .Torch;      index = .Torch_0;
+          case .Guy;        index = .Guy_Idle_Front_0;
           case .Frog;       index = .Frog_Idle_Front_0;
           case .Goblin;     index = .Goblin_Idle_Front_0;
           case .Trader;     index = .Trader_Idle_Front_0;
