@@ -541,9 +541,16 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity.physical_position = msg.move_entity.position;
         entity.physical_rotation = msg.move_entity.rotation;
 
-        // Play walking animations
-        if entity.entity_kind == .Guy {
+        // Play walking animations / rotate idle animations
+        if entity.entity_kind == {
+          case .Guy;
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Walk);
+          case .Frog;
+            maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Frog_Idle);
+          case .Goblin;
+            maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Idle);
+          case .Trader;
+            maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Trader_Idle);
         }
         
       case .Entity_Health;

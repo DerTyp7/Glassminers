@@ -326,6 +326,9 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Guy;    play_animation_from_group(client, entity, .Guy_Idle);
       case .Frog;   play_animation_from_group(client, entity, .Frog_Idle);
       case .Goblin; play_animation_from_group(client, entity, .Goblin_Idle);
+      case .Trader; play_animation_from_group(client, entity, .Trader_Idle);
+      case .Lava;   play_animation(entity, .Lava);
+      case .Slab;   play_animation(entity, .Slab);
     }
     
     return entity;

@@ -1,4 +1,4 @@
-MAX_ANIMATION_FRAMES :: 4;
+MAX_ANIMATION_FRAMES :: 8;
 
 Animation_Index :: enum {
     None;
@@ -35,6 +35,15 @@ Animation_Index :: enum {
     Goblin_Recovering_Side;
     Goblin_Recovering_Back;
     Goblin_Recovering_Front;
+
+    // Trader Animations
+    Trader_Idle_Side;
+    Trader_Idle_Back;
+    Trader_Idle_Front;
+
+    // Environment Animations
+    Lava;
+    Slab;
 }
 
 Animation_Flags :: enum bitfield {
@@ -70,6 +79,8 @@ Animation_Group_Index :: enum {
     Goblin_Idle;
     Goblin_Attacking;
     Goblin_Recovering;
+
+    Trader_Idle;
 }
 
 Animation_Group :: struct {

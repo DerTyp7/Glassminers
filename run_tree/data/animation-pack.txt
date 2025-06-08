@@ -158,18 +158,17 @@ Goblin_Attacking_Back
 Goblin_Attacking_Front
 
 
-:Goblin_Recovering_Side 0.5 flip 
+:Goblin_Recovering_Side 1 flip 
 Goblin_Recovering_Side_0
 Goblin_Recovering_Side_1
 
-:Goblin_Recovering_Back 0.5 flip 
+:Goblin_Recovering_Back 1 flip 
 Goblin_Recovering_Back_0
 Goblin_Recovering_Back_1
 
-:Goblin_Recovering_Front 0.5 flip 
+:Goblin_Recovering_Front 1 flip 
 Goblin_Recovering_Front_0
 Goblin_Recovering_Front_1
-
 
 
 @Goblin_Idle
@@ -189,3 +188,46 @@ North Goblin_Recovering_Back
 South Goblin_Recovering_Front
 East  Goblin_Recovering_Side
 West  Goblin_Recovering_Side
+
+
+#
+# Trader Animations
+#
+
+:Trader_Idle_Side 0.5 loop flip   is_idle
+Trader_Idle_Side_0
+Trader_Idle_Side_1
+
+:Trader_Idle_Back 0.5 loop   is_idle
+Trader_Idle_Back_0
+Trader_Idle_Back_1
+
+:Trader_Idle_Front 0.5 loop   is_idle
+Trader_Idle_Front_0
+Trader_Idle_Front_1
+
+
+@Trader_Idle
+North Trader_Idle_Back
+South Trader_Idle_Front
+East  Trader_Idle_Side
+West  Trader_Idle_Side
+
+
+#
+# Environment Animations
+#
+
+:Lava 0.75 loop
+Lava_0
+Lava_1
+Lava_2
+Lava_3
+Lava_4
+
+:Slab 2
+Slab_0
+Slab_1
+Slab_2
+Slab_3
+Slab_4
