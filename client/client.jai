@@ -657,6 +657,19 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Attacking;
                 frog.sound_pid = play_sound_once_per_frame(client, .Frog_Attack_0);
                 play_animation_from_group(client, frog, .Frog_Attacking);
+
+                particles := create_particle_system(client, FROG_ATTACK_TIME, frog.visual_position, 1);
+                emitter := create_particle_emitter(particles, 0, 256);
+                emitter.shape    = .Cone;
+                emitter.drag     = .9;
+                emitter.speed    = .[ 4, 6 ];
+                emitter.lifetime = .[ 0.5, 0.8 ];
+                emitter.color    = .[ .{ 255, 241, 99, 255 }, .{ 255, 111, 52, 255 } ];
+                emitter.particles_per_second = 1024;
+                emitter.alive_t  = 0.5;
+
+                theta := visual_from_physical_rotation(frog.physical_rotation);
+                emitter.cone_angles = .[ theta - 0.03, theta + 0.03 ];
             }
         }
 

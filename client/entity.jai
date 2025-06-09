@@ -85,7 +85,6 @@ Item_Stack :: struct {
 Frog :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
-    particles: Pid = INVALID_PID;
     state: Frog_State = .Idle;
     state_t: f32;
 }
@@ -548,7 +547,7 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
 update_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(client, *emitter.beam_data);
 
-    if emitter.particles != INVALID_PID {
+    if particle_system_exists(client, emitter.particles) {
         particles := get_particle_system(client, emitter.particles);
         particle_emitter := *particles.emitters[0];
         particle_emitter.line_strings = .[];
@@ -566,7 +565,7 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     t := cosf(powf(x * 2, 8)) * 0.5 + 0.5;
     emitter.beam_intensity = smoothstep(t, 0, powf(x, 4) / 3);
 
-    if emitter.particles == INVALID_PID {
+    if !particle_system_exists(client, emitter.particles) {
         particles := create_particle_system(client, MAX_F32, emitter.visual_position, 1);
         particle_emitter := create_particle_emitter(particles, 0, 256 * 5);
         particle_emitter.shape    = .Line_String;
@@ -630,15 +629,15 @@ update_guy :: (client: *Client, guy: *Guy) {
     //
     // Manage strength particles
     //
-    if guy.strength_t > 0 && guy.strength_particles == INVALID_PID {
+    if guy.strength_t > 0 && !particle_system_exists(client, guy.strength_particles) {
         system, emitter := create_halo_particles(client, guy, STRENGTH_POTION_TIME);
         emitter.color = .[ .{ 103, 34, 130, 170 }, .{ 164, 37, 214, 170 } ];
         guy.strength_particles = system.pid;
-    } else if !particle_system_exists(client, guy.strength_particles) {
+    } else if guy.strength_t <= 0 {
         guy.strength_particles = INVALID_PID;
     }
 
-    if guy.strength_particles != INVALID_PID {
+    if particle_system_exists(client, guy.strength_particles) {
         particles := get_particle_system(client, guy.strength_particles);
         particles.time_to_live = guy.strength_t;
         particles.world_position = .{ guy.visual_position.x, guy.visual_position.y - 0.35 };
@@ -654,7 +653,7 @@ update_guy :: (client: *Client, guy: *Guy) {
     //
     // Manage digging particles
     //
-    if guy.state == .Digging && guy.digging_particles == INVALID_PID {
+    if guy.state == .Digging && !particle_system_exists(client, guy.digging_particles) {
         target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
         if target_entity {
             estimated_digging_time: f32 = target_entity.health / GUY_DPS;
@@ -668,8 +667,8 @@ update_guy :: (client: *Client, guy: *Guy) {
             emitter.particles_per_second = xx emitter.particles.count / emitter.lifetime[1];
             guy.digging_particles = particles.pid;
         }
-    } else if guy.state != .Digging && guy.digging_particles != INVALID_PID {
-        if particle_system_exists(client, guy.digging_particles) { // The system might've already been cleaned up by TTL
+    } else if guy.state != .Digging {
+        if particle_system_exists(client, guy.digging_particles) {
             particles := get_particle_system(client, guy.digging_particles);
             particles.emitters[0].particles_per_second = 0;
             particles.time_to_live = 0.5;
@@ -681,29 +680,9 @@ update_guy :: (client: *Client, guy: *Guy) {
 update_frog :: (client: *Client, frog: *Frog) {
     clear_beam_data(client, *frog.beam_data);
 
-    if #complete frog.state == {
-      case .Idle, .Recovering;
-        frog.particles = INVALID_PID;
-
+    if frog.state == {
       case .Attacking;
         recalculate_beam(client, *frog.beam_data, frog.physical_position, frog.physical_rotation, false, FROG_BEAM_LENGTH);
-
-        if frog.particles == INVALID_PID {
-            particles := create_particle_system(client, FROG_ATTACK_TIME, frog.visual_position, 1);
-            emitter := create_particle_emitter(particles, 0, 256);
-            emitter.shape    = .Cone;
-            emitter.drag     = .9;
-            emitter.speed    = .[ 4, 6 ];
-            emitter.lifetime = .[ 0.5, 0.8 ];
-            emitter.color    = .[ .{ 255, 241, 99, 255 }, .{ 255, 111, 52, 255 } ];
-            emitter.particles_per_second = 1024;
-            emitter.alive_t  = 0.5;
-
-            theta := visual_from_physical_rotation(frog.physical_rotation);
-            emitter.cone_angles = .[ theta - 0.03, theta + 0.03 ];
-
-            frog.particles = particles.pid;
-        }
     }
 
     frog.state_t += client.tick_time;
@@ -717,7 +696,7 @@ update_slime :: (client: *Client, slime: *Slime) {
         slime.particles = INVALID_PID;
 
       case .Fleeing;
-        if slime.particles == INVALID_PID {
+        if !particle_system_exists(client, slime.particles) {
             system, emitter := create_halo_particles(client, slime, 0.5);
             emitter.color       = .[ .{ 0, 255, 253, 255 }, .{ 91, 166, 201, 255 } ];
             emitter.shape       = .Cone;

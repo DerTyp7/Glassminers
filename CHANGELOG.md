@@ -6,6 +6,7 @@
 - Fixed the viewport calculation when the width is smaller than the height
 - Fixed the visual position interpolation when experiencing frame drops
 - Fixed the size of the crafting menu hud being way too large when playing on small-width viewports
+- Fixed a sporadic crash when particle systems were cleaned up unexpectedly (e.g. because of frame time spikes)
 
 ## 0.2.0 (08.06.2025)
 
