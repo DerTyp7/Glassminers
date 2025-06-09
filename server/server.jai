@@ -647,6 +647,11 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.state = .Carrying;
                 guy.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
 
+              case .Torch;
+                guy.state = .Carrying;
+                guy.carrying_item = .Torch;
+                remove_entity(server, target_entity);
+                
               case;
                 if target_entity.entity_flags & .Diggable {
                     guy.state = .Digging;
@@ -661,9 +666,13 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.carrying_item = 0;
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
-                create_entity(server, .Slab, target_entity.physical_position, .North);
+                create_entity(server, .Slab, guy.target_position, .North);
                 guy.state = .Idle;
                 guy.carrying_item = 0;
+            } else if !target_entity && guy.carrying_item == .Torch {
+                guy.state = .Idle;
+                guy.carrying_item = 0;
+                create_entity(server, .Torch, guy.target_position, .North);
             } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
                 guy.carrying_item = 0;
@@ -684,6 +693,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         if try_to_fulfill_recipe(server, guy, guy.received_input.crafting_recipe) {
             if #complete guy.received_input.crafting_recipe == {
               case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
+              case .Torch;  guy.state = .Carrying; guy.carrying_item = .Torch;
               case .Health_Potion; set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
               case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
             }

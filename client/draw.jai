@@ -50,6 +50,9 @@ Sprite_Index :: enum {
     Slab_3;
     Slab_4;
     Torch_0;
+    Torch_1;
+    Torch_2;
+    Torch_3;
     
     // Guy
     Guy_Idle_Side_0;
@@ -203,6 +206,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
       case .Stone; index = .Stone;
       case .Coal;  index = .Coal_Item;
       case .Coin;  index = .Coin;
+      case .Torch; index = .Torch_0;
     }
     
     return index;

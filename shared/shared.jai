@@ -262,6 +262,7 @@ Item_Kind :: enum {
     Stone;
     Coal;
     Coin;
+    Torch;
 }
 
 Entity_Kind :: enum {
@@ -323,24 +324,28 @@ Interaction_Kind :: enum {
 
 Crafting_Recipe :: enum {
     Mirror;
+    Torch;
     Health_Potion;
     Strength_Potion;
 }
 
 CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
     .[ .Shard ], // Mirror
+    .[ .Coal ],  // Torch
     .[ .Coin ],  // Health Potion
     .[ .Coin ],  // Strength Potion
 ];
 
 CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
     .Count,  // Mirror
+    .Count,  // Torch
     .Trader, // Health Potion
     .Trader, // Strength Potion
 ];
 
 CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     true,  // Mirror
+    true,  // Torch
     false, // Health Potion
     false, // Strength Potion
 ];

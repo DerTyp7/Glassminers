@@ -39,9 +39,10 @@ Animation_Index :: enum {
     Trader_Idle_Back;
     Trader_Idle_Front;
 
-    // Environment Animations
+    // Generic Animations
     Lava;
     Slab;
+    Torch;
 }
 
 Animation_Flags :: enum bitfield {
@@ -95,7 +96,7 @@ create_animation_data :: (client: *Client) -> bool {
     client.animation_groups = BAKED_ANIMATION_GROUPS;
     return true;
 } #else {
-    return load_animation_file(client.animations, client.animation_groups, "data/animation-pack.txt");
+    return load_animation_file(client.animations, client.animation_groups, "data/animation-pack.txt") != .Complete_Failure;
 }
 }
 
@@ -104,18 +105,26 @@ destroy_animation_data :: (client: *Client) {
     client.animation_groups = .[];
 }
 
-load_animation_file :: (animations: []Animation, groups: []Animation_Group, filepath: string) -> bool {
-    original_file_content, success := read_entire_file(Default_Allocator, filepath);
-    if !success {
+Animation_Packing_Result :: enum {
+    Success;
+    Complete_Failure;
+    Partial_Failure;
+}
+
+load_animation_file :: (animations: []Animation, groups: []Animation_Group, filepath: string) -> Animation_Packing_Result {
+    original_file_content, file_exists := read_entire_file(Default_Allocator, filepath);
+    if !file_exists {
         logprint(.Error, "Failed to open the animation-pack file '%'!", filepath);
-        return false;
+        return .Complete_Failure;
     }
 
     defer free_file_content(Default_Allocator, *original_file_content);
 
-    file_content := original_file_content;
+    result: Animation_Packing_Result = .Success;
     active_animation := Animation_Index.Count + 1;
     active_animation_group := Animation_Group_Index.Count + 1;
+
+    file_content := original_file_content;
     line_number := 0;
 
     while file_content.count {
@@ -147,7 +156,7 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
             
             if args.count < 2 {
                 logprint(.Error, "%:%: A declaration of an animation was expected here, in the syntax ':<name> <frame_time> <...flags>'.", filepath, line_number);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
@@ -156,14 +165,14 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
 
             if active_animation >= .Count {
                 logprint(.Error, "%:%: '%' is not a known animation.", filepath, line_number, name);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
             frame_time, valid_frame_time := string_to_float(array_get(*args, 1));
             if !valid_frame_time {
                 logprint(.Error, "%:%: '%' is not a valid floating point number, the frame time was expected here.", filepath, line_number, array_get(*args, 1));
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
@@ -175,7 +184,7 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
                 
                 if flag == 0 {
                     logprint(.Error, "%:%: '%' is not a known animation flag.", filepath, line_number, array_get(*args, i));
-                    success = false;
+                    result = .Complete_Failure;
                 }
             }
 
@@ -198,7 +207,7 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
 
             if active_animation_group >= .Count {
                 logprint(.Error, "%:%: '%' is not a known animation group.", filepath, line_number, name);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
@@ -211,7 +220,7 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
             //
             if args.count != 1 {
                 logprint(.Error, "%:%: A single animation frame was expected here.", filepath, line_number);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
@@ -222,13 +231,13 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
 
             if !valid_sprite_index {
                 logprint(.Error, "%:%: '%' is not a known sprite name.", filepath, line_number, name);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
             
             if animation.frame_count == MAX_ANIMATION_FRAMES {
                 logprint(.Error, "%:%: The animation '%' reached the maximum limit of % frames.", filepath, line_number, enum_names(Animation_Index)[active_animation], MAX_ANIMATION_FRAMES);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
@@ -241,14 +250,14 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
             //
             if args.count != 2 {
                 logprint(.Error, "%:%: A mapping from a direction to an animation was expected here, in the syntax '<direction> <animation>'.", filepath, line_number);
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
             direction := find_direction_from_name(array_get(*args, 0));
             if direction == .Count {
                 logprint(.Error, "%:%: '%' is not a valid direction.", filepath, line_number, array_get(*args, 0));
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
             
@@ -256,14 +265,14 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
             
             if animation_index >= .Count {
                 logprint(.Error, "%:%: '%' is not a known animation.", filepath, line_number, array_get(*args, 1));
-                success = false;
+                result = .Complete_Failure;
                 continue;
             }
 
             groups[active_animation_group].for_direction[direction] = animation_index;
         } else if active_animation == Animation_Index.Count + 1 && active_animation_group == Animation_Group_Index.Count + 1 {
             logprint(.Error, "%:%: An animation or group declaration must come before the first frame.", filepath, line_number);
-            success = false;
+            result = .Complete_Failure;
         }
     }
 
@@ -274,19 +283,19 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
         for i: Animation_Index = 0; i < animations.count; ++i {
             if !animations[i].encountered_in_file {
                 logprint(.Error, "The animation '%' is missing in the animation pack.", i);
-                success = false;
+                result = .Partial_Failure;
             }
         }
 
         for i: Animation_Group_Index = 0; i < groups.count; ++i {
             if !groups[i].encountered_in_file {
                 logprint(.Error, "The animation group '%' is missing in the animation pack.", i);
-                success = false;
+                result = .Partial_Failure;
             }
         }
     }
         
-    return success;
+    return result;
 }
     
 get_animation_frame_index :: (animation: *Animation, rotation: Direction, t: f32) -> s64, bool {

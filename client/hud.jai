@@ -226,6 +226,7 @@ Hud_State :: enum {
 
 CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
     .Mirror,
+    .Torch_0,
     .Health_Potion,
     .Strength_Potion,
 ];

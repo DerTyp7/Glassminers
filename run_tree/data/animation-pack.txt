@@ -215,7 +215,7 @@ West  Trader_Idle_Side
 
 
 #
-# Environment Animations
+# Generic Animations
 #
 
 :Lava 0.75 loop
@@ -231,3 +231,9 @@ Slab_1
 Slab_2
 Slab_3
 Slab_4
+
+:Torch 0.15 loop
+Torch_0
+Torch_1
+Torch_2
+Torch_3

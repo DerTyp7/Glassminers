@@ -47,18 +47,22 @@ Receiver    sprites/inanimates/receiver.png
 Coal_Block  sprites/inanimates/coal.png
 
 #
-# Environment
+# Animates
 #
-Lava_0       sprites/environment/lava-0.png
-Lava_1       sprites/environment/lava-1.png
-Lava_2       sprites/environment/lava-2.png
-Lava_3       sprites/environment/lava-3.png
-Lava_4       sprites/environment/lava-4.png
-Slab_0       sprites/environment/slab-0.png
-Slab_1       sprites/environment/slab-1.png
-Slab_2       sprites/environment/slab-2.png
-Slab_3       sprites/environment/slab-3.png
-Slab_4       sprites/environment/slab-4.png
+Lava_0       sprites/animates/lava-0.png
+Lava_1       sprites/animates/lava-1.png
+Lava_2       sprites/animates/lava-2.png
+Lava_3       sprites/animates/lava-3.png
+Lava_4       sprites/animates/lava-4.png
+Slab_0       sprites/animates/slab-0.png
+Slab_1       sprites/animates/slab-1.png
+Slab_2       sprites/animates/slab-2.png
+Slab_3       sprites/animates/slab-3.png
+Slab_4       sprites/animates/slab-4.png
+Torch_0      sprites/animates/torch-0.png
+Torch_1      sprites/animates/torch-1.png
+Torch_2      sprites/animates/torch-2.png
+Torch_3      sprites/animates/torch-3.png
 
 #
 # Guy

@@ -1,3 +1,7 @@
+## 0.2.1 (unreleased)
+
+- Implemented a torch entity that can be crafted from coal and can be picked up and placed down
+
 ## 0.2.0 (08.06.2025)
 
 Support for local multiplayer! Each client can now support up to 4 local players, which still talk to the server as before. This means you can mix and match local and online multiplayer.
