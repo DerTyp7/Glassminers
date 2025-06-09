@@ -7,6 +7,7 @@
 - Fixed the visual position interpolation when experiencing frame drops
 - Fixed the size of the crafting menu hud being way too large when playing on small-width viewports
 - Fixed a sporadic crash when particle systems were cleaned up unexpectedly (e.g. because of frame time spikes)
+- Fixed the "Continue" button in the pause menu not resuming the game on the server
 
 ## 0.2.0 (08.06.2025)
 

@@ -1255,7 +1255,14 @@ do_game_tick :: (client: *Client) {
             ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
 
             ui_divider(ui, true);
-            if ui_button(ui, "Continue!") then client.pause_menu_open = false;
+            if ui_button(ui, "Continue!") {
+                client.pause_menu_open = false;
+                msg := make_message(Game_Pause_Message);
+                msg.game_pause.client_pid = client.my_client_pid;
+                msg.game_pause.should_pause = client.pause_menu_open;
+                array_add(*outgoing_messages, msg);
+            }
+            
             ui_divider(ui, false);
             if ui_button(ui, "Back to Main Menu!") then client.next_state = .Main_Menu;
 
