@@ -142,7 +142,11 @@ FROG_RECOVER_TIME: f32 : 5;
 GOBLIN_ATTACK_TIME:  f32 : 0.5;
 GOBLIN_RECOVER_TIME: f32 : 2;
 
-SLIME_IDLE_MOVE_INTERVAL: f32 : 0.5;
+SLIME_IDLE_MOVE_INTERVAL:    f32 : 0.55;
+SLIME_FLEEING_MOVE_INTERVAL: f32 : 0.25;
+SLIME_TRACKING_DISTANCE:     s32 : 10;
+SLIME_SCARING_DISTANCE:      s32 : 2;
+SLIME_MIN_TIME_IN_HIDING:    f32 : 2;
 
 HEALTH_PER_HEART: f32 : 10;
 BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
@@ -331,6 +335,8 @@ Goblin_State :: enum {
 
 Slime_State :: enum {
     Idle;
+    Fleeing;
+    Hiding;
 }
 
 Interaction_Kind :: enum {

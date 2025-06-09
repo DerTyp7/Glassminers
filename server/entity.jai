@@ -80,7 +80,7 @@ Goblin :: struct {
 Slime :: struct {
     #using entity : *Entity = ---;
     state: Slime_State;
-    state_t: f32 ; // How much time this goblin spent in the current state
+    time_in_hiding: f32;
     time_since_last_move: f32;
 }
 
@@ -626,30 +626,85 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
 }
 
 update_slime :: (server: *Server, slime: *Slime) {
-    try_to_move :: (server: *Server, slime: *Slime, target: v2i) -> bool {
-        move_delta := v2i.{ target.x - slime.physical_position.x, target.y - slime.physical_position.y };
+    switch_state :: (server: *Server, slime: *Slime, new_state: Slime_State) {
+        if slime.state == new_state return;
 
-        if (move_delta.x != 0 || move_delta.y != 0) && can_move_to_position(server, slime, target, 0) {
+        slime.state = new_state;
+
+        if slime.state == {
+          case .Hiding; slime.time_in_hiding = 0;
+        }
+        
+        msg := make_message(Slime_State_Message);
+        msg.slime_state.entity_pid = slime.pid;
+        msg.slime_state.state = slime.state;
+        array_add(*server.outgoing_messages, msg);
+    }
+    
+    move_interval := ifx slime.state == .Fleeing then SLIME_FLEEING_MOVE_INTERVAL else SLIME_IDLE_MOVE_INTERVAL;
+
+    if slime.time_since_last_move >= move_interval {
+        //
+        // Find the target position for this move
+        //
+        target_position: v2i = slime.physical_position;
+        
+        if slime.state == {
+          case .Idle;
+            target_item_stack, distance_to_item_stack := find_nearest_entity_of_kind(server, .Item_Stack, slime.physical_position);
+            if distance_to_item_stack > SLIME_TRACKING_DISTANCE {
+                direction := random_u64_in(*server.random, 0, Direction.Count);
+                for i := 0; i < Direction.Count; ++i {
+                    random_vector := vector_from_direction((direction + i) % Direction.Count);
+                    random_position := v2i.{ slime.physical_position.x + random_vector.x, slime.physical_position.y + random_vector.y };
+                    if can_move_to_position(server, slime, random_position, 0) {
+                        target_position = random_position;
+                        break;
+                    }
+                }
+            } else if distance_to_item_stack == 0 {
+                remove_entity(server, target_item_stack);
+                switch_state(server, slime, .Fleeing);
+            } else {
+                target_position = target_item_stack.physical_position;
+            }
+
+            nearest_guy, distance_to_nearest_guy := find_nearest_entity_of_kind(server, .Guy, slime.physical_position);
+            if distance_to_nearest_guy <= SLIME_SCARING_DISTANCE {
+                switch_state(server, slime, .Fleeing);
+            }
+            
+          case .Fleeing;
+            target_hole, distance_to_hole := find_nearest_entity_of_kind(server, .Slime_Hole, slime.physical_position);
+            target_position = target_hole.physical_position;
+
+            if distance_to_hole == 0 {
+                switch_state(server, slime, .Hiding);
+            }
+
+          case .Hiding;
+            nearest_guy, distance_to_nearest_guy := find_nearest_entity_of_kind(server, .Guy, slime.physical_position);
+            if slime.time_in_hiding > SLIME_MIN_TIME_IN_HIDING && distance_to_nearest_guy > SLIME_SCARING_DISTANCE + 1 {
+                switch_state(server, slime, .Idle);
+            }
+
+            slime.time_in_hiding += server.tick_time;
+        }
+
+        //
+        // Actually execute the move
+        //
+        next_step := find_next_step_on_path(server, slime.physical_position, target_position);
+
+        move_delta := v2i.{ next_step.x - slime.physical_position.x, next_step.y - slime.physical_position.y };
+
+        if (move_delta.x != 0 || move_delta.y != 0) && can_move_to_position(server, slime, next_step, 0) {
             slime.time_since_last_move = 0;
             slime.physical_rotation = direction_from_vector(move_delta);
-            move_to_position(server, slime, target);
-            return true;
-        } else {
-            return false;
+            move_to_position(server, slime, next_step);
         }
     }
-
-    if slime.state == {
-      case .Idle;
-        if slime.time_since_last_move >= SLIME_IDLE_MOVE_INTERVAL {
-            nearest_guy, distance_to_guy := find_nearest_entity_of_kind(server, .Guy, slime.physical_position);
-            if nearest_guy {
-                next_step := find_next_step_on_path(server, slime.physical_position, nearest_guy.physical_position);
-                try_to_move(server, slime, next_step);
-            }
-        }
-    }
-
+        
     slime.time_since_last_move += server.tick_time;
 }
 

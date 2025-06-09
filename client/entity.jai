@@ -98,6 +98,8 @@ Goblin :: struct {
 
 Slime :: struct {
     #using entity : *Entity = ---;
+    state: Slime_State;
+    particles: Pid = INVALID_PID;
 }
 
 Entity_Manager :: struct {
@@ -697,6 +699,30 @@ update_frog :: (client: *Client, frog: *Frog) {
 
 update_slime :: (client: *Client, slime: *Slime) {
     maybe_play_animation_from_group_after(client, slime, .Slime_Idle);
+
+    if #complete slime.state == {
+      case .Idle, .Hiding;
+        slime.particles = INVALID_PID;
+
+      case .Fleeing;
+        if slime.particles == INVALID_PID {
+            system, emitter := create_halo_particles(client, slime, 0.5);
+            emitter.color       = .[ .{ 0, 255, 253, 255 }, .{ 91, 166, 201, 255 } ];
+            emitter.shape       = .Cone;
+            emitter.cone_angles = .[ -0.1, 0.1 ];
+            emitter.speed       = .[ 2, 3 ];
+            emitter.drag        = 3;
+            emitter.gravity     = .{ 0, 1 };
+            emitter.lifetime    = .[ 0.3, 0.7 ];
+            emitter.particles_per_second = 32;
+            slime.particles     = system.pid;
+        }
+
+        system := get_particle_system(client, slime.particles);
+        system.world_position = slime.visual_position;
+        system.time_to_live = 0.5;
+        system.emitters[0].alive_t = 0.5;
+    }
 }
 
 

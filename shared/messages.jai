@@ -17,6 +17,7 @@ Message_Type :: enum {
     Item_Stack_State;
     Frog_State;
     Goblin_State;
+    Slime_State;
 }
 
 Client_Disconnect_Message :: struct {
@@ -137,6 +138,12 @@ Goblin_State_Message :: struct {
     state: Goblin_State;
 }
 
+Slime_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Slime_State;
+    entity_pid: Pid;
+    state: Slime_State;
+}
+
 Message :: struct {
     msg_type: Message_Type;
     local_type_id: Type;
@@ -160,6 +167,7 @@ Message :: struct {
         item_stack_state: Item_Stack_State_Message;
         frog_state: Frog_State_Message;
         goblin_state: Goblin_State_Message;
+        slime_state: Slime_State_Message;
     };
 }
 
@@ -256,6 +264,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Item_Stack_State;   result = type_id(Item_Stack_State_Message);
       case .Frog_State;         result = type_id(Frog_State_Message);
       case .Goblin_State;       result = type_id(Goblin_State_Message);
+      case .Slime_State;        result = type_id(Slime_State_Message);
     }
 
     return result;
@@ -371,6 +380,7 @@ print_message :: (message: *Message, prefix: string) {
       case .Item_Stack_State;   sprint(*builder, "%", message.item_stack_state);
       case .Frog_State;         sprint(*builder, "%", message.frog_state);
       case .Goblin_State;       sprint(*builder, "%", message.goblin_state);
+      case .Slime_State;        sprint(*builder, "%", message.slime_state);
     }
     
     logprint(.Debug, finish_string_builder(*builder));

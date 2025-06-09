@@ -679,6 +679,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
 
         goblin.state = msg.goblin_state.state;
+
+      case .Slime_State;
+        entity := get_entity(client, msg.slime_state.entity_pid);
+        slime := down(entity, Slime);
+        slime.state = msg.slime_state.state;
     }
 }
 
