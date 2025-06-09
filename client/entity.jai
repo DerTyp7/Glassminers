@@ -391,7 +391,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         // themselves are "rotated"...
         entity.visual_rotation = 0;
     } else {
-        speed := client.tick_time * 20;
+        speed := min(client.tick_time * 20, 1);
         target_rotation := visual_from_physical_rotation(entity.physical_rotation);
         entity.visual_rotation = lerp_with_wrap_and_snap(entity.visual_rotation, target_rotation, speed, 0, 1);
     }

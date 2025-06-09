@@ -150,10 +150,10 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     
     guy_entity := get_entity(client, local_player.guy_pid);
     screen_center := screen_from_world_position(*local_player.camera, guy_entity.visual_position);
-    outer_radius := (local_player.viewport[3] - local_player.viewport[1]) * 0.15;
-    inner_radius := (local_player.viewport[3] - local_player.viewport[1]) * 0.10;
+    outer_radius := local_player.camera.world_to_screen.y * 0.85;
+    inner_radius := local_player.camera.world_to_screen.y * 0.6;
     icon_radius  := (inner_radius + outer_radius) * 0.5;
-
+    
     if #complete hud.state == {
       case .Disabled;
 
@@ -321,7 +321,7 @@ draw_divider :: (client: *Client, screen_center: v2f, outer_radius, inner_radius
 }
 
 draw_circle_segment :: (client: *Client, screen_center: v2f, outer_radius, inner_radius: f32, theta: f32, angle: f32, padding: f32, animation_t: f32, highlighted: bool) {
-    background_color := ge_mix_colors(.{ 40, 50, 60, 180 }, .{ 50, 89, 128, 180 }, animation_t);
+    background_color := ge_mix_colors(.{ 40, 50, 60, 250 }, .{ 50, 89, 128, 230 }, animation_t);
     theta0 := theta - angle / 2 + padding / 2;
     theta1 := theta + angle / 2 - padding / 2;
 
