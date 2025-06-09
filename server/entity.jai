@@ -332,6 +332,24 @@ find_entity_with_flags_at_position :: (server: *Server, flags: Entity_Flags, pos
     return null;
 }
 
+find_nearest_entity_of_kind :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity, s32 {
+    nearest_distance := MAX_S32;
+    nearest_entity: *Entity = null;
+
+    for i := 0; i < server.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*server.all_entities, i);
+        if !occupied || entity.entity_kind != kind continue;
+
+        distance := abs(position.x - entity.physical_position.x) + abs(position.y - entity.physical_position.y);
+        if distance < nearest_distance {
+            nearest_entity   = entity;
+            nearest_distance = distance;
+        }
+    }
+    
+    return nearest_entity, nearest_distance;
+}
+
 update_physical_location :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
     something_changed := position.x != entity.physical_position.x || position.y != entity.physical_position.y || rotation != entity.physical_rotation;
 
@@ -608,12 +626,13 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
 }
 
 update_slime :: (server: *Server, slime: *Slime) {
-    try_to_move :: (server: *Server, slime: *Slime, direction: Direction) -> bool {
-        move_delta := vector_from_direction(direction);
-        if recursive_move_check(server, slime, move_delta, 0) {
+    try_to_move :: (server: *Server, slime: *Slime, target: v2i) -> bool {
+        move_delta := v2i.{ target.x - slime.physical_position.x, target.y - slime.physical_position.y };
+
+        if (move_delta.x != 0 || move_delta.y != 0) && can_move_to_position(server, slime, target, 0) {
             slime.time_since_last_move = 0;
-            slime.physical_rotation = direction;
-            recursive_move(server, slime, move_delta);
+            slime.physical_rotation = direction_from_vector(move_delta);
+            move_to_position(server, slime, target);
             return true;
         } else {
             return false;
@@ -623,11 +642,10 @@ update_slime :: (server: *Server, slime: *Slime) {
     if slime.state == {
       case .Idle;
         if slime.time_since_last_move >= SLIME_IDLE_MOVE_INTERVAL {
-            direction := random_u64_in(*server.random, 0, Direction.Count);
-            for i := 0; i < Direction.Count; ++i {
-                if try_to_move(server, slime, (direction + i) % Direction.Count) {
-                    break;
-                }
+            nearest_guy, distance_to_guy := find_nearest_entity_of_kind(server, .Guy, slime.physical_position);
+            if nearest_guy {
+                next_step := find_next_step_on_path(server, slime.physical_position, nearest_guy.physical_position);
+                try_to_move(server, slime, next_step);
             }
         }
     }

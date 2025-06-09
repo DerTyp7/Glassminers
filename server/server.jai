@@ -14,6 +14,7 @@
 
 // Server
 #load "entity.jai";
+#load "pathfinder.jai";
 
 TICK_RATE: f32 : 60;
 DEVELOPER   :: #run compiler_is_user_option_present("Developer");
@@ -395,10 +396,15 @@ load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]strin
 
     lines := string_split(data, #char "\n", false, *temp);
 
-    for i := 0; i < lines.count; ++i {
+    for i := 0; i < lines.count; {
         line := array_get(*lines, i);
-        if line.count && line[line.count - 1] == #char "\r" {
+        if line.count && line[0] == #char "#" {
+            array_remove_index(*lines, i);
+        } else if line.count && line[line.count - 1] == #char "\r" {
             array_put(*lines, i, substring_view(line, 0, line.count - 1));
+            ++i;
+        } else {
+            ++i;
         }
     }
     
@@ -611,7 +617,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             }
         }
 
-        distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved during this tick...
+        distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
         
         if distance_to_move == 1 && can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
             move_to_position(server, guy, guy.received_input.position);

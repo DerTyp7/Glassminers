@@ -1,5 +1,10 @@
-sssccccbbbb
-e         
-      F   G   
- T        r         
-lllllggggSg
+# sssccccbbbb
+# e         
+#       F   G   
+#  T        r         
+# lllllggggSg
+#############
+  b     bb    S        
+  b  bb   bb
+    b   b    b b
+ b    b   bb   b
