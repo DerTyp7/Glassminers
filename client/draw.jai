@@ -34,10 +34,11 @@ Sprite_Index :: enum {
     Crystal;
     Rock;
     Coal_Block;
+    Slime_Hole;
     Emitter;
     Receiver;
     Mirror;
-
+    
     // Animates
     Lava_0;
     Lava_1;
@@ -506,6 +507,8 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
 }
 
 draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, flip: bool) {
+    if sprite_index == .Count return;
+
     atlas_index    := sprite_index / SPRITES_PER_ATLAS;
     index_in_atlas := sprite_index % SPRITES_PER_ATLAS;
 
@@ -878,6 +881,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
           case .Rock;       index = .Rock;
           case .Coal;       index = .Coal_Block;
           case .Crystal;    index = .Crystal;
+          case .Slime_Hole; index = .Slime_Hole;
           case .Item_Stack; index = get_sprite_index_for_item(down(entity, Item_Stack).item_kind);
           case .Slab;       index = .Slab_0;
           case .Torch;      index = .Torch_0;

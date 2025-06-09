@@ -142,7 +142,7 @@ FROG_RECOVER_TIME: f32 : 5;
 GOBLIN_ATTACK_TIME:  f32 : 0.5;
 GOBLIN_RECOVER_TIME: f32 : 2;
 
-SLIME_IDLE_MOVE_INTERVAL: f32 : 1;
+SLIME_IDLE_MOVE_INTERVAL: f32 : 0.5;
 
 HEALTH_PER_HEART: f32 : 10;
 BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
@@ -171,7 +171,8 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Rock
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Crystal
-
+    0, // Slime Hole
+    
     // Creations
     0, // Item Stack
     0, // Slab
@@ -197,6 +198,7 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     50,  // Rock
     40,  // Coal
     30,  // Crystal
+    0,   // Slime Hole
     
     // Creations
     0, // Item Stack
@@ -223,7 +225,8 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
     .North, // Rock
     .North, // Coal
     .North, // Crystal
-
+    .North, // Slime Hole
+    
     // Creations
     .North, // Item Stack
     .North, // Slab
@@ -249,6 +252,7 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     2, // Rock
     2, // Coal
     2, // Crystal
+    2, // Slime Hole
 
     // Creations
     1, // Item Stack
@@ -283,7 +287,8 @@ Entity_Kind :: enum {
     Rock;
     Coal;
     Crystal;
-
+    Slime_Hole;
+    
     // Creations
     Item_Stack;
     Slab;

@@ -437,7 +437,8 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char "s", // Rock
         #char "c", // Coal
         #char "g", // Crystal
-
+        #char "h", // Slime Hole
+        
         // Creations
         #char " ", // Item Stack
         #char " ", // Slab

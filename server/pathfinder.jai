@@ -32,6 +32,8 @@ find_next_step_on_path :: (server: *Server, from, to: v2i) -> v2i {
     return path[1]; // The first index in this array is the *from* position
 }
 
+
+
 #file_scope
 
 Node :: struct {
