@@ -67,32 +67,30 @@ Torch_3      sprites/animates/torch-3.png
 #
 # Guy
 #
-Guy_Idle_Side_0   sprites/guy/guy-idle-side-0.png
-Guy_Idle_Side_1   sprites/guy/guy-idle-side-1.png
 Guy_Idle_Back_0   sprites/guy/guy-idle-back-0.png
 Guy_Idle_Back_1   sprites/guy/guy-idle-back-1.png
 Guy_Idle_Front_0  sprites/guy/guy-idle-front-0.png
 Guy_Idle_Front_1  sprites/guy/guy-idle-front-1.png
-Guy_Walk_Side_0   sprites/guy/guy-walk-side-0.png
-Guy_Walk_Side_1   sprites/guy/guy-walk-side-1.png
-Guy_Walk_Side_2   sprites/guy/guy-walk-side-2.png
+Guy_Idle_Side_0   sprites/guy/guy-idle-side-0.png
+Guy_Idle_Side_1   sprites/guy/guy-idle-side-1.png
+
 Guy_Walk_Back_0   sprites/guy/guy-walk-back-0.png
 Guy_Walk_Back_1   sprites/guy/guy-walk-back-1.png
 Guy_Walk_Back_2   sprites/guy/guy-walk-back-2.png
 Guy_Walk_Front_0  sprites/guy/guy-walk-front-0.png
 Guy_Walk_Front_1  sprites/guy/guy-walk-front-1.png
 Guy_Walk_Front_2  sprites/guy/guy-walk-front-2.png
-Guy_Dead_Side     sprites/guy/guy-dead-side.png
-Guy_Dead_Front    sprites/guy/guy-dead-front.png
+Guy_Walk_Side_0   sprites/guy/guy-walk-side-0.png
+Guy_Walk_Side_1   sprites/guy/guy-walk-side-1.png
+Guy_Walk_Side_2   sprites/guy/guy-walk-side-2.png
+
 Guy_Dead_Back     sprites/guy/guy-dead-back.png
+Guy_Dead_Front    sprites/guy/guy-dead-front.png
+Guy_Dead_Side     sprites/guy/guy-dead-side.png
 
 #
 # Frog
 #
-Frog_Idle_Side_0            sprites/frog/frog-idle-side-0.png
-Frog_Idle_Side_1            sprites/frog/frog-idle-side-1.png
-Frog_Idle_Side_2            sprites/frog/frog-idle-side-2.png
-Frog_Idle_Side_3            sprites/frog/frog-idle-side-3.png
 Frog_Idle_Back_0            sprites/frog/frog-idle-back-0.png
 Frog_Idle_Back_1            sprites/frog/frog-idle-back-1.png
 Frog_Idle_Back_2            sprites/frog/frog-idle-back-2.png
@@ -101,23 +99,27 @@ Frog_Idle_Front_0           sprites/frog/frog-idle-front-0.png
 Frog_Idle_Front_1           sprites/frog/frog-idle-front-1.png
 Frog_Idle_Front_2           sprites/frog/frog-idle-front-2.png
 Frog_Idle_Front_3           sprites/frog/frog-idle-front-3.png
+Frog_Idle_Side_0            sprites/frog/frog-idle-side-0.png
+Frog_Idle_Side_1            sprites/frog/frog-idle-side-1.png
+Frog_Idle_Side_2            sprites/frog/frog-idle-side-2.png
+Frog_Idle_Side_3            sprites/frog/frog-idle-side-3.png
 
-Frog_Attacking_Side_0        sprites/frog/frog-attacking-side-0.png
-Frog_Attacking_Side_1        sprites/frog/frog-attacking-side-1.png
-Frog_Attacking_Side_2        sprites/frog/frog-attacking-side-2.png
 Frog_Attacking_Back_0        sprites/frog/frog-attacking-back-0.png
 Frog_Attacking_Back_1        sprites/frog/frog-attacking-back-1.png
 Frog_Attacking_Back_2        sprites/frog/frog-attacking-back-2.png
 Frog_Attacking_Front_0       sprites/frog/frog-attacking-front-0.png
 Frog_Attacking_Front_1       sprites/frog/frog-attacking-front-1.png
 Frog_Attacking_Front_2       sprites/frog/frog-attacking-front-2.png
+Frog_Attacking_Side_0        sprites/frog/frog-attacking-side-0.png
+Frog_Attacking_Side_1        sprites/frog/frog-attacking-side-1.png
+Frog_Attacking_Side_2        sprites/frog/frog-attacking-side-2.png
 
-Frog_Recovering_Side_0      sprites/frog/frog-recovering-side-0.png
-Frog_Recovering_Side_1      sprites/frog/frog-recovering-side-1.png
 Frog_Recovering_Back_0      sprites/frog/frog-recovering-back-0.png
 Frog_Recovering_Back_1      sprites/frog/frog-recovering-back-1.png
 Frog_Recovering_Front_0     sprites/frog/frog-recovering-front-0.png
 Frog_Recovering_Front_1     sprites/frog/frog-recovering-front-1.png
+Frog_Recovering_Side_0      sprites/frog/frog-recovering-side-0.png
+Frog_Recovering_Side_1      sprites/frog/frog-recovering-side-1.png
 
 #
 # Goblin
@@ -141,7 +143,22 @@ Goblin_Recovering_Side_1       sprites/goblin/goblin-recovering-side-1.png
 #
 # Slime
 #
-Slime_Idle_Front_0  sprites/slime/slime-idle-front-0.png
+Slime_Idle_Back_0    sprites/slime/slime-idle-back-0.png
+Slime_Idle_Back_1    sprites/slime/slime-idle-back-1.png
+Slime_Idle_Front_0   sprites/slime/slime-idle-front-0.png
+Slime_Idle_Front_1   sprites/slime/slime-idle-front-1.png
+Slime_Idle_Side_0    sprites/slime/slime-idle-side-0.png
+Slime_Idle_Side_1    sprites/slime/slime-idle-side-1.png
+
+Slime_Walk_Back_0    sprites/slime/slime-walk-back-0.png
+Slime_Walk_Back_1    sprites/slime/slime-walk-back-1.png
+Slime_Walk_Back_2    sprites/slime/slime-walk-back-2.png
+Slime_Walk_Front_0   sprites/slime/slime-walk-front-0.png
+Slime_Walk_Front_1   sprites/slime/slime-walk-front-1.png
+Slime_Walk_Front_2   sprites/slime/slime-walk-front-2.png
+Slime_Walk_Side_0    sprites/slime/slime-walk-side-0.png
+Slime_Walk_Side_1    sprites/slime/slime-walk-side-1.png
+Slime_Walk_Side_2    sprites/slime/slime-walk-side-2.png
 
 #
 # Trader

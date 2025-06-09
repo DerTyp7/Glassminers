@@ -55,30 +55,28 @@ Sprite_Index :: enum {
     Torch_3;
     
     // Guy
-    Guy_Idle_Side_0;
-    Guy_Idle_Side_1;
     Guy_Idle_Back_0;
     Guy_Idle_Back_1;
     Guy_Idle_Front_0;
     Guy_Idle_Front_1;
-    Guy_Walk_Side_0;
-    Guy_Walk_Side_1;
-    Guy_Walk_Side_2;
+    Guy_Idle_Side_0;
+    Guy_Idle_Side_1;
+
     Guy_Walk_Back_0;
     Guy_Walk_Back_1;
     Guy_Walk_Back_2;
     Guy_Walk_Front_0;
     Guy_Walk_Front_1;
     Guy_Walk_Front_2;
-    Guy_Dead_Side;
-    Guy_Dead_Front;
+    Guy_Walk_Side_0;
+    Guy_Walk_Side_1;
+    Guy_Walk_Side_2;
+
     Guy_Dead_Back;
+    Guy_Dead_Front;
+    Guy_Dead_Side;
     
     // Frog
-    Frog_Idle_Side_0;
-    Frog_Idle_Side_1;
-    Frog_Idle_Side_2;
-    Frog_Idle_Side_3;
     Frog_Idle_Back_0;
     Frog_Idle_Back_1;
     Frog_Idle_Back_2;
@@ -87,21 +85,27 @@ Sprite_Index :: enum {
     Frog_Idle_Front_1;
     Frog_Idle_Front_2;
     Frog_Idle_Front_3;
-    Frog_Attacking_Side_0;
-    Frog_Attacking_Side_1;
-    Frog_Attacking_Side_2;
+    Frog_Idle_Side_0;
+    Frog_Idle_Side_1;
+    Frog_Idle_Side_2;
+    Frog_Idle_Side_3;
+
     Frog_Attacking_Back_0;
     Frog_Attacking_Back_1;
     Frog_Attacking_Back_2;
     Frog_Attacking_Front_0;
     Frog_Attacking_Front_1;
     Frog_Attacking_Front_2;
-    Frog_Recovering_Side_0;
-    Frog_Recovering_Side_1;
+    Frog_Attacking_Side_0;
+    Frog_Attacking_Side_1;
+    Frog_Attacking_Side_2;
+
     Frog_Recovering_Back_0;
     Frog_Recovering_Back_1;
     Frog_Recovering_Front_0;
     Frog_Recovering_Front_1;
+    Frog_Recovering_Side_0;
+    Frog_Recovering_Side_1;
 
     // Goblin
     Goblin_Idle_Back_0;
@@ -121,7 +125,22 @@ Sprite_Index :: enum {
     Goblin_Recovering_Side_1;
 
     // Slime
+    Slime_Idle_Back_0;
+    Slime_Idle_Back_1;
     Slime_Idle_Front_0;
+    Slime_Idle_Front_1;
+    Slime_Idle_Side_0;
+    Slime_Idle_Side_1;
+
+    Slime_Walk_Back_0;
+    Slime_Walk_Back_1;
+    Slime_Walk_Back_2;
+    Slime_Walk_Front_0;
+    Slime_Walk_Front_1;
+    Slime_Walk_Front_2;
+    Slime_Walk_Side_0;
+    Slime_Walk_Side_1;
+    Slime_Walk_Side_2;
     
     // Trader
     Trader_Idle_Back_0;

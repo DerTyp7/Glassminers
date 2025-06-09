@@ -2,10 +2,6 @@
 # GUY ANIMATIONS
 #
 
-:Guy_Idle_Side 0.5 loop flip    is_idle
-Guy_Idle_Side_0
-Guy_Idle_Side_1
-
 :Guy_Idle_Back 0.5 loop   is_idle
 Guy_Idle_Back_0
 Guy_Idle_Back_1
@@ -14,11 +10,10 @@ Guy_Idle_Back_1
 Guy_Idle_Front_0
 Guy_Idle_Front_1
 
+:Guy_Idle_Side 0.5 loop flip    is_idle
+Guy_Idle_Side_0
+Guy_Idle_Side_1
 
-:Guy_Walk_Side 0.15 flip   is_walk
-Guy_Walk_Side_0
-Guy_Walk_Side_1
-Guy_Walk_Side_2
 
 :Guy_Walk_Back 0.15   is_walk
 Guy_Walk_Back_0
@@ -30,15 +25,20 @@ Guy_Walk_Front_0
 Guy_Walk_Front_1
 Guy_Walk_Front_2
 
+:Guy_Walk_Side 0.15 flip   is_walk
+Guy_Walk_Side_0
+Guy_Walk_Side_1
+Guy_Walk_Side_2
 
-:Guy_Dead_Side 0 loop flip
-Guy_Dead_Side
 
 :Guy_Dead_Back 0 loop
 Guy_Dead_Back
 
 :Guy_Dead_Front 0 loop
 Guy_Dead_Front
+
+:Guy_Dead_Side 0 loop flip
+Guy_Dead_Side
 
 
 @Guy_Idle
@@ -64,12 +64,6 @@ East  Guy_Dead_Side
 # FROG ANIMATIONS
 #
 
-:Frog_Idle_Side 0.33 loop flip   is_idle
-Frog_Idle_Side_0
-Frog_Idle_Side_1
-Frog_Idle_Side_2
-Frog_Idle_Side_3
-
 :Frog_Idle_Back 0.33 loop   is_idle
 Frog_Idle_Back_0
 Frog_Idle_Back_1
@@ -82,11 +76,12 @@ Frog_Idle_Front_1
 Frog_Idle_Front_2
 Frog_Idle_Front_3
 
+:Frog_Idle_Side 0.33 loop flip   is_idle
+Frog_Idle_Side_0
+Frog_Idle_Side_1
+Frog_Idle_Side_2
+Frog_Idle_Side_3
 
-:Frog_Attacking_Side 0.33 flip
-Frog_Attacking_Side_0
-Frog_Attacking_Side_1
-Frog_Attacking_Side_2
 
 :Frog_Attacking_Back 0.33
 Frog_Attacking_Back_0
@@ -98,10 +93,11 @@ Frog_Attacking_Front_0
 Frog_Attacking_Front_1
 Frog_Attacking_Front_2
 
+:Frog_Attacking_Side 0.33 flip
+Frog_Attacking_Side_0
+Frog_Attacking_Side_1
+Frog_Attacking_Side_2
 
-:Frog_Recovering_Side 2.5 flip
-Frog_Recovering_Side_0
-Frog_Recovering_Side_1
 
 :Frog_Recovering_Back 2.5
 Frog_Recovering_Back_0
@@ -110,6 +106,10 @@ Frog_Recovering_Back_1
 :Frog_Recovering_Front 2.5
 Frog_Recovering_Front_0
 Frog_Recovering_Front_1
+
+:Frog_Recovering_Side 2.5 flip
+Frog_Recovering_Side_0
+Frog_Recovering_Side_1
 
 
 @Frog_Idle
@@ -135,10 +135,6 @@ West  Frog_Recovering_Side
 # Goblin Animations
 #
 
-:Goblin_Idle_Side 0.33 loop flip   is_idle
-Goblin_Idle_Side_0
-Goblin_Idle_Side_1
-
 :Goblin_Idle_Back 0.33 loop   is_idle
 Goblin_Idle_Back_0
 Goblin_Idle_Back_1
@@ -147,9 +143,10 @@ Goblin_Idle_Back_1
 Goblin_Idle_Front_0
 Goblin_Idle_Front_1
 
+:Goblin_Idle_Side 0.33 loop flip   is_idle
+Goblin_Idle_Side_0
+Goblin_Idle_Side_1
 
-:Goblin_Attacking_Side 0 flip
-Goblin_Attacking_Side
 
 :Goblin_Attacking_Back 0
 Goblin_Attacking_Back
@@ -157,10 +154,9 @@ Goblin_Attacking_Back
 :Goblin_Attacking_Front 0
 Goblin_Attacking_Front
 
+:Goblin_Attacking_Side 0 flip
+Goblin_Attacking_Side
 
-:Goblin_Recovering_Side 1 flip 
-Goblin_Recovering_Side_0
-Goblin_Recovering_Side_1
 
 :Goblin_Recovering_Back 1 flip 
 Goblin_Recovering_Back_0
@@ -169,6 +165,10 @@ Goblin_Recovering_Back_1
 :Goblin_Recovering_Front 1 flip 
 Goblin_Recovering_Front_0
 Goblin_Recovering_Front_1
+
+:Goblin_Recovering_Side 1 flip 
+Goblin_Recovering_Side_0
+Goblin_Recovering_Side_1
 
 
 @Goblin_Idle
@@ -191,12 +191,52 @@ West  Goblin_Recovering_Side
 
 
 #
-# Trader Animations
+# Slime Animations
 #
 
-:Trader_Idle_Side 0.5 loop flip   is_idle
-Trader_Idle_Side_0
-Trader_Idle_Side_1
+:Slime_Idle_Back 0.33 loop   is_idle
+Slime_Idle_Back_0
+Slime_Idle_Back_1
+
+:Slime_Idle_Front 0.33 loop   is_idle
+Slime_Idle_Front_0
+Slime_Idle_Front_1
+
+:Slime_Idle_Side 0.33 loop flip   is_idle
+Slime_Idle_Side_0
+Slime_Idle_Side_1
+
+:Slime_Walk_Back 0.15   is_walk
+Slime_Walk_Back_0
+Slime_Walk_Back_1
+Slime_Walk_Back_2
+
+:Slime_Walk_Front 0.15   is_walk
+Slime_Walk_Front_0
+Slime_Walk_Front_1
+Slime_Walk_Front_2
+
+:Slime_Walk_Side 0.15 flip   is_walk
+Slime_Walk_Side_0
+Slime_Walk_Side_1
+Slime_Walk_Side_2
+
+@Slime_Idle
+North Slime_Idle_Back
+South Slime_Idle_Front
+East  Slime_Idle_Side
+West  Slime_Idle_Side
+
+@Slime_Walk
+North Slime_Walk_Back
+South Slime_Walk_Front
+East  Slime_Walk_Side
+West  Slime_Walk_Side
+
+
+#
+# Trader Animations
+#
 
 :Trader_Idle_Back 0.5 loop   is_idle
 Trader_Idle_Back_0
@@ -205,6 +245,10 @@ Trader_Idle_Back_1
 :Trader_Idle_Front 0.5 loop   is_idle
 Trader_Idle_Front_0
 Trader_Idle_Front_1
+
+:Trader_Idle_Side 0.5 loop flip   is_idle
+Trader_Idle_Side_0
+Trader_Idle_Side_1
 
 
 @Trader_Idle

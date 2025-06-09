@@ -2,42 +2,50 @@ MAX_ANIMATION_FRAMES :: 8;
 
 Animation_Index :: enum {
     // Guy Animations
-    Guy_Idle_Side;
     Guy_Idle_Back;
     Guy_Idle_Front;
-    Guy_Walk_Side;
+    Guy_Idle_Side;
     Guy_Walk_Back;
     Guy_Walk_Front;
-    Guy_Dead_Side;
-    Guy_Dead_Front;
+    Guy_Walk_Side;
     Guy_Dead_Back;
+    Guy_Dead_Front;
+    Guy_Dead_Side;
 
     // Frog Animations
-    Frog_Idle_Side;
     Frog_Idle_Back;
     Frog_Idle_Front;
-    Frog_Attacking_Side;
+    Frog_Idle_Side;
     Frog_Attacking_Back;
     Frog_Attacking_Front;
-    Frog_Recovering_Side;
+    Frog_Attacking_Side;
     Frog_Recovering_Back;
     Frog_Recovering_Front;
+    Frog_Recovering_Side;
 
     // Goblin Animations
-    Goblin_Idle_Side;
     Goblin_Idle_Back;
     Goblin_Idle_Front;
-    Goblin_Attacking_Side;
+    Goblin_Idle_Side;
     Goblin_Attacking_Back;
     Goblin_Attacking_Front;
-    Goblin_Recovering_Side;
+    Goblin_Attacking_Side;
     Goblin_Recovering_Back;
     Goblin_Recovering_Front;
+    Goblin_Recovering_Side;
 
+    // Slime Animations
+    Slime_Idle_Back;
+    Slime_Idle_Front;
+    Slime_Idle_Side;
+    Slime_Walk_Back;
+    Slime_Walk_Front;
+    Slime_Walk_Side;
+    
     // Trader Animations
-    Trader_Idle_Side;
     Trader_Idle_Back;
     Trader_Idle_Front;
+    Trader_Idle_Side;
 
     // Generic Animations
     Lava;
@@ -77,6 +85,9 @@ Animation_Group_Index :: enum {
     Goblin_Attacking;
     Goblin_Recovering;
 
+    Slime_Idle;
+    Slime_Walk;
+    
     Trader_Idle;
 }
 
