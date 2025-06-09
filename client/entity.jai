@@ -422,6 +422,10 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
     }
 }
 
+disable_animation :: (entity: *Entity) {
+    entity.animation = .Count;
+}
+
 // Definitely switches animation
 play_animation :: (entity: *Entity, animation: Animation_Index) {
     entity.animation_t = 0;
@@ -722,6 +726,24 @@ update_slime :: (client: *Client, slime: *Slime) {
         system.world_position = slime.visual_position;
         system.time_to_live = 0.5;
         system.emitters[0].alive_t = 0.5;
+    }
+}
+
+update_slime_hole :: (client: *Client, hole: *Entity) {
+    found_any_slime := false;
+
+    for i := 0; i < client.slimes.slot_count; ++i {
+        slime, occupied := index_bucket_array(*client.slimes, i);
+        if occupied && slime.state == .Hiding && slime.physical_position.x == hole.physical_position.x && slime.physical_position.y == hole.physical_position.y {
+            found_any_slime = true;
+            break;
+        }
+    }
+    
+    if found_any_slime {
+        play_animation(hole, .Slime_Hole_Filled);
+    } else {
+        disable_animation(hole);
     }
 }
 

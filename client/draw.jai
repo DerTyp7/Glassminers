@@ -34,7 +34,6 @@ Sprite_Index :: enum {
     Crystal;
     Rock;
     Coal_Block;
-    Slime_Hole;
     Emitter;
     Receiver;
     Mirror;
@@ -54,6 +53,9 @@ Sprite_Index :: enum {
     Torch_1;
     Torch_2;
     Torch_3;
+    Slime_Hole_Empty;
+    Slime_Hole_Filled_0;
+    Slime_Hole_Filled_1;
     
     // Guy
     Guy_Idle_Back_0;
@@ -602,7 +604,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied && visibility_check_entity(local_player, entity) then array_add(*entities_to_draw, entity);
+            if occupied && !bitfield_contains(*entity.entity_flags, Entity_Flags.Invisible) && visibility_check_entity(local_player, entity) then array_add(*entities_to_draw, entity);
         }
         
         quick_sort([]*Entity.{ entities_to_draw.count, entities_to_draw.data }, compare_entities_by_depth);
@@ -881,7 +883,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
           case .Rock;       index = .Rock;
           case .Coal;       index = .Coal_Block;
           case .Crystal;    index = .Crystal;
-          case .Slime_Hole; index = .Slime_Hole;
+          case .Slime_Hole; index = .Slime_Hole_Empty;
           case .Item_Stack; index = get_sprite_index_for_item(down(entity, Item_Stack).item_kind);
           case .Slab;       index = .Slab_0;
           case .Torch;      index = .Torch_0;

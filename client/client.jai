@@ -684,6 +684,15 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.slime_state.entity_pid);
         slime := down(entity, Slime);
         slime.state = msg.slime_state.state;
+
+        for i := 0; i < client.all_entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*client.all_entities, i);
+            if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
+        }
+
+        if slime.state == .Hiding bitfield_add(*slime.entity_flags, Entity_Flags.Invisible);
+        else bitfield_remove(*slime.entity_flags, Entity_Flags.Invisible);
+        
     }
 }
 

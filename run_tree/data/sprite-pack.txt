@@ -40,7 +40,6 @@ Bedrock     sprites/inanimates/bedrock.png
 Crystal     sprites/inanimates/crystal.png
 Rock        sprites/inanimates/rock.png
 Coal_Block  sprites/inanimates/coal.png
-Slime_Hole  sprites/inanimates/slime-hole.png
 Emitter     sprites/inanimates/emitter.png
 Receiver    sprites/inanimates/receiver.png
 Emitter     sprites/inanimates/emitter.png
@@ -64,6 +63,9 @@ Torch_0      sprites/animates/torch-0.png
 Torch_1      sprites/animates/torch-1.png
 Torch_2      sprites/animates/torch-2.png
 Torch_3      sprites/animates/torch-3.png
+Slime_Hole_Empty     sprites/animates/slime-hole-empty.png
+Slime_Hole_Filled_0  sprites/animates/slime-hole-filled-0.png
+Slime_Hole_Filled_1  sprites/animates/slime-hole-filled-1.png
 
 #
 # Guy

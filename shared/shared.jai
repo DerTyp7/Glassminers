@@ -161,6 +161,7 @@ Entity_Flags :: enum bitfield {
     Blocks_Beam;
     Blocks_Los;
     Disable_Visual_Rotation;
+    Invisible;
 }
 
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[

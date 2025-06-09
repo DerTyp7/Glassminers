@@ -281,3 +281,7 @@ Torch_0
 Torch_1
 Torch_2
 Torch_3
+
+:Slime_Hole_Filled 0.5 loop
+Slime_Hole_Filled_0
+Slime_Hole_Filled_1
