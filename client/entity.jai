@@ -374,7 +374,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
     approx_distance_to_move: f32 = ---;
     
     {
-        speed := client.tick_time * 10;
+        speed := min(client.tick_time * 10, 1);
         target_position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
         approx_distance_to_move = abs((target_position.x - entity.visual_position.x) + (target_position.y - entity.visual_position.y));
 
