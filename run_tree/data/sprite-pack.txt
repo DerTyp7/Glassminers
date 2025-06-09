@@ -139,6 +139,11 @@ Goblin_Recovering_Side_0       sprites/goblin/goblin-recovering-side-0.png
 Goblin_Recovering_Side_1       sprites/goblin/goblin-recovering-side-1.png
 
 #
+# Slime
+#
+Slime_Idle_Front_0  sprites/slime/slime-idle-front-0.png
+
+#
 # Trader
 #
 Trader_Idle_Back_0    sprites/trader/trader-idle-back-0.png

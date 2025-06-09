@@ -77,6 +77,10 @@ Goblin :: struct {
     state_t: f32; // How much time this goblin spent in the current state
 }
 
+Slime :: struct {
+    #using entity : *Entity = ---;
+}
+
 Entity_Manager :: struct {
     pid_counter:  Pid;
     pid_lookup:   Probed_Hash_Table(Pid, *Entity);
@@ -88,6 +92,7 @@ Entity_Manager :: struct {
     item_stacks:  Bucket_Array(Item_Stack);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
+    slimes:       Bucket_Array(Slime);
 }
 
 
@@ -108,6 +113,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.item_stacks, *server.world_allocator);
     create_bucket_array(*server.frogs, *server.world_allocator);
     create_bucket_array(*server.goblins, *server.world_allocator);
+    create_bucket_array(*server.slimes, *server.world_allocator);
 }
 
 destroy_entity_manager :: (server: *Server) {
@@ -120,6 +126,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.item_stacks);
     destroy_bucket_array(*server.frogs);
     destroy_bucket_array(*server.goblins);
+    destroy_bucket_array(*server.slimes);
 }
 
 
@@ -167,6 +174,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Frog;       make_derived(entity, *server.frogs);
       case .Goblin;     make_derived(entity, *server.goblins);
+      case .Slime;      make_derived(entity, *server.slimes);
       case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Torch, .Trader;
         entity.derived = null;
     }
@@ -205,6 +213,7 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.item_stacks);
     remove_deriveds(*server.frogs);
     remove_deriveds(*server.goblins);
+    remove_deriveds(*server.slimes);
 
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);

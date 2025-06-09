@@ -430,18 +430,19 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char "b", // Bedrock
         #char "s", // Rock
         #char "c", // Coal
-        #char "@", // Crystal
+        #char "g", // Crystal
 
         // Creations
-        #char "i", // Item Stack
-        #char "_", // Slab
-        #char "T", // Torch
+        #char " ", // Item Stack
+        #char " ", // Slab
+        #char " ", // Torch
         
         // Beings
-        #char "!", // Guy
-        #char "f", // Frog
-        #char "g", // Goblin
-        #char "t", // Trader
+        #char ".", // Guy
+        #char "F", // Frog
+        #char "G", // Goblin
+        #char "S", // Slime
+        #char "T", // Trader
     ];
 
     lines, success := load_predefined_world_data(server, campaign);

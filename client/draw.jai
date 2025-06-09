@@ -120,6 +120,9 @@ Sprite_Index :: enum {
     Goblin_Recovering_Side_0;
     Goblin_Recovering_Side_1;
 
+    // Slime
+    Slime_Idle_Front_0;
+    
     // Trader
     Trader_Idle_Back_0;
     Trader_Idle_Back_1;
@@ -862,6 +865,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
           case .Guy;        index = .Guy_Idle_Front_0;
           case .Frog;       index = .Frog_Idle_Front_0;
           case .Goblin;     index = .Goblin_Idle_Front_0;
+          case .Slime;      index = .Slime_Idle_Front_0;
           case .Trader;     index = .Trader_Idle_Front_0;
         }
     } else {

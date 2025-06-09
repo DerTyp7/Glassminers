@@ -96,6 +96,10 @@ Goblin :: struct {
     state_t: f32; // How much time this goblin spent in the current state
 }
 
+Slime :: struct {
+    #using entity : *Entity = ---;
+}
+
 Entity_Manager :: struct {
     entity_pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
@@ -106,7 +110,8 @@ Entity_Manager :: struct {
     item_stacks:  Bucket_Array(Item_Stack);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
-
+    slimes:       Bucket_Array(Slime);
+    
     particle_pid_counter := 0;
     particle_pid_lookup: Probed_Hash_Table(Pid, *Particle_System);
     particle_systems: Bucket_Array(Particle_System);
@@ -129,6 +134,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
+    create_bucket_array(*client.slimes, *client.world_allocator);
 
     client.entity_pid_lookup.allocator = *client.world_allocator;
     probed_hash_table_create(*client.particle_pid_lookup, 128, pid_hash, pids_equal);
@@ -145,6 +151,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
+    destroy_bucket_array(*client.slimes);
 
     probed_hash_table_destroy(*client.particle_pid_lookup);
     destroy_bucket_array(*client.particle_systems);
@@ -290,6 +297,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Item_Stack; make_derived(entity, *client.item_stacks);
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
+      case .Slime;      make_derived(entity, *client.slimes);
       case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Torch, .Trader;
         entity.derived = null;
     }
@@ -490,6 +498,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.item_stacks);
     remove_deriveds(*client.frogs);
     remove_deriveds(*client.goblins);
+    remove_deriveds(*client.slimes);
 
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);

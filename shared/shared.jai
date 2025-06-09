@@ -179,6 +179,7 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy
     .Living | .Blocks_Move | .Disable_Visual_Rotation, // Frog
     .Living | .Blocks_Move | .Disable_Visual_Rotation, // Goblin
+    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Slime
     .Living | .Blocks_Move | .Disable_Visual_Rotation, // Trader
 ];
 
@@ -204,6 +205,7 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     30, // Guy
     50, // Frog
     20, // Goblin
+    20, // Slime
     30, // Trader
 ];
 
@@ -229,6 +231,7 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
     .North, // Guy
     .South, // Frog
     .South, // Goblin
+    .South, // Slime
     .South, // Trader
 ];
 
@@ -254,6 +257,7 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     3, // Guy
     3, // Frog
     3, // Goblin
+    3, // Slime
     3, // Trader
 ];
 
@@ -287,6 +291,7 @@ Entity_Kind :: enum {
     Guy;
     Frog;
     Goblin;
+    Slime;
     Trader;
 }
 
