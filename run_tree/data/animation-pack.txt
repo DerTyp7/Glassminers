@@ -206,17 +206,17 @@ Slime_Idle_Front_1
 Slime_Idle_Side_0
 Slime_Idle_Side_1
 
-:Slime_Walk_Back 0.15   is_walk
+:Slime_Walk_Back 0.2   is_walk
 Slime_Walk_Back_0
 Slime_Walk_Back_1
 Slime_Walk_Back_2
 
-:Slime_Walk_Front 0.15   is_walk
+:Slime_Walk_Front 0.2   is_walk
 Slime_Walk_Front_0
 Slime_Walk_Front_1
 Slime_Walk_Front_2
 
-:Slime_Walk_Side 0.15 flip   is_walk
+:Slime_Walk_Side 0.2 flip   is_walk
 Slime_Walk_Side_0
 Slime_Walk_Side_1
 Slime_Walk_Side_2

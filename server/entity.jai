@@ -79,6 +79,9 @@ Goblin :: struct {
 
 Slime :: struct {
     #using entity : *Entity = ---;
+    state: Slime_State;
+    state_t: f32 ; // How much time this goblin spent in the current state
+    time_since_last_move: f32;
 }
 
 Entity_Manager :: struct {
@@ -602,6 +605,34 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
     }
 
     goblin.state_t += server.tick_time;
+}
+
+update_slime :: (server: *Server, slime: *Slime) {
+    try_to_move :: (server: *Server, slime: *Slime, direction: Direction) -> bool {
+        move_delta := vector_from_direction(direction);
+        if recursive_move_check(server, slime, move_delta, 0) {
+            slime.time_since_last_move = 0;
+            slime.physical_rotation = direction;
+            recursive_move(server, slime, move_delta);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    if slime.state == {
+      case .Idle;
+        if slime.time_since_last_move >= SLIME_IDLE_MOVE_INTERVAL {
+            direction := random_u64_in(*server.random, 0, Direction.Count);
+            for i := 0; i < Direction.Count; ++i {
+                if try_to_move(server, slime, (direction + i) % Direction.Count) {
+                    break;
+                }
+            }
+        }
+    }
+
+    slime.time_since_last_move += server.tick_time;
 }
 
 update_trader :: (server: *Server, entity: *Entity) {

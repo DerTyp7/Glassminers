@@ -772,6 +772,14 @@ do_game_tick :: (server: *Server) {
             goblin, occupied := index_bucket_array(*server.goblins, i);
             if occupied update_goblin(server, goblin);
         }
+
+        //
+        // Update all slimes
+        //
+        for i := 0; i < server.slimes.slot_count; ++i {
+            slime, occupied := index_bucket_array(*server.slimes, i);
+            if occupied update_slime(server, slime);
+        }
         
         //
         // Update all guys

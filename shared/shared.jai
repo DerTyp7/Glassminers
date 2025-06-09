@@ -142,6 +142,8 @@ FROG_RECOVER_TIME: f32 : 5;
 GOBLIN_ATTACK_TIME:  f32 : 0.5;
 GOBLIN_RECOVER_TIME: f32 : 2;
 
+SLIME_IDLE_MOVE_INTERVAL: f32 : 1;
+
 HEALTH_PER_HEART: f32 : 10;
 BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
 GUY_DPS:  f32 : HEALTH_PER_HEART;
@@ -320,6 +322,10 @@ Goblin_State :: enum {
     Idle;
     Attacking;
     Recovering;
+}
+
+Slime_State :: enum {
+    Idle;
 }
 
 Interaction_Kind :: enum {

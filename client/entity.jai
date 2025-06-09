@@ -695,6 +695,10 @@ update_frog :: (client: *Client, frog: *Frog) {
     frog.state_t += client.tick_time;
 }
 
+update_slime :: (client: *Client, slime: *Slime) {
+    maybe_play_animation_from_group_after(client, slime, .Slime_Idle);
+}
+
 
 
 #file_scope

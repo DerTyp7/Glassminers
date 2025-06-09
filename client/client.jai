@@ -550,6 +550,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Frog_Idle);
           case .Goblin;
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Idle);
+          case .Slime;
+            maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Slime_Walk);
           case .Trader;
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Trader_Idle);
         }
@@ -1182,6 +1184,11 @@ do_game_tick :: (client: *Client) {
         for i := 0; i < client.frogs.slot_count; ++i {
             frog, occupied := index_bucket_array(*client.frogs, i);
             if occupied then update_frog(client, frog);
+        }
+
+        for i := 0; i < client.slimes.slot_count; ++i {
+            slime, occupied := index_bucket_array(*client.slimes, i);
+            if occupied then update_slime(client, slime);
         }
 
         for i := 0; i < client.all_entities.slot_count; ++i {
