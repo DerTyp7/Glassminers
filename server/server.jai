@@ -336,7 +336,7 @@ switch_to_next_state :: (server: *Server) {
 fill_world_randomly :: (server: *Server) {
     is_blocked_position :: (server: *Server, position: v2i) -> bool {
         if position.y >= 1 && position.y <= 3 &&
-            position.x >= 2 && position.x <= 2 + server.clients.count + 1 return true;
+            position.x >= 0 && position.x <= 2 + server.clients.count + 1 return true;
 
         if find_any_entity_at_position(server, position) != null return true;
 
@@ -371,6 +371,16 @@ fill_world_randomly :: (server: *Server) {
         }
     }
 
+    generate_n_random_slime_holes :: (server: *Server, n: s64) {
+        for i := 0; i < n; ++i {
+            position, success := random_position(server);
+            if success {
+                create_entity(server, .Slime_Hole, position, ENTITY_DEFAULT_DIRECTION[.Slime_Hole]);
+                create_entity(server, .Slime, position, ENTITY_DEFAULT_DIRECTION[.Slime]);
+            }
+        }
+    }
+    
     create_entity(server, .Emitter, .{ 0, 2 }, .East);
     create_entity(server, .Receiver, .{ server.world_size.x - 1, random_u64_in(*server.random, 0, server.world_size.y) }, .West);
     generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
@@ -378,8 +388,9 @@ fill_world_randomly :: (server: *Server) {
     generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
     generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
     generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
-    generate_n_random_entities(server, .Frog,  server.world_size.x / 9);
+    generate_n_random_entities(server, .Frog,    server.world_size.x / 9);
     generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
+    generate_n_random_slime_holes(server, server.world_size.x / 18);
     generate_n_random_entities(server, .Trader,  min(1, server.world_size.x / 36));
 }
 

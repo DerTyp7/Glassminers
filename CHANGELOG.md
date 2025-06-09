@@ -1,6 +1,7 @@
 ## 0.2.1 (unreleased)
 
 - Implemented a torch entity that can be crafted from coal and can be picked up and placed down
+- Prevented stuff to spawn directly in front of the emitter
 
 ## 0.2.0 (08.06.2025)
 
