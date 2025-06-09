@@ -1,5 +1,5 @@
 Camera :: struct {
-    DESIRED_VERTICAL_UNITS: f32 : 6.3;
+    DESIRED_UNITS: f32 : 6.3;
 
     aspect_ratio: f32;
     world_to_screen: v2f;
@@ -179,13 +179,21 @@ screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
 }
 
 update_camera :: (client: *Client, camera: *Camera, tracking_entity_position: v2i, viewport: [4]f32, interpolation: f32) {
-    camera.aspect_ratio      = (viewport[2] - viewport[0]) / (viewport[3] - viewport[1]);
-    camera.world_to_screen.y = (viewport[3] - viewport[1]) / camera.DESIRED_VERTICAL_UNITS;
-    camera.world_to_screen.x = camera.world_to_screen.y;
-    camera.world_area.y      = camera.DESIRED_VERTICAL_UNITS;
-    camera.world_area.x      = camera.DESIRED_VERTICAL_UNITS * camera.aspect_ratio;
-    camera.viewport          = viewport;
+    camera.viewport     = viewport;
+    camera.aspect_ratio = (camera.viewport[2] - camera.viewport[0]) / (camera.viewport[3] - camera.viewport[1]);
 
+    if camera.aspect_ratio >= 1 {
+        camera.world_to_screen.y = (camera.viewport[3] - camera.viewport[1]) / camera.DESIRED_UNITS;
+        camera.world_to_screen.x = camera.world_to_screen.y;
+        camera.world_area.y      = camera.DESIRED_UNITS;
+        camera.world_area.x      = camera.DESIRED_UNITS * camera.aspect_ratio;
+    } else {
+        camera.world_to_screen.x = (camera.viewport[2] - camera.viewport[0]) / camera.DESIRED_UNITS;
+        camera.world_to_screen.y = camera.world_to_screen.x;
+        camera.world_area.y      = camera.DESIRED_UNITS / camera.aspect_ratio;
+        camera.world_area.x      = camera.DESIRED_UNITS;
+    }
+        
     target_world_center := calculate_camera_target_position(client, camera, .{ xx tracking_entity_position.x, xx tracking_entity_position.y });
     camera.world_center.x = lerp_with_snap(camera.world_center.x, target_world_center.x, interpolation);
     camera.world_center.y = lerp_with_snap(camera.world_center.y, target_world_center.y, interpolation);
