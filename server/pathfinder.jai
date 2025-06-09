@@ -1,4 +1,4 @@
-find_path :: (server: *Server, from, to: v2i) -> []v2i {
+find_path :: (server: *Server, light_tile_cost: s32, from, to: v2i) -> []v2i {
     grid: Grid = ---;
 
     //
@@ -17,6 +17,15 @@ find_path :: (server: *Server, from, to: v2i) -> []v2i {
 
             node := grid.get(*grid, entity.physical_position);
             node.state = .Blocked;
+
+            if entity.entity_kind == .Emitter {
+                emitter := down(entity, Emitter);
+
+                for i := 0; i < emitter.beam_data.fields.count; ++i {
+                    node := grid.get(*grid, array_get(*emitter.beam_data.fields, i).position);
+                    node.cost = light_tile_cost;
+                }
+            }
         }
     }
     
@@ -26,9 +35,11 @@ find_path :: (server: *Server, from, to: v2i) -> []v2i {
     return dijkstra(*grid, from, to);
 }
 
-find_next_step_on_path :: (server: *Server, from, to: v2i) -> v2i {
-    path := find_path(server, from, to);
-    if !path.count return from;
+find_next_step_on_path :: (server: *Server, light_tile_cost: s32, from, to: v2i) -> v2i {
+    path := find_path(server, light_tile_cost, from, to);
+    if path.count < 2 {
+        return from;
+    }
     return path[1]; // The first index in this array is the *from* position
 }
 
@@ -38,7 +49,8 @@ find_next_step_on_path :: (server: *Server, from, to: v2i) -> v2i {
 
 Node :: struct {
     state: enum { Blocked; Available; Visited; } = .Available;
-    distance:  s32  = MAX_S32;
+    cost:      s32  = 1;
+    sum_cost:  s32 = MAX_S32;
     previous: *Node = null;
 }
 
@@ -67,14 +79,14 @@ Grid :: struct {
 
 find_next_node :: (grid: *Grid) -> *Node, v2i {
     // @Speed: Maybe this would be faster if we used a separate queue... Who knows.
-    least_distance: s32 = MAX_S32;
+    least_sum_cost: s32 = MAX_S32;
     next_node: *Node = null;
     next_position: v2i = ---;
 
     for i := 0; i < grid.nodes.count; ++i {
         node := *grid.nodes[i];
-        if node.state == .Available && node.distance < least_distance {
-            least_distance = node.distance;
+        if node.state == .Available && node.sum_cost < least_sum_cost {
+            least_sum_cost = node.sum_cost;
             next_node = node;
             next_position = grid.position_from_index(grid, i);
         }
@@ -90,9 +102,9 @@ maybe_register_path :: (grid: *Grid, from: *Node, to_position: v2i) {
     
     if to.state == .Blocked return;
 
-    distance := from.distance + 1;
-    if distance < to.distance {
-        to.distance = distance;
+    sum_cost := from.sum_cost + to.cost;
+    if sum_cost < to.sum_cost {
+        to.sum_cost = sum_cost;
         to.previous = from;
     }
 }
@@ -102,14 +114,12 @@ dijkstra :: (grid: *Grid, from, to: v2i) -> []v2i {
     // Populate the grid by linking together the shortest path
     //
     {
-        grid.get(grid, from).distance = 0;
+        grid.get(grid, from).sum_cost = 0;
         grid.get(grid, from).state    = .Available;
         
         while true {
             node, position := find_next_node(grid);
             if !node break;
-
-            if position.x == to.x && position.y == to.y break; // Since we have a uniform cost of 1, we can assume that this is the shortest path we will find...
                         
             node.state = .Visited;
 
@@ -126,13 +136,26 @@ dijkstra :: (grid: *Grid, from, to: v2i) -> []v2i {
     node := grid.get(grid, to);
     
     if node.previous { // This is null if we never reached the goal...
-        result: []v2i = allocate_array(*temp, v2i, node.distance + 1);
+        path_length := 0;
 
-        while node {
-            result[node.distance] = grid.position_from_node(grid, node);
-            node = node.previous;
+        {
+            traveller := node;
+            while traveller {
+                ++path_length;
+                traveller = traveller.previous;
+            }
         }
+            
+        result: []v2i = allocate_array(*temp, v2i, path_length);
 
+        {
+            traveller := node;
+            while traveller {
+                result[--path_length] = grid.position_from_node(grid, traveller);
+                traveller = traveller.previous;
+            }
+        }
+            
         return result;
     } else {
         return .[];

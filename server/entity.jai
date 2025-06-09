@@ -265,7 +265,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Shard, killer);
 
-      case .Frog, .Goblin;
+      case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Coin, killer);
         
@@ -284,6 +284,13 @@ damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
     is_on_lava := find_entity_of_kind_at_position(server, .Lava, entity.physical_position) != null;
 
     if is_on_lava damage_and_maybe_kill_entity(server, entity, server.tick_time * LAVA_DPS);
+}
+
+damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
+    lit_up, _ := is_emitter_field_at(server, entity.physical_position);
+    if lit_up {
+        damage_and_maybe_kill_entity(server, entity, BEAM_DPS * server.tick_time);
+    }
 }
 
 set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
@@ -506,11 +513,7 @@ update_frog :: (server: *Server, frog: *Frog) {
 
     clear_beam_data(*frog.beam_data);
 
-    lit_up, _ := is_emitter_field_at(server, frog.physical_position);
-    if lit_up {
-        damage_and_maybe_kill_entity(server, frog, BEAM_DPS * server.tick_time);
-    }
-
+    damage_and_maybe_kill_if_in_light(server, frog);
     damage_and_maybe_kill_if_in_lava(server, frog);
 
     if #complete frog.state == {
@@ -588,11 +591,7 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
         array_add(*server.outgoing_messages, msg);
     }
 
-    lit_up, _ := is_emitter_field_at(server, goblin.physical_position);
-    if lit_up {
-        damage_and_maybe_kill_entity(server, goblin, BEAM_DPS * server.tick_time);
-    }
-
+    damage_and_maybe_kill_if_in_light(server, goblin);
     damage_and_maybe_kill_if_in_lava(server, goblin);
 
     if #complete goblin.state == {
@@ -640,7 +639,12 @@ update_slime :: (server: *Server, slime: *Slime) {
         msg.slime_state.state = slime.state;
         array_add(*server.outgoing_messages, msg);
     }
-    
+
+    if slime.state != .Hiding {
+        damage_and_maybe_kill_if_in_light(server, slime);
+        damage_and_maybe_kill_if_in_lava(server, slime);
+    }
+        
     move_interval := ifx slime.state == .Fleeing then SLIME_FLEEING_MOVE_INTERVAL else SLIME_IDLE_MOVE_INTERVAL;
 
     if slime.time_since_last_move >= move_interval {
@@ -657,7 +661,8 @@ update_slime :: (server: *Server, slime: *Slime) {
                 for i := 0; i < Direction.Count; ++i {
                     random_vector := vector_from_direction((direction + i) % Direction.Count);
                     random_position := v2i.{ slime.physical_position.x + random_vector.x, slime.physical_position.y + random_vector.y };
-                    if can_move_to_position(server, slime, random_position, 0) {
+                    is_emitter_field, emitter_field_direction := is_emitter_field_at(server, random_position);
+                    if can_move_to_position(server, slime, random_position, 0) && !is_emitter_field {
                         target_position = random_position;
                         break;
                     }
@@ -694,7 +699,8 @@ update_slime :: (server: *Server, slime: *Slime) {
         //
         // Actually execute the move
         //
-        next_step := find_next_step_on_path(server, slime.physical_position, target_position);
+        light_tile_cost := ifx slime.state == .Fleeing then 1 else 10;
+        next_step := find_next_step_on_path(server, light_tile_cost, slime.physical_position, target_position);
 
         move_delta := v2i.{ next_step.x - slime.physical_position.x, next_step.y - slime.physical_position.y };
 

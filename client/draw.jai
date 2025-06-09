@@ -730,7 +730,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     //
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if !occupied continue;
+        if !occupied || bitfield_contains(*entity.entity_flags, Entity_Flags.Invisible) continue;
 
         draw_health: bool = ---;
 
