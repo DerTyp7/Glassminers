@@ -84,7 +84,7 @@ Item_Stack :: struct {
 
 Chest :: struct {
     #using entity : *Entity = ---;
-    items: [8]Item_Kind;
+    items: [CHEST_CAPACITY]Item_Kind = ---;
     item_count: s64;
 }
 

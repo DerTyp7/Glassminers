@@ -15,6 +15,7 @@ Message_Type :: enum {
     Emitter_State;
     Receiver_State;
     Item_Stack_State;
+    Chest_State;
     Frog_State;
     Goblin_State;
     Slime_State;
@@ -126,6 +127,13 @@ Item_Stack_State_Message :: struct {
     count: s64;
 }
 
+Chest_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Chest_State;
+    entity_pid: Pid;
+    items: [CHEST_CAPACITY]Item_Kind = ---;
+    item_count: s64;
+}
+
 Frog_State_Message :: struct {
     MSG_TYPE :: Message_Type.Frog_State;
     entity_pid: Pid;
@@ -165,6 +173,7 @@ Message :: struct {
         emitter_state: Emitter_State_Message;
         receiver_state: Receiver_State_Message;
         item_stack_state: Item_Stack_State_Message;
+        chest_state: Chest_State_Message;
         frog_state: Frog_State_Message;
         goblin_state: Goblin_State_Message;
         slime_state: Slime_State_Message;
@@ -262,6 +271,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Emitter_State;      result = type_id(Emitter_State_Message);
       case .Receiver_State;     result = type_id(Receiver_State_Message);
       case .Item_Stack_State;   result = type_id(Item_Stack_State_Message);
+      case .Chest_State;        result = type_id(Chest_State_Message);
       case .Frog_State;         result = type_id(Frog_State_Message);
       case .Goblin_State;       result = type_id(Goblin_State_Message);
       case .Slime_State;        result = type_id(Slime_State_Message);
@@ -378,6 +388,7 @@ print_message :: (message: *Message, prefix: string) {
       case .Emitter_State;      sprint(*builder, "%", message.emitter_state);
       case .Receiver_State;     sprint(*builder, "%", message.receiver_state);
       case .Item_Stack_State;   sprint(*builder, "%", message.item_stack_state);
+      case .Chest_State;        sprint(*builder, "%", message.chest_state);
       case .Frog_State;         sprint(*builder, "%", message.frog_state);
       case .Goblin_State;       sprint(*builder, "%", message.goblin_state);
       case .Slime_State;        sprint(*builder, "%", message.slime_state);

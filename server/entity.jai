@@ -65,7 +65,7 @@ Item_Stack :: struct {
 
 Chest :: struct {
     #using entity : *Entity = ---;
-    items: [8]Item_Kind;
+    items: [8]Item_Kind = ---;
     item_count: s64;
 }
 
@@ -760,9 +760,25 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
 
     collision := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);
     stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
-
+    chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
+    
     if collision {
         success = false;
+    } else if chest_entity {
+        chest := down(chest_entity, Chest);
+
+        if chest.item_count < CHEST_CAPACITY {
+            chest.items[chest.item_count] = kind;
+            ++chest.item_count;
+
+            msg := make_message(Chest_State_Message);
+            msg.chest_state.entity_pid = chest.pid;
+            msg.chest_state.items = chest.items;
+            msg.chest_state.item_count = chest.item_count;
+            array_add(*server.outgoing_messages, msg);
+            
+            success = true;
+        }
     } else if stack_entity {
         stack := down(stack_entity, Item_Stack);
 

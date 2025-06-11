@@ -222,7 +222,8 @@ Input_Action :: enum {
 
     Interact_Primary;
     Interact_Secondary;
-    
+
+    // @Incomplete: Rename this to hud_...
     Crafting_Menu_Toggle;
     Crafting_Menu_Confirm;
     Crafting_Menu_Left;
@@ -644,6 +645,12 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         item_stack.item_kind = msg.item_stack_state.item_kind;
         item_stack.count     = msg.item_stack_state.count;
 
+      case .Chest_State;
+        entity := get_entity(client, msg.chest_state.entity_pid);
+        chest := down(entity, Chest);
+        chest.items      = msg.chest_state.items;
+        chest.item_count = msg.chest_state.item_count;
+        
       case .Frog_State;
         entity := get_entity(client, msg.frog_state.entity_pid);
         frog := down(entity, Frog);
@@ -1283,7 +1290,7 @@ do_game_tick :: (client: *Client) {
 
         // Update the hud
         {
-            update_hud(client, i);
+            update_hud(client, local_player);
         }
 
         // Forward guy input to the server
