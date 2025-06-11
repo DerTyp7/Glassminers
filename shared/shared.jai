@@ -182,6 +182,7 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     0, // Item Stack
     0, // Slab
     0, // Torch
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam, // Chest
     
     // Beings
     .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy
@@ -206,9 +207,10 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     0,   // Slime Hole
     
     // Creations
-    0, // Item Stack
-    0, // Slab
-    0, // Torch
+    0,  // Item Stack
+    0,  // Slab
+    0,  // Torch
+    30, // Chest
     
     // Beings
     30, // Guy
@@ -236,6 +238,7 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
     .North, // Item Stack
     .North, // Slab
     .North, // Torch
+    .North, // Chest
     
     // Beings
     .North, // Guy
@@ -263,6 +266,7 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     1, // Item Stack
     0, // Slab
     1, // Torch
+    2, // Chest
     
     // Beings
     3, // Guy
@@ -298,6 +302,7 @@ Entity_Kind :: enum {
     Item_Stack;
     Slab;
     Torch;
+    Chest;
     
     // Beings
     Guy;
@@ -348,6 +353,7 @@ Interaction_Kind :: enum {
 Crafting_Recipe :: enum {
     Mirror;
     Torch;
+    Chest;
     Health_Potion;
     Strength_Potion;
 }
@@ -355,6 +361,7 @@ Crafting_Recipe :: enum {
 CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
     .[ .Shard ], // Mirror
     .[ .Coal ],  // Torch
+    .[ .Stone ], // Chest
     .[ .Coin ],  // Health Potion
     .[ .Coin ],  // Strength Potion
 ];
@@ -362,6 +369,7 @@ CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
 CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
     .Count,  // Mirror
     .Count,  // Torch
+    .Count,  // Chest
     .Trader, // Health Potion
     .Trader, // Strength Potion
 ];
@@ -369,6 +377,7 @@ CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
 CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     true,  // Mirror
     true,  // Torch
+    true,  // Chest
     false, // Health Potion
     false, // Strength Potion
 ];

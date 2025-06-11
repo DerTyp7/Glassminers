@@ -37,6 +37,7 @@ Sprite_Index :: enum {
     Emitter;
     Receiver;
     Mirror;
+    Chest_Closed;
     
     // Animates
     Lava_0;
@@ -887,6 +888,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
           case .Item_Stack; index = get_sprite_index_for_item(down(entity, Item_Stack).item_kind);
           case .Slab;       index = .Slab_0;
           case .Torch;      index = .Torch_0;
+          case .Chest;      index = .Chest_Closed;
           case .Guy;        index = .Guy_Idle_Front_0;
           case .Frog;       index = .Frog_Idle_Front_0;
           case .Goblin;     index = .Goblin_Idle_Front_0;

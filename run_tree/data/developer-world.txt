@@ -4,7 +4,7 @@
 #  T        r         
 # lllllggggSg
 #############
-bbb
+bbb   ssss
         h  gg
    m
 e  

@@ -454,6 +454,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char " ", // Item Stack
         #char " ", // Slab
         #char " ", // Torch
+        #char " ", // Chest
         
         // Beings
         #char ".", // Guy
@@ -713,6 +714,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             if #complete guy.received_input.crafting_recipe == {
               case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
               case .Torch;  guy.state = .Carrying; guy.carrying_item = .Torch;
+              case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
               case .Health_Potion; set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
               case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
             }

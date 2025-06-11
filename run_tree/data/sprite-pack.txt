@@ -45,6 +45,7 @@ Receiver    sprites/inanimates/receiver.png
 Emitter     sprites/inanimates/emitter.png
 Receiver    sprites/inanimates/receiver.png
 Mirror      sprites/inanimates/mirror.png
+Chest_Closed sprites/inanimates/chest-closed.png
 
 #
 # Animates

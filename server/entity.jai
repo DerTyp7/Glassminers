@@ -63,6 +63,12 @@ Item_Stack :: struct {
     count: s64 = 0;
 }
 
+Chest :: struct {
+    #using entity : *Entity = ---;
+    items: [8]Item_Kind;
+    item_count: s64;
+}
+
 Frog :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
@@ -93,6 +99,7 @@ Entity_Manager :: struct {
     receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
+    chests:       Bucket_Array(Chest);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
@@ -114,6 +121,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.receivers, *server.world_allocator);
     create_bucket_array(*server.slabs, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
+    create_bucket_array(*server.chests, *server.world_allocator);
     create_bucket_array(*server.frogs, *server.world_allocator);
     create_bucket_array(*server.goblins, *server.world_allocator);
     create_bucket_array(*server.slimes, *server.world_allocator);
@@ -127,6 +135,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.receivers);
     destroy_bucket_array(*server.slabs);
     destroy_bucket_array(*server.item_stacks);
+    destroy_bucket_array(*server.chests);
     destroy_bucket_array(*server.frogs);
     destroy_bucket_array(*server.goblins);
     destroy_bucket_array(*server.slimes);
@@ -175,6 +184,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Receiver;   make_derived(entity, *server.receivers);
       case .Slab;       make_derived(entity, *server.slabs);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
+      case .Chest;      make_derived(entity, *server.chests);
       case .Frog;       make_derived(entity, *server.frogs);
       case .Goblin;     make_derived(entity, *server.goblins);
       case .Slime;      make_derived(entity, *server.slimes);
@@ -214,6 +224,7 @@ physically_remove_all_marked_entities :: (server: *Server) {
     remove_deriveds(*server.receivers);
     remove_deriveds(*server.slabs);
     remove_deriveds(*server.item_stacks);
+    remove_deriveds(*server.chests);
     remove_deriveds(*server.frogs);
     remove_deriveds(*server.goblins);
     remove_deriveds(*server.slimes);

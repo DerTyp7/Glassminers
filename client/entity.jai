@@ -82,6 +82,12 @@ Item_Stack :: struct {
     count: s64 = 0;
 }
 
+Chest :: struct {
+    #using entity : *Entity = ---;
+    items: [8]Item_Kind;
+    item_count: s64;
+}
+
 Frog :: struct {
     #using entity : *Entity = ---;
     beam_data: Beam_Data = ---;
@@ -109,6 +115,7 @@ Entity_Manager :: struct {
     receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
+    chests:       Bucket_Array(Chest);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
@@ -133,6 +140,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.receivers, *client.world_allocator);
     create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
+    create_bucket_array(*client.chests, *client.world_allocator);
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
     create_bucket_array(*client.slimes, *client.world_allocator);
@@ -150,6 +158,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.receivers);
     destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
+    destroy_bucket_array(*client.chests);
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
     destroy_bucket_array(*client.slimes);
@@ -304,6 +313,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Slab;       make_derived(entity, *client.slabs);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
+      case .Chest;      make_derived(entity, *client.chests);
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
@@ -510,6 +520,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.receivers);
     remove_deriveds(*client.slabs);
     remove_deriveds(*client.item_stacks);
+    remove_deriveds(*client.chests);
     remove_deriveds(*client.frogs);
     remove_deriveds(*client.goblins);
     remove_deriveds(*client.slimes);
@@ -819,7 +830,7 @@ get_colors_for_digging_particles :: (target_entity: *Entity) -> [2]GE_Color {
       case .Bedrock; colors = .[ .{ 102, 102, 102, 220 }, .{ 130, 130, 130, 220 } ];
       case .Crystal, .Mirror; colors = .[ .{ 70, 115, 206, 150 }, .{ 154, 172, 206, 150 } ];
       case .Coal; colors = .[ .{ 76, 49, 53, 255 }, .{ 62, 58, 58, 255 } ];
-      case .Rock; colors = .[ .{ 134, 134, 134, 255 }, .{ 192, 192, 192, 255 } ];
+      case .Rock, .Chest; colors = .[ .{ 134, 134, 134, 255 }, .{ 192, 192, 192, 255 } ];
     }
     
     return colors;
