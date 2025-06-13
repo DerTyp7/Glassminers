@@ -223,11 +223,10 @@ Input_Action :: enum {
     Interact_Primary;
     Interact_Secondary;
 
-    // @Incomplete: Rename this to hud_...
-    Crafting_Menu_Toggle;
-    Crafting_Menu_Confirm;
-    Crafting_Menu_Left;
-    Crafting_Menu_Right;
+    Hud_Toggle;
+    Hud_Confirm;
+    Hud_Left;
+    Hud_Right;
 
     Cheat_Menu_Toggle;
 }
@@ -288,10 +287,10 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Look_West]             = .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ];
     ib[.Interact_Primary]      = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
     ib[.Interact_Secondary]    = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
-    ib[.Crafting_Menu_Toggle]  = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
-    ib[.Crafting_Menu_Confirm] = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
-    ib[.Crafting_Menu_Left]    = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_gesture(.Left_Swipe_Left),  gamepad_gesture(.Left_Swipe_Up) ];
-    ib[.Crafting_Menu_Right]   = .[ keycode(.D), keycode(.Arrow_Right), gamepad_gesture(.Left_Swipe_Right), gamepad_gesture(.Left_Swipe_Down) ];
+    ib[.Hud_Toggle]  = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
+    ib[.Hud_Confirm] = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
+    ib[.Hud_Left]    = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_gesture(.Left_Swipe_Left),  gamepad_gesture(.Left_Swipe_Up) ];
+    ib[.Hud_Right]   = .[ keycode(.D), keycode(.Arrow_Right), gamepad_gesture(.Left_Swipe_Right), gamepad_gesture(.Left_Swipe_Down) ];
     ib[.Cheat_Menu_Toggle]     = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
     
     for i := 0; i < ib.Capacity; ++i {

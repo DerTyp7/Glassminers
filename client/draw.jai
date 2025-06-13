@@ -937,7 +937,7 @@ draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *
         }
       case .Trader;
         if guy.state == .Idle || guy.state == .Carrying {
-            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Crafting_Menu_Toggle) ];
+            input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Hud_Toggle) ];
         }
       case .Guy;
         if guy.state == .Idle {

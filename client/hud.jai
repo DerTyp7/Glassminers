@@ -1,9 +1,10 @@
 Hud :: struct {
     state: Hud_State;
     previously_opened_state: Hud_State;
+    was_open_this_frame: bool;
+
     crafting_recipe_input_this_frame: Crafting_Recipe;
     cheat_input_this_frame: Cheat;
-    was_open_this_frame: bool;
     
     #using data: union {
         crafting_menu: struct {
@@ -22,6 +23,14 @@ Hud :: struct {
     available_options: s64;
     selected_option: s64;
     animation_t: []f32;
+
+    screen_center: v2f;
+    inner_wheel_radius: f32;
+    outer_wheel_radius: f32;
+    icon_radius: f32;
+    angle_per_option: f32;
+    padding_per_option: f32;
+    angle_per_icon: f32 : 0.05;
 }
 
 create_hud :: (client: *Client, local_player_index: s64) {
@@ -53,7 +62,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     //
 
     // @Incomplete: This should open the chest menu if we're looking at a chest...
-    if input_action_fired_for_local_player(client, local_player, .Crafting_Menu_Toggle) {
+    if input_action_fired_for_local_player(client, local_player, .Hud_Toggle) {
         maybe_open_hud(client, local_player, .Crafting_Menu);
     }
 
@@ -67,11 +76,11 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     // Update the selected option
     //
     if hud.state != .Disabled {
-        if input_action_fired_for_local_player(client, local_player, .Crafting_Menu_Left) {
+        if input_action_fired_for_local_player(client, local_player, .Hud_Left) {
             hud.selected_option = (hud.selected_option - 1) % hud.available_options;
         }
 
-        if input_action_fired_for_local_player(client, local_player, .Crafting_Menu_Right) {
+        if input_action_fired_for_local_player(client, local_player, .Hud_Right) {
             hud.selected_option = (hud.selected_option + 1) % hud.available_options;
         }
     }
@@ -83,22 +92,23 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
       case .Disabled;
 
       case .Crafting_Menu;
-        if input_action_fired_for_local_player(client, local_player, .Crafting_Menu_Confirm) {
+        if input_action_fired_for_local_player(client, local_player, .Hud_Confirm) {
             hud.crafting_recipe_input_this_frame = hud.crafting_menu.recipes[hud.selected_option];
-            hud.state = .Disabled;
 
             if crafting_recipe_looks_doable(client, local_player, hud.crafting_recipe_input_this_frame) {
                 play_sound(client, .Crafting_0, false);
             } else {
                 play_sound(client, .Failure_0, false);
             }
+
+            close_hud(client, local_player);
         }
 
       case .Cheat_Menu;
-        if input_action_fired_for_local_player(client, local_player, .Crafting_Menu_Confirm) {
+        if input_action_fired_for_local_player(client, local_player, .Hud_Confirm) {
             hud.cheat_input_this_frame = hud.selected_option;
-            hud.state = .Disabled;
             play_sound(client, .Crafting_0, false);
+            close_hud(client, local_player);
         }
 
       case .Chest_Menu;
@@ -106,7 +116,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     }
 
     //
-    // Update the animation times
+    // Update the visual data
     //
     for i := 0; i < hud.available_options; ++i {
         if i == hud.selected_option {
@@ -117,22 +127,27 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
 
         hud.animation_t[i] = clamp(hud.animation_t[i], 0, 1);
     }
+
+    {
+        guy := get_entity(client, local_player.guy_pid);
+        hud.screen_center = screen_from_world_position(*local_player.camera, guy.visual_position);
+        hud.outer_wheel_radius = local_player.camera.world_to_screen.y * 0.85;
+        hud.inner_wheel_radius = local_player.camera.world_to_screen.y * 0.6;
+        hud.icon_radius        = (hud.inner_wheel_radius + hud.outer_wheel_radius) * 0.5;
+
+        hud.padding_per_option = ifx hud.available_options > 1 then 0.1 / cast(f32) hud.available_options else 0;
+        hud.angle_per_option   = 1.0 / cast(f32) hud.available_options;
+    }
 }
 
 draw_hud :: (client: *Client, local_player: *Local_Player) {
     hud := *local_player.hud;
 
     if hud.state == .Disabled return;
-    
-    guy_entity := get_entity(client, local_player.guy_pid);
-    screen_center := screen_from_world_position(*local_player.camera, guy_entity.visual_position);
-    outer_radius := local_player.camera.world_to_screen.y * 0.85;
-    inner_radius := local_player.camera.world_to_screen.y * 0.6;
-    icon_radius  := (inner_radius + outer_radius) * 0.5;
 
     // Draw the circle background for each option
     for i := 0; i < hud.available_options; ++i {
-        draw_circle_segment(client, local_player, screen_center, outer_radius, inner_radius, hud.animation_t[i], i);
+        draw_circle_segment(client, hud, hud.animation_t[i], i);
     }
 
     // Draw the specific option, which depends on the open hud
@@ -142,26 +157,19 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
       case .Crafting_Menu;
         for i := 0; i < hud.available_options; ++i {
             recipe := hud.crafting_menu.recipes[i];
-
-            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * hud.animation_t[i];
-            icon_size := v2f.{ (outer_radius - inner_radius) * icon_scale_factor, (outer_radius - inner_radius) * icon_scale_factor };
             
             for j := 0; j < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++j {
-                draw_icon(client, local_player, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), screen_center, icon_radius, icon_size, i, j + 1);
+                draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, j + 1);
             }
 
-            draw_divider(client, local_player, screen_center, outer_radius, inner_radius, i);
+            draw_divider(client, hud, i);
 
-            draw_icon(client, local_player, CRAFTING_RECIPE_ICONS[recipe], screen_center, icon_radius, icon_size, i, -1);
+            draw_icon(client, hud, CRAFTING_RECIPE_ICONS[recipe], 1, i, -1);
         }
 
       case .Cheat_Menu;
         for i := 0; i < Cheat.Count; ++i {
-            icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * hud.animation_t[i];
-            icon_size := v2f.{ (outer_radius - inner_radius) * icon_scale_factor, (outer_radius - inner_radius) * icon_scale_factor };
-
-            // Draw the cheat icon
-            draw_icon(client, local_player, CHEAT_ICONS[i], screen_center, icon_radius, icon_size, i, 0);
+            draw_icon(client, hud, CHEAT_ICONS[i], 1, i, 0);
         }
 
       case .Chest_Menu;
@@ -169,12 +177,8 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     }
 
     // Draw the confirmation input binding hint
-    {
-        icon_size := v2f.{ (outer_radius - inner_radius) * 0.6, (outer_radius - inner_radius) * 0.6 };
-
-        confirm_sprite := get_sprite_index_for_input_action(client, local_player, .Crafting_Menu_Confirm);
-        draw_icon(client, local_player, confirm_sprite, screen_center, icon_radius * 0.6, icon_size, hud.selected_option, 0);
-    }
+    confirm_sprite := get_sprite_index_for_input_action(client, local_player, .Hud_Confirm);
+    draw_icon(client, hud, confirm_sprite, 0.6, hud.selected_option, 0);
 }
 
 
@@ -202,6 +206,22 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Health_Potion,
     .Strength_Potion,
 ];
+
+close_hud :: (client: *Client, local_player: *Local_Player) {
+    hud := *local_player.hud;
+
+    if #complete hud.state == {
+      case .Disabled, .Cheat_Menu;
+      case .Crafting_Menu;
+        deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
+      case .Chest_Menu;
+        // @Incomplete: Free the chest menu stuff
+    }
+
+    deallocate_array(*client.world_allocator, *hud.animation_t);
+    hud.available_options = 0;
+    hud.state = .Disabled;
+}
 
 switch_to_hud_state :: (client: *Client, local_player: *Local_Player, state: Hud_State, options: s64) {
     hud := *local_player.hud;
@@ -259,22 +279,6 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, state: Hud_Stat
     }
 }
 
-close_hud :: (client: *Client, local_player: *Local_Player) {
-    hud := *local_player.hud;
-
-    if #complete hud.state == {
-      case .Disabled, .Cheat_Menu;
-      case .Crafting_Menu;
-        deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
-      case .Chest_Menu;
-        // @Incomplete: Free the chest menu stuff
-    }
-
-    deallocate_array(*client.world_allocator, *hud.animation_t);
-    hud.available_options = 0;
-    hud.state = .Disabled;
-}
-
 crafting_recipe_looks_doable :: (client: *Client, local_player: *Local_Player, recipe: Crafting_Recipe) -> bool {
     guy_entity := get_entity(client, local_player.guy_pid);
     guy := down(guy_entity, Guy);
@@ -300,45 +304,43 @@ crafting_recipe_is_enabled :: (client: *Client, local_player: *Local_Player, rec
     return CRAFTING_RECIPE_ENABLER[recipe] == .Count || find_entity_of_kind_at_position(client, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) != null;
 }
 
-draw_icon :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, screen_center: v2f, icon_radius: f32, icon_size: v2f, option_index, index_in_option: s64) {
-    hud := *local_player.hud;
 
-    angle_per_option: f32 = 1.0 / cast(f32) hud.available_options;
-    angle_per_icon_in_option :: cast(f32) 0.05;
-    radians := ((cast(f32) option_index + 0.5) * angle_per_option + xx index_in_option * angle_per_icon_in_option) * FTAU;
-    icon_center := v2f.{ screen_center.x + sinf(radians) * icon_radius,
-                         screen_center.y - cosf(radians) * icon_radius };
+
+/* ------------------------------------------- Drawing ------------------------------------------- */
+
+get_icon_size_for_option :: (client: *Client, hud: *Hud, scale: f32, option_index: s64) -> v2f {
+    icon_scale_factor := 0.9 + (sinf(client.game_epoch_time * 2 * FTAU) + 0.5) * 0.2 * hud.animation_t[option_index] * scale;
+    base_size := hud.outer_wheel_radius - hud.inner_wheel_radius;
+    return v2f.{ base_size * icon_scale_factor, base_size * icon_scale_factor };
+}
+
+draw_icon :: (client: *Client, hud: *Hud, sprite_index: Sprite_Index, scale: f32, option_index, index_in_option: s64) {
+    icon_size := get_icon_size_for_option(client, hud, scale, option_index);
+
+    radians := ((cast(f32) option_index + 0.5) * hud.angle_per_option + xx index_in_option * hud.angle_per_icon) * FTAU;
+    icon_center := v2f.{ hud.screen_center.x + sinf(radians) * hud.icon_radius * scale,
+                         hud.screen_center.y - cosf(radians) * hud.icon_radius * scale };
     draw_sprite_screen_space(client, sprite_index, icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
 }
 
-draw_divider :: (client: *Client, local_player: *Local_Player, screen_center: v2f, outer_radius, inner_radius: f32, option_index: s64) {
-    hud := *local_player.hud;
-
-    angle_per_option: f32 = 1.0 / cast(f32) hud.available_options;
-    radians := ((cast(f32) option_index + 0.5) * angle_per_option) * FTAU;
-    inner_point := v2f.{ screen_center.x + sinf(radians) * inner_radius * 1.1,
-                         screen_center.y - cosf(radians) * inner_radius * 1.1 };
-    outer_point := v2f.{ screen_center.x + sinf(radians) * outer_radius * 0.9,
-                         screen_center.y - cosf(radians) * outer_radius * 0.9 };
+draw_divider :: (client: *Client, hud: *Hud, option_index: s64) {
+    radians := ((cast(f32) option_index + 0.5) * hud.angle_per_option) * FTAU;
+    inner_point := v2f.{ hud.screen_center.x + sinf(radians) * hud.inner_wheel_radius * 1.1,
+                         hud.screen_center.y - cosf(radians) * hud.inner_wheel_radius * 1.1 };
+    outer_point := v2f.{ hud.screen_center.x + sinf(radians) * hud.outer_wheel_radius * 0.9,
+                         hud.screen_center.y - cosf(radians) * hud.outer_wheel_radius * 0.9 };
     
     draw_line_screen_space(client, inner_point, outer_point, .{ 255, 255, 255, 255 }, 1);
 }
 
-draw_circle_segment :: (client: *Client, local_player: *Local_Player, screen_center: v2f, outer_radius, inner_radius: f32, animation_t: f32, option_index: s64) {
-    hud := *local_player.hud;
-
-    padding_per_option: f32 = ifx hud.available_options > 1 then 0.1 / cast(f32) hud.available_options else 0;
-    angle_per_option:   f32 = 1.0 / cast(f32) hud.available_options;
-
-    theta := (cast(f32) option_index + 0.5) / cast(f32) hud.available_options;
-    
+draw_circle_segment :: (client: *Client, hud: *Hud, animation_t: f32, option_index: s64) {
     background_color := ge_mix_colors(.{ 40, 50, 60, 250 }, .{ 50, 89, 128, 230 }, animation_t);
-    theta0 := theta - angle_per_option / 2 + padding_per_option / 2;
-    theta1 := theta + angle_per_option / 2 - padding_per_option / 2;
+    theta0 := cast(f32) option_index * hud.angle_per_option + hud.padding_per_option * 0.5;
+    theta1 := cast(f32) (option_index + 1) * hud.angle_per_option - hud.padding_per_option * 0.5;
 
-    draw_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, background_color);
+    draw_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, background_color);
 
     if option_index == hud.selected_option {
-        draw_outlined_circle_segment_screen_space(client, screen_center, outer_radius, inner_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
+        draw_outlined_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
     }
 }
