@@ -61,9 +61,15 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     // Toggle the active state
     //
 
-    // @Incomplete: This should open the chest menu if we're looking at a chest...
     if input_action_fired_for_local_player(client, local_player, .Hud_Toggle) {
-        maybe_open_hud(client, local_player, .Crafting_Menu);
+        guy_entity := get_entity(client, local_player.guy_pid);
+        guy := down(guy_entity, Guy);
+
+        if find_entity_of_kind_at_position(client, .Chest, guy.target_position) {
+            maybe_open_hud(client, local_player, .Chest_Menu);
+        } else {
+            maybe_open_hud(client, local_player, .Crafting_Menu);
+        }
     }
 
 #if DEVELOPER {
@@ -159,7 +165,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
             recipe := hud.crafting_menu.recipes[i];
             
             for j := 0; j < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++j {
-                draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, j + 1);
+                draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, xx j + 1);
             }
 
             draw_divider(client, hud, i);
@@ -168,12 +174,19 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         }
 
       case .Cheat_Menu;
-        for i := 0; i < Cheat.Count; ++i {
+        for i := 0; i < hud.available_options; ++i {
             draw_icon(client, hud, CHEAT_ICONS[i], 1, i, 0);
         }
 
       case .Chest_Menu;
-        // @Incomplete: Draw the chest menu
+        for i := 0; i < hud.available_options; ++i {
+            sprite_index := get_sprite_index_for_item(hud.chest_menu.items[i]);
+
+            midpoint: f32 = xx hud.chest_menu.item_count[i] / 2;
+            for j := 0; j < hud.chest_menu.item_count[i]; ++j {
+                draw_icon(client, hud, sprite_index, 1, i, xx j + 0.5 - midpoint);
+            }
+        }
     }
 
     // Draw the confirmation input binding hint
@@ -215,7 +228,8 @@ close_hud :: (client: *Client, local_player: *Local_Player) {
       case .Crafting_Menu;
         deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
       case .Chest_Menu;
-        // @Incomplete: Free the chest menu stuff
+        deallocate_array(*client.world_allocator, *hud.chest_menu.items);
+        deallocate_array(*client.world_allocator, *hud.chest_menu.item_count);
     }
 
     deallocate_array(*client.world_allocator, *hud.animation_t);
@@ -251,6 +265,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, state: Hud_Stat
       case .Disabled;
 
       case .Crafting_Menu;
+        // Find the number of enabled recipes
         recipe_count := 0;
 
         for i := 0; i < Crafting_Recipe.Count; ++i {
@@ -258,7 +273,8 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, state: Hud_Stat
         }
 
         if recipe_count == 0 break;
-        
+
+        // Allocate the actual recipe options
         hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
 
         recipe_index := 0;
@@ -275,7 +291,39 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, state: Hud_Stat
         switch_to_hud_state(client, local_player, .Cheat_Menu, Cheat.Count);
 
       case .Chest_Menu;
-        // @Incomplete: Prepare the chest menu hud
+        // Find the number of different items
+        guy_entity := get_entity(client, local_player.guy_pid);
+        guy := down(guy_entity, Guy);
+
+        chest_entity := find_entity_of_kind_at_position(client, .Chest, guy.target_position);
+        chest := down(chest_entity, Chest);
+        
+        base_item_array: [Item_Kind.Count]s64 = .[ 0 ];
+        for i := 0; i < chest.item_count; ++i {
+            base_item_array[chest.items[i]] += 1;
+        }
+
+        separate_item_count := 0;
+        for i := 0; i < base_item_array.Capacity; ++i {
+            if base_item_array[i] > 0 ++separate_item_count;
+        }
+
+        if separate_item_count == 0 break;
+        
+        // Allocate the actual item options
+        hud.chest_menu.items = allocate_array(*client.world_allocator, Item_Kind, separate_item_count);
+        hud.chest_menu.item_count = allocate_array(*client.world_allocator, s64, separate_item_count);
+
+        index := 0;
+        for i := 0; i < base_item_array.Capacity; ++i {
+            if base_item_array[i] > 0 {
+                hud.chest_menu.items[index] = i;
+                hud.chest_menu.item_count[index] = base_item_array[i];
+                ++index;
+            }
+        }
+        
+        switch_to_hud_state(client, local_player, .Chest_Menu, separate_item_count);
     }
 }
 
@@ -314,12 +362,12 @@ get_icon_size_for_option :: (client: *Client, hud: *Hud, scale: f32, option_inde
     return v2f.{ base_size * icon_scale_factor, base_size * icon_scale_factor };
 }
 
-draw_icon :: (client: *Client, hud: *Hud, sprite_index: Sprite_Index, scale: f32, option_index, index_in_option: s64) {
-    icon_size := get_icon_size_for_option(client, hud, scale, option_index);
+draw_icon :: (client: *Client, hud: *Hud, sprite_index: Sprite_Index, inner_offset: f32, option_index: s64, index_in_option: f32) {
+    icon_size := get_icon_size_for_option(client, hud, inner_offset, option_index);
 
-    radians := ((cast(f32) option_index + 0.5) * hud.angle_per_option + xx index_in_option * hud.angle_per_icon) * FTAU;
-    icon_center := v2f.{ hud.screen_center.x + sinf(radians) * hud.icon_radius * scale,
-                         hud.screen_center.y - cosf(radians) * hud.icon_radius * scale };
+    radians := ((cast(f32) option_index + 0.5) * hud.angle_per_option + index_in_option * hud.angle_per_icon) * FTAU;
+    icon_center := v2f.{ hud.screen_center.x + sinf(radians) * hud.icon_radius * inner_offset,
+                         hud.screen_center.y - cosf(radians) * hud.icon_radius * inner_offset };
     draw_sprite_screen_space(client, sprite_index, icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
 }
 

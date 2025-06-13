@@ -371,7 +371,7 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
 
 down :: (entity: *Entity, $T: Type) -> *T {
 #if DEVELOPER {
-    assert(entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");
+    assert(entity != null && entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");
 }
     return cast(*T) entity.derived;
 }

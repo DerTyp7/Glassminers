@@ -284,10 +284,10 @@ serialize :: (packet: *Packet, pointer: *void, type: *Type_Info) -> bool {
     success := true;
 
     if #complete type.kind == {
-      case .Procedure, .Type, .Variadic, .Any, .Pointer, .Slice, .Array, .Void;
+      case .Procedure, .Type, .Variadic, .Any, .Pointer, .Slice, .Void;
         panic("We cannot serialize values of this type from messages!");
         success = false;
-
+        
       case .Integer, .Boolean, .Floating_Point, .Enum;
         success = packet.body_size + type.size_in_bytes <= packet.body.Capacity;
         if success {
@@ -307,6 +307,18 @@ serialize :: (packet: *Packet, pointer: *void, type: *Type_Info) -> bool {
             packet.body_size += _string.count;
         }
             
+      case .Array;
+        _array := cast(*Type_Info_Array) type;
+
+        offset_before := packet.body_size;
+        success = true;
+        
+        for i := 0; i < _array.count; ++i {
+            success &= serialize(packet, pointer + i * _array.element_type_info.size_in_bytes, _array.element_type_info);
+        }
+
+        if !success packet.body_size = offset_before;
+
       case .Struct;
         _struct := cast(*Type_Info_Struct) type;
 
@@ -337,7 +349,7 @@ serialize_message :: (packet: *Packet, message: *Message) -> bool {
 
 deserialize :: (packet: *Packet, pointer: *void, type: *Type_Info) {
     if #complete type.kind == {
-      case .Procedure, .Type, .Variadic, .Any, .Pointer, .Slice, .Array, .Void;
+      case .Procedure, .Type, .Variadic, .Any, .Pointer, .Slice, .Void;
         panic("We cannot deserialize values of this type from messages!");
         
       case .Integer, .Boolean, .Floating_Point, .Enum;
@@ -355,6 +367,12 @@ deserialize :: (packet: *Packet, pointer: *void, type: *Type_Info) {
         copy_memory(_string.data, *packet.body[packet.body_read_offset], _string.count);
         packet.body_read_offset += _string.count;
 
+      case .Array;
+        _array := cast(*Type_Info_Array) type;
+        for i := 0; i < _array.count; ++i {
+            deserialize(packet, pointer + i * _array.element_type_info.size_in_bytes, _array.element_type_info);
+        }
+        
       case .Struct;
         _struct := cast(*Type_Info_Struct) type;
         for i := 0; i < _struct.members.count; ++i {

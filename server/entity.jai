@@ -762,9 +762,7 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
     stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
     chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
     
-    if collision {
-        success = false;
-    } else if chest_entity {
+    if chest_entity {
         chest := down(chest_entity, Chest);
 
         if chest.item_count < CHEST_CAPACITY {
@@ -779,6 +777,8 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
             
             success = true;
         }
+    } else if collision {
+        success = false;
     } else if stack_entity {
         stack := down(stack_entity, Item_Stack);
 
