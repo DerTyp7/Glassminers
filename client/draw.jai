@@ -411,7 +411,7 @@ draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, 
     draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
 }
 
-draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flip: bool) {
+draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
     if sprite_index == .Count return; // This makes it more convenient when drawing input action hints, because we might not have sprites for every input binding...
 
     atlas_index    := sprite_index / SPRITES_PER_ATLAS;
@@ -432,7 +432,7 @@ draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen
     vertices[3].x = round(vertices[3].x);
     vertices[3].y = round(vertices[3].y);
     
-    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, flip);
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, flags);
     indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
     texture := client.sprite_atlases[atlas_index];
 
@@ -509,11 +509,11 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
             tint = .{ 100, 100, 100, 255 };
         }
             
-        draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, tint, false);
+        draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, tint, .None);
     }
 }
 
-draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, flip: bool) {
+draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite_index: Sprite_Index, world_center: v2f, world_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
     if sprite_index == .Count return;
 
     atlas_index    := sprite_index / SPRITES_PER_ATLAS;
@@ -525,10 +525,17 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
         v2_rotate(v2f.{ +world_size.x / 2, +world_size.y / 2 }, rotation),
         v2_rotate(v2f.{ -world_size.x / 2, +world_size.y / 2 }, rotation) ];
     
-    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, flip);
+    uvs:      [4]v2f = calculate_uv_box_for_index_in_atlas(index_in_atlas, flags & .Flipped);
     indices:  [6]s32 = .[ 0, 1, 2, 0, 2, 3 ];
     texture := client.sprite_atlases[atlas_index];
 
+    if flags & .Lit {
+        brightness := query_lightmap_visual_position(*client.lightmap, world_center);
+        tint.r = cast(u8) (cast(f32) tint.r * brightness);
+        tint.g = cast(u8) (cast(f32) tint.g * brightness);
+        tint.b = cast(u8) (cast(f32) tint.b * brightness);
+    }
+    
     for i := 0; i < indices.Capacity; ++i {
         screen_position := screen_from_world_position(*local_player.camera, v2f.{ world_center.x + world_vertices[indices[i]].x, world_center.y + world_vertices[indices[i]].y });
         ge_imm2d_textured_vertex(*client.graphics, screen_position.x, screen_position.y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
@@ -579,18 +586,18 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     //
     for x := 0; x < client.world_size.x; ++x {
         if visibility_check_tile(local_player, .{ x, -1 }) {
-            draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, -1 }, .{ 1, 1 }, 0.5, .{ 255, 255, 255, 255 }, false);
+            draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, -1 }, .{ 1, 1 }, 0.5, .{ 255, 255, 255, 255 }, .Lit);
         }
         
         if visibility_check_tile(local_player, .{ x, client.world_size.y }) {
-            draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, xx client.world_size.y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
+            draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, xx client.world_size.y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, .Lit);
         }
 
         // @Speed: We're also drawing background inanimates under other entities such as bedrock, where we know
         // this isn't going to be visible...
         for y := 0; y < client.world_size.y; ++y {
             if visibility_check_tile(local_player, .{ x, y }) {
-                draw_sprite_world_space(client, local_player, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, false);
+                draw_sprite_world_space(client, local_player, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, .Lit);
             }
         }
     }
@@ -617,17 +624,17 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         for i := 0; i < entities_to_draw.count; ++i {
             entity := array_get(*entities_to_draw, i);
             tint :: GE_Color.{ 255, 255, 255, 255 };
-            sprite_index, flip := get_sprite_index_for_entity(client, entity);
+            sprite_index, flags := get_sprite_index_for_entity(client, entity);
 
             if entity.entity_kind == .Item_Stack {
                 item_stack := down(entity, Item_Stack);
                 count := min(VISUAL_ITEM_STACK_CAPACITY, item_stack.count);
                 for i := 0; i < count; ++i {
                     world_position: v2f = .{ entity.visual_position.x + VISUAL_ITEM_STACK_OFFSETS[i].x, entity.visual_position.y + VISUAL_ITEM_STACK_OFFSETS[i].y };
-                    draw_sprite_world_space(client, local_player, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, flip);
+                    draw_sprite_world_space(client, local_player, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, flags | .Lit);
                 }
             } else {
-                draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, flip);
+                draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, flags | .Lit);
             }
         }
     }
@@ -714,12 +721,12 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
 
           case .Carrying;
             tint :: GE_Color.{ 255, 255, 255, 255 };
-            active_guy_sprite_index, flip := get_sprite_index_for_entity(client, guy);
+            active_guy_sprite_index, flags := get_sprite_index_for_entity(client, guy);
 
             world_position := get_visual_hand_position_for_guy(client, guy);
             world_size := visual_size_for_item_kind(guy.carrying_item);
             sprite_index := get_sprite_index_for_item(guy.carrying_item);
-            draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, tint, false);
+            draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, tint, .Lit);
 
           case .Resurrecting;
             draw_progress_bar_world_space(client, local_player, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
@@ -808,6 +815,12 @@ draw_viewports :: (client: *Client) {
 
 #file_scope
 
+Draw_Sprite_Flags :: enum bitfield {
+    None :: 0x0;
+    Flipped;
+    Lit;
+}
+
 PROGRESS_BAR_AS_CIRCLE :: false;
 
 get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32, looping: bool) -> Sprite_Index {
@@ -871,9 +884,9 @@ get_sprite_index_for_gamepad_gesture :: (gesture: Window_Gamepad_Gesture_Code) -
     return .Count;
 }
 
-get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, bool {
+get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, Draw_Sprite_Flags {
     index: Sprite_Index = ---;
-    flip := false;
+    flags := Draw_Sprite_Flags.None;
     
     if entity.animation == .Count {
         //
@@ -904,10 +917,13 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         // Get the sprite index in the current animation
         //
         animation := *client.animations[entity.animation];
-        index, flip = get_animation_frame(animation, entity.physical_rotation, entity.animation_t);
+        flipped: bool = ---;
+        index, flipped = get_animation_frame(animation, entity.physical_rotation, entity.animation_t);
+
+        if flipped then flags |= .Flipped;
     }
 
-    return index, flip;
+    return index, flags;
 }
 
 draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
@@ -959,11 +975,11 @@ draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *
 
     for i := 0; i < input_sprites.count; ++i {
         offset: f32 = (cast(f32) (i - input_sprites.count / 2) + cast(f32) (1 - input_sprites.count % 2) * 0.5) * 0.4;
-        draw_sprite_world_space(client, local_player, input_sprites[i], .{ target_entity.visual_position.x + offset, target_entity.visual_position.y + vertical_icon_offset }, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, false);
+        draw_sprite_world_space(client, local_player, input_sprites[i], .{ target_entity.visual_position.x + offset, target_entity.visual_position.y + vertical_icon_offset }, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, .None);
     }
 }
 
-calculate_uv_box_for_index_in_atlas :: (index: s64, flip: bool) -> [4]v2f {
+calculate_uv_box_for_index_in_atlas :: (index: s64, flags: Draw_Sprite_Flags) -> [4]v2f {
     WIDTH:  f32 : 1.0 / xx SPRITE_ATLAS_COLUMNS;
     HEIGHT: f32 : 1.0 / xx SPRITE_ATLAS_ROWS;
     
@@ -975,7 +991,7 @@ calculate_uv_box_for_index_in_atlas :: (index: s64, flip: bool) -> [4]v2f {
     x1 := x0 + WIDTH;
     y1 := y0 + HEIGHT;
 
-    if flip {
+    if flags & .Flipped {
         tmp := x0;
         x0 = x1;
         x1 = tmp;

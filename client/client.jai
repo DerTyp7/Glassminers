@@ -26,6 +26,7 @@
 #load "assets.jai";
 #load "sounds.jai";
 #load "animation.jai";
+#load "lightmap.jai";
 #load "hud.jai";
 #load "draw.jai";
 
@@ -160,6 +161,7 @@ Client :: struct {
     local_player_count := 1;
 
     #using em: Entity_Manager;
+    lightmap: Lightmap;
 }
 
 
@@ -484,19 +486,20 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         toggle_all_game_sounds(client, client.server_paused_game);
         
       case .Game_Start;
-        create_entity_manager(client);
-
-        for i := 0; i < client.local_player_count; ++i {
-            create_hud(client, i);
-            client.local_players[i].guy_pid = INVALID_PID;
-        }
-        
         client.pause_menu_open = false;
         client.server_paused_game = false;
         client.game_seed  = msg.game_start.seed;
         client.world_size = msg.game_start.size;
         client.next_state = .Ingame;
 
+        create_entity_manager(client);
+        create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
+        
+        for i := 0; i < client.local_player_count; ++i {
+            create_hud(client, i);
+            client.local_players[i].guy_pid = INVALID_PID;
+        }
+        
         // Create the dust particles
         {
             system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
@@ -805,6 +808,7 @@ switch_to_next_state :: (client: *Client) {
         
       case .Ingame;
         stop_all_sounds(client);
+        destroy_lightmap(*client.lightmap);
         destroy_entity_manager(client);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
@@ -1205,7 +1209,10 @@ do_game_tick :: (client: *Client) {
         
         for i := 0; i < client.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*client.emitters, i);
-            if occupied then update_emitter(client, emitter);
+            if occupied {
+                update_emitter(client, emitter);
+                fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
+            }
         }
 
         for i := 0; i < client.slabs.slot_count; ++i {
@@ -1220,7 +1227,10 @@ do_game_tick :: (client: *Client) {
         
         for i := 0; i < client.frogs.slot_count; ++i {
             frog, occupied := index_bucket_array(*client.frogs, i);
-            if occupied then update_frog(client, frog);
+            if occupied {
+                update_frog(client, frog);
+                if frog.state == .Attacking then fill_lightmap_with_beam(*client.lightmap, *frog.beam_data, 1);
+            }
         }
 
         for i := 0; i < client.slimes.slot_count; ++i {
@@ -1235,7 +1245,11 @@ do_game_tick :: (client: *Client) {
 
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied then interpolate_visuals_and_play_sounds(client, entity, entity.entity_flags & .Disable_Visual_Rotation);
+            if occupied {
+                interpolate_visuals_and_play_sounds(client, entity, entity.entity_flags & .Disable_Visual_Rotation);
+
+                if entity.entity_kind == .Torch fill_lightmap_tile(*client.lightmap, entity.physical_position, 0.75);
+            }
         }
 
         for i := 0; i < client.particle_systems.slot_count; ++i {
@@ -1243,9 +1257,14 @@ do_game_tick :: (client: *Client) {
             if occupied then update_particle_system(system, client.tick_time);
         }
 
-        client.game_epoch_time += client.window.frame_time;
+        client.game_epoch_time += client.tick_time;
     }
 
+    //
+    // Update the lightmap
+    //
+    update_lightmap(*client.lightmap, client.tick_time);
+    
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;
 
