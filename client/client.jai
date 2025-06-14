@@ -1297,7 +1297,7 @@ do_game_tick :: (client: *Client) {
             guy_entity := get_entity(client, local_player.guy_pid);
             guy := down(guy_entity, Guy);
 
-            read_any_input := local_player.hud.crafting_recipe_input_this_frame != .Count || local_player.hud.cheat_input_this_frame != .Count;
+            read_any_input := local_player.hud.was_input_this_frame;
             
             input: Guy_Input_Message = ---;
             input.guy_pid          = local_player.guy_pid;
@@ -1307,7 +1307,8 @@ do_game_tick :: (client: *Client) {
             input.interaction_kind = .Count;
             input.crafting_recipe  = local_player.hud.crafting_recipe_input_this_frame;
             input.cheat            = local_player.hud.cheat_input_this_frame;
-            
+            input.chest_item       = local_player.hud.chest_item_input_this_frame;
+
             if !local_player.hud.was_open_this_frame {
                 if input_action_fired_for_local_player(client, local_player, .Move_North) {
                     input.position.x    = guy.physical_position.x;

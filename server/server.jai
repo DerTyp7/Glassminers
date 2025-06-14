@@ -720,6 +720,20 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             }
         }
     }
+
+    //
+    // Handle taking items from a chest
+    //
+    if guy.received_input.chest_item != .Count && guy.state == .Idle {
+        target_entity := find_entity_of_kind_at_position(server, .Chest, guy.target_position);
+        if target_entity {
+            chest := down(target_entity, Chest);
+            if try_to_take_item_from_chest(server, chest, guy.received_input.chest_item) {
+                guy.state = .Carrying;
+                guy.carrying_item = guy.received_input.chest_item;
+            }
+        }
+    }
     
     //
     // Handle cheating

@@ -2,9 +2,11 @@ Hud :: struct {
     state: Hud_State;
     previously_opened_state: Hud_State;
     was_open_this_frame: bool;
-
+    was_input_this_frame: bool;
+    
     crafting_recipe_input_this_frame: Crafting_Recipe;
     cheat_input_this_frame: Cheat;
+    chest_item_input_this_frame: Item_Kind;
     
     #using data: union {
         crafting_menu: struct {
@@ -15,7 +17,7 @@ Hud :: struct {
         };
 
         chest_menu: struct {
-            items: []Item_Kind;
+            item_kinds: []Item_Kind;
             item_count: []s64;
         };
     };
@@ -44,23 +46,24 @@ create_hud :: (client: *Client, local_player_index: s64) {
 update_hud :: (client: *Client, local_player: *Local_Player) {
     hud := *local_player.hud;
 
+    //
+    // Clear out persistent state
+    //
     hud.was_open_this_frame = hud.state != .Disabled;
+    hud.was_input_this_frame = false;
     
+    hud.crafting_recipe_input_this_frame = .Count;
+    hud.cheat_input_this_frame           = .Count;
+    hud.chest_item_input_this_frame      = .Count;
+
     if client.pause_menu_open {
         close_hud(client, local_player);
         return;
     }
-    
-    //
-    // Clear out persistent state
-    //
-    hud.crafting_recipe_input_this_frame = .Count;
-    hud.cheat_input_this_frame = .Count;
-    
+        
     //
     // Toggle the active state
     //
-
     if input_action_fired_for_local_player(client, local_player, .Hud_Toggle) {
         guy_entity := get_entity(client, local_player.guy_pid);
         guy := down(guy_entity, Guy);
@@ -92,13 +95,15 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     }
     
     //
-    // Update the active state
+    // Confirm the selected option
     //
-    if #complete hud.state == {
-      case .Disabled;
+    if input_action_fired_for_local_player(client, local_player, .Hud_Confirm) {
+        hud.was_input_this_frame = true;
 
-      case .Crafting_Menu;
-        if input_action_fired_for_local_player(client, local_player, .Hud_Confirm) {
+        if #complete hud.state == {
+          case .Disabled;
+
+          case .Crafting_Menu;
             hud.crafting_recipe_input_this_frame = hud.crafting_menu.recipes[hud.selected_option];
 
             if crafting_recipe_looks_doable(client, local_player, hud.crafting_recipe_input_this_frame) {
@@ -108,19 +113,19 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
             }
 
             close_hud(client, local_player);
-        }
 
-      case .Cheat_Menu;
-        if input_action_fired_for_local_player(client, local_player, .Hud_Confirm) {
+          case .Cheat_Menu;
             hud.cheat_input_this_frame = hud.selected_option;
             play_sound(client, .Crafting_0, false);
             close_hud(client, local_player);
+
+          case .Chest_Menu;
+            hud.chest_item_input_this_frame = hud.chest_menu.item_kinds[hud.selected_option];
+            play_sound(client, .Crafting_0, false);
+            close_hud(client, local_player);
         }
-
-      case .Chest_Menu;
-        // @Incomplete: Implement logic when actually selecting an item from the chest
     }
-
+        
     //
     // Update the visual data
     //
@@ -180,7 +185,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
 
       case .Chest_Menu;
         for i := 0; i < hud.available_options; ++i {
-            sprite_index := get_sprite_index_for_item(hud.chest_menu.items[i]);
+            sprite_index := get_sprite_index_for_item(hud.chest_menu.item_kinds[i]);
 
             midpoint: f32 = xx hud.chest_menu.item_count[i] / 2;
             for j := 0; j < hud.chest_menu.item_count[i]; ++j {
@@ -228,7 +233,7 @@ close_hud :: (client: *Client, local_player: *Local_Player) {
       case .Crafting_Menu;
         deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
       case .Chest_Menu;
-        deallocate_array(*client.world_allocator, *hud.chest_menu.items);
+        deallocate_array(*client.world_allocator, *hud.chest_menu.item_kinds);
         deallocate_array(*client.world_allocator, *hud.chest_menu.item_count);
     }
 
@@ -311,13 +316,13 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, state: Hud_Stat
         if separate_item_count == 0 break;
         
         // Allocate the actual item options
-        hud.chest_menu.items = allocate_array(*client.world_allocator, Item_Kind, separate_item_count);
+        hud.chest_menu.item_kinds = allocate_array(*client.world_allocator, Item_Kind, separate_item_count);
         hud.chest_menu.item_count = allocate_array(*client.world_allocator, s64, separate_item_count);
 
         index := 0;
         for i := 0; i < base_item_array.Capacity; ++i {
             if base_item_array[i] > 0 {
-                hud.chest_menu.items[index] = i;
+                hud.chest_menu.item_kinds[index] = i;
                 hud.chest_menu.item_count[index] = base_item_array[i];
                 ++index;
             }

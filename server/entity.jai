@@ -679,7 +679,7 @@ update_slime :: (server: *Server, slime: *Slime) {
                     }
                 }
             } else if distance_to_item_stack == 0 {
-                remove_entity(server, target_item_stack);
+                take_item_from_stack(server, down(target_item_stack, Item_Stack));
                 switch_state(server, slime, .Fleeing);
             } else {
                 target_position = target_item_stack.physical_position;
@@ -749,6 +749,25 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
     }
 
     return stack.item_kind;
+}
+
+try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind) -> bool {
+    for i := 0; i < chest.item_count; ++i {
+        if chest.items[i] == kind {
+            if i + 1 < chest.item_count copy_memory(*chest.items[i], *chest.items[i + 1], (chest.item_count - i - 1) * size_of(Item_Kind));
+            --chest.item_count;
+
+            msg := make_message(Chest_State_Message);
+            msg.chest_state.entity_pid = chest.pid;
+            msg.chest_state.items = chest.items;
+            msg.chest_state.item_count = chest.item_count;
+            array_add(*server.outgoing_messages, msg);
+            
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // This will first try to put the item on the ground, and if that doesn't work it'll try to

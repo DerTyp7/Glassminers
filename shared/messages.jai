@@ -106,6 +106,7 @@ Guy_Input_Message :: struct {
     interaction_kind: Interaction_Kind;
     crafting_recipe: Crafting_Recipe;
     cheat: Cheat;
+    chest_item: Item_Kind;
 }
 
 Emitter_State_Message :: struct {

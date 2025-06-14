@@ -2,6 +2,7 @@
 
 - Implemented a new slime enemy. Slimes will try to steal items laying on the ground while running aways from players.
 - Implemented a torch entity that can be crafted from coal and can be picked up and placed down
+- Implemented a chest entity into which up to 8 items can be put, to be safe from the slime.
 - Prevented stuff to spawn directly in front of the emitter
 - Fixed the viewport calculation when the width is smaller than the height
 - Fixed the visual position interpolation when experiencing frame drops
