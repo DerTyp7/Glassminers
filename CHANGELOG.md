@@ -1,4 +1,4 @@
-## 0.2.1 (unreleased)
+## 0.2.1 (14.06.2025)
 
 - Implemented a new slime enemy. Slimes will try to steal items laying on the ground while running aways from players.
 - Implemented a torch entity that can be crafted from coal and can be picked up and placed down

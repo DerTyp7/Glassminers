@@ -304,7 +304,7 @@ bake_all_animations :: (filepath: string) -> [Animation_Index.Count]Animation, [
     animations: [Animation_Index.Count]Animation = ---;
     animation_groups: [Animation_Group_Index.Count]Animation_Group = ---;
     
-    if !load_animation_file(animations, animation_groups, filepath) {
+    if load_animation_file(animations, animation_groups, filepath) != .Success {
         compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the animation pack '%'.\n", filepath));
         compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));            
     }

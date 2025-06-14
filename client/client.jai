@@ -711,7 +711,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         if slime.state == .Hiding bitfield_add(*slime.entity_flags, Entity_Flags.Invisible);
         else bitfield_remove(*slime.entity_flags, Entity_Flags.Invisible);
-        
     }
 }
 
