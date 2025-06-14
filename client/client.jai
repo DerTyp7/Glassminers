@@ -1271,7 +1271,7 @@ do_game_tick :: (client: *Client) {
     //
     // Update the lightmap
     //
-    update_lightmap(*client.lightmap, client.tick_time);
+    update_lightmap(client, *client.lightmap, client.tick_time);
     
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;

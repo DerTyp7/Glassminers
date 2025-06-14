@@ -6,6 +6,6 @@
 #############
 bbb   ssss
 G       h  gg
-   m
-e  
+   mbbbbbbbbb
+e   
 bb   Sbbbbbb
