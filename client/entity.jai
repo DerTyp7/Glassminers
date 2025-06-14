@@ -458,7 +458,7 @@ play_animation_from_group :: (client: *Client, entity: *Entity, animation_group:
 maybe_play_animation_from_group_instead :: (client: *Client, entity: *Entity, if_any_current_flag: Animation_Flags, new_animation_group: Animation_Group_Index) {
     if entity.animation < .Count {
         current_animation := *client.animations[entity.animation];
-        if current_animation.flags & if_any_current_flag {
+        if current_animation.flags & if_any_current_flag || (current_animation.frame_time > 0 && entity.animation_t >= cast(f32) current_animation.frame_count * current_animation.frame_time) {
             play_animation_from_group(client, entity, new_animation_group);
         }
     } else {
@@ -470,7 +470,7 @@ maybe_play_animation_from_group_instead :: (client: *Client, entity: *Entity, if
 maybe_play_animation_from_group_after :: (client: *Client, entity: *Entity, new_animation_group: Animation_Group_Index) {
     if entity.animation < .Count {
         current_animation := *client.animations[entity.animation];
-        if entity.animation_t >= cast(f32) current_animation.frame_count * current_animation.frame_time {
+        if current_animation.frame_time > 0 && entity.animation_t >= cast(f32) current_animation.frame_count * current_animation.frame_time {
             play_animation_from_group(client, entity, new_animation_group);
         }
     } else {
@@ -725,6 +725,10 @@ update_slime :: (client: *Client, slime: *Slime) {
         system.time_to_live = 0.5;
         system.emitters[0].alive_t = 0.5;
     }
+}
+
+update_goblin :: (client: *Client, goblin: *Goblin) {
+    maybe_play_animation_from_group_after(client, goblin, .Goblin_Idle);
 }
 
 update_slime_hole :: (client: *Client, hole: *Entity) {

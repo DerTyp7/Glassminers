@@ -33,7 +33,10 @@ Animation_Index :: enum {
     Goblin_Recovering_Back;
     Goblin_Recovering_Front;
     Goblin_Recovering_Side;
-
+    Goblin_Damaged_Back;
+    Goblin_Damaged_Front;
+    Goblin_Damaged_Side;
+    
     // Slime Animations
     Slime_Idle_Back;
     Slime_Idle_Front;
@@ -85,7 +88,8 @@ Animation_Group_Index :: enum {
     Goblin_Idle;
     Goblin_Attacking;
     Goblin_Recovering;
-
+    Goblin_Damaged;
+    
     Slime_Idle;
     Slime_Walk;
     

@@ -128,7 +128,10 @@ Sprite_Index :: enum {
     Goblin_Recovering_Front_1;
     Goblin_Recovering_Side_0;
     Goblin_Recovering_Side_1;
-
+    Goblin_Damaged_Back_0;
+    Goblin_Damaged_Front_0;
+    Goblin_Damaged_Side_0;
+    
     // Slime
     Slime_Idle_Back_0;
     Slime_Idle_Back_1;

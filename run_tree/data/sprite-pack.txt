@@ -144,6 +144,9 @@ Goblin_Recovering_Front_0      sprites/goblin/goblin-recovering-front-0.png
 Goblin_Recovering_Front_1      sprites/goblin/goblin-recovering-front-1.png
 Goblin_Recovering_Side_0       sprites/goblin/goblin-recovering-side-0.png
 Goblin_Recovering_Side_1       sprites/goblin/goblin-recovering-side-1.png
+Goblin_Damaged_Back_0    sprites/goblin/goblin-damaged-back-0.png
+Goblin_Damaged_Front_0   sprites/goblin/goblin-damaged-front-0.png
+Goblin_Damaged_Side_0    sprites/goblin/goblin-damaged-side-0.png
 
 #
 # Slime

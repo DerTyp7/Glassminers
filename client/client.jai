@@ -575,6 +575,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
         }
 
+        // Play a potential damage animation
+        if entity.entity_kind == {
+          case .Goblin; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Damaged);
+        }
+        
         // Play damage particles & health bar animation
         if entity.entity_flags & .Living && dropped_heart {
             system := create_particle_system(client, 1.0, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1);
@@ -1221,6 +1226,11 @@ do_game_tick :: (client: *Client) {
         for i := 0; i < client.slimes.slot_count; ++i {
             slime, occupied := index_bucket_array(*client.slimes, i);
             if occupied then update_slime(client, slime);
+        }
+
+        for i := 0; i < client.goblins.slot_count; ++i {
+            goblin, occupied := index_bucket_array(*client.goblins, i);
+            if occupied then update_goblin(client, goblin);
         }
 
         for i := 0; i < client.all_entities.slot_count; ++i {

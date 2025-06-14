@@ -158,17 +158,30 @@ Goblin_Attacking_Front
 Goblin_Attacking_Side
 
 
-:Goblin_Recovering_Back 1 flip 
+:Goblin_Recovering_Back 1
 Goblin_Recovering_Back_0
 Goblin_Recovering_Back_1
 
-:Goblin_Recovering_Front 1 flip 
+:Goblin_Recovering_Front 1 
 Goblin_Recovering_Front_0
 Goblin_Recovering_Front_1
 
 :Goblin_Recovering_Side 1 flip 
 Goblin_Recovering_Side_0
 Goblin_Recovering_Side_1
+
+
+:Goblin_Damaged_Back 0.3
+Goblin_Damaged_Back_0
+Goblin_Idle_Back_0
+
+:Goblin_Damaged_Front 0.3
+Goblin_Damaged_Front_0
+Goblin_Idle_Front_0
+
+:Goblin_Damaged_Side 0.3 flip
+Goblin_Damaged_Side_0
+Goblin_Idle_Side_0
 
 
 @Goblin_Idle
@@ -188,6 +201,12 @@ North Goblin_Recovering_Back
 South Goblin_Recovering_Front
 East  Goblin_Recovering_Side
 West  Goblin_Recovering_Side
+
+@Goblin_Damaged
+North Goblin_Damaged_Back
+South Goblin_Damaged_Front
+East  Goblin_Damaged_Side
+West  Goblin_Damaged_Side
 
 
 #
