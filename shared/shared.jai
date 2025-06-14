@@ -388,8 +388,13 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
 Cheat :: enum {
     Give_Coin;
     Give_Coal;
+    Give_Shard;
+    Give_Stone;
     Give_Health;
     Give_Strength;
+    Spawn_Goblin;
+    Spawn_Frog;
+    Spawn_Slime;
 }
 
 direction_from_vector :: (vector: v2i) -> Direction {

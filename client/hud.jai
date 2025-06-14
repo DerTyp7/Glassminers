@@ -221,8 +221,13 @@ CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
 CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Coin,
     .Coal_Item,
+    .Shard,
+    .Stone,
     .Health_Potion,
     .Strength_Potion,
+    .Goblin_Idle_Front_0,
+    .Frog_Idle_Front_0,
+    .Slime_Idle_Front_0,
 ];
 
 close_hud :: (client: *Client, local_player: *Local_Player) {

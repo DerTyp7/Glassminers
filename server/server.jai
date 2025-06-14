@@ -739,11 +739,22 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     // Handle cheating
     //
 #if DEVELOPER {
+    spawn_creature_with_cheat :: (server: *Server, guy: *Guy, kind: Entity_Kind) {
+        if !find_any_entity_at_position(server, guy.target_position) {
+            create_entity(server, kind, guy.target_position, ENTITY_DEFAULT_DIRECTION[kind]);
+        }
+    }
+
     if #complete guy.received_input.cheat == {
       case .Give_Coin; try_to_give_item(server, guy, .Coin);
       case .Give_Coal; try_to_give_item(server, guy, .Coal);
+      case .Give_Shard; try_to_give_item(server, guy, .Shard);
+      case .Give_Stone; try_to_give_item(server, guy, .Stone);
       case .Give_Health; set_entity_health(server, guy, ENTITY_DEFAULT_HEALTH[.Guy]);
       case .Give_Strength; guy.strength_t = STRENGTH_POTION_TIME;
+      case .Spawn_Goblin; spawn_creature_with_cheat(server, guy, .Goblin);
+      case .Spawn_Frog; spawn_creature_with_cheat(server, guy, .Frog);
+      case .Spawn_Slime; spawn_creature_with_cheat(server, guy, .Slime);
     }
 }
 }

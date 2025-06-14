@@ -1,3 +1,8 @@
+## 0.2.2 (unreleased)
+
+- Started implementing animations when creatures are being damaged
+- Added cheats to spawn monsters, as well as shard and stone items
+
 ## 0.2.1 (14.06.2025)
 
 - Implemented a new slime enemy. Slimes will try to steal items laying on the ground while running aways from players.
