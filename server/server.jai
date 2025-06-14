@@ -855,6 +855,8 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         }
+    } else if server.clients.count == 0 {
+        server.next_state = .Game_Over;
     }
         
     //
