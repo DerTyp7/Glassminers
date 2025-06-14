@@ -18,6 +18,7 @@ Sprite_Index :: enum {
     Hud_Key_C;
     Hud_Key_Space;
     Hud_Key_Shift;
+    Hud_Arrow;
     
     // Items
     Coal_Item;

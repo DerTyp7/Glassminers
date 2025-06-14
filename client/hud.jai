@@ -375,15 +375,16 @@ draw_icon :: (client: *Client, hud: *Hud, sprite_index: Sprite_Index, inner_offs
                          hud.screen_center.y - cosf(radians) * hud.icon_radius * inner_offset };
     draw_sprite_screen_space(client, sprite_index, icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
 }
-
-draw_divider :: (client: *Client, hud: *Hud, option_index: s64) {
-    radians := ((cast(f32) option_index + 0.5) * hud.angle_per_option) * FTAU;
-    inner_point := v2f.{ hud.screen_center.x + sinf(radians) * hud.inner_wheel_radius * 1.1,
-                         hud.screen_center.y - cosf(radians) * hud.inner_wheel_radius * 1.1 };
-    outer_point := v2f.{ hud.screen_center.x + sinf(radians) * hud.outer_wheel_radius * 0.9,
-                         hud.screen_center.y - cosf(radians) * hud.outer_wheel_radius * 0.9 };
     
-    draw_line_screen_space(client, inner_point, outer_point, .{ 255, 255, 255, 255 }, 1);
+draw_divider :: (client: *Client, hud: *Hud, option_index: s64) {
+    base_size := (hud.outer_wheel_radius - hud.inner_wheel_radius) * 0.5;
+    icon_size := v2f.{ base_size, base_size };
+
+    theta := ((cast(f32) option_index + 0.5) * hud.angle_per_option);
+    radians := theta * FTAU;
+    icon_center := v2f.{ hud.screen_center.x + sinf(radians) * hud.icon_radius,
+                         hud.screen_center.y - cosf(radians) * hud.icon_radius };
+    draw_sprite_screen_space(client, .Hud_Arrow, icon_center, icon_size, theta - 0.25, .{ 255, 255, 255, 255 }, false);
 }
 
 draw_circle_segment :: (client: *Client, hud: *Hud, animation_t: f32, option_index: s64) {

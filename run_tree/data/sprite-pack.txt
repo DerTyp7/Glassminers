@@ -20,6 +20,7 @@ Hud_XBox_Y       sprites/hud/Hud-XBOX-Y.png
 Hud_Key_C        sprites/hud/Hud-Key-C.png
 Hud_Key_Space    sprites/hud/Hud-Key-Space.png
 Hud_Key_Shift    sprites/hud/Hud-Key-Shift.png
+Hud_Arrow        sprites/hud/Hud-Arrow.png
 
 #
 # Items
