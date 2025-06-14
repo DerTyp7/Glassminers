@@ -13,6 +13,7 @@ Entity :: struct {
     marked_for_removal: bool;
 
     health: f32;
+    damaged_this_frame: bool;
     entity_flags: Entity_Flags;
     
     physical_rotation: Direction;
@@ -239,8 +240,8 @@ physically_remove_all_marked_entities :: (server: *Server) {
 }
 
 damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bool {
-    entity.health -= immediate_damage;
-    entity.health = max(entity.health, 0);
+    entity.damaged_this_frame = true;
+    entity.health = max(entity.health - immediate_damage, 0);
     has_died := entity.health <= 0;
 
     //
@@ -305,7 +306,7 @@ damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
 }
 
 set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
-    entity.health = health;
+    entity.health = clamp(health, 0, ENTITY_DEFAULT_HEALTH[entity.entity_kind]);
     msg := make_message(Entity_Health_Message);
     msg.entity_health.entity_pid = entity.pid;
     msg.entity_health.new_health = entity.health;

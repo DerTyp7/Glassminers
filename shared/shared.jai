@@ -164,13 +164,14 @@ Entity_Flags :: enum bitfield {
     Blocks_Los;
     Disable_Visual_Rotation;
     Invisible;
+    Auto_Heal;
 }
 
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
     .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Emitter
     .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Receiver
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Mirror
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Auto_Heal, // Mirror
 
     // Environment
     .Blocks_Move, // Lava
@@ -184,7 +185,7 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     0, // Item Stack
     0, // Slab
     0, // Torch
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam, // Chest
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Auto_Heal, // Chest
     
     // Beings
     .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy

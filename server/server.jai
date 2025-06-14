@@ -840,9 +840,15 @@ do_game_tick :: (server: *Server) {
             if !occupied continue;
 
             if entity.entity_kind == {
-                case .Trader; update_trader(server, entity);
-                case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
+              case .Trader; update_trader(server, entity);
+              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
             }
+
+            if entity.entity_flags & .Auto_Heal && !entity.damaged_this_frame {
+                set_entity_health(server, entity, entity.health + HEALTH_PER_HEART * server.tick_time);
+            }
+            
+            entity.damaged_this_frame = false;
         }
         
         if number_of_dead_guys == server.clients.count {
