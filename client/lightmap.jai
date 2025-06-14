@@ -1,3 +1,6 @@
+TORCH_BRIGHTNESS: f32 : 0.75;
+LAVA_BRIGHTNESS: f32 : 0.5;
+
 Lightmap :: struct {
     allocator: *Allocator;
     intermediate: []f32;
@@ -60,9 +63,15 @@ query_lightmap :: (map: *Lightmap, tile: v2i) -> f32 {
     return map.tiles[index];
 }
 
-query_lightmap_visual_position :: (map: *Lightmap, position: v2f) -> f32 {
+query_lightmap_at_fractional :: (map: *Lightmap, position: v2f) -> f32 {
+    // For fractional positions, it can happen that these are out of bounds. For example:
+    //   1. Particles floating around
+    //   2. World edges being drawn around the walkable world
+    //   ...
+    // For these cases, we just want to take the nearest world position
     tile := v2i.{ cast(s32) round(position.x), cast(s32) round(position.y) };
-    tile.y = clamp(tile.y, 0, map.size.y - 1); // The world border sprites are outside the walkable area, so they should just use the nearest tile in world space...
+    tile.x = clamp(tile.x, 0, map.size.x - 1);
+    tile.y = clamp(tile.y, 0, map.size.y - 1);
     return query_lightmap(map, tile);
 }
 

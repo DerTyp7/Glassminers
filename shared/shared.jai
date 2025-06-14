@@ -165,6 +165,7 @@ Entity_Flags :: enum bitfield {
     Disable_Visual_Rotation;
     Invisible;
     Auto_Heal;
+    Emissive;
 }
 
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
@@ -174,7 +175,7 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Auto_Heal, // Mirror
 
     // Environment
-    .Blocks_Move, // Lava
+    .Blocks_Move | .Emissive, // Lava
     .Blocks_Move | .Diggable | .Blocks_Beam | .Blocks_Los, // Bedrock
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Rock
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
@@ -379,7 +380,7 @@ CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
 
 CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     true,  // Mirror
-    true,  // Torch
+    false, // Torch
     true,  // Chest
     false, // Health Potion
     false, // Strength Potion

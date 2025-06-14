@@ -675,6 +675,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
                 particles := create_particle_system(client, FROG_ATTACK_TIME, frog.visual_position, 1);
                 emitter := create_particle_emitter(particles, 0, 256);
                 emitter.shape    = .Cone;
+                emitter.emissive = true;
                 emitter.drag     = .9;
                 emitter.speed    = .[ 4, 6 ];
                 emitter.lifetime = .[ 0.5, 0.8 ];
@@ -1222,7 +1223,10 @@ do_game_tick :: (client: *Client) {
 
         for i := 0; i < client.guys.slot_count; ++i {
             guy, occupied := index_bucket_array(*client.guys, i);
-            if occupied then update_guy(client, guy);
+            if occupied {
+                update_guy(client, guy);
+                if guy.state == .Carrying && guy.carrying_item == .Torch then fill_lightmap_tile(*client.lightmap, guy.physical_position, TORCH_BRIGHTNESS);
+            }
         }
         
         for i := 0; i < client.frogs.slot_count; ++i {
@@ -1248,7 +1252,11 @@ do_game_tick :: (client: *Client) {
             if occupied {
                 interpolate_visuals_and_play_sounds(client, entity, entity.entity_flags & .Disable_Visual_Rotation);
 
-                if entity.entity_kind == .Torch fill_lightmap_tile(*client.lightmap, entity.physical_position, 0.75);
+                if entity.entity_kind == .Torch {
+                    fill_lightmap_tile(*client.lightmap, entity.physical_position, TORCH_BRIGHTNESS);
+                } else if entity.entity_kind == .Lava {
+                    fill_lightmap_tile(*client.lightmap, entity.physical_position, LAVA_BRIGHTNESS);
+                }
             }
         }
 

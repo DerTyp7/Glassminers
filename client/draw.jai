@@ -480,6 +480,8 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
 
     gap_size := round(cast(f32) screen_size * 0.1);
     leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
+
+    brightness := query_lightmap(*client.lightmap, entity.physical_position);
     
     for i := 0; i < heart_count; ++i {
         heart_0 := (cast(f32) i) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
@@ -508,6 +510,8 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
             sprite_index = .Heart_Full;
             tint = .{ 100, 100, 100, 255 };
         }
+
+        tint = darken_color(tint, brightness);
             
         draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, tint, .None);
     }
@@ -530,10 +534,8 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
     texture := client.sprite_atlases[atlas_index];
 
     if flags & .Lit {
-        brightness := query_lightmap_visual_position(*client.lightmap, world_center);
-        tint.r = cast(u8) (cast(f32) tint.r * brightness);
-        tint.g = cast(u8) (cast(f32) tint.g * brightness);
-        tint.b = cast(u8) (cast(f32) tint.b * brightness);
+        brightness := query_lightmap_at_fractional(*client.lightmap, world_center);
+        tint = darken_color(tint, brightness);
     }
     
     for i := 0; i < indices.Capacity; ++i {
@@ -626,15 +628,17 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
             tint :: GE_Color.{ 255, 255, 255, 255 };
             sprite_index, flags := get_sprite_index_for_entity(client, entity);
 
+            if !(entity.entity_flags & .Emissive) then flags |= .Lit;
+            
             if entity.entity_kind == .Item_Stack {
                 item_stack := down(entity, Item_Stack);
                 count := min(VISUAL_ITEM_STACK_CAPACITY, item_stack.count);
                 for i := 0; i < count; ++i {
                     world_position: v2f = .{ entity.visual_position.x + VISUAL_ITEM_STACK_OFFSETS[i].x, entity.visual_position.y + VISUAL_ITEM_STACK_OFFSETS[i].y };
-                    draw_sprite_world_space(client, local_player, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, flags | .Lit);
+                    draw_sprite_world_space(client, local_player, sprite_index, world_position, entity.visual_size, entity.visual_rotation, tint, flags);
                 }
             } else {
-                draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, flags | .Lit);
+                draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, flags);
             }
         }
     }
@@ -819,6 +823,13 @@ Draw_Sprite_Flags :: enum bitfield {
     None :: 0x0;
     Flipped;
     Lit;
+}
+
+darken_color :: (color: GE_Color, brightness: f32) -> GE_Color {
+    return .{ cast(u8) (cast(f32) color.r * brightness),
+              cast(u8) (cast(f32) color.g * brightness),
+              cast(u8) (cast(f32) color.b * brightness),
+              color.a };
 }
 
 PROGRESS_BAR_AS_CIRCLE :: false;
@@ -1089,13 +1100,16 @@ draw_particle_system :: (client: *Client, local_player: *Local_Player, system: *
             particle := *emitter.particles[j];
             
             if particle.elapsed < particle.lifetime {
-                lifetime := min(particle.lifetime, system.time_to_live);
-                local_alpha := smoothstep(particle.elapsed, 0, emitter.fadein) * (1 - smoothstep(particle.elapsed, lifetime - emitter.fadeout, lifetime));
-
-                color := GE_Color.{ particle.color.r, particle.color.g, particle.color.b, cast(u8) (cast(f32) particle.color.a * system.global_alpha * local_alpha) };
                 world_position := v2f.{ particle.local_position.x + local_to_world_position.x, particle.local_position.y + local_to_world_position.y };
                 c0 := screen_from_world_position(*local_player.camera, .{ world_position.x - particle.size.x / 2, world_position.y - particle.size.y / 2 });
                 c1 := screen_from_world_position(*local_player.camera, .{ world_position.x + particle.size.x / 2, world_position.y + particle.size.y / 2 });
+
+                lifetime := min(particle.lifetime, system.time_to_live);
+                local_alpha := smoothstep(particle.elapsed, 0, emitter.fadein) * (1 - smoothstep(particle.elapsed, lifetime - emitter.fadeout, lifetime));
+
+                brightness := ifx !emitter.emissive then query_lightmap_at_fractional(*client.lightmap, world_position) else 1;
+                color := GE_Color.{ particle.color.r, particle.color.g, particle.color.b, cast(u8) (cast(f32) particle.color.a * system.global_alpha * local_alpha * brightness) };
+
                 ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, color);
             }
         }

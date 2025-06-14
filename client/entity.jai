@@ -340,6 +340,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
         fire.shape    = .Box;
         fire.box_half_size           = .{ 0.5, 0.5 };
         fire.random_initial_velocity = true;
+        fire.emissive                = true;
         fire.turbulence              = 0.05;
         fire.particles_per_second    = 4;
         fire.size     = .[ .{ 0.02, 0.02 }, .{ 0.05, 0.05 } ];

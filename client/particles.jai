@@ -35,6 +35,7 @@ Particle_Emitter :: struct {
 
     force_uniform_scale := true;
     random_initial_velocity := false;
+    emissive := false;
     turbulence: f32 = 0;
     fadein, fadeout: f32 = 0.1, 0.3;
     particles_per_second: f32 = 256;
