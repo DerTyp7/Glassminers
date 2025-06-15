@@ -1,8 +1,8 @@
 Sprite_Index :: enum {
     // HUD
-    Heart_Full;
-    Heart_Damaged_0;
-    Heart_Damaged_1;
+    Hud_Heart_Full;
+    Hud_Heart_Damaged_0;
+    Hud_Heart_Damaged_1;
 
     Hud_Keyboard;
     Hud_Gamepad;
@@ -495,19 +495,19 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
             t := (entity.health - heart_0) / (heart_1 - heart_0);
 
             if entity.health_bar_damage_animation_t > 0.5 {
-                sprite_index = .Heart_Damaged_1;
+                sprite_index = .Hud_Heart_Damaged_1;
             } else if entity.health_bar_damage_animation_t > 0.0 {
-                sprite_index = .Heart_Damaged_0;
+                sprite_index = .Hud_Heart_Damaged_0;
             } else {
-                sprite_index = .Heart_Full;
+                sprite_index = .Hud_Heart_Full;
             }
 
             tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
         } else if heart_1 <= entity.health {
-            sprite_index = .Heart_Full;
+            sprite_index = .Hud_Heart_Full;
             tint = .{ 255, 255, 255, 255 };
         } else if heart_0 >= entity.health_bar_damage_animation_base {
-            sprite_index = .Heart_Full;
+            sprite_index = .Hud_Heart_Full;
             tint = .{ 100, 100, 100, 255 };
         }
 

@@ -114,6 +114,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
             entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
             if !found_sprite_index {
                 logprint(.Error, "%: %: '%' is not known in the system.", filepath, line_number, entry.ident);
+                entry.sprite_index = -1;
                 result = .Complete_Failure;
                 continue;
             }

@@ -40,6 +40,10 @@ Guy :: struct {
     
     received_input: Guy_Input_Message = ---;
     received_input_this_tick: bool = false;
+
+#if DEVELOPER {
+    invincible := false;
+}
 }
 
 Emitter :: struct {
@@ -240,6 +244,13 @@ physically_remove_all_marked_entities :: (server: *Server) {
 }
 
 damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bool {
+#if DEVELOPER {
+    if entity.entity_kind == .Guy {
+        guy := down(entity, Guy);
+        if guy.invincible return false;
+    }
+}
+
     entity.damaged_this_frame = true;
     entity.health = max(entity.health - immediate_damage, 0);
     has_died := entity.health <= 0;

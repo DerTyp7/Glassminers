@@ -1,10 +1,9 @@
 #
 # HUD
 #
-Heart_Full            sprites/hud/heart-full.png
-Heart_Damaged_0       sprites/hud/heart-damaged-0.png
-Heart_Damaged_1       sprites/hud/heart-damaged-1.png
-
+Hud_Heart_Full            sprites/hud/heart-full.png
+Hud_Heart_Damaged_0       sprites/hud/heart-damaged-0.png
+Hud_Heart_Damaged_1       sprites/hud/heart-damaged-1.png
 
 Hud_Keyboard     sprites/hud/Hud-Keyboard.png
 Hud_Gamepad      sprites/hud/Hud-Gamepad.png

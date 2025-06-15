@@ -755,6 +755,8 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Spawn_Goblin; spawn_creature_with_cheat(server, guy, .Goblin);
       case .Spawn_Frog; spawn_creature_with_cheat(server, guy, .Frog);
       case .Spawn_Slime; spawn_creature_with_cheat(server, guy, .Slime);
+      case .Spawn_Trader; spawn_creature_with_cheat(server, guy, .Trader);
+      case .Toggle_Invincibility; guy.invincible = !guy.invincible;
     }
 }
 }

@@ -231,6 +231,8 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Goblin_Idle_Front_0,
     .Frog_Idle_Front_0,
     .Slime_Idle_Front_0,
+    .Trader_Idle_Front_0,
+    .Hud_Heart_Full,
 ];
 
 close_hud :: (client: *Client, hud: *Hud) {
