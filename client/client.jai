@@ -1283,13 +1283,20 @@ do_game_tick :: (client: *Client) {
             if occupied then update_goblin(client, goblin);
         }
 
+        for i := 0; i < client.torches.slot_count; ++i {
+            torch, occupied := index_bucket_array(*client.torches, i);
+            if occupied {
+                update_torch(client, torch);
+                fill_lightmap_tile(*client.lightmap, torch.physical_position, TORCH_BRIGHTNESS);
+            }
+        }
+        
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied {
                 interpolate_visuals_and_play_sounds(client, entity, entity.entity_flags & .Disable_Visual_Rotation);
 
                 if entity.entity_kind == .Torch {
-                    fill_lightmap_tile(*client.lightmap, entity.physical_position, TORCH_BRIGHTNESS);
                 } else if entity.entity_kind == .Lava {
                     fill_lightmap_tile(*client.lightmap, entity.physical_position, LAVA_BRIGHTNESS);
                 }

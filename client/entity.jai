@@ -107,6 +107,11 @@ Slime :: struct {
     particles: Pid = INVALID_PID;
 }
 
+Torch :: struct {
+    #using entity : *Entity = ---;
+    particles: Pid = INVALID_PID;
+}
+
 Entity_Manager :: struct {
     entity_pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
@@ -115,6 +120,7 @@ Entity_Manager :: struct {
     receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
+    torches:      Bucket_Array(Torch);
     chests:       Bucket_Array(Chest);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
@@ -140,6 +146,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.receivers, *client.world_allocator);
     create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
+    create_bucket_array(*client.torches, *client.world_allocator);
     create_bucket_array(*client.chests, *client.world_allocator);
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
@@ -158,6 +165,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.receivers);
     destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
+    destroy_bucket_array(*client.torches);
     destroy_bucket_array(*client.chests);
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
@@ -313,16 +321,33 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Receiver;   make_derived(entity, *client.receivers);
       case .Slab;       make_derived(entity, *client.slabs);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
+      case .Torch;      make_derived(entity, *client.torches);
       case .Chest;      make_derived(entity, *client.chests);
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Torch, .Trader;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader;
         entity.derived = null;
     }
 
-    // Create a lava particle system
-    if entity.entity_kind == .Lava {
+    // Create some special particle systems
+    if entity.entity_kind == {
+      case .Torch;
+        torch := down(entity, Torch);
+        system := create_particle_system(client, 1, entity.visual_position, 1);
+        smoke := create_particle_emitter(system, 0, 16);
+        smoke.shape    = .Cone;
+        smoke.cone_angles          = .[ -0.1, 0.1 ];
+        smoke.turbulence           = 0.05;
+        smoke.particles_per_second = 3;
+        smoke.drag     = 0.5;
+        smoke.size     = .[ .{ 0.05, 0.05 }, .{ 0.1, 0.1 } ];
+        smoke.speed    = .[ 0.4, 0.8 ];
+        smoke.lifetime = .[ 4, 8 ];
+        smoke.color    = .[ .{ 212, 191, 15, 200 }, .{ 176, 126, 67, 150 } ];
+        torch.particles = system.pid;
+        
+      case .Lava;
         system := create_particle_system(client, MAX_F32, entity.visual_position, 2);
 
         smoke := create_particle_emitter(system, 0, 8);
@@ -521,6 +546,7 @@ physically_remove_all_marked_entities :: (client: *Client) {
     remove_deriveds(*client.receivers);
     remove_deriveds(*client.slabs);
     remove_deriveds(*client.item_stacks);
+    remove_deriveds(*client.torches);
     remove_deriveds(*client.chests);
     remove_deriveds(*client.frogs);
     remove_deriveds(*client.goblins);
@@ -629,6 +655,11 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
 
 update_slab :: (client: *Client, slab: *Slab) {
     slab.time_left_in_seconds -= client.tick_time;
+}
+
+update_torch :: (client: *Client, torch: *Torch) {
+    system := get_particle_system(client, torch.particles);
+    system.time_to_live += client.tick_time;
 }
 
 update_guy :: (client: *Client, guy: *Guy) {

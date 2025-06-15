@@ -3,7 +3,8 @@
 The world is now lit up (or rather darkended out) in areas where no light reaches. Light can come from beams and torches. This has a massive effect on gameplay, as you can no longer see large parts of the world.
 
 - Started implementing animations when creatures are being damaged
-- Added cheats to spawn monsters, as well as shard and stone items
+- Added cheats to spawn monsters, traders, as well as shard and stone items, and to make the player invincible
+- Added particle effects to torches
 - Fixed not being able to craft torches when the target tile is not empty
 - Fixed one input bindings sometimes causing multiple actions in the same frame
 
