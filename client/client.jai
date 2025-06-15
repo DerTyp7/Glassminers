@@ -1308,14 +1308,11 @@ do_game_tick :: (client: *Client) {
             if occupied then update_particle_system(system, client.tick_time);
         }
 
+        update_lightmap(*client.lightmap, client.tick_time);
+
         client.game_epoch_time += client.tick_time;
     }
-
-    //
-    // Update the lightmap
-    //
-    update_lightmap(*client.lightmap, client.tick_time);
-    
+   
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;
 
