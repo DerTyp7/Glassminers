@@ -528,8 +528,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.next_state = .Game_Over;
         
       case .Create_Entity;
-        create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
-
+        entity := create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
+        maybe_add_blocker(*client.lightmap, entity);
+        
       case .Destroy_Entity;
         entity := get_entity(client, msg.destroy_entity.entity_pid);
         entity.marked_for_removal = true;
@@ -539,9 +540,14 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
           case .Frog; play_sound_once_per_frame(client, .Frog_Death_0);
           case .Goblin; play_sound_once_per_frame(client, .Goblin_Death_0);
         }
+
+        maybe_remove_blocker(*client.lightmap, entity);
         
       case .Move_Entity;
         entity := get_entity(client, msg.move_entity.entity_pid);
+
+        maybe_move_blocker(*client.lightmap, entity, msg.move_entity.position);
+
         entity.physical_position = msg.move_entity.position;
         entity.physical_rotation = msg.move_entity.rotation;
 
@@ -1271,7 +1277,7 @@ do_game_tick :: (client: *Client) {
     //
     // Update the lightmap
     //
-    update_lightmap(client, *client.lightmap, client.tick_time);
+    update_lightmap(*client.lightmap, client.tick_time);
     
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;

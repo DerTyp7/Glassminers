@@ -6,6 +6,7 @@ DISABLE_LIGHTMAP :: false;
 Lightmap :: struct {
     allocator: *Allocator;
     disabled: bool;
+    blockers: []s32;
     intermediate: []f32;
     tiles: []f32;
     size: v2i;
@@ -16,7 +17,9 @@ create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
     map.disabled  = false;
     map.size      = size;
     map.tiles     = allocate_array(allocator, f32, map.size.x * map.size.y);
+    map.blockers  = allocate_array(allocator, s32, map.size.x * map.size.y);
     for i := 0; i < map.tiles.count; ++i map.tiles[i] = 0;
+    for i := 0; i < map.blockers.count; ++i map.blockers[i] = 0;
 }
 
 destroy_lightmap :: (map: *Lightmap) {
@@ -24,17 +27,17 @@ destroy_lightmap :: (map: *Lightmap) {
     map.size = .{ };
 }
 
-update_lightmap :: (client: *Client, map: *Lightmap, dt: f32) {
+update_lightmap :: (map: *Lightmap, dt: f32) {
     map.intermediate = copy_array(*temp, map.tiles);
     
     for y := 0; y < map.size.y; ++y {
         for x := 0; x < map.size.x; ++x {
             previous := query_previous_map(map, .{ x, y }) - LIGHTMAP_FADE_PER_SECOND * dt;
             updated := previous;
-            updated += calculate_neighbor_effect(client, map, .{ x + 1, y }, previous, dt);
-            updated += calculate_neighbor_effect(client, map, .{ x - 1, y }, previous, dt);
-            updated += calculate_neighbor_effect(client, map, .{ x, y + 1 }, previous, dt);
-            updated += calculate_neighbor_effect(client, map, .{ x, y - 1 }, previous, dt);
+            updated += calculate_neighbor_effect(map, .{ x + 1, y }, previous, dt);
+            updated += calculate_neighbor_effect(map, .{ x - 1, y }, previous, dt);
+            updated += calculate_neighbor_effect(map, .{ x, y + 1 }, previous, dt);
+            updated += calculate_neighbor_effect(map, .{ x, y - 1 }, previous, dt);
             map.tiles[y * map.size.x + x] = clamp(updated, 0, 1);
         }
     }
@@ -77,6 +80,25 @@ query_lightmap_at_fractional :: (map: *Lightmap, position: v2f) -> f32 {
     return query_lightmap(map, tile);
 }
 
+maybe_add_blocker :: (map: *Lightmap, entity: *Entity) {
+    if entity.entity_flags & .Blocks_Los {
+        ++map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
+    }
+}
+
+maybe_remove_blocker :: (map: *Lightmap, entity: *Entity) {
+    if entity.entity_flags & .Blocks_Los {
+        --map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
+    }
+}
+
+maybe_move_blocker :: (map: *Lightmap, entity: *Entity, new_position: v2i) {
+    if entity.entity_flags & .Blocks_Los {
+        --map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
+        ++map.blockers[new_position.y * map.size.x + new_position.x];
+    }
+}
+
 
 
 #file_scope
@@ -90,12 +112,10 @@ query_previous_map :: (map: *Lightmap, tile: v2i) -> f32 {
     return map.intermediate[tile.y * map.size.x + tile.x];
 }
 
-calculate_neighbor_effect :: (client: *Client, map: *Lightmap, neighbor: v2i, previous: f32, dt: f32) -> f32 {
-    // @Speed: This is really, really bad
-    // @Speed: This is really, really bad
-    // @Speed: This is really, really bad
-    // @Speed: This is really, really bad
-    if find_entity_with_flags_at_position(client, .Blocks_Los, neighbor) {
+calculate_neighbor_effect :: (map: *Lightmap, neighbor: v2i, previous: f32, dt: f32) -> f32 {
+    if neighbor.x < 0 || neighbor.x >= map.size.x || neighbor.y < 0 || neighbor.y >= map.size.y return 0;
+
+    if map.blockers[neighbor.y * map.size.x + neighbor.x] > 0 {
         return 0;
     }
 
