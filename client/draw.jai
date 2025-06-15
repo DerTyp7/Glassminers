@@ -736,7 +736,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
             draw_progress_bar_world_space(client, local_player, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
         }
 
-        if guy.pid == local_player.guy_pid then draw_input_hint_for_guy(client, local_player, guy);
+        if guy.pid == local_player.guy_pid then draw_input_hints_for_guy(client, local_player, guy);
     }
 
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
@@ -937,7 +937,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     return index, flags;
 }
 
-draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
+draw_input_hints_for_guy :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
     if local_player.hud.was_open_this_frame return;
 
     target_entity := find_any_entity_at_position(client, guy.target_position);
@@ -977,7 +977,7 @@ draw_input_hint_for_guy :: (client: *Client, local_player: *Local_Player, guy: *
                 input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
             }
         }
-      case .Item_Stack;
+      case .Item_Stack, .Torch;
         if guy.state == .Idle {
             input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
             vertical_icon_offset = 0.25;
