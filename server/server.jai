@@ -649,7 +649,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         target_entity := find_any_entity_at_position(server, guy.target_position);
 
         if #complete guy.state == {
-          case .Dead, .Digging, .Resurrecting;
+          case .Dead, .Resurrecting;
+
+          case .Digging;
+            guy.state = .Idle; // Pressing primary again should stop the current again, in case that was a mistake
             
           case .Idle;
             if !target_entity break;

@@ -704,6 +704,7 @@ update_slime :: (server: *Server, slime: *Slime) {
             
           case .Fleeing;
             target_hole, distance_to_hole := find_nearest_entity_of_kind(server, .Slime_Hole, slime.physical_position);
+            if target_hole == null break;
             target_position = target_hole.physical_position;
 
             if distance_to_hole == 0 {
@@ -789,9 +790,10 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
 
     success := false;
 
-    collision := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);
+    collision    := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);
     stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
     chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
+    hole_entity  := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
     
     if chest_entity {
         chest := down(chest_entity, Chest);
@@ -808,7 +810,7 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
             
             success = true;
         }
-    } else if collision {
+    } else if collision || hole_entity {
         success = false;
     } else if stack_entity {
         stack := down(stack_entity, Item_Stack);
