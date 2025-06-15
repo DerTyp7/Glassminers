@@ -56,6 +56,53 @@ Remote_Player :: struct {
     name: string = "";
 }
 
+
+
+
+Input_Device :: enum {
+    Keyboard :: 0x1;
+    Gamepad  :: 0x2;
+    ALL :: .Keyboard | .Gamepad;
+}
+
+Input_Action :: enum {
+    Toggle_Pause_Menu;
+    Toggle_Fullscreen;
+
+    Move_North;
+    Move_East;
+    Move_South;
+    Move_West;
+    Look_North;
+    Look_East;
+    Look_South;
+    Look_West;
+
+    Interact_Primary;
+    Interact_Secondary;
+
+    Hud_Toggle;
+    Hud_Confirm;
+    Hud_Left;
+    Hud_Right;
+
+    Cheat_Menu_Toggle;
+}
+
+Input_Binding :: struct {
+    kind: enum {
+        Keyboard;
+        Gamepad_Button;
+        Gamepad_Gesture;
+    };
+
+    #using data: union {
+        keycode: Key_Code;
+        gamepad_button: Window_Gamepad_Button_Code;
+        gamepad_gesture: Window_Gamepad_Gesture_Code;
+    };
+}
+
 Local_Player :: struct {
     name := "";
     guy_pid: Pid = INVALID_PID;
@@ -65,6 +112,7 @@ Local_Player :: struct {
     active_input_device:   Input_Device = 0;
     allowed_input_devices: Input_Device = 0;
     gamepad_index := 0;
+    input_bindings_fired_this_frame: [..]Input_Binding; // We don't want the same input binding to fire two separate actions, e.g. rotating a mirror and opening the crafting menu in the same frame
 }
 
 Test_Input :: struct {
@@ -201,52 +249,6 @@ set_temp_info_text :: (client: *Client, format: string, args: ..Any) {
     client.info_text_t = 0;
 }
 
-
-
-Input_Device :: enum {
-    Keyboard :: 0x1;
-    Gamepad  :: 0x2;
-    ALL :: .Keyboard | .Gamepad;
-}
-
-Input_Action :: enum {
-    Toggle_Pause_Menu;
-    Toggle_Fullscreen;
-
-    Move_North;
-    Move_East;
-    Move_South;
-    Move_West;
-    Look_North;
-    Look_East;
-    Look_South;
-    Look_West;
-
-    Interact_Primary;
-    Interact_Secondary;
-
-    Hud_Toggle;
-    Hud_Confirm;
-    Hud_Left;
-    Hud_Right;
-
-    Cheat_Menu_Toggle;
-}
-
-Input_Binding :: struct {
-    kind: enum {
-        Keyboard;
-        Gamepad_Button;
-        Gamepad_Gesture;
-    };
-
-    #using data: union {
-        keycode: Key_Code;
-        gamepad_button: Window_Gamepad_Button_Code;
-        gamepad_gesture: Window_Gamepad_Gesture_Code;
-    };
-}
-
 register_all_input_bindings :: (client: *Client) {
     keycode :: (keycode: Key_Code) -> Input_Binding {
         binding: Input_Binding = ---;
@@ -301,30 +303,53 @@ register_all_input_bindings :: (client: *Client) {
 }
     
 input_action_fired_for_local_player :: (client: *Client, local_player: *Local_Player, action: Input_Action) -> bool {
+    register_fired_input_binding :: (local_player: *Local_Player, binding: Input_Binding) {
+        array_add(*local_player.input_bindings_fired_this_frame, binding);
+    }
+
+    input_binding_already_used :: (local_player: *Local_Player, binding: Input_Binding) -> bool {
+        for i := 0; i < local_player.input_bindings_fired_this_frame.count; ++i {
+            fired := array_get(*local_player.input_bindings_fired_this_frame, i);
+            if fired.kind != binding.kind continue;
+
+            if #complete fired.kind == {
+              case .Keyboard; if fired.keycode == binding.keycode return true;
+              case .Gamepad_Button; if fired.gamepad_button == binding.gamepad_button return true;
+              case .Gamepad_Gesture; if fired.gamepad_gesture == binding.gamepad_gesture return true;
+            }
+        }
+
+        return false;
+    }
+    
     for i := 0; i < client.input_bindings[action].count; ++i {
         binding := client.input_bindings[action][i];
+        if input_binding_already_used(local_player, binding) continue;
         
         if #complete binding.kind == {
           case .Keyboard;
             if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Keyboard) break;
-            if client.window.keys[binding.keycode] & .Pressed {
-                local_player.active_input_device = .Keyboard;
-                return true;
-            }
+            if !(client.window.keys[binding.keycode] & .Pressed) break;
+                
+            register_fired_input_binding(local_player, binding);
+            local_player.active_input_device = .Keyboard;
+            return true;
             
           case .Gamepad_Button;
             if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
-            if client.window.connected_gamepads > local_player.gamepad_index && client.window.gamepads[local_player.gamepad_index].buttons[binding.gamepad_button] & .Pressed {
-                local_player.active_input_device = .Gamepad;
-                return true;
-            }
+            if local_player.gamepad_index >= client.window.connected_gamepads || !(client.window.gamepads[local_player.gamepad_index].buttons[binding.gamepad_button] & .Pressed) break;
+            
+            register_fired_input_binding(local_player, binding);
+            local_player.active_input_device = .Gamepad;
+            return true;
 
           case .Gamepad_Gesture;
             if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
-            if client.window.connected_gamepads > local_player.gamepad_index && client.window.gamepads[local_player.gamepad_index].gestures[binding.gamepad_gesture] {
-                local_player.active_input_device = .Gamepad;
-                return true;
-            }
+            if local_player.gamepad_index >= client.window.connected_gamepads || !(client.window.gamepads[local_player.gamepad_index].gestures[binding.gamepad_gesture]) break;
+
+            register_fired_input_binding(local_player, binding);
+            local_player.active_input_device = .Gamepad;
+            return true;
         }
     }
 
@@ -1206,6 +1231,11 @@ do_game_tick :: (client: *Client) {
     handle_server_timeout(client, .Game_Over, "");
 
     client.sounds_played_this_frame = .[ false ];
+
+    for i := 0; i < client.local_player_count; ++i {
+        array_clear_without_deallocation(*client.local_players[i].input_bindings_fired_this_frame);
+        client.local_players[i].input_bindings_fired_this_frame.allocator = *temp;
+    }
     
     //
     // Update all local entities based on the information received by the server.
@@ -1323,23 +1353,16 @@ do_game_tick :: (client: *Client) {
     for i := 0; i < client.local_player_count; ++i {
         local_player := *client.local_players[i];
         
-        // Update the camera
-        {
-            guy := get_entity(client, local_player.guy_pid);
-            update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
-        }
-
-        // Update the hud
-        {
-            update_hud(client, local_player);
-        }
+        guy := get_entity(client, local_player.guy_pid);
+        update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
+        update_hud(client, local_player);
 
         // Forward guy input to the server
         {
             guy_entity := get_entity(client, local_player.guy_pid);
             guy := down(guy_entity, Guy);
 
-            read_any_input := local_player.hud.was_input_this_frame;
+            read_any_input := local_player.hud.was_confirmed_this_frame;
             
             input: Guy_Input_Message = ---;
             input.guy_pid          = local_player.guy_pid;
@@ -1347,9 +1370,9 @@ do_game_tick :: (client: *Client) {
             input.wants_to_move    = false;
             input.aim_direction    = guy.physical_rotation;
             input.interaction_kind = .Count;
-            input.crafting_recipe  = local_player.hud.crafting_recipe_input_this_frame;
-            input.cheat            = local_player.hud.cheat_input_this_frame;
-            input.chest_item       = local_player.hud.chest_item_input_this_frame;
+            input.crafting_recipe  = local_player.hud.crafting_recipe_confirmed_this_frame;
+            input.cheat            = local_player.hud.cheat_confirmed_this_frame;
+            input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
 
             if !local_player.hud.was_open_this_frame {
                 if input_action_fired_for_local_player(client, local_player, .Move_North) {
