@@ -982,6 +982,15 @@ draw_input_hints_for_guy :: (client: *Client, local_player: *Local_Player, guy: 
             input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
             vertical_icon_offset = 0.25;
         }
+      case .Chest;
+        chest := down(target_entity, Chest);
+        if guy.state == .Idle || guy.state == .Carrying {
+            if chest.item_count {
+                input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary), get_sprite_index_for_input_action(client, local_player, .Interact_Secondary) ];
+            } else {
+                input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
+            }
+        }
     }
 
     for i := 0; i < input_sprites.count; ++i {

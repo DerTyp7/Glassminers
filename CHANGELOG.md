@@ -8,7 +8,7 @@ The world is now lit up (or rather darkended out) in areas where no light reache
 - Added particle effects to torches
 - Fixed not being able to craft torches when the target tile is not empty
 - Fixed one input bindings sometimes causing multiple actions in the same frame
-- Fixed missing input hints for interacting with torches
+- Fixed missing input hints for interacting with torches and chests
 
 ## 0.2.1 (14.06.2025)
 
