@@ -507,7 +507,7 @@ maybe_play_animation_from_group_after :: (client: *Client, entity: *Entity, new_
 find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -516,7 +516,7 @@ find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
 find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -525,7 +525,7 @@ find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position
 find_entity_with_flags_at_position :: (client: *Client, flags: Entity_Flags, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -832,7 +832,7 @@ recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction
             reflected_direction, reflection_success := reflect_direction(direction, blocking.physical_rotation);
             if reflection_success {
                 array_add(*beam.fields, Beam_Data.Field.{ position, direction });
-                direction = reflected_direction;;
+                direction = reflected_direction;
             } else {
                 break;
             }

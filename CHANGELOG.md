@@ -11,6 +11,8 @@ The world is now lit up (or rather darkended out) in areas where no light reache
 - Fixed one input bindings sometimes causing multiple actions in the same frame
 - Fixed missing input hints for interacting with torches and chests
 - Fixed being able to throw away items into slime holes
+- Fixed only one slime fitting into a slime hole
+- Fixed filled slime holes blocking guy movement
 
 ## 0.2.1 (14.06.2025)
 

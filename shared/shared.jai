@@ -163,7 +163,7 @@ Entity_Flags :: enum bitfield {
     Blocks_Beam;
     Blocks_Los;
     Disable_Visual_Rotation;
-    Invisible;
+    Disabled_Temporarily;
     Auto_Heal;
     Emissive;
 }

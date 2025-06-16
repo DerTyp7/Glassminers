@@ -336,7 +336,7 @@ find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.physical_position.x == position.x && entity.physical_position.y == position.y && (!found_entity || ENTITY_VISUAL_DEPTHS[entity.entity_kind] > ENTITY_VISUAL_DEPTHS[found_entity.entity_kind]) {
+        if occupied && !entity.marked_for_removal && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y && (!found_entity || ENTITY_VISUAL_DEPTHS[entity.entity_kind] > ENTITY_VISUAL_DEPTHS[found_entity.entity_kind]) {
             found_entity = entity;
         }
     }
@@ -347,7 +347,7 @@ find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
 find_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -356,7 +356,7 @@ find_entity_of_kind_at_position :: (server: *Server, kind: Entity_Kind, position
 find_entity_with_flags_at_position :: (server: *Server, flags: Entity_Flags, position: v2i) -> *Entity {
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
     }
     
     return null;
@@ -368,7 +368,7 @@ find_nearest_entity_of_kind :: (server: *Server, kind: Entity_Kind, position: v2
 
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if !occupied || entity.entity_kind != kind continue;
+        if !occupied || entity.entity_kind != kind || (entity.entity_flags & .Disabled_Temporarily) continue;
 
         distance := abs(position.x - entity.physical_position.x) + abs(position.y - entity.physical_position.y);
         if distance < nearest_distance {
@@ -654,7 +654,8 @@ update_slime :: (server: *Server, slime: *Slime) {
         slime.state = new_state;
 
         if slime.state == {
-          case .Hiding; slime.time_in_hiding = 0;
+          case .Hiding; slime.time_in_hiding = 0; bitfield_add(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
+          case; bitfield_remove(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
         }
         
         msg := make_message(Slime_State_Message);
@@ -899,7 +900,7 @@ recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i, stre
 
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
-        if !occupied || entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
+        if !occupied || entity.physical_position.x != position.x || entity.physical_position.y != position.y || (entity.entity_flags & .Disabled_Temporarily) continue;
 
         if entity.entity_flags & .Pushable {
             pushable_entity = entity;

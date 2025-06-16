@@ -749,8 +749,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
         }
 
-        if slime.state == .Hiding bitfield_add(*slime.entity_flags, Entity_Flags.Invisible);
-        else bitfield_remove(*slime.entity_flags, Entity_Flags.Invisible);
+        if slime.state == {
+          case .Hiding; bitfield_add(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
+          case; bitfield_remove(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
+        }
     }
 }
 
