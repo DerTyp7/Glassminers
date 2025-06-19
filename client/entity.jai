@@ -453,6 +453,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
         if entity.entity_kind == {
           case .Guy; sound_index = pick_random_sound(.[ .Concrete_Footsteps_0, .Concrete_Footsteps_1 ]);
           case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
+          case .Slime; sound_index = .Slime_Walk_0;
         }
 
         if sound_index != .Count {

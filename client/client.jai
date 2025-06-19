@@ -564,6 +564,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         if entity.entity_kind == {
           case .Frog; play_sound_once_per_frame(client, .Frog_Death_0);
           case .Goblin; play_sound_once_per_frame(client, .Goblin_Death_0);
+          case .Slime; play_sound_once_per_frame(client, .Slime_Death_0);
         }
 
         maybe_remove_blocker(*client.lightmap, entity);
@@ -597,8 +598,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         sound_index: Sound_Index = .Count;
         
         if entity.entity_kind == {
-          case .Frog; sound_index = .Frog_Hurt_0;
+          case .Frog;   sound_index = .Frog_Hurt_0;
           case .Goblin; sound_index = .Goblin_Hurt_0;
+          case .Slime;  sound_index = .Slime_Hurt_0;
         }
 
         dropped_heart := floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART);
@@ -742,16 +744,24 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Slime_State;
         entity := get_entity(client, msg.slime_state.entity_pid);
         slime := down(entity, Slime);
-        slime.state = msg.slime_state.state;
 
+        if slime.state != msg.slime_state.state {
+            if msg.slime_state.state == .Fleeing {
+                play_sound_once_per_frame(client, .Slime_Scared_0);
+            }
+        }
+        
+        if msg.slime_state.state == {
+          case .Hiding; bitfield_add(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
+          case; bitfield_remove(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
+        }
+
+        slime.state = msg.slime_state.state;
+        
+        slime.state = msg.slime_state.state;
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
-        }
-
-        if slime.state == {
-          case .Hiding; bitfield_add(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
-          case; bitfield_remove(*slime.entity_flags, Entity_Flags.Disabled_Temporarily);
         }
     }
 }

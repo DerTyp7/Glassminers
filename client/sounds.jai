@@ -17,6 +17,10 @@ Sound_Index :: enum {
     Goblin_Attack_0;
     Goblin_Hurt_0;
     Goblin_Death_0;
+    Slime_Hurt_0;
+    Slime_Death_0;
+    Slime_Scared_0;
+    Slime_Walk_0;
 }
 
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
@@ -25,8 +29,8 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "crafting-0.wav",
     "failure-0.wav",
     "pickaxe-0.wav",
-    "concrete-footsteps-0.wav",
-    "concrete-footsteps-1.wav",
+    "guy-walk-0.wav",
+    "guy-walk-1.wav",
     "rock-sliding-0.wav",
     "guy-death-0.wav",
     "frog-attack-0.wav",
@@ -35,6 +39,10 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "goblin-attack-0.wav",
     "goblin-hurt-0.wav",
     "goblin-death-0.wav",
+    "slime-hurt-0.wav",
+    "slime-death-0.wav",
+    "slime-scared-0.wav",
+    "slime-walk-0.wav",
 ];
 
 create_sound_data :: (client: *Client) -> bool {
