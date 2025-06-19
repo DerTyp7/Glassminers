@@ -562,9 +562,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         // Play death sounds
         if entity.entity_kind == {
-          case .Frog; play_sound_once_per_frame(client, .Frog_Death_0);
-          case .Goblin; play_sound_once_per_frame(client, .Goblin_Death_0);
-          case .Slime; play_sound_once_per_frame(client, .Slime_Death_0);
+          case .Frog;   play_sound_on_entity(client, .Frog_Death_0,   entity, .Once_Per_Frame);
+          case .Goblin; play_sound_on_entity(client, .Goblin_Death_0, entity, .Once_Per_Frame);
+          case .Slime;  play_sound_on_entity(client, .Slime_Death_0,  entity, .Once_Per_Frame);
         }
 
         maybe_remove_blocker(*client.lightmap, entity);
@@ -607,7 +607,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         gained_heart  := floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART);
         
         if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound_pid) {
-            entity.sound_pid      = play_sound_once_per_frame(client, sound_index);
+            entity.sound_pid      = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
             entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
         }
 
@@ -654,13 +654,13 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             stop_sound(client, *guy.sound_pid);
 
             if #complete msg.guy_state.state == {
-              case .Digging;      guy.sound_pid = play_sound(client, .Pickaxe_0, true);
-              case .Carrying;     guy.sound_pid = play_sound(client, .Pickup_0, false);
+              case .Digging;      guy.sound_pid = play_sound_on_entity(client, .Pickaxe_0, entity, .Looping);
+              case .Carrying;     guy.sound_pid = play_sound_on_entity(client, .Pickup_0, entity, .Default);
               case .Resurrecting; guy.resurrection_t = 0;
               case .Dead;
-                guy.sound_pid = play_sound(client, .Guy_Death_0, false);
+                guy.sound_pid = play_sound_on_entity(client, .Guy_Death_0, entity, .Default);
                 play_animation_from_group(client, guy, .Guy_Dead);
-              case .Idle; if guy.state == .Carrying guy.sound_pid = play_sound(client, .Placedown_0, false);
+              case .Idle; if guy.state == .Carrying guy.sound_pid = play_sound_on_entity(client, .Placedown_0, entity, .Default);
             }
         }
 
@@ -702,7 +702,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Idle; play_animation_from_group(client, frog, .Frog_Idle);
               case .Recovering; play_animation_from_group(client, frog, .Frog_Recovering);
               case .Attacking;
-                frog.sound_pid = play_sound_once_per_frame(client, .Frog_Attack_0);
+                frog.sound_pid = play_sound_on_entity(client, .Frog_Attack_0, entity, .Once_Per_Frame);
                 play_animation_from_group(client, frog, .Frog_Attacking);
 
                 particles := create_particle_system(client, FROG_ATTACK_TIME, frog.visual_position, 1);
@@ -734,7 +734,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Idle; play_animation_from_group(client, goblin, .Goblin_Idle);
               case .Recovering; play_animation_from_group(client, goblin, .Goblin_Recovering);
               case .Attacking;
-                goblin.sound_pid = play_sound_once_per_frame(client, .Goblin_Attack_0);
+                goblin.sound_pid = play_sound_on_entity(client, .Goblin_Attack_0, entity, .Once_Per_Frame);
                 play_animation_from_group(client, goblin, .Goblin_Attacking);
             }
         }
@@ -747,7 +747,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         if slime.state != msg.slime_state.state {
             if msg.slime_state.state == .Fleeing {
-                play_sound_once_per_frame(client, .Slime_Scared_0);
+                play_sound_on_entity(client, .Slime_Scared_0, entity, .Once_Per_Frame);
             }
         }
         
@@ -1242,8 +1242,6 @@ do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
 
-    client.sounds_played_this_frame = .[ false ];
-
     for i := 0; i < client.local_player_count; ++i {
         array_clear_without_deallocation(*client.local_players[i].input_bindings_fired_this_frame);
         client.local_players[i].input_bindings_fired_this_frame.allocator = *temp;
@@ -1506,7 +1504,7 @@ main :: (args: []string) -> s32 {
     switch_to_next_state(*client);
 
 #if DEVELOPER {
-    client.mixer.volumes[.Master] = 0.0;
+    client.mixer.volumes[.Master] = 1.0; // nocheckin
     client.requested_campaign = .Developer;
 }
     
@@ -1657,7 +1655,13 @@ main :: (args: []string) -> s32 {
         // Render one audio frame
         //
         {
+            if client.current_state == .Ingame {
+                update_sound_listener(*client, client.local_players[0].guy_pid);
+            }
+
             update_mixer(*client.mixer);
+
+            client.sounds_played_this_frame = .[ false ];
         }
         
         release_temp_allocator(0);

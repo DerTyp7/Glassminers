@@ -1,6 +1,15 @@
 Sound_Pid :: u64;
 INVALID_SOUND_PID: Sound_Pid = 0;
 
+SOUNDS_INNER_RADIUS: f32 : 3;
+SOUNDS_OUTER_RADIUS: f32 : 18;
+
+Play_Sound_Flags :: enum bitfield {
+    Default;
+    Looping;
+    Once_Per_Frame;
+}
+
 Sound_Index :: enum {
     Pickup_0;
     Placedown_0;
@@ -82,7 +91,9 @@ stop_all_sounds :: (client: *Client) {
     }
 }
 
-play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Sound_Pid {
+play_sound :: (client: *Client, sound_index: Sound_Index, flags: Play_Sound_Flags) -> Sound_Pid {
+    if flags & .Once_Per_Frame && client.sounds_played_this_frame[sound_index] return INVALID_SOUND_PID;
+
     sound := *client.sounds[sound_index];
     
     stream := get_unused_sound_stream(*client.mixer.player);
@@ -91,15 +102,29 @@ play_sound :: (client: *Client, sound_index: Sound_Index, looping: bool) -> Soun
         return INVALID_SOUND_PID;
     }
 
-    play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], looping);
+    play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], flags & .Looping);
     client.sounds_played_this_frame[sound_index] = true;
-    
+
     return (stream.play_counter << 48) | (stream & 0xffffffffffff);
 }
 
-play_sound_once_per_frame :: (client: *Client, sound_index: Sound_Index) -> Sound_Pid {
-    if client.sounds_played_this_frame[sound_index] return INVALID_SOUND_PID;
-    return play_sound(client, sound_index, false);
+play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Entity, flags: Play_Sound_Flags) -> Sound_Pid {
+    sound_pid := play_sound(client, sound_index, flags);
+    stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
+    spatialize_sound_stream(stream, entity.visual_position.x, entity.visual_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+    return sound_pid;
+}
+
+update_sound_listener :: (client: *Client, listener_entity_pid: Pid) {
+    entity := get_entity(client, listener_entity_pid);
+
+    forward :: [3]f32.[ 0, 1, 0 ];
+    up :: [3]f32.[ 0, 0, 1 ];
+    right :: [3]f32.[ 1, 0, 0 ];
+    set_sound_listener(*client.mixer, entity.visual_position.x, entity.visual_position.y, 0,
+                       forward[0], forward[1], forward[2],
+                       up[0], up[1], up[2],
+                       right[0], right[1], right[2]);
 }
 
 stop_sound :: (client: *Client, sound_pid_pointer: *Sound_Pid) {
