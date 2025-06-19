@@ -604,7 +604,7 @@ try_to_fulfill_recipe :: (server: *Server, guy: *Guy, recipe: Crafting_Recipe) -
     if CRAFTING_RECIPE_ENABLER[recipe] != .Count && !find_entity_of_kind_at_position(server, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) return false;
 
     // Check the target position is empty when required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(server, .Blocks_Move, guy.target_position) return false;
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(server, .Blocks_Crafting, guy.target_position) return false;
     
     // Check the guy has enough resources
     available_resources := get_available_resources_for_guy(server, guy);

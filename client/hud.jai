@@ -346,7 +346,7 @@ crafting_recipe_looks_doable :: (client: *Client, guy: *Guy, recipe: Crafting_Re
 
 crafting_recipe_is_enabled :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool {
     // Check that the target position is actually empty, if required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Move, guy.target_position) return false;
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Crafting, guy.target_position) return false;
 
     if CRAFTING_RECIPE_ENABLER[recipe] != .Count {
         // Check that the required enabler is present

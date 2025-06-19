@@ -162,6 +162,7 @@ Entity_Flags :: enum bitfield {
     Blocks_Move;
     Blocks_Beam;
     Blocks_Los;
+    Blocks_Crafting;
     Disable_Visual_Rotation;
     Disabled_Temporarily;
     Auto_Heal;
@@ -170,30 +171,30 @@ Entity_Flags :: enum bitfield {
 
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
-    .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Emitter
-    .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Receiver
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Auto_Heal, // Mirror
+    .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Emitter
+    .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Receiver
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting | .Auto_Heal, // Mirror
 
     // Environment
-    .Blocks_Move | .Emissive, // Lava
-    .Blocks_Move | .Diggable | .Blocks_Beam | .Blocks_Los, // Bedrock
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Rock
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Coal
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los, // Crystal
-    0, // Slime Hole
+    .Blocks_Move | .Blocks_Crafting | .Emissive, // Lava
+    .Blocks_Move | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Los, // Bedrock
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Rock
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Coal
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Crystal
+    .Blocks_Crafting, // Slime Hole
     
     // Creations
     0, // Item Stack
     0, // Slab
-    0, // Torch
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Auto_Heal, // Chest
+    .Blocks_Crafting, // Torch
+    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Crafting | .Auto_Heal, // Chest
     
     // Beings
-    .Living | .Pushable | .Blocks_Move | .Disable_Visual_Rotation, // Guy
-    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Frog
-    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Goblin
-    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Slime
-    .Living | .Blocks_Move | .Disable_Visual_Rotation, // Trader
+    .Living | .Pushable | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
+    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
+    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
+    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
+    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
 ];
 
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[

@@ -2,17 +2,19 @@
 
 The world is now lit up (or rather darkended out) in areas where no light reaches. Light can come from beams and torches. This has a big effect on gameplay, as you can no longer see large parts of the world.
 
-- Started implementing animations when creatures are being damaged
-- Pressing the primary interaction again now cancels the digging
+- Implemented an animation when a goblin is hurt
+- Implemented canceling the current digging by primary-interacting again
 - Slightly changed the layout of the tutorial level
 - Added cheats to spawn monsters, traders, as well as shard and stone items, and to make the player invincible
 - Added particle effects to torches
+- Added sound effects to the slime entity
 - Fixed not being able to craft torches when the target tile is not empty
 - Fixed one input bindings sometimes causing multiple actions in the same frame
 - Fixed missing input hints for interacting with torches and chests
 - Fixed being able to throw away items into slime holes
 - Fixed only one slime fitting into a slime hole
 - Fixed filled slime holes blocking guy movement
+- Fixed being able to craft onto slime holes
 
 ## 0.2.1 (14.06.2025)
 
@@ -21,7 +23,7 @@ The world is now lit up (or rather darkended out) in areas where no light reache
 - Implemented a chest entity into which up to 8 items can be put, to be safe from the slime.
 - Made the direction from source to result clearer in the crafting menu
 - Man-Made creations will now automatically restore health while not actively being destroyed, so that accidentally destroying them is less likely
-- Prevented stuff to spawn directly in front of the emitter
+- Fixed stuff spawning directly in front of the emitter
 - Fixed the viewport calculation when the width is smaller than the height
 - Fixed the visual position interpolation when experiencing frame drops
 - Fixed the size of the crafting menu hud being way too large when playing on small-width viewports
