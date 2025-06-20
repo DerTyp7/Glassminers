@@ -612,10 +612,13 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
 
         // Play a potential damage animation
-        if entity.entity_kind == {
-          case .Goblin; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Damaged);
+        if msg.entity_health.new_health < entity.health {
+            if entity.entity_kind == {
+              case .Guy; maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Damaged);
+              case .Goblin; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Damaged);
+            }
         }
-        
+            
         // Play damage particles & health bar animation
         if entity.entity_flags & .Living && dropped_heart {
             system := create_particle_system(client, 1.0, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1);

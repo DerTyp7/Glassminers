@@ -8,10 +8,13 @@ Animation_Index :: enum {
     Guy_Walk_Back;
     Guy_Walk_Front;
     Guy_Walk_Side;
+    Guy_Damaged_Front;
+    Guy_Damaged_Back;
+    Guy_Damaged_Side;
     Guy_Dead_Back;
     Guy_Dead_Front;
     Guy_Dead_Side;
-
+    
     // Frog Animations
     Frog_Idle_Back;
     Frog_Idle_Front;
@@ -79,6 +82,7 @@ Animation :: struct {
 Animation_Group_Index :: enum {
     Guy_Idle;
     Guy_Walk;
+    Guy_Damaged;
     Guy_Dead;
 
     Frog_Idle;
@@ -97,7 +101,7 @@ Animation_Group_Index :: enum {
 }
 
 Animation_Group :: struct {
-    for_direction: [Direction.Count]Animation_Index;
+    for_direction: [Direction.Count]Animation_Index = .[ .Count ];
 
 #if DEVELOPER {
     encountered_in_file := false;
