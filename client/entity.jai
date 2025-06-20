@@ -402,7 +402,7 @@ down :: (entity: *Entity, $T: Type) -> *T {
     return cast(*T) entity.derived;
 }
 
-interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disable_visual_rotation: bool) {
+interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
     //
     // Interpolate the entity's visual transform
     //
@@ -419,7 +419,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity, disabl
 
     entity.visual_size = visual_size_for_entity(entity);
     
-    if disable_visual_rotation {
+    if entity.entity_flags & .Disable_Visual_Rotation {
         // This is a hack, but for certain entities (e.g. guys) we have sprites for the all
         // the different physical rotations (because these are from different "perspectives").
         // For those sprites, we don't actually want to rotate them visually, because the sprites

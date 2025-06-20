@@ -761,7 +761,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         slime.state = msg.slime_state.state;
         
-        slime.state = msg.slime_state.state;
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
@@ -1307,7 +1306,7 @@ do_game_tick :: (client: *Client) {
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied {
-                interpolate_visuals_and_play_sounds(client, entity, entity.entity_flags & .Disable_Visual_Rotation);
+                interpolate_visuals_and_play_sounds(client, entity);
 
                 if entity.entity_kind == .Torch {
                 } else if entity.entity_kind == .Lava {

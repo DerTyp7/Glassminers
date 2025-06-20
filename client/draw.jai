@@ -628,7 +628,9 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied && !bitfield_contains(*entity.entity_flags, Entity_Flags.Disabled_Temporarily) && visibility_check_entity(local_player, entity) then array_add(*entities_to_draw, entity);
+            if occupied && !bitfield_contains(*entity.entity_flags, Entity_Flags.Disabled_Temporarily) && visibility_check_entity(local_player, entity) {
+                array_add(*entities_to_draw, entity);
+            }
         }
         
         quick_sort([]*Entity.{ entities_to_draw.count, entities_to_draw.data }, compare_entities_by_depth);

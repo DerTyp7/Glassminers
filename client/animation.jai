@@ -1,4 +1,4 @@
-MAX_ANIMATION_FRAMES :: 8;
+MAX_ANIMATION_FRAMES :: 12;
 
 Animation_Index :: enum {
     // Guy Animations
