@@ -88,6 +88,16 @@ Guy_Walk_Side_0   sprites/guy/guy-walk-side-0.png
 Guy_Walk_Side_1   sprites/guy/guy-walk-side-1.png
 Guy_Walk_Side_2   sprites/guy/guy-walk-side-2.png
 
+Guy_Damaged_Back_0    sprites/guy/guy-damaged-back-0.png
+Guy_Damaged_Back_1    sprites/guy/guy-damaged-back-1.png
+Guy_Damaged_Back_2    sprites/guy/guy-damaged-back-2.png
+Guy_Damaged_Front_0   sprites/guy/guy-damaged-front-0.png
+Guy_Damaged_Front_1   sprites/guy/guy-damaged-front-1.png
+Guy_Damaged_Front_2   sprites/guy/guy-damaged-front-2.png
+Guy_Damaged_Side_0    sprites/guy/guy-damaged-side-0.png
+Guy_Damaged_Side_1    sprites/guy/guy-damaged-side-1.png
+Guy_Damaged_Side_2    sprites/guy/guy-damaged-side-2.png
+
 Guy_Dead_Back     sprites/guy/guy-dead-back.png
 Guy_Dead_Front    sprites/guy/guy-dead-front.png
 Guy_Dead_Side     sprites/guy/guy-dead-side.png

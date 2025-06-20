@@ -77,6 +77,16 @@ Sprite_Index :: enum {
     Guy_Walk_Side_1;
     Guy_Walk_Side_2;
 
+    Guy_Damaged_Back_0;
+    Guy_Damaged_Back_1;
+    Guy_Damaged_Back_2;
+    Guy_Damaged_Front_0;
+    Guy_Damaged_Front_1;
+    Guy_Damaged_Front_2;
+    Guy_Damaged_Side_0;
+    Guy_Damaged_Side_1;
+    Guy_Damaged_Side_2;
+    
     Guy_Dead_Back;
     Guy_Dead_Front;
     Guy_Dead_Side;

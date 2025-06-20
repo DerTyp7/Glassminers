@@ -31,6 +31,22 @@ Guy_Walk_Side_1
 Guy_Walk_Side_2
 
 
+:Guy_Damaged_Back 0.15
+Guy_Damaged_Back_0
+Guy_Damaged_Back_1
+Guy_Damaged_Back_2
+
+:Guy_Damaged_Front 0.15
+Guy_Damaged_Front_0
+Guy_Damaged_Front_1
+Guy_Damaged_Front_2
+
+:Guy_Damaged_Side 0.15
+Guy_Damaged_Side_0
+Guy_Damaged_Side_1
+Guy_Damaged_Side_2
+
+
 :Guy_Dead_Back 0 loop
 Guy_Dead_Back
 
@@ -52,6 +68,12 @@ North Guy_Walk_Back
 South Guy_Walk_Front
 West  Guy_Walk_Side
 East  Guy_Walk_Side
+
+@Guy_Damaged
+North Guy_Damaged_Back
+South Guy_Damaged_Front
+West  Guy_Damaged_Side
+East  Guy_Damaged_Side
 
 @Guy_Dead
 North Guy_Dead_Back
