@@ -41,7 +41,7 @@ Guy_Damaged_Front_0
 Guy_Damaged_Front_1
 Guy_Damaged_Front_2
 
-:Guy_Damaged_Side 0.15
+:Guy_Damaged_Side 0.15 flip
 Guy_Damaged_Side_0
 Guy_Damaged_Side_1
 Guy_Damaged_Side_2
