@@ -110,8 +110,12 @@ play_sound :: (client: *Client, sound_index: Sound_Index, flags: Play_Sound_Flag
 
 play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Entity, flags: Play_Sound_Flags) -> Sound_Pid {
     sound_pid := play_sound(client, sound_index, flags);
-    stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
-    spatialize_sound_stream(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+
+    if sound_pid != INVALID_SOUND_PID {
+        stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
+        spatialize_sound_stream(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+    }
+        
     return sound_pid;
 }
 
