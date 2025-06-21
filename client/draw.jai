@@ -122,6 +122,16 @@ Sprite_Index :: enum {
     Frog_Recovering_Side_0;
     Frog_Recovering_Side_1;
 
+    Frog_Damaged_Back_0;
+    Frog_Damaged_Back_1;
+    Frog_Damaged_Back_2;
+    Frog_Damaged_Front_0;
+    Frog_Damaged_Front_1;
+    Frog_Damaged_Front_2;
+    Frog_Damaged_Side_0;
+    Frog_Damaged_Side_1;
+    Frog_Damaged_Side_2;
+    
     // Goblin
     Goblin_Idle_Back_0;
     Goblin_Idle_Back_1;

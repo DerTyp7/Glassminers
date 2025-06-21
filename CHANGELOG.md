@@ -2,7 +2,7 @@
 
 The world is now lit up (or rather darkended out) in areas where no light reaches. Light can come from beams and torches. This has a big effect on gameplay, as you can no longer see large parts of the world.
 
-- Implemented animations when a goblin or a guy is hurt
+- Implemented animations when a goblin, guy, frog is hurt
 - Implemented canceling the current digging by primary-interacting again
 - Slightly changed the layout of the tutorial level
 - Added cheats to spawn monsters, traders, as well as shard and stone items, and to make the player invincible

@@ -25,7 +25,10 @@ Animation_Index :: enum {
     Frog_Recovering_Back;
     Frog_Recovering_Front;
     Frog_Recovering_Side;
-
+    Frog_Damaged_Back;
+    Frog_Damaged_Front;
+    Frog_Damaged_Side;
+    
     // Goblin Animations
     Goblin_Idle_Back;
     Goblin_Idle_Front;
@@ -88,7 +91,8 @@ Animation_Group_Index :: enum {
     Frog_Idle;
     Frog_Attacking;
     Frog_Recovering;
-
+    Frog_Damaged;
+    
     Goblin_Idle;
     Goblin_Attacking;
     Goblin_Recovering;

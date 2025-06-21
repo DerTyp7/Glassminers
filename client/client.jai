@@ -616,6 +616,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             if entity.entity_kind == {
               case .Guy; maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Damaged);
               case .Goblin; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Damaged);
+              case .Frog; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Frog_Damaged);
             }
         }
             
@@ -1506,7 +1507,7 @@ main :: (args: []string) -> s32 {
     switch_to_next_state(*client);
 
 #if DEVELOPER {
-    client.mixer.volumes[.Master] = 1.0; // nocheckin
+    client.mixer.volumes[.Master] = 0.0;
     client.requested_campaign = .Developer;
 }
     

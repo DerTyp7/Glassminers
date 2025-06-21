@@ -134,6 +134,22 @@ Frog_Recovering_Side_0
 Frog_Recovering_Side_1
 
 
+:Frog_Damaged_Back 0.07
+Frog_Damaged_Back_0
+Frog_Damaged_Back_1
+Frog_Damaged_Back_2
+
+:Frog_Damaged_Front 0.07
+Frog_Damaged_Front_0
+Frog_Damaged_Front_1
+Frog_Damaged_Front_2
+
+:Frog_Damaged_Side 0.07 flip
+Frog_Damaged_Side_0
+Frog_Damaged_Side_1
+Frog_Damaged_Side_2
+
+
 @Frog_Idle
 North Frog_Idle_Back
 South Frog_Idle_Front
@@ -151,6 +167,12 @@ North Frog_Recovering_Back
 South Frog_Recovering_Front
 East  Frog_Recovering_Side
 West  Frog_Recovering_Side
+
+@Frog_Damaged
+North Frog_Damaged_Back
+South Frog_Damaged_Front
+East  Frog_Damaged_Side
+West  Frog_Damaged_Side
 
 
 #
