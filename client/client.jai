@@ -1665,10 +1665,7 @@ main :: (args: []string) -> s32 {
         // Render one audio frame
         //
         {
-            if client.current_state == .Ingame {
-                update_sound_players(*client, client.local_players[0].guy_pid);
-            }
-
+            update_sound_players(*client);
             update_mixer(*client.mixer);
 
             client.sounds_played_this_frame = .[ false ];

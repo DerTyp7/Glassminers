@@ -119,19 +119,25 @@ play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Ent
     return sound_pid;
 }
 
-update_sound_players :: (client: *Client, listener_entity_pid: Pid) {
-    entity := get_entity(client, listener_entity_pid);
-
+update_sound_players :: (client: *Client) {
     forward :: [3]f32.[ 0, 1, 0 ];
     up :: [3]f32.[ 0, 0, 1 ];
     right :: [3]f32.[ 1, 0, 0 ];
     inner_radius: f32 : 2;
 
-    update_sound_listener(*client.mixer, entity.visual_position.x, entity.visual_position.y, 0,
-                          forward[0], forward[1], forward[2],
-                          up[0], up[1], up[2],
-                          right[0], right[1], right[2],
-                         inner_radius);
+    if client.current_state == .Ingame {
+        for i := 0; i < client.local_player_count; ++i {
+            entity := get_entity(client, client.local_players[i].guy_pid);
+            update_sound_listener(*client.mixer, i,
+                                  entity.visual_position.x, entity.visual_position.y, 0,
+                                  forward[0], forward[1], forward[2],
+                                  up[0], up[1], up[2],
+                                  right[0], right[1], right[2],
+                                  inner_radius);
+        }
+    } else {
+        set_sound_listener_count(*client.mixer, 1);
+    }
 }
 
 stop_sound :: (client: *Client, sound_pid_pointer: *Sound_Pid) {
