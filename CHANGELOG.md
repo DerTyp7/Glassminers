@@ -1,6 +1,8 @@
-## 0.2.2 (unreleased)
+## 0.2.2 (21.06.2025)
 
 The world is now lit up (or rather darkended out) in areas where no light reaches. Light can come from beams and torches. This has a big effect on gameplay, as you can no longer see large parts of the world.
+
+Also implemented spatialization for sounds. This means sounds that are further away will be more quiet. If there's only one local player, the sounds will also come from left or right channels.
 
 - Implemented animations when a goblin, guy, frog, slime is hurt
 - Implemented canceling the current digging by primary-interacting again
