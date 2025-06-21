@@ -86,8 +86,8 @@ destroy_all_sounds :: (client: *Client) {
 }
 
 stop_all_sounds :: (client: *Client) {
-    for i := 0; i < client.mixer.player.streams.count; ++i {
-        client.mixer.player.streams[i].state = .Stopped;
+    for i := 0; i < client.mixer.streams.count; ++i {
+        client.mixer.streams[i].state = .Stopped;
     }
 }
 
@@ -96,7 +96,7 @@ play_sound :: (client: *Client, sound_index: Sound_Index, flags: Play_Sound_Flag
 
     sound := *client.sounds[sound_index];
     
-    stream := get_unused_sound_stream(*client.mixer.player);
+    stream := get_unused_sound_stream(*client.mixer);
     if !stream {
         logprint(.Warning, "Failed to play a sound because no stream was available!");
         return INVALID_SOUND_PID;
@@ -111,20 +111,23 @@ play_sound :: (client: *Client, sound_index: Sound_Index, flags: Play_Sound_Flag
 play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Entity, flags: Play_Sound_Flags) -> Sound_Pid {
     sound_pid := play_sound(client, sound_index, flags);
     stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
-    spatialize_sound_stream(stream, entity.visual_position.x, entity.visual_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+    spatialize_sound_stream(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
     return sound_pid;
 }
 
-update_sound_listener :: (client: *Client, listener_entity_pid: Pid) {
+update_sound_players :: (client: *Client, listener_entity_pid: Pid) {
     entity := get_entity(client, listener_entity_pid);
 
     forward :: [3]f32.[ 0, 1, 0 ];
     up :: [3]f32.[ 0, 0, 1 ];
     right :: [3]f32.[ 1, 0, 0 ];
-    set_sound_listener(*client.mixer, entity.visual_position.x, entity.visual_position.y, 0,
-                       forward[0], forward[1], forward[2],
-                       up[0], up[1], up[2],
-                       right[0], right[1], right[2]);
+    inner_radius: f32 : 2;
+
+    update_sound_listener(*client.mixer, entity.visual_position.x, entity.visual_position.y, 0,
+                          forward[0], forward[1], forward[2],
+                          up[0], up[1], up[2],
+                          right[0], right[1], right[2],
+                         inner_radius);
 }
 
 stop_sound :: (client: *Client, sound_pid_pointer: *Sound_Pid) {
@@ -155,8 +158,8 @@ get_sound_length_in_seconds :: (client: *Client, sound_index: Sound_Index) -> f3
 }
 
 toggle_all_game_sounds :: (client: *Client, pause: bool) {
-    for i := 0; i < client.mixer.player.streams.count; ++i {
-        stream := *client.mixer.player.streams[i];
+    for i := 0; i < client.mixer.streams.count; ++i {
+        stream := *client.mixer.streams[i];
 
         if stream.category == .Sound_Effect {
             if stream.state == .Playing && pause {

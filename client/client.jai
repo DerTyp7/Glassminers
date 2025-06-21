@@ -1501,7 +1501,7 @@ main :: (args: []string) -> s32 {
 }
     
     create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
-    create_mixer(*client.mixer, 16);
+    create_mixer(*client.mixer, *client.engine_allocator, 16);
     register_all_input_bindings(*client);
 
     startup_success := create_draw_data(*client) && create_animation_data(*client) && create_sound_data(*client);
@@ -1666,7 +1666,7 @@ main :: (args: []string) -> s32 {
         //
         {
             if client.current_state == .Ingame {
-                update_sound_listener(*client, client.local_players[0].guy_pid);
+                update_sound_players(*client, client.local_players[0].guy_pid);
             }
 
             update_mixer(*client.mixer);
