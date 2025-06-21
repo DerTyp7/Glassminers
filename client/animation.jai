@@ -50,6 +50,9 @@ Animation_Index :: enum {
     Slime_Walk_Back;
     Slime_Walk_Front;
     Slime_Walk_Side;
+    Slime_Damaged_Back;
+    Slime_Damaged_Front;
+    Slime_Damaged_Side;
     
     // Trader Animations
     Trader_Idle_Back;
@@ -100,6 +103,7 @@ Animation_Group_Index :: enum {
     
     Slime_Idle;
     Slime_Walk;
+    Slime_Damaged;
     
     Trader_Idle;
 }

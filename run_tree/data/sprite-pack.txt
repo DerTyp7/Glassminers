@@ -167,8 +167,14 @@ Goblin_Recovering_Side_0       sprites/goblin/goblin-recovering-side-0.png
 Goblin_Recovering_Side_1       sprites/goblin/goblin-recovering-side-1.png
 
 Goblin_Damaged_Back_0    sprites/goblin/goblin-damaged-back-0.png
+Goblin_Damaged_Back_1    sprites/goblin/goblin-damaged-back-1.png
+Goblin_Damaged_Back_2    sprites/goblin/goblin-damaged-back-2.png
 Goblin_Damaged_Front_0   sprites/goblin/goblin-damaged-front-0.png
+Goblin_Damaged_Front_1   sprites/goblin/goblin-damaged-front-1.png
+Goblin_Damaged_Front_2   sprites/goblin/goblin-damaged-front-2.png
 Goblin_Damaged_Side_0    sprites/goblin/goblin-damaged-side-0.png
+Goblin_Damaged_Side_1    sprites/goblin/goblin-damaged-side-1.png
+Goblin_Damaged_Side_2    sprites/goblin/goblin-damaged-side-2.png
 
 #
 # Slime
@@ -189,6 +195,16 @@ Slime_Walk_Front_2   sprites/slime/slime-walk-front-2.png
 Slime_Walk_Side_0    sprites/slime/slime-walk-side-0.png
 Slime_Walk_Side_1    sprites/slime/slime-walk-side-1.png
 Slime_Walk_Side_2    sprites/slime/slime-walk-side-2.png
+
+Slime_Damaged_Back_0    sprites/slime/slime-damaged-back-0.png
+Slime_Damaged_Back_1    sprites/slime/slime-damaged-back-1.png
+Slime_Damaged_Back_2    sprites/slime/slime-damaged-back-2.png
+Slime_Damaged_Front_0   sprites/slime/slime-damaged-front-0.png
+Slime_Damaged_Front_1   sprites/slime/slime-damaged-front-1.png
+Slime_Damaged_Front_2   sprites/slime/slime-damaged-front-2.png
+Slime_Damaged_Side_0    sprites/slime/slime-damaged-side-0.png
+Slime_Damaged_Side_1    sprites/slime/slime-damaged-side-1.png
+Slime_Damaged_Side_2    sprites/slime/slime-damaged-side-2.png
 
 #
 # Trader

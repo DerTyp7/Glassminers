@@ -215,17 +215,20 @@ Goblin_Recovering_Side_0
 Goblin_Recovering_Side_1
 
 
-:Goblin_Damaged_Back 0.3
+:Goblin_Damaged_Back 0.07
 Goblin_Damaged_Back_0
-Goblin_Idle_Back_0
+Goblin_Damaged_Back_1
+Goblin_Damaged_Back_2
 
-:Goblin_Damaged_Front 0.3
+:Goblin_Damaged_Front 0.07
 Goblin_Damaged_Front_0
-Goblin_Idle_Front_0
+Goblin_Damaged_Front_1
+Goblin_Damaged_Front_2
 
-:Goblin_Damaged_Side 0.3 flip
+:Goblin_Damaged_Side 0.07 flip
 Goblin_Damaged_Side_0
-Goblin_Idle_Side_0
+Goblin_Damaged_Side_1
+Goblin_Damaged_Side_2
 
 
 @Goblin_Idle
@@ -269,6 +272,7 @@ Slime_Idle_Front_1
 Slime_Idle_Side_0
 Slime_Idle_Side_1
 
+
 :Slime_Walk_Back 0.2   is_walk
 Slime_Walk_Back_0
 Slime_Walk_Back_1
@@ -284,6 +288,23 @@ Slime_Walk_Side_0
 Slime_Walk_Side_1
 Slime_Walk_Side_2
 
+
+:Slime_Damaged_Back 0.07
+Slime_Damaged_Back_0
+Slime_Damaged_Back_1
+Slime_Damaged_Back_2
+
+:Slime_Damaged_Front 0.07
+Slime_Damaged_Front_0
+Slime_Damaged_Front_1
+Slime_Damaged_Front_2
+
+:Slime_Damaged_Side 0.07 flip
+Slime_Damaged_Side_0
+Slime_Damaged_Side_1
+Slime_Damaged_Side_2
+
+
 @Slime_Idle
 North Slime_Idle_Back
 South Slime_Idle_Front
@@ -295,6 +316,12 @@ North Slime_Walk_Back
 South Slime_Walk_Front
 East  Slime_Walk_Side
 West  Slime_Walk_Side
+
+@Slime_Damaged
+North Slime_Damaged_Back
+South Slime_Damaged_Front
+East  Slime_Damaged_Side
+West  Slime_Damaged_Side
 
 
 #

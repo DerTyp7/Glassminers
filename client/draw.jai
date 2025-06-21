@@ -139,18 +139,27 @@ Sprite_Index :: enum {
     Goblin_Idle_Front_1;
     Goblin_Idle_Side_0;
     Goblin_Idle_Side_1;
+    
     Goblin_Attacking_Back;
     Goblin_Attacking_Front;
     Goblin_Attacking_Side;
+
     Goblin_Recovering_Back_0;
     Goblin_Recovering_Back_1;
     Goblin_Recovering_Front_0;
     Goblin_Recovering_Front_1;
     Goblin_Recovering_Side_0;
     Goblin_Recovering_Side_1;
+
     Goblin_Damaged_Back_0;
+    Goblin_Damaged_Back_1;
+    Goblin_Damaged_Back_2;
     Goblin_Damaged_Front_0;
+    Goblin_Damaged_Front_1;
+    Goblin_Damaged_Front_2;
     Goblin_Damaged_Side_0;
+    Goblin_Damaged_Side_1;
+    Goblin_Damaged_Side_2;
     
     // Slime
     Slime_Idle_Back_0;
@@ -169,6 +178,16 @@ Sprite_Index :: enum {
     Slime_Walk_Side_0;
     Slime_Walk_Side_1;
     Slime_Walk_Side_2;
+
+    Slime_Damaged_Back_0;
+    Slime_Damaged_Back_1;
+    Slime_Damaged_Back_2;
+    Slime_Damaged_Front_0;
+    Slime_Damaged_Front_1;
+    Slime_Damaged_Front_2;
+    Slime_Damaged_Side_0;
+    Slime_Damaged_Side_1;
+    Slime_Damaged_Side_2;
     
     // Trader
     Trader_Idle_Back_0;
