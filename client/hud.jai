@@ -222,17 +222,18 @@ CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
 ];
 
 CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
-    .Coin,
-    .Coal_Item,
-    .Shard,
-    .Stone,
-    .Health_Potion,
-    .Strength_Potion,
-    .Goblin_Idle_Front_0,
-    .Frog_Idle_Front_0,
-    .Slime_Idle_Front_0,
-    .Trader_Idle_Front_0,
-    .Hud_Heart_Full,
+    .Coin,                  // Give Coin
+    .Coal_Item,             // Give Coal
+    .Shard,                 // Give Shard
+    .Stone,                 // Give Stone
+    .Health_Potion,         // Give Health
+    .Strength_Potion,       // Give Strength
+    .Goblin_Idle_Front_0,   // Spawn Goblin
+    .Frog_Idle_Front_0,     // Spawn Frog
+    .Slime_Idle_Front_0,    // Spawn Slime
+    .Trader_Idle_Front_0,   // Spawn Trader
+    .Hud_Heart_Full,        // Toggle Invincibility
+    .Torch_0,               // Toggle Lighting
 ];
 
 close_hud :: (client: *Client, hud: *Hud) {

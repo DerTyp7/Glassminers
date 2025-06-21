@@ -1392,6 +1392,12 @@ do_game_tick :: (client: *Client) {
             input.cheat            = local_player.hud.cheat_confirmed_this_frame;
             input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
 
+#if DEVELOPER {
+    if input.cheat == .Toggle_Lighting {
+        client.lightmap.disabled = !client.lightmap.disabled;
+    }
+}
+                
             if !local_player.hud.was_open_this_frame {
                 if input_action_fired_for_local_player(client, local_player, .Move_North) {
                     input.position.x    = guy.physical_position.x;

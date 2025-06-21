@@ -399,6 +399,7 @@ Cheat :: enum {
     Spawn_Slime;
     Spawn_Trader;
     Toggle_Invincibility;
+    Toggle_Lighting;
 }
 
 direction_from_vector :: (vector: v2i) -> Direction {

@@ -1,25 +1,29 @@
 TORCH_BRIGHTNESS: f32 : 0.75;
 LAVA_BRIGHTNESS: f32 : 0.5;
 
-DISABLE_LIGHTMAP :: false;
-
 Lightmap :: struct {
     allocator: *Allocator;
-    disabled: bool;
     blockers: []s32;
     intermediate: []f32;
     tiles: []f32;
     size: v2i;
+
+#if DEVELOPER {
+    disabled: bool;
+}
 }
 
 create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
     map.allocator = allocator;
-    map.disabled  = false;
     map.size      = size;
     map.tiles     = allocate_array(allocator, f32, map.size.x * map.size.y);
     map.blockers  = allocate_array(allocator, s32, map.size.x * map.size.y);
     for i := 0; i < map.tiles.count; ++i map.tiles[i] = 0;
     for i := 0; i < map.blockers.count; ++i map.blockers[i] = 0;
+
+#if DEVELOPER {
+    map.disabled  = false;
+}
 }
 
 destroy_lightmap :: (map: *Lightmap) {
@@ -58,8 +62,10 @@ fill_lightmap_with_beam :: (map: *Lightmap, beam: *Beam_Data, brightness: f32) {
 }
 
 query_lightmap :: (map: *Lightmap, tile: v2i) -> f32 {
+#if DEVELOPER {
     if map.disabled return 1;
-
+}
+    
     assert(tile.x >= 0 && tile.x < map.size.x && tile.y >= 0 && tile.y < map.size.y, "Tried to query the lightmap out of bounds.");
 
     index := tile.y * map.size.x + tile.x;
@@ -67,8 +73,10 @@ query_lightmap :: (map: *Lightmap, tile: v2i) -> f32 {
 }
 
 query_lightmap_at_fractional :: (map: *Lightmap, position: v2f) -> f32 {
+#if DEVELOPER {
     if map.disabled return 1;
-
+}
+    
     // For fractional positions, it can happen that these are out of bounds. For example:
     //   1. Particles floating around
     //   2. World edges being drawn around the walkable world

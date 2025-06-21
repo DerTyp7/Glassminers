@@ -760,6 +760,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Spawn_Slime; spawn_creature_with_cheat(server, guy, .Slime);
       case .Spawn_Trader; spawn_creature_with_cheat(server, guy, .Trader);
       case .Toggle_Invincibility; guy.invincible = !guy.invincible;
+      case .Toggle_Lighting; // This is implemented purely on client side
     }
 }
 }
