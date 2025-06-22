@@ -1,3 +1,10 @@
+## 0.2.3 (unreleased)
+
+The previous changes apparently introduces a lot of regressions, which shall be fixed with this release.
+It also attempts to improve the user experience of the game.
+
+- Implemented gamepad vibration + color setting for local players when their health changes
+
 ## 0.2.2 (21.06.2025)
 
 The world is now lit up (or rather darkended out) in areas where no light reaches. Light can come from beams and torches. This has a big effect on gameplay, as you can no longer see large parts of the world.

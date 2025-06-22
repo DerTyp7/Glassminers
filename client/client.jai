@@ -1523,7 +1523,7 @@ main :: (args: []string) -> s32 {
     //
     while !client.window.should_close {
         frame_start := os_get_hardware_time();
-
+            
         //
         // Check for hot-reloading
         //
@@ -1661,6 +1661,24 @@ main :: (args: []string) -> s32 {
             ge_swap_buffers(*client.graphics);
         }
 
+        //
+        // Output gamepad vibration if desired
+        //
+        if client.current_state == .Ingame {
+            for i := 0; i < client.local_player_count; ++i {
+                local_player := *client.local_players[i];
+                if local_player.active_input_device == .Gamepad {
+                    entity := get_entity(*client, local_player.guy_pid);
+
+                    vibration := entity.health_bar_damage_animation_t;
+                    health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
+                    color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
+                    
+                    success := set_window_gamepad_properties(*client.window, local_player.gamepad_index, vibration, vibration, color.r, color.g, color.b);
+                }
+            }
+        }
+        
         //
         // Render one audio frame
         //
