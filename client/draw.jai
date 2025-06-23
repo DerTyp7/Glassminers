@@ -286,9 +286,9 @@ get_sprite_index_for_input_action :: (client: *Client, local_player: *Local_Play
         result: bool = ---;
 
         if button == {
-          case .XBox_A, .XBox_B, .XBox_X, .XBox_Y, .XBox_Start, .XBox_Back, .XBox_Home, .XBox_Capture;
+          case .XBox_A, .XBox_B, .XBox_X, .XBox_Y, .XBox_Menu, .XBox_XBoxButton, .XBox_View, .XBox_Share;
             result = gamepad.product == .XBox_360 || gamepad.product == .XBox_One;
-          case .PS_Cross, .PS_Circle, .PS_Square, .PS_Triangle, .PS_Options, .PS_Share, .PS_Home, .PS_Touch_Pad;
+          case .PS_Cross, .PS_Circle, .PS_Square, .PS_Triangle, .PS_Options, .PS_Share, .PS_PSButton, .PS_TouchPad;
             result = gamepad.product == .DualShock_4 || gamepad.product == .DualShock_5;
           case;
             result = true;

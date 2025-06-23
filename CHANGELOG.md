@@ -3,7 +3,12 @@
 The previous changes apparently introduces a lot of regressions, which shall be fixed with this release.
 It also attempts to improve the user experience of the game.
 
-- Implemented gamepad vibration + color setting for local players when their health changes
+- Implemented gamepad vibration + color setting for local players when their health changes. Note: Because every gamepad vendor is just an asshole, there's support limitations:
+    - Rumble + LED on wired PS controllers on Windows
+    - Rumble on wired XBox controllers on Windows
+    - Rumble on wired XBox + PS controllers on Linux
+    - No Rumble on bluetooth controllers on Linux or Windows
+    - No LED on XBox controllers on Windows or any controllers on Linux
 
 ## 0.2.2 (21.06.2025)
 

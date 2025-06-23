@@ -279,7 +279,7 @@ register_all_input_bindings :: (client: *Client) {
     //
 
     ib: [Input_Action.Count][]Input_Binding = .[];
-    ib[.Toggle_Pause_Menu]     = .[ keycode(.Escape), gamepad_button(.PS_Options), gamepad_button(.XBox_Start) ];
+    ib[.Toggle_Pause_Menu]     = .[ keycode(.Escape), gamepad_button(.PS_Options), gamepad_button(.XBox_Menu) ];
     ib[.Toggle_Fullscreen]     = .[ keycode(.F11) ];
     ib[.Move_North]            = .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up) ];
     ib[.Move_East]             = .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right) ];
@@ -1674,6 +1674,8 @@ main :: (args: []string) -> s32 {
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
                     
+                    print("Color: %\n", color);
+
                     success := set_window_gamepad_properties(*client.window, local_player.gamepad_index, vibration, vibration, color.r, color.g, color.b);
                 }
             }
