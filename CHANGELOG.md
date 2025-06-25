@@ -12,6 +12,7 @@ It also attempts to improve the user experience of the game.
 - Fixed the slider button for the volume setting disappearing sometimes
 - Fixed the game ending when one player dies while having more than one local players
 - Fixed the guy never switching away from the Death animation after having been resurrected
+- Fixed the current action of a guy (digging, resurrecting) not being cancelled when being pushed by someone else
 
 ## 0.2.2 (21.06.2025)
 

@@ -1393,8 +1393,6 @@ do_game_tick :: (client: *Client) {
         {
             guy_entity := get_entity(client, local_player.guy_pid);
             guy := down(guy_entity, Guy);
-
-            read_any_input := local_player.hud.was_confirmed_this_frame;
             
             input: Guy_Input_Message = ---;
             input.guy_pid          = local_player.guy_pid;
@@ -1418,7 +1416,6 @@ do_game_tick :: (client: *Client) {
                     input.position.y    = guy.physical_position.y - 1;
                     input.aim_direction = .North;
                     input.wants_to_move = true;
-                    read_any_input = true;
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Move_West) {
@@ -1426,7 +1423,6 @@ do_game_tick :: (client: *Client) {
                     input.position.y    = guy.physical_position.y;
                     input.aim_direction = .West;
                     input.wants_to_move = true;
-                    read_any_input = true;
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Move_South) {
@@ -1434,7 +1430,6 @@ do_game_tick :: (client: *Client) {
                     input.position.y    = guy.physical_position.y + 1;
                     input.aim_direction = .South;
                     input.wants_to_move = true;
-                    read_any_input = true;
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Move_East) {
@@ -1442,18 +1437,17 @@ do_game_tick :: (client: *Client) {
                     input.position.y    = guy.physical_position.y;
                     input.aim_direction = .East;
                     input.wants_to_move = true;
-                    read_any_input = true;
                 }
 
-                if input_action_fired_for_local_player(client, local_player, .Look_North) { input.aim_direction = .North; read_any_input = true; }
-                if input_action_fired_for_local_player(client, local_player, .Look_West)  { input.aim_direction = .West;  read_any_input = true; }
-                if input_action_fired_for_local_player(client, local_player, .Look_South) { input.aim_direction = .South; read_any_input = true; }
-                if input_action_fired_for_local_player(client, local_player, .Look_East)  { input.aim_direction = .East;  read_any_input = true; }
-                if input_action_fired_for_local_player(client, local_player, .Interact_Primary)   { input.interaction_kind = .Primary; read_any_input = true; }
-                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary) { input.interaction_kind = .Secondary; read_any_input = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_North) { input.aim_direction = .North; input.wants_to_move = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_West)  { input.aim_direction = .West;  input.wants_to_move = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_South) { input.aim_direction = .South; input.wants_to_move = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_East)  { input.aim_direction = .East;  input.wants_to_move = true; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Primary)   { input.interaction_kind = .Primary; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary) { input.interaction_kind = .Secondary; }
             }
             
-            if !client.pause_menu_open && !client.server_paused_game && read_any_input {
+            if !client.pause_menu_open && !client.server_paused_game && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
                 msg := make_message_from(input);
                 array_add(*outgoing_messages, msg);
             }

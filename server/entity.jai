@@ -387,6 +387,15 @@ update_physical_location :: (server: *Server, entity: *Entity, position: v2i, ro
     entity.physical_rotation = rotation;
 
     if something_changed {
+        if entity.entity_kind == .Guy {
+            guy := down(entity, Guy);
+            
+            if #complete guy.state == {
+              case .Dead, .Idle, .Carrying;
+              case .Digging, .Resurrecting; guy.state = .Idle;
+            }
+        }
+
         msg := make_message(Move_Entity_Message);
         msg.move_entity.entity_pid = entity.pid;
         msg.move_entity.position = entity.physical_position;
