@@ -867,8 +867,13 @@ do_game_tick :: (server: *Server) {
             
             entity.damaged_this_frame = false;
         }
+
+        number_of_players := 0;
+        for i := 0; i < server.clients.count; ++i {
+            number_of_players += array_get(*server.clients, i).local_player_count;
+        }
         
-        if number_of_dead_guys == server.clients.count {
+        if number_of_dead_guys == number_of_players {
             game_state = .Lost;
         }
 

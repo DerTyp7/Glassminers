@@ -1673,8 +1673,6 @@ main :: (args: []string) -> s32 {
                     vibration := entity.health_bar_damage_animation_t;
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
-                    
-                    print("Color: %\n", color);
 
                     success := set_window_gamepad_properties(*client.window, local_player.gamepad_index, vibration, vibration, color.r, color.g, color.b);
                 }
