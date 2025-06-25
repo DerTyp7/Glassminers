@@ -9,11 +9,13 @@ It also attempts to improve the user experience of the game.
     - Rumble on wired XBox + PS controllers on Linux
     - No Rumble on bluetooth controllers on Linux or Windows
     - No LED on XBox controllers on Windows or any controllers on Linux
+- Limited the slime's action radius to 8 blocks away from its nearest slime hole, so that slimes aren't too annoying across the entire world
 - Fixed the slider button for the volume setting disappearing sometimes
 - Fixed the game ending when one player dies while having more than one local players
 - Fixed the guy never switching away from the Death animation after having been resurrected
 - Fixed the current action of a guy (digging, resurrecting) not being cancelled when being pushed by someone else
-
+- Fixed wrongly cancelling the current action of a guy when failing to move
+    
 ## 0.2.2 (21.06.2025)
 
 The world is now lit up (or rather darkended out) in areas where no light reaches. Light can come from beams and torches. This has a big effect on gameplay, as you can no longer see large parts of the world.

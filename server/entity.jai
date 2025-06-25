@@ -672,7 +672,7 @@ update_slime :: (server: *Server, slime: *Slime) {
         msg.slime_state.state = slime.state;
         array_add(*server.outgoing_messages, msg);
     }
-
+    
     if slime.state != .Hiding {
         damage_and_maybe_kill_if_in_light(server, slime);
         damage_and_maybe_kill_if_in_lava(server, slime);
@@ -685,36 +685,42 @@ update_slime :: (server: *Server, slime: *Slime) {
         // Find the target position for this move
         //
         target_position: v2i = slime.physical_position;
+        target_hole, distance_to_hole := find_nearest_entity_of_kind(server, .Slime_Hole, slime.physical_position);
+
+        assert(target_hole != null, "A slime currently requires a slime hole to exist.");
         
         if slime.state == {
           case .Idle;
             target_item_stack, distance_to_item_stack := find_nearest_entity_of_kind(server, .Item_Stack, slime.physical_position);
-            if distance_to_item_stack > SLIME_TRACKING_DISTANCE {
+
+            if target_item_stack != null && distance_to_item_stack == 0 {
+                take_item_from_stack(server, down(target_item_stack, Item_Stack));
+                switch_state(server, slime, .Fleeing);
+            } else if target_item_stack != null && abs(target_item_stack.physical_position.x - target_hole.physical_position.x) <= SLIME_ACTION_RADIUS {
+                // We want to limit the slime's action radius to be around the slime hole, so that they don't
+                // run over the entire map to steal your items - that's just annoying.
+                target_position = target_item_stack.physical_position;
+            } else {
                 direction := random_u64_in(*server.random, 0, Direction.Count);
                 for i := 0; i < Direction.Count; ++i {
                     random_vector := vector_from_direction((direction + i) % Direction.Count);
                     random_position := v2i.{ slime.physical_position.x + random_vector.x, slime.physical_position.y + random_vector.y };
                     is_emitter_field, emitter_field_direction := is_emitter_field_at(server, random_position);
-                    if can_move_to_position(server, slime, random_position, 0) && !is_emitter_field {
+                    if !is_emitter_field && abs(random_position.x - target_hole.physical_position.x) <= SLIME_ACTION_RADIUS && can_move_to_position(server, slime, random_position, 0) {
+                        // Again we want to limit the slime's action radius to be around the slime hole
                         target_position = random_position;
                         break;
                     }
                 }
-            } else if distance_to_item_stack == 0 {
-                take_item_from_stack(server, down(target_item_stack, Item_Stack));
-                switch_state(server, slime, .Fleeing);
-            } else {
-                target_position = target_item_stack.physical_position;
             }
 
             nearest_guy, distance_to_nearest_guy := find_nearest_entity_of_kind(server, .Guy, slime.physical_position);
             if distance_to_nearest_guy <= SLIME_SCARING_DISTANCE {
+                target_position = target_hole.physical_position;
                 switch_state(server, slime, .Fleeing);
             }
             
           case .Fleeing;
-            target_hole, distance_to_hole := find_nearest_entity_of_kind(server, .Slime_Hole, slime.physical_position);
-            if target_hole == null break;
             target_position = target_hole.physical_position;
 
             if distance_to_hole == 0 {
