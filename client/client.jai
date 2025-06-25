@@ -869,6 +869,12 @@ switch_to_next_state :: (client: *Client) {
         disconnect_from_server(client);
         maybe_shutdown_server(client);
         reset_allocator(*client.world_allocator);
+
+        // Stop any active rumbling effect
+        for i := 0; i < client.local_player_count; ++i {
+            local_player := *client.local_players[i];
+            set_window_gamepad_properties(*client.window, local_player.gamepad_index, 0, 0, 255, 255, 255);
+        }
     }
 
     client.current_state = client.next_state;
@@ -1682,7 +1688,7 @@ main :: (args: []string) -> s32 {
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
 
-                    success := set_window_gamepad_properties(*client.window, local_player.gamepad_index, vibration, vibration, color.r, color.g, color.b);
+                    set_window_gamepad_properties(*client.window, local_player.gamepad_index, vibration, vibration, color.r, color.g, color.b);
                 }
             }
         }
