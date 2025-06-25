@@ -667,6 +667,14 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
                 play_animation_from_group(client, guy, .Guy_Dead);
               case .Idle; if guy.state == .Carrying guy.sound_pid = play_sound_on_entity(client, .Placedown_0, entity, .Default);
             }
+
+            if msg.guy_state.state != .Dead {
+                // If the player just stopped being dead, we want to switch away from the Death animation.
+                // We want this death animation to keep being played as long as we are dead, which is why
+                // no other part of the code does this specific job (i.e. when a dead guy is taking damage,
+                // we *don't* want to play the damage animation, because he's already dead...)
+                play_animation_from_group(client, guy, .Guy_Idle);
+            }
         }
 
         guy.state           = msg.guy_state.state;
