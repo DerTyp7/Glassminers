@@ -268,11 +268,7 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
 
 kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
     if entity.entity_kind == {
-      case .Guy;
-        guy := down(entity, Guy);
-        guy.state = .Dead;
-
-      case .Crystal;
+      case .Mirror;
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Shard, killer);
 
@@ -284,9 +280,17 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Coal, killer);
 
-      case .Mirror;
+      case .Crystal;
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Shard, killer);
+
+      case .Chest;
+        remove_entity(server, entity);
+        try_to_put_item(server, entity.physical_position, .Stone, killer);
+
+      case .Guy;
+        guy := down(entity, Guy);
+        guy.state = .Dead;
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);

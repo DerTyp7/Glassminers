@@ -10,6 +10,7 @@ It also attempts to improve the user experience of the game.
     - No Rumble on bluetooth controllers on Linux or Windows
     - No LED on XBox controllers on Windows or any controllers on Linux
 - Limited the slime's action radius to 8 blocks away from its nearest slime hole, so that slimes aren't too annoying across the entire world
+- Added a stone dropping when destroying a chest
 - Fixed the slider button for the volume setting disappearing sometimes
 - Fixed the game ending when one player dies while having more than one local players
 - Fixed the guy never switching away from the Death animation after having been resurrected
