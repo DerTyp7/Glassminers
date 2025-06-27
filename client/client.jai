@@ -21,6 +21,7 @@
 #load "../shared/VERSION_STRING.jai";
 
 // Client
+#load "input_bindings.jai";
 #load "entity.jai";
 #load "particles.jai";
 #load "assets.jai";
@@ -57,51 +58,6 @@ Remote_Player :: struct {
 }
 
 
-
-
-Input_Device :: enum {
-    Keyboard :: 0x1;
-    Gamepad  :: 0x2;
-    ALL :: .Keyboard | .Gamepad;
-}
-
-Input_Action :: enum {
-    Toggle_Pause_Menu;
-    Toggle_Fullscreen;
-
-    Move_North;
-    Move_East;
-    Move_South;
-    Move_West;
-    Look_North;
-    Look_East;
-    Look_South;
-    Look_West;
-
-    Interact_Primary;
-    Interact_Secondary;
-
-    Hud_Toggle;
-    Hud_Confirm;
-    Hud_Left;
-    Hud_Right;
-
-    Cheat_Menu_Toggle;
-}
-
-Input_Binding :: struct {
-    kind: enum {
-        Keyboard;
-        Gamepad_Button;
-        Gamepad_Gesture;
-    };
-
-    #using data: union {
-        keycode: Key_Code;
-        gamepad_button: Window_Gamepad_Button_Code;
-        gamepad_gesture: Window_Gamepad_Gesture_Code;
-    };
-}
 
 Local_Player :: struct {
     name := "";
@@ -248,132 +204,7 @@ set_temp_info_text :: (client: *Client, format: string, args: ..Any) {
     client.info_text = print_into_allocator(*client.engine_allocator, format, args);
     client.info_text_t = 0;
 }
-
-register_all_input_bindings :: (client: *Client) {
-    keycode :: (keycode: Key_Code) -> Input_Binding {
-        binding: Input_Binding = ---;
-        binding.kind = .Keyboard;
-        binding.keycode = keycode;
-        return binding;
-    }
-
-    gamepad_button :: (button: Window_Gamepad_Button_Code) -> Input_Binding {
-        binding: Input_Binding = ---;
-        binding.kind = .Gamepad_Button;
-        binding.gamepad_button = button;
-        return binding;
-    }
-
-    gamepad_gesture :: (gesture: Window_Gamepad_Gesture_Code) -> Input_Binding {
-        binding: Input_Binding = ---;
-        binding.kind = .Gamepad_Gesture;
-        binding.gamepad_gesture = gesture;
-        return binding;
-    }
     
-    //
-    // The input bindings need to live forever, but making slices in here allocates them on the
-    // stack (and so they are dead when the procedure exists).
-    // Therefore, for easier setup I construct them locally here, and then copy them into the
-    // engine allocator later on.
-    //
-
-    ib: [Input_Action.Count][]Input_Binding = .[];
-    ib[.Toggle_Pause_Menu]     = .[ keycode(.Escape), gamepad_button(.PS_Options), gamepad_button(.XBox_Menu) ];
-    ib[.Toggle_Fullscreen]     = .[ keycode(.F11) ];
-    ib[.Move_North]            = .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up) ];
-    ib[.Move_East]             = .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right) ];
-    ib[.Move_South]            = .[ keycode(.S), gamepad_gesture(.Left_Swipe_Down) ];
-    ib[.Move_West]             = .[ keycode(.A), gamepad_gesture(.Left_Swipe_Left) ];
-    ib[.Look_North]            = .[ keycode(.Arrow_Up),    gamepad_gesture(.Right_Swipe_Up) ];
-    ib[.Look_East]             = .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Swipe_Right) ];
-    ib[.Look_South]            = .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Swipe_Down) ];
-    ib[.Look_West]             = .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ];
-    ib[.Interact_Primary]      = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
-    ib[.Interact_Secondary]    = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
-    ib[.Hud_Toggle]  = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
-    ib[.Hud_Confirm] = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
-    ib[.Hud_Left]    = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_gesture(.Left_Swipe_Left),  gamepad_gesture(.Left_Swipe_Up) ];
-    ib[.Hud_Right]   = .[ keycode(.D), keycode(.Arrow_Right), gamepad_gesture(.Left_Swipe_Right), gamepad_gesture(.Left_Swipe_Down) ];
-    ib[.Cheat_Menu_Toggle]     = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
-    
-    for i := 0; i < ib.Capacity; ++i {
-        client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);
-    }
-}
-    
-input_action_fired_for_local_player :: (client: *Client, local_player: *Local_Player, action: Input_Action) -> bool {
-    register_fired_input_binding :: (local_player: *Local_Player, binding: Input_Binding) {
-        array_add(*local_player.input_bindings_fired_this_frame, binding);
-    }
-
-    input_binding_already_used :: (local_player: *Local_Player, binding: Input_Binding) -> bool {
-        for i := 0; i < local_player.input_bindings_fired_this_frame.count; ++i {
-            fired := array_get(*local_player.input_bindings_fired_this_frame, i);
-            if fired.kind != binding.kind continue;
-
-            if #complete fired.kind == {
-              case .Keyboard; if fired.keycode == binding.keycode return true;
-              case .Gamepad_Button; if fired.gamepad_button == binding.gamepad_button return true;
-              case .Gamepad_Gesture; if fired.gamepad_gesture == binding.gamepad_gesture return true;
-            }
-        }
-
-        return false;
-    }
-    
-    for i := 0; i < client.input_bindings[action].count; ++i {
-        binding := client.input_bindings[action][i];
-        if input_binding_already_used(local_player, binding) continue;
-        
-        if #complete binding.kind == {
-          case .Keyboard;
-            if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Keyboard) break;
-            if !(client.window.keys[binding.keycode] & .Pressed) break;
-                
-            register_fired_input_binding(local_player, binding);
-            local_player.active_input_device = .Keyboard;
-            return true;
-            
-          case .Gamepad_Button;
-            if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
-            if local_player.gamepad_index >= client.window.connected_gamepads || !(client.window.gamepads[local_player.gamepad_index].buttons[binding.gamepad_button] & .Pressed) break;
-            
-            register_fired_input_binding(local_player, binding);
-            local_player.active_input_device = .Gamepad;
-            return true;
-
-          case .Gamepad_Gesture;
-            if !bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) break;
-            if local_player.gamepad_index >= client.window.connected_gamepads || !(client.window.gamepads[local_player.gamepad_index].gestures[binding.gamepad_gesture]) break;
-
-            register_fired_input_binding(local_player, binding);
-            local_player.active_input_device = .Gamepad;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-input_action_fired_for_global :: (client: *Client, action: Input_Action) -> bool {
-    for i := 0; i < client.input_bindings[action].count; ++i {
-        binding := client.input_bindings[action][i];
-        
-        if #complete binding.kind == {
-          case .Keyboard;
-            if client.window.keys[binding.keycode] & .Pressed return true;
-            
-          case .Gamepad_Button;
-            if client.window.connected_gamepads && client.window.gamepads[0].buttons[binding.gamepad_button] & .Pressed return true;
-
-          case .Gamepad_Gesture;
-            if client.window.connected_gamepads && client.window.gamepads[0].gestures[binding.gamepad_gesture] return true;
-        }
-    }
-
-    return false;
-}
 
 
 
@@ -1259,11 +1090,7 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
-
-    for i := 0; i < client.local_player_count; ++i {
-        array_clear_without_deallocation(*client.local_players[i].input_bindings_fired_this_frame);
-        client.local_players[i].input_bindings_fired_this_frame.allocator = *temp;
-    }
+    reset_input_actions_for_local_players(client);
     
     //
     // Update all local entities based on the information received by the server.
@@ -1346,7 +1173,7 @@ do_game_tick :: (client: *Client) {
 
     // Do the pause menu
     {
-        if input_action_fired_for_global(client, .Toggle_Pause_Menu) {
+        if input_action_fired_globally(client, .Toggle_Pause_Menu, .Pressed) {
             client.pause_menu_open = !client.pause_menu_open;
 
             msg := make_message(Game_Pause_Message);
@@ -1411,40 +1238,41 @@ do_game_tick :: (client: *Client) {
 }
                 
             if !local_player.hud.was_open_this_frame {
-                if input_action_fired_for_local_player(client, local_player, .Move_North) {
+                if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
                     input.position.x    = guy.physical_position.x;
                     input.position.y    = guy.physical_position.y - 1;
                     input.aim_direction = .North;
                     input.wants_to_move = true;
                 }
 
-                if input_action_fired_for_local_player(client, local_player, .Move_West) {
+                if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
                     input.position.x    = guy.physical_position.x - 1;
                     input.position.y    = guy.physical_position.y;
                     input.aim_direction = .West;
                     input.wants_to_move = true;
                 }
 
-                if input_action_fired_for_local_player(client, local_player, .Move_South) {
+                if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
                     input.position.x    = guy.physical_position.x;
                     input.position.y    = guy.physical_position.y + 1;
                     input.aim_direction = .South;
                     input.wants_to_move = true;
                 }
 
-                if input_action_fired_for_local_player(client, local_player, .Move_East) {
+                if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
                     input.position.x    = guy.physical_position.x + 1;
                     input.position.y    = guy.physical_position.y;
                     input.aim_direction = .East;
                     input.wants_to_move = true;
                 }
 
-                if input_action_fired_for_local_player(client, local_player, .Look_North) { input.aim_direction = .North; input.wants_to_move = true; }
-                if input_action_fired_for_local_player(client, local_player, .Look_West)  { input.aim_direction = .West;  input.wants_to_move = true; }
-                if input_action_fired_for_local_player(client, local_player, .Look_South) { input.aim_direction = .South; input.wants_to_move = true; }
-                if input_action_fired_for_local_player(client, local_player, .Look_East)  { input.aim_direction = .East;  input.wants_to_move = true; }
-                if input_action_fired_for_local_player(client, local_player, .Interact_Primary)   { input.interaction_kind = .Primary; }
-                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary) { input.interaction_kind = .Secondary; }
+                if input_action_fired_for_local_player(client, local_player, .Look_North, .Pressed) { input.aim_direction = .North; input.wants_to_move = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_West, .Pressed)  { input.aim_direction = .West;  input.wants_to_move = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_South, .Pressed) { input.aim_direction = .South; input.wants_to_move = true; }
+                if input_action_fired_for_local_player(client, local_player, .Look_East, .Pressed)  { input.aim_direction = .East;  input.wants_to_move = true; }
+
+                if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Pressed)   { input.interaction_kind = .Primary; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Pressed) { input.interaction_kind = .Secondary; }
             }
             
             if !client.pause_menu_open && !client.server_paused_game && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
@@ -1576,7 +1404,7 @@ main :: (args: []string) -> s32 {
         //
         if client.current_state != client.next_state switch_to_next_state(*client);
         
-        if input_action_fired_for_global(*client, .Toggle_Fullscreen) {
+        if input_action_fired_globally(*client, .Toggle_Fullscreen, .Pressed) {
             if client.window.fullscreen {
                 set_window_style(*client.window, .Maximized);
             } else {

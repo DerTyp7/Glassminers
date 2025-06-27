@@ -67,7 +67,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     // This is a bit ugly, but rotating mirrors should have priority over opening the hud,
     // since they have the same keybindings. Since we're doing the hud update before the
     // general guy input though, we need to handle that here...
-    if !find_entity_of_kind_at_position(client, .Mirror, guy.target_position) && input_action_fired_for_local_player(client, local_player, .Hud_Toggle) {
+    if !find_entity_of_kind_at_position(client, .Mirror, guy.target_position) && input_action_fired_for_local_player(client, local_player, .Hud_Toggle, .Pressed) {
         guy_entity := get_entity(client, local_player.guy_pid);
         guy := down(guy_entity, Guy);
 
@@ -79,7 +79,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     }
 
 #if DEVELOPER {
-    if input_action_fired_for_local_player(client, local_player, .Cheat_Menu_Toggle) {
+    if input_action_fired_for_local_player(client, local_player, .Cheat_Menu_Toggle, .Pressed) {
         maybe_open_hud(client, hud, guy, .Cheat_Menu);
     }
 }
@@ -88,11 +88,11 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     // Update the selected option
     //
     if hud.state != .Disabled {
-        if input_action_fired_for_local_player(client, local_player, .Hud_Left) {
+        if input_action_fired_for_local_player(client, local_player, .Hud_Left, .Pressed) {
             hud.selected_option = (hud.selected_option - 1) % hud.available_options;
         }
 
-        if input_action_fired_for_local_player(client, local_player, .Hud_Right) {
+        if input_action_fired_for_local_player(client, local_player, .Hud_Right, .Pressed) {
             hud.selected_option = (hud.selected_option + 1) % hud.available_options;
         }
     }
@@ -100,7 +100,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     //
     // Confirm the selected option
     //
-    if hud.state != .Disabled && input_action_fired_for_local_player(client, local_player, .Hud_Confirm) {
+    if hud.state != .Disabled && input_action_fired_for_local_player(client, local_player, .Hud_Confirm, .Pressed) {
         hud.was_confirmed_this_frame = true;
 
         if #complete hud.state == {
