@@ -16,6 +16,7 @@ Sprite_Index :: enum {
     Hud_XBox_X;
     Hud_XBox_Y;
     Hud_Key_C;
+    Hud_Key_E;
     Hud_Key_Space;
     Hud_Key_Shift;
     Hud_Arrow;
@@ -908,6 +909,7 @@ get_sprite_index_for_key_code :: (keycode: Key_Code) -> Sprite_Index {
 
     if keycode == {
       case .C;     sprite = .Hud_Key_C;
+      case .E;     sprite = .Hud_Key_E;
       case .Space; sprite = .Hud_Key_Space;
       case .Shift; sprite = .Hud_Key_Shift;
     }

@@ -9,7 +9,9 @@ It also attempts to improve the user experience of the game.
     - Rumble on wired XBox + PS controllers on Linux
     - No Rumble on bluetooth controllers on Linux or Windows
     - No LED on XBox controllers on Windows or any controllers on Linux
+- Changed the key binding for opening the crafting hud to E from Shift
 - Changed the digging interaction from toggle to hold
+- Holding down Shift while pressing WASD will now just rotate the player instead of moving
 - Limited the slime's action radius to 8 blocks away from its nearest slime hole, so that slimes aren't too annoying across the entire world
 - Added a stone dropping when destroying a chest
 - Added a sound effect when the receiver is charging up

@@ -36,8 +36,6 @@ BAKE_ASSETS :: !DEVELOPER;
 DEFAULT_INFO_TEXT_TIMER: f32 : 5;
 TARGET_FRAMES_PER_SECOND: f32 : 144;
 
-TURN_BEFORE_MOVING :: true;
-
 Game_State :: enum {
     Main_Menu;
     Connecting;
@@ -1250,7 +1248,7 @@ do_game_tick :: (client: *Client) {
                 
             if !local_player.hud.was_open_this_frame {
                 if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
-                    if !TURN_BEFORE_MOVING || guy.physical_rotation == .North {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
                         input.position.x = guy.physical_position.x;
                         input.position.y = guy.physical_position.y - 1;
                     }
@@ -1259,7 +1257,7 @@ do_game_tick :: (client: *Client) {
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
-                    if !TURN_BEFORE_MOVING || guy.physical_rotation == .West {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
                         input.position.x = guy.physical_position.x - 1;
                         input.position.y = guy.physical_position.y;
                     }
@@ -1268,7 +1266,7 @@ do_game_tick :: (client: *Client) {
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
-                    if !TURN_BEFORE_MOVING || guy.physical_rotation == .South {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
                         input.position.x = guy.physical_position.x;
                         input.position.y = guy.physical_position.y + 1;
                     }
@@ -1277,7 +1275,7 @@ do_game_tick :: (client: *Client) {
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
-                    if !TURN_BEFORE_MOVING || guy.physical_rotation == .East {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
                         input.position.x = guy.physical_position.x + 1;
                         input.position.y = guy.physical_position.y;
                     }

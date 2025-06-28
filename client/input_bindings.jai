@@ -1,5 +1,6 @@
 Input_Binding_Check :: enum bitfield {
     Pressed;
+    Held;
     Released;
 }
 
@@ -21,7 +22,8 @@ Input_Action :: enum {
     Look_East;
     Look_South;
     Look_West;
-
+    Turn_Modifier;
+    
     Interact_Primary;
     Interact_Secondary;
 
@@ -84,9 +86,10 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Look_East]          = .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Swipe_Right) ];
     ib[.Look_South]         = .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Swipe_Down) ];
     ib[.Look_West]          = .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ];
+    ib[.Turn_Modifier]      = .[ keycode(.Shift), gamepad_button(.PS_Circle), gamepad_button(.XBox_B) ];
     ib[.Interact_Primary]   = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
-    ib[.Interact_Secondary] = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
-    ib[.Hud_Toggle]         = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
+    ib[.Interact_Secondary] = .[ keycode(.E), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
+    ib[.Hud_Toggle]         = .[ keycode(.E), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
     ib[.Hud_Confirm]        = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
     ib[.Hud_Left]           = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_button(.Left_Bumper) ];
     ib[.Hud_Right]          = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper) ];
@@ -159,6 +162,7 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
           case .Keyboard;
             if #complete check == {
               case .Pressed;  if client.window.keys[binding.keycode] & .Pressed  fired_binding = binding;
+              case .Held;     if client.window.keys[binding.keycode] & .Down     fired_binding = binding;
               case .Released; if client.window.keys[binding.keycode] & .Released fired_binding = binding;
             }
 
@@ -168,6 +172,7 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
             
             if #complete check == {
               case .Pressed;  if gamepad.buttons[binding.gamepad_button] & .Pressed  fired_binding = binding;
+              case .Held;     if gamepad.buttons[binding.gamepad_button] & .Down     fired_binding = binding;
               case .Released; if gamepad.buttons[binding.gamepad_button] & .Released fired_binding = binding;
             }
 
@@ -177,7 +182,7 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
 
             if #complete check == {
               case .Pressed; if gamepad.gestures[binding.gamepad_gesture] fired_binding = binding;
-              case .Released;
+              case .Held, .Released;
             }
         }
     }
