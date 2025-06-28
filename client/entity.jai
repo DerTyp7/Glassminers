@@ -532,7 +532,7 @@ find_entity_with_flags_at_position :: (client: *Client, flags: Entity_Flags, pos
     return null;
 }
 
-physically_remove_all_marked_entities :: (client: *Client) {
+physically_remove_dead_entities :: (client: *Client) {
     remove_deriveds :: (array: *Bucket_Array($T)) {
         for i := 0; i < array.slot_count; ++i {
             derived, occupied := index_bucket_array(array, i);

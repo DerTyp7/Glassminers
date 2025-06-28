@@ -351,8 +351,10 @@ Slime_State :: enum {
 }
 
 Interaction_Kind :: enum {
-    Primary;
-    Secondary;
+    Primary_Start;
+    Primary_End;
+    Secondary_Start;
+    Secondary_End;
 }
 
 Crafting_Recipe :: enum {

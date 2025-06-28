@@ -214,7 +214,7 @@ get_entity :: (server: *Server, pid: Pid) -> *Entity {
     return entity;
 }
 
-physically_remove_all_marked_entities :: (server: *Server) {
+physically_remove_dead_entities :: (server: *Server) {
     remove_deriveds :: (array: *Bucket_Array($T)) {
         for i := 0; i < array.slot_count; ++i {
             derived, occupied := index_bucket_array(array, i);

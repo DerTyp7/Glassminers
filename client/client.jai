@@ -1271,8 +1271,10 @@ do_game_tick :: (client: *Client) {
                 if input_action_fired_for_local_player(client, local_player, .Look_South, .Pressed) { input.aim_direction = .South; input.wants_to_move = true; }
                 if input_action_fired_for_local_player(client, local_player, .Look_East, .Pressed)  { input.aim_direction = .East;  input.wants_to_move = true; }
 
-                if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Pressed)   { input.interaction_kind = .Primary; }
-                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Pressed) { input.interaction_kind = .Secondary; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Pressed)    { input.interaction_kind = .Primary_Start; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Released)   { input.interaction_kind = .Primary_End; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Pressed)  { input.interaction_kind = .Secondary_Start; }
+                if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Released) { input.interaction_kind = .Secondary_End; }
             }
             
             if !client.pause_menu_open && !client.server_paused_game && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
@@ -1290,7 +1292,7 @@ do_game_tick :: (client: *Client) {
     }
     
     physically_remove_dead_particle_systems(client);
-    physically_remove_all_marked_entities(client);
+    physically_remove_dead_entities(client);
 }
 
 main :: (args: []string) -> s32 {

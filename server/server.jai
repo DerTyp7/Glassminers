@@ -634,7 +634,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     // Handle interaction
     //
     if #complete guy.received_input.interaction_kind == {            
-      case .Primary;
+      case .Primary_Start;
         target_entity := find_any_entity_at_position(server, guy.target_position);
 
         if #complete guy.state == {
@@ -675,27 +675,30 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 emitter := down(target_entity, Emitter);
                 set_emitter_time_left(server, emitter, emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME);
                 guy.state = .Idle;
-                guy.carrying_item = 0;
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
                 create_entity(server, .Slab, guy.target_position, .North);
                 guy.state = .Idle;
-                guy.carrying_item = 0;
             } else if !target_entity && guy.carrying_item == .Torch {
                 guy.state = .Idle;
-                guy.carrying_item = 0;
                 create_entity(server, .Torch, guy.target_position, .North);
             } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
-                guy.carrying_item = 0;
             }
         }
 
-      case .Secondary;
+      case .Primary_End;
+        if guy.state == .Digging {
+            guy.state = .Idle;
+        }
+        
+      case .Secondary_Start;
         target_entity := find_any_entity_at_position(server, guy.target_position);
         if target_entity && target_entity.entity_kind == .Mirror {
             update_physical_location(server, target_entity, target_entity.physical_position, (target_entity.physical_rotation + 1) % Direction.Count);
         }
+
+      case .Secondary_End;
     }
     
     //
@@ -884,7 +887,7 @@ do_game_tick :: (server: *Server) {
     //
     // Finally actually delete all marked entities
     //
-    physically_remove_all_marked_entities(server);
+    physically_remove_dead_entities(server);
 }
 
 server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
