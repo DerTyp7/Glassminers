@@ -74,7 +74,7 @@ register_all_input_bindings :: (client: *Client) {
     // Therefore, for easier setup I construct them locally here, and then copy them into the
     // engine allocator later on.
     //
-
+    
     ib: [Input_Action.Count][]Input_Binding = .[];
     ib[.Toggle_Pause_Menu]  = .[ keycode(.Escape), gamepad_button(.PS_Options), gamepad_button(.XBox_Menu) ];
     ib[.Toggle_Fullscreen]  = .[ keycode(.F11) ];
@@ -98,6 +98,12 @@ register_all_input_bindings :: (client: *Client) {
     for i := 0; i < ib.Capacity; ++i {
         client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);
     }
+
+    MOVE_INTERVAL: f32 : 0.33;
+    client.input_action_repetition_intervals[.Move_North] = MOVE_INTERVAL;
+    client.input_action_repetition_intervals[.Move_East]  = MOVE_INTERVAL;
+    client.input_action_repetition_intervals[.Move_South] = MOVE_INTERVAL;
+    client.input_action_repetition_intervals[.Move_West]  = MOVE_INTERVAL;
 }
 
 input_action_fired_globally :: (client: *Client, action: Input_Action, check: Input_Binding_Check) -> bool {
@@ -161,7 +167,11 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
         if #complete binding.kind == {
           case .Keyboard;
             if #complete check == {
-              case .Pressed;  if client.window.keys[binding.keycode] & .Pressed  fired_binding = binding;
+              case .Pressed;
+                if client.window.keys[binding.keycode] & .Pressed {
+                    fired_binding = binding;
+                }
+                
               case .Held;     if client.window.keys[binding.keycode] & .Down     fired_binding = binding;
               case .Released; if client.window.keys[binding.keycode] & .Released fired_binding = binding;
             }
@@ -171,7 +181,11 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
             gamepad := *client.window.gamepads[gamepad_index];
             
             if #complete check == {
-              case .Pressed;  if gamepad.buttons[binding.gamepad_button] & .Pressed  fired_binding = binding;
+              case .Pressed;
+                if gamepad.buttons[binding.gamepad_button] & .Pressed {
+                    fired_binding = binding;
+                }
+                
               case .Held;     if gamepad.buttons[binding.gamepad_button] & .Down     fired_binding = binding;
               case .Released; if gamepad.buttons[binding.gamepad_button] & .Released fired_binding = binding;
             }
@@ -181,8 +195,13 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
             gamepad := *client.window.gamepads[gamepad_index];
 
             if #complete check == {
-              case .Pressed; if gamepad.gestures[binding.gamepad_gesture] fired_binding = binding;
-              case .Held, .Released;
+              case .Pressed;
+                if gamepad.gestures[binding.gamepad_gesture] & .Committed {
+                    fired_binding = binding;
+                }
+
+              case .Held;     if gamepad.gestures[binding.gamepad_gesture] & .Held     fired_binding = binding;
+              case .Released; if gamepad.gestures[binding.gamepad_gesture] & .Released fired_binding = binding;
             }
         }
     }

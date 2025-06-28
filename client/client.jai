@@ -69,6 +69,7 @@ Local_Player :: struct {
     allowed_input_devices: Input_Device = 0;
     gamepad_index := 0;
     input_bindings_fired_this_frame: [..]Input_Binding; // We don't want the same input binding to fire two separate actions, e.g. rotating a mirror and opening the crafting menu in the same frame
+    input_action_repetition_timers: [Input_Action.Count]f32 = .[ 0 ];
 }
 
 Test_Input :: struct {
@@ -126,6 +127,7 @@ Client :: struct {
     // Input System
     //
     input_bindings: [Input_Action.Count][]Input_Binding;
+    input_action_repetition_intervals: [Input_Action.Count]f32 = .[ 0 ]; // For every action, we can define the interval in which the action is considered "repeated" - or 0 to disable this behavior. Repeated means: When the player keeps pressing the button (or holding the gesture, etc) for this interval, the action shall be triggered again
     
     //
     // Networking
@@ -1247,7 +1249,7 @@ do_game_tick :: (client: *Client) {
 }
                 
             if !local_player.hud.was_open_this_frame {
-                if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
+                if input_action_fired_for_local_player(client, local_player, .Move_North, .Released) { // nocheckin: Should be pressed
                     if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
                         input.position.x = guy.physical_position.x;
                         input.position.y = guy.physical_position.y - 1;
