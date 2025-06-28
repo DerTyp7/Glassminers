@@ -1,5 +1,5 @@
 Sound_Pid :: u64;
-INVALID_SOUND_PID: Sound_Pid = 0;
+INVALID_SOUND_PID: Sound_Pid : 0;
 
 SOUNDS_INNER_RADIUS: f32 : 3;
 SOUNDS_OUTER_RADIUS: f32 : 18;
@@ -11,13 +11,15 @@ Play_Sound_Flags :: enum bitfield {
 }
 
 Sound_Index :: enum {
-    Pickup_0;
-    Placedown_0;
-    Crafting_0;
-    Failure_0;
-    Pickaxe_0;
-    Concrete_Footsteps_0;
-    Concrete_Footsteps_1;
+    Hud_Pickup_0;
+    Hud_Placedown_0;
+    Hud_Success_0;
+    Hud_Failure_0;
+    
+    Receiver_Charging;
+    Guy_Digging_0;
+    Guy_Walk_0;
+    Guy_Walk_1;
     Rock_Sliding_0;
     Guy_Death_0;
     Frog_Attack_0;
@@ -33,11 +35,13 @@ Sound_Index :: enum {
 }
 
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
-    "pickup-0.wav",
-    "placedown-0.wav",
-    "crafting-0.wav",
-    "failure-0.wav",
-    "pickaxe-0.wav",
+    "hud-pickup-0.wav",
+    "hud-placedown-0.wav",
+    "hud-success-0.wav",
+    "hud-failure-0.wav",
+
+    "receiver-charging.wav",
+    "guy-digging-0.wav",
     "guy-walk-0.wav",
     "guy-walk-1.wav",
     "rock-sliding-0.wav",
@@ -117,6 +121,13 @@ play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Ent
     }
         
     return sound_pid;
+}
+
+set_sound_playback_position :: (client: *Client, sound_pid: Sound_Pid, percentage: f32) {
+    if !sound_active(client, sound_pid) return;
+
+    stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
+    stream.frame_offset = cast(u64) (cast(f32) stream.sound_data.available_frames * percentage);
 }
 
 update_sound_players :: (client: *Client) {

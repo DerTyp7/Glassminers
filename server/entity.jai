@@ -521,6 +521,7 @@ update_receiver :: (server: *Server, receiver: *Receiver) {
         msg := make_message(Receiver_State_Message);
         msg.receiver_state.entity_pid = receiver.pid;
         msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
+        msg.receiver_state.lit_up = lit_up;
         array_add(*server.outgoing_messages, msg);
     }
 }

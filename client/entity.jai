@@ -37,7 +37,7 @@ Entity :: struct {
     visual_rotation: f32;
     visual_size: v2f;
 
-    sound_pid: Sound_Pid = INVALID_SOUND_PID;
+    sound: Sound_Pid = INVALID_SOUND_PID;
     sound_cooldown: f32;
     
     derived: *void;
@@ -441,7 +441,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
     //
     // Update the entity's sounds
     //
-    if approx_distance_to_move > 0.25 && !sound_active(client, entity.sound_pid) {
+    if approx_distance_to_move > 0.25 && !sound_active(client, entity.sound) {
         // Play move sound
         pick_random_sound :: (sounds: []Sound_Index) -> Sound_Index {
             time := rdtsc();
@@ -451,13 +451,13 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
         sound_index: Sound_Index = .Count;
 
         if entity.entity_kind == {
-          case .Guy; sound_index = pick_random_sound(.[ .Concrete_Footsteps_0, .Concrete_Footsteps_1 ]);
+          case .Guy; sound_index = pick_random_sound(.[ .Guy_Walk_0, .Guy_Walk_1 ]);
           case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
           case .Slime; sound_index = .Slime_Walk_0;
         }
 
         if sound_index != .Count {
-            entity.sound_pid = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
+            entity.sound = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
         }
     }
 

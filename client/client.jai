@@ -437,8 +437,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         dropped_heart := floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART);
         gained_heart  := floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART);
         
-        if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound_pid) {
-            entity.sound_pid      = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
+        if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound) {
+            entity.sound          = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
             entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
         }
 
@@ -487,16 +487,16 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         // State Transitions
         if guy.state != msg.guy_state.state {
-            stop_sound(client, *guy.sound_pid);
+            stop_sound(client, *guy.sound);
 
             if #complete msg.guy_state.state == {
-              case .Digging;      guy.sound_pid = play_sound_on_entity(client, .Pickaxe_0, entity, .Looping);
-              case .Carrying;     guy.sound_pid = play_sound_on_entity(client, .Pickup_0, entity, .Default);
+              case .Digging;      guy.sound = play_sound_on_entity(client, .Guy_Digging_0, entity, .Looping);
+              case .Carrying;     guy.sound = play_sound_on_entity(client, .Hud_Pickup_0, entity, .Default);
               case .Resurrecting; guy.resurrection_t = 0;
               case .Dead;
-                guy.sound_pid = play_sound_on_entity(client, .Guy_Death_0, entity, .Default);
+                guy.sound = play_sound_on_entity(client, .Guy_Death_0, entity, .Default);
                 play_animation_from_group(client, guy, .Guy_Dead);
-              case .Idle; if guy.state == .Carrying guy.sound_pid = play_sound_on_entity(client, .Placedown_0, entity, .Default);
+              case .Idle; if guy.state == .Carrying guy.sound = play_sound_on_entity(client, .Hud_Placedown_0, entity, .Default);
             }
 
             if msg.guy_state.state != .Dead {
@@ -521,6 +521,15 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Receiver_State;
         entity := get_entity(client, msg.receiver_state.entity_pid);
         receiver := down(entity, Receiver);
+
+        // Play a sound while the receiver is being charged
+        if msg.receiver_state.lit_up && !sound_active(client, entity.sound) {
+            entity.sound = play_sound(client, .Receiver_Charging, .Default);
+            set_sound_playback_position(client, entity.sound, msg.receiver_state.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
+        } else if !msg.receiver_state.lit_up && sound_active(client, entity.sound) {
+            stop_sound(client, *entity.sound);
+        }
+
         receiver.progress_time_in_seconds = msg.receiver_state.progress_time_in_seconds;
 
       case .Item_Stack_State;
@@ -546,7 +555,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Idle; play_animation_from_group(client, frog, .Frog_Idle);
               case .Recovering; play_animation_from_group(client, frog, .Frog_Recovering);
               case .Attacking;
-                frog.sound_pid = play_sound_on_entity(client, .Frog_Attack_0, entity, .Once_Per_Frame);
+                frog.sound = play_sound_on_entity(client, .Frog_Attack_0, entity, .Once_Per_Frame);
                 play_animation_from_group(client, frog, .Frog_Attacking);
 
                 particles := create_particle_system(client, FROG_ATTACK_TIME, frog.visual_position, 1);
@@ -578,7 +587,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Idle; play_animation_from_group(client, goblin, .Goblin_Idle);
               case .Recovering; play_animation_from_group(client, goblin, .Goblin_Recovering);
               case .Attacking;
-                goblin.sound_pid = play_sound_on_entity(client, .Goblin_Attack_0, entity, .Once_Per_Frame);
+                goblin.sound = play_sound_on_entity(client, .Goblin_Attack_0, entity, .Once_Per_Frame);
                 play_animation_from_group(client, goblin, .Goblin_Attacking);
             }
         }
@@ -1507,8 +1516,11 @@ main :: (args: []string) -> s32 {
                 local_player := *client.local_players[i];
                 if local_player.active_input_device == .Gamepad {
                     entity := get_entity(*client, local_player.guy_pid);
+                    guy := down(entity, Guy);
+                    
+                    digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
+                    vibration := max(entity.health_bar_damage_animation_t, digging_vibration);
 
-                    vibration := entity.health_bar_damage_animation_t;
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
 

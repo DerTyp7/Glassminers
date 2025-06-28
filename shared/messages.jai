@@ -119,6 +119,7 @@ Receiver_State_Message :: struct {
     MSG_TYPE :: Message_Type.Receiver_State;
     entity_pid: Pid;
     progress_time_in_seconds: f32;
+    lit_up: bool;
 }
 
 Item_Stack_State_Message :: struct {

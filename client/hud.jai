@@ -110,21 +110,21 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
             hud.crafting_recipe_confirmed_this_frame = hud.crafting_menu.recipes[hud.selected_option];
 
             if crafting_recipe_looks_doable(client, guy, hud.crafting_recipe_confirmed_this_frame) {
-                play_sound(client, .Crafting_0, .Default);
+                play_sound(client, .Hud_Success_0, .Default);
             } else {
-                play_sound(client, .Failure_0, .Default);
+                play_sound(client, .Hud_Failure_0, .Default);
             }
 
             close_hud(client, hud);
 
           case .Cheat_Menu;
             hud.cheat_confirmed_this_frame = hud.selected_option;
-            play_sound(client, .Crafting_0, .Default);
+            play_sound(client, .Hud_Success_0, .Default);
             close_hud(client, hud);
 
           case .Chest_Menu;
             hud.chest_item_confirmed_this_frame = hud.chest_menu.item_kinds[hud.selected_option];
-            play_sound(client, .Crafting_0, .Default);
+            play_sound(client, .Hud_Success_0, .Default);
             close_hud(client, hud);
         }
     }
