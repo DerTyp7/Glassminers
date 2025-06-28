@@ -3,20 +3,22 @@
 The previous changes apparently introduces a lot of regressions, which shall be fixed with this release.
 It also attempts to improve the user experience of the game.
 
-- Implemented gamepad vibration + color setting for local players when their health changes. Note: Because every gamepad vendor is just an asshole, there's support limitations:
+- Implemented gamepad vibration + color setting for local players when their health changes / they're digging. Note: Because every gamepad vendor is just an asshole, there's support limitations:
     - Rumble + LED on wired PS controllers on Windows
     - Rumble on wired XBox controllers on Windows
     - Rumble on wired XBox + PS controllers on Linux
     - No Rumble on bluetooth controllers on Linux or Windows
     - No LED on XBox controllers on Windows or any controllers on Linux
+- Changed the digging interaction from toggle to hold
 - Limited the slime's action radius to 8 blocks away from its nearest slime hole, so that slimes aren't too annoying across the entire world
 - Added a stone dropping when destroying a chest
+- Added a sound effect when the receiver is charging up
 - Fixed the slider button for the volume setting disappearing sometimes
 - Fixed the game ending when one player dies while having more than one local players
 - Fixed the guy never switching away from the Death animation after having been resurrected
 - Fixed the current action of a guy (digging, resurrecting) not being cancelled when being pushed by someone else
 - Fixed wrongly cancelling the current action of a guy when failing to move
-    
+
 ## 0.2.2 (21.06.2025)
 
 The world is now lit up (or rather darkended out) in areas where no light reaches. Light can come from beams and torches. This has a big effect on gameplay, as you can no longer see large parts of the world.

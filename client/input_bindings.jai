@@ -88,8 +88,8 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Interact_Secondary] = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
     ib[.Hud_Toggle]         = .[ keycode(.Shift), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
     ib[.Hud_Confirm]        = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
-    ib[.Hud_Left]           = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_gesture(.Left_Swipe_Left),  gamepad_gesture(.Left_Swipe_Up) ];
-    ib[.Hud_Right]          = .[ keycode(.D), keycode(.Arrow_Right), gamepad_gesture(.Left_Swipe_Right), gamepad_gesture(.Left_Swipe_Down) ];
+    ib[.Hud_Left]           = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_button(.Left_Bumper) ];
+    ib[.Hud_Right]          = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper) ];
     ib[.Cheat_Menu_Toggle]  = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
     
     for i := 0; i < ib.Capacity; ++i {
