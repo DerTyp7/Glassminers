@@ -123,7 +123,7 @@ Client :: struct {
     // Input System
     //
     input_bindings: [Input_Action.Count][]Input_Binding;
-    input_action_repetition_intervals: [Input_Action.Count]f32 = .[ 0 ]; // For every action, we can define the interval in which the action is considered "repeated" - or 0 to disable this behavior. Repeated means: When the player keeps pressing the button (or holding the gesture, etc) for this interval, the action shall be triggered again
+    input_action_repetition_intervals: [Input_Action.Count]f32 = .[ MAX_F32 ]; // For every action, we can define the interval in which the action is considered "repeated". Repeated means: When the player keeps pressing the button (or holding the gesture, etc) for this interval, the action shall be triggered again
     global_input_binder: Input_Binder;
     
     //

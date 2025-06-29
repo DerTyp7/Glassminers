@@ -199,6 +199,8 @@ check_input_binder_for_action :: (client: *Client, binder: *Input_Binder, action
               case .Pressed;
                 if client.window.keys[binding.keycode] & .Pressed {
                     fired_binding = binding;
+                } else if client.window.keys[binding.keycode] & .Down && binder.input_action_hold_time[action] >= client.input_action_repetition_intervals[action] {
+                    fired_binding = binding;
                 }
                 
               case .Held;     if client.window.keys[binding.keycode] & .Down     fired_binding = binding;
@@ -213,6 +215,8 @@ check_input_binder_for_action :: (client: *Client, binder: *Input_Binder, action
               case .Pressed;
                 if gamepad.buttons[binding.gamepad_button] & .Pressed {
                     fired_binding = binding;
+                } else if gamepad.buttons[binding.gamepad_button] & .Down && binder.input_action_hold_time[action] >= client.input_action_repetition_intervals[action] {
+                    fired_binding = binding;
                 }
                 
               case .Held;     if gamepad.buttons[binding.gamepad_button] & .Down     fired_binding = binding;
@@ -226,6 +230,8 @@ check_input_binder_for_action :: (client: *Client, binder: *Input_Binder, action
             if #complete check == {
               case .Pressed;
                 if gamepad.gestures[binding.gamepad_gesture] & .Committed {
+                    fired_binding = binding;
+                } else if gamepad.gestures[binding.gamepad_gesture] & .Held && binder.input_action_hold_time[action] >= client.input_action_repetition_intervals[action] {
                     fired_binding = binding;
                 }
 
@@ -242,7 +248,10 @@ check_input_binder_for_action :: (client: *Client, binder: *Input_Binder, action
         binder.active_input_device = INPUT_BINDING_KIND_DEVICE[fired_binding.kind];
 
         if #complete check == {
-          case .Pressed, .Held; binder.input_action_held[action] = true;
+          case .Pressed;
+            binder.input_action_held[action] = true;
+            binder.input_action_hold_time[action] = 0;
+          case .Held; binder.input_action_held[action] = true;
           case .Released; binder.input_action_held[action] = false;
         }
     }
