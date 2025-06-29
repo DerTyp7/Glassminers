@@ -65,11 +65,7 @@ Local_Player :: struct {
     viewport: [4]f32;
     camera: Camera;
     hud: Hud;
-    active_input_device:   Input_Device = 0;
-    allowed_input_devices: Input_Device = 0;
-    gamepad_index := 0;
-    input_bindings_fired_this_frame: [..]Input_Binding; // We don't want the same input binding to fire two separate actions, e.g. rotating a mirror and opening the crafting menu in the same frame
-    input_action_repetition_timers: [Input_Action.Count]f32 = .[ 0 ];
+    input_binder: Input_Binder;
 }
 
 Test_Input :: struct {
@@ -128,6 +124,7 @@ Client :: struct {
     //
     input_bindings: [Input_Action.Count][]Input_Binding;
     input_action_repetition_intervals: [Input_Action.Count]f32 = .[ 0 ]; // For every action, we can define the interval in which the action is considered "repeated" - or 0 to disable this behavior. Repeated means: When the player keeps pressing the button (or holding the gesture, etc) for this interval, the action shall be triggered again
+    global_input_binder: Input_Binder;
     
     //
     // Networking
@@ -246,7 +243,7 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
     result := create_client_connection(*client.connection, NETWORK_PROTOCOL, host, port);
     if result == .Success {
         client.local_players[0].name = copy_string(*client.engine_allocator, name);
-        if client.local_players[0].allowed_input_devices == 0 then client.local_players[0].allowed_input_devices = .Keyboard | .Gamepad;
+        if client.local_players[0].input_binder.allowed_input_devices == 0 then client.local_players[0].input_binder.allowed_input_devices = .Keyboard | .Gamepad;
         client.next_state = .Connecting;
     } else {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
@@ -715,7 +712,7 @@ switch_to_next_state :: (client: *Client) {
         // Stop any active rumbling effect
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
-            set_window_gamepad_properties(*client.window, local_player.gamepad_index, 0, 0, 255, 255, 255);
+            set_window_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, 0, 0, 255, 255, 255);
         }
     }
 
@@ -752,8 +749,8 @@ reassign_gamepad_indices :: (client: *Client) {
     index := 0;
 
     for i := 0; i < client.local_player_count; ++i {
-        client.local_players[i].gamepad_index = index;
-        if client.local_players[i].allowed_input_devices & .Gamepad ++index;
+        client.local_players[i].input_binder.gamepad_index = index;
+        if client.local_players[i].input_binder.allowed_input_devices & .Gamepad ++index;
     }
 }
 
@@ -950,10 +947,10 @@ do_lobby_screen :: (client: *Client) {
             ui_pop_width(ui);
             
             ui_push_width(ui, .Pixels, 32, 1);
-            input_device_widget(client, tprint("local_player_input_devices%", i), *local_player.allowed_input_devices);
+            input_device_widget(client, tprint("local_player_input_devices%", i), *local_player.input_binder.allowed_input_devices);
             ui_pop_width(ui);
 
-            if local_player.allowed_input_devices & .Gamepad && local_player.gamepad_index >= client.window.connected_gamepads {
+            if local_player.input_binder.allowed_input_devices & .Gamepad && local_player.input_binder.gamepad_index >= client.window.connected_gamepads {
                 ui_push_width(ui, .Label_Size, 5, 1);
                 ui_label(ui, true, "!");
                 ui_pop_width(ui);
@@ -981,10 +978,10 @@ do_lobby_screen :: (client: *Client) {
 
                 if ui_button(ui, "Add!") && client.ui_state.local_player_name {
                     client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, client.ui_state.local_player_name);
-                    client.local_players[client.local_player_count].allowed_input_devices = .Gamepad;
+                    client.local_players[client.local_player_count].input_binder.allowed_input_devices = .Gamepad;
                     ++client.local_player_count;
 
-                    if client.local_players[0].allowed_input_devices == .ALL then client.local_players[0].allowed_input_devices = .Keyboard;
+                    if client.local_players[0].input_binder.allowed_input_devices == .ALL then client.local_players[0].input_binder.allowed_input_devices = .Keyboard;
 
                     send_player_information_message(client, client.local_player_count - 1);
 
@@ -1043,13 +1040,13 @@ do_lobby_screen :: (client: *Client) {
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
 
-            if bitfield_contains(*local_player.allowed_input_devices, Input_Device.Keyboard) && !client.ui.active_text_input {
+            if bitfield_contains(*local_player.input_binder.allowed_input_devices, Input_Device.Keyboard) && !client.ui.active_text_input {
                 if client.window.keys[.Space] & .Pressed then register_test_input(client, i, .Hud_Key_Space);
                 if client.window.keys[.Shift] & .Pressed then register_test_input(client, i, .Hud_Key_Shift);
             }
 
-            if bitfield_contains(*local_player.allowed_input_devices, Input_Device.Gamepad) && local_player.gamepad_index < client.window.connected_gamepads {
-                gamepad := *client.window.gamepads[local_player.gamepad_index];
+            if bitfield_contains(*local_player.input_binder.allowed_input_devices, Input_Device.Gamepad) && local_player.input_binder.gamepad_index < client.window.connected_gamepads {
+                gamepad := *client.window.gamepads[local_player.input_binder.gamepad_index];
                 if gamepad.buttons[.XBox_A]    & .Pressed then register_test_input(client, i, .Hud_XBox_A);
                 if gamepad.buttons[.XBox_X]    & .Pressed then register_test_input(client, i, .Hud_XBox_X);
                 if gamepad.buttons[.PS_Cross]  & .Pressed then register_test_input(client, i, .Hud_PS_Cross);
@@ -1101,7 +1098,6 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
-    reset_input_actions_for_local_players(client);
     
     //
     // Update all local entities based on the information received by the server.
@@ -1249,7 +1245,7 @@ do_game_tick :: (client: *Client) {
 }
                 
             if !local_player.hud.was_open_this_frame {
-                if input_action_fired_for_local_player(client, local_player, .Move_North, .Released) { // nocheckin: Should be pressed
+                if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
                     if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
                         input.position.x = guy.physical_position.x;
                         input.position.y = guy.physical_position.y - 1;
@@ -1309,7 +1305,7 @@ do_game_tick :: (client: *Client) {
             send_reliable_message(*client.connection, array_get_pointer(*outgoing_messages, i));
         }
     }
-    
+
     physically_remove_dead_particle_systems(client);
     physically_remove_dead_entities(client);
 }
@@ -1424,14 +1420,7 @@ main :: (args: []string) -> s32 {
         // Handle transitions
         //
         if client.current_state != client.next_state switch_to_next_state(*client);
-        
-        if input_action_fired_globally(*client, .Toggle_Fullscreen, .Pressed) {
-            if client.window.fullscreen {
-                set_window_style(*client.window, .Maximized);
-            } else {
-                set_window_style(*client.window, .Fullscreen);                
-            }
-        }
+        client.tick_time = client.window.frame_time;
         
         //
         // Do one frame
@@ -1441,8 +1430,16 @@ main :: (args: []string) -> s32 {
             begin_ui_frame(*client.ui, .{ 128, 24 });
             recalculate_local_player_viewports(*client);
             reassign_gamepad_indices(*client);
-            
-            client.tick_time = client.window.frame_time;
+            prepare_input_binders(*client);
+
+            if input_action_fired_globally(*client, .Toggle_Fullscreen, .Pressed) {
+                if client.window.fullscreen {
+                    set_window_style(*client.window, .Maximized);
+                } else {
+                    set_window_style(*client.window, .Fullscreen);                
+                }
+            }
+
             
             if #complete client.current_state == {
               case .Main_Menu;  do_main_menu(*client);
@@ -1451,6 +1448,8 @@ main :: (args: []string) -> s32 {
               case .Ingame;     do_game_tick(*client);
               case .Game_Over;  do_game_over_screen(*client);
             }
+
+            update_input_binders(*client);
         }
         
         //
@@ -1524,7 +1523,7 @@ main :: (args: []string) -> s32 {
         if client.current_state == .Ingame {
             for i := 0; i < client.local_player_count; ++i {
                 local_player := *client.local_players[i];
-                if local_player.active_input_device == .Gamepad {
+                if local_player.input_binder.active_input_device == .Gamepad {
                     entity := get_entity(*client, local_player.guy_pid);
                     guy := down(entity, Guy);
                     
@@ -1534,7 +1533,7 @@ main :: (args: []string) -> s32 {
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
 
-                    set_window_gamepad_properties(*client.window, local_player.gamepad_index, vibration, vibration, color.r, color.g, color.b);
+                    set_window_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, vibration, vibration, color.r, color.g, color.b);
                 }
             }
         }

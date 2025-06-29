@@ -303,15 +303,15 @@ get_sprite_index_for_input_action :: (client: *Client, local_player: *Local_Play
 
         if #complete binding.kind == {
           case .Keyboard;
-            if local_player.active_input_device == .Keyboard {
+            if local_player.input_binder.active_input_device == .Keyboard {
                 return get_sprite_index_for_key_code(binding.keycode);
             }
           case .Gamepad_Button;
-            if local_player.active_input_device == .Gamepad && is_vendor_appropriate_gamepad_binding(*client.window.gamepads[0], binding.gamepad_button) {
+            if local_player.input_binder.active_input_device == .Gamepad && is_vendor_appropriate_gamepad_binding(*client.window.gamepads[0], binding.gamepad_button) {
                 return get_sprite_index_for_gamepad_button(binding.gamepad_button);
             }
           case .Gamepad_Gesture;
-            if local_player.active_input_device == .Gamepad {
+            if local_player.input_binder.active_input_device == .Gamepad {
                 return get_sprite_index_for_gamepad_gesture(binding.gamepad_gesture);
             }
         }

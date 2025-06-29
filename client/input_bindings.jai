@@ -45,6 +45,15 @@ Input_Binding :: struct {
     };
 }
 
+Input_Binder :: struct {
+    active_input_device: Input_Device = 0;
+    allowed_input_devices: Input_Device = 0;
+    gamepad_index := 0;
+    input_bindings_fired_this_frame: [..]Input_Binding; // We don't want the same input binding to fire two separate actions, e.g. rotating a mirror and opening the crafting menu with the same button press
+    input_action_held: [Input_Action.Count]bool = .[ false ];
+    input_action_hold_time: [Input_Action.Count]f32 = .[ 0 ]; // If an input action is currently being held for this binder, this value will count up the frame time. This is then used to determine repeating input actions
+}
+
 
 register_all_input_bindings :: (client: *Client) {
     keycode :: (keycode: Key_Code) -> Input_Binding {
@@ -104,40 +113,36 @@ register_all_input_bindings :: (client: *Client) {
     client.input_action_repetition_intervals[.Move_East]  = MOVE_INTERVAL;
     client.input_action_repetition_intervals[.Move_South] = MOVE_INTERVAL;
     client.input_action_repetition_intervals[.Move_West]  = MOVE_INTERVAL;
+
+    client.global_input_binder.active_input_device = .Keyboard;
+    client.global_input_binder.allowed_input_devices = .ALL;
 }
 
 input_action_fired_globally :: (client: *Client, action: Input_Action, check: Input_Binding_Check) -> bool {
-    return check_input_action(client, .ALL, 0, action, check) != null;
+    return check_input_binder_for_action(client, *client.global_input_binder, action, check);
 }
 
 input_action_fired_for_local_player :: (client: *Client, local_player: *Local_Player, action: Input_Action, check: Input_Binding_Check) -> bool {
-    // Make sure no binding associated with this input action has been fired this frame already, to prevent
-    // a single binding causing multiple actions to go off.
-    for i := 0; i < client.input_bindings[action].count; ++i {
-        for j := 0; j < local_player.input_bindings_fired_this_frame.count; ++j {
-            if compare_input_bindings(*client.input_bindings[action][i], array_get_pointer(*local_player.input_bindings_fired_this_frame, j)) return false;
-        }
-    }
-
-    fired := check_input_action(client, local_player.allowed_input_devices, local_player.gamepad_index, action, check);
-
-    // Register all bindings of this action to be used this frame, so that we ensure no other action will
-    // be fired that uses the same bindings.
-    if fired {
-        for i := 0; i < client.input_bindings[action].count; ++i {
-            array_add(*local_player.input_bindings_fired_this_frame, client.input_bindings[action][i]);
-        }
-
-        local_player.active_input_device = INPUT_BINDING_KIND_DEVICE[fired.kind];
-    }
-    
-    return fired != null;
+    return check_input_binder_for_action(client, *local_player.input_binder, action, check);
 }
 
-reset_input_actions_for_local_players :: (client: *Client) {
-    for i := 0; i < client.local_player_count; ++i {
-        array_clear_without_deallocation(*client.local_players[i].input_bindings_fired_this_frame);
-        client.local_players[i].input_bindings_fired_this_frame.allocator = *temp;
+update_input_binders :: (client: *Client) {
+    update_input_binder(client, *client.global_input_binder);
+
+    if client.current_state == .Ingame {
+        for i := 0; i < client.local_player_count; ++i {
+            update_input_binder(client, *client.local_players[i].input_binder);
+        }
+    }
+}
+
+prepare_input_binders :: (client: *Client) {
+    prepare_input_binder(*client.global_input_binder);
+
+    if client.current_state == .Ingame {
+        for i := 0; i < client.local_player_count; ++i {
+            prepare_input_binder(*client.local_players[i].input_binder);
+        }
     }
 }
 
@@ -157,13 +162,37 @@ INPUT_BINDING_KIND_DEVICE: [Input_Binding_Kind.Count]Input_Device : .[
         .Gamepad,
 ];
 
-check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gamepad_index: s64, action: Input_Action, check: Input_Binding_Check) -> *Input_Binding {
+check_input_binding_held :: (client: *Client, binder: *Input_Binder, binding: *Input_Binding) -> bool {
+    if #complete binding.kind == {
+      case .Keyboard; return client.window.keys[binding.keycode] & .Down;
+      case .Gamepad_Button; return binder.gamepad_index < client.window.connected_gamepads && client.window.gamepads[binder.gamepad_index].buttons[binding.gamepad_button] & .Down;
+      case .Gamepad_Gesture; return binder.gamepad_index < client.window.connected_gamepads && client.window.gamepads[binder.gamepad_index].gestures[binding.gamepad_gesture] & .Held;
+      case; return false;
+    }
+}
+
+check_input_binder_for_action :: (client: *Client, binder: *Input_Binder, action: Input_Action, check: Input_Binding_Check) -> bool {
     fired_binding: *Input_Binding = null;
 
     for i := 0; i < client.input_bindings[action].count; ++i {
         binding := *client.input_bindings[action][i];
-        if !bitfield_contains(*allowed_input_devices, INPUT_BINDING_KIND_DEVICE[binding.kind]) continue;
+        if !bitfield_contains(*binder.allowed_input_devices, INPUT_BINDING_KIND_DEVICE[binding.kind]) continue;
         
+        // Make sure this binding hasn't been fired in this frame already
+        {
+            fired_already := false;
+            
+            for j := 0; j < binder.input_bindings_fired_this_frame.count; ++j {
+                if compare_input_bindings(binding, array_get_pointer(*binder.input_bindings_fired_this_frame, j)) {
+                    fired_already = true;
+                    break;
+                }
+            }
+
+            if fired_already break;
+        }
+        
+        // Check if this binding has actually been fired this frame
         if #complete binding.kind == {
           case .Keyboard;
             if #complete check == {
@@ -177,8 +206,8 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
             }
 
           case .Gamepad_Button;
-            if gamepad_index >= client.window.connected_gamepads break;
-            gamepad := *client.window.gamepads[gamepad_index];
+            if binder.gamepad_index >= client.window.connected_gamepads break;
+            gamepad := *client.window.gamepads[binder.gamepad_index];
             
             if #complete check == {
               case .Pressed;
@@ -191,8 +220,8 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
             }
 
           case .Gamepad_Gesture;
-            if gamepad_index >= client.window.connected_gamepads break;
-            gamepad := *client.window.gamepads[gamepad_index];
+            if binder.gamepad_index >= client.window.connected_gamepads break;
+            gamepad := *client.window.gamepads[binder.gamepad_index];
 
             if #complete check == {
               case .Pressed;
@@ -206,7 +235,19 @@ check_input_action :: (client: *Client, allowed_input_devices: Input_Device, gam
         }
     }
 
-    return fired_binding;
+    // Register the potentially fired binding in the binder, so that it won't fire anything else
+    // this frame
+    if fired_binding {
+        array_add(*binder.input_bindings_fired_this_frame, ~fired_binding);
+        binder.active_input_device = INPUT_BINDING_KIND_DEVICE[fired_binding.kind];
+
+        if #complete check == {
+          case .Pressed, .Held; binder.input_action_held[action] = true;
+          case .Released; binder.input_action_held[action] = false;
+        }
+    }
+
+    return fired_binding != null;
 }
 
 compare_input_bindings :: (lhs, rhs: *Input_Binding) -> bool {
@@ -219,4 +260,29 @@ compare_input_bindings :: (lhs, rhs: *Input_Binding) -> bool {
     }
 
     return false;
+}
+
+update_input_binder :: (client: *Client, binder: *Input_Binder) {
+    for action := 0; action < binder.input_action_held.Capacity; ++action {
+        if binder.input_action_held[action] {
+            still_held := false;
+
+            for j := 0; j < client.input_bindings[action].count; ++j {
+                still_held |= check_input_binding_held(client, binder, *client.input_bindings[action][j]);
+            }
+
+            binder.input_action_held[action] = still_held;
+        }
+
+        if binder.input_action_held[action] {
+            binder.input_action_hold_time[action] += client.tick_time;
+        } else {
+            binder.input_action_hold_time[action] = 0;
+        }
+    }
+}
+
+prepare_input_binder :: (input_binder: *Input_Binder) {
+    array_clear_without_deallocation(*input_binder.input_bindings_fired_this_frame);
+    input_binder.input_bindings_fired_this_frame.allocator = *temp;
 }
