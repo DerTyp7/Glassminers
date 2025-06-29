@@ -9,6 +9,7 @@ It also attempts to improve the user experience of the game.
     - Rumble on wired XBox + PS controllers on Linux
     - No Rumble on bluetooth controllers on Linux or Windows
     - No LED on XBox controllers on Windows or any controllers on Linux
+- Implemented "repeating" input actions: When holding down movement inputs, the guy will now continuously walk
 - Changed the key binding for opening the crafting hud to E from Shift
 - Changed the digging interaction from toggle to hold
 - Holding down Shift while pressing WASD will now just rotate the player instead of moving

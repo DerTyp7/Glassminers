@@ -1,4 +1,5 @@
 Hud :: struct {
+    // Exposed intermediate state
     state: Hud_State;
     previously_opened_state: Hud_State;
     was_open_this_frame: bool;
@@ -7,7 +8,8 @@ Hud :: struct {
     crafting_recipe_confirmed_this_frame: Crafting_Recipe;
     cheat_confirmed_this_frame: Cheat;
     chest_item_confirmed_this_frame: Item_Kind;
-    
+
+    // Underlying data
     #using data: union {
         crafting_menu: struct {
             recipes: []Crafting_Recipe;
@@ -22,10 +24,14 @@ Hud :: struct {
         };
     };
     
+    // Selection data
     available_options: s64;
     selected_option: s64;
+    cursor_enabled: bool; // The cursor is activated when moving the mouse or when using the joystick for selection. Otherwise, we stick to regular left+right movements through button inputs
+    cursor_theta: f32;
     animation_t: []f32;
 
+    // Display data
     screen_center: v2f;
     inner_wheel_radius: f32;
     outer_wheel_radius: f32;
@@ -94,6 +100,24 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
 
         if input_action_fired_for_local_player(client, local_player, .Hud_Right, .Pressed) {
             hud.selected_option = (hud.selected_option + 1) % hud.available_options;
+        }
+
+        if local_player.input_binder.active_input_device == {
+          case .Gamepad;
+            position := v2f.{ client.window.gamepads[local_player.input_binder.gamepad_index].axes[.Left_Stick_X], client.window.gamepads[local_player.input_binder.gamepad_index].axes[.Left_Stick_Y] };
+            magnitude := v2_magnitude(position);
+            
+            if magnitude > 0.5 {
+                hud.cursor_enabled = true;
+                hud.cursor_theta   = (atan2f(-position.x / magnitude, position.y / magnitude) + FPI) / FTAU;
+                hud.selected_option = (cast(s64) floor(hud.cursor_theta * cast(f32) hud.available_options)) % hud.available_options;
+            } else {
+                hud.cursor_enabled = false;
+            }
+
+          case .Keyboard;
+            // @Incomplete: Mouse handling
+            hud.cursor_enabled = false;
         }
     }
     
@@ -164,6 +188,14 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         draw_circle_segment(client, hud, hud.animation_t[i], i);
     }
 
+    // Draw the cursor if used
+    if hud.cursor_enabled {
+        covered_angle := 0.9 / cast(f32) hud.available_options;
+        theta0 := hud.cursor_theta - covered_angle / 2;
+        theta1 := hud.cursor_theta + covered_angle / 2;
+        draw_curve(client, hud, hud.inner_wheel_radius * 0.9, theta0, theta1);
+    }
+    
     // Draw the specific option, which depends on the open hud
     if #complete hud.state == {
       case .Disabled;
@@ -400,5 +432,21 @@ draw_circle_segment :: (client: *Client, hud: *Hud, animation_t: f32, option_ind
 
     if option_index == hud.selected_option {
         draw_outlined_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
+    }
+}
+
+draw_curve :: (client: *Client, hud: *Hud, radius: f32, theta0, theta1: f32) {
+    SEGMENTS :: 8;
+
+    angle := theta1 - theta0;
+    
+    for i := 0; i < SEGMENTS; ++i {
+        seg_t0 := (theta0 + cast(f32) (i) / cast(f32) SEGMENTS * angle) * FTAU;
+        seg_t1 := (theta0 + cast(f32) (i + 1) / cast(f32) SEGMENTS * angle) * FTAU;
+
+        p0 := v2f.{ hud.screen_center.x + sinf(seg_t0) * radius, hud.screen_center.y - cosf(seg_t0) * radius };
+        p1 := v2f.{ hud.screen_center.x + sinf(seg_t1) * radius, hud.screen_center.y - cosf(seg_t1) * radius };
+
+        draw_line_screen_space(client, p0, p1, .{ 255, 255, 255, 180 }, 5);
     }
 }
