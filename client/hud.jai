@@ -65,11 +65,13 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
         close_hud(client, hud);
         return;
     }
-        
+    
     //
     // Toggle the active state
     //
 
+    hud_opened_this_frame := false;
+    
     // This is a bit ugly, but rotating mirrors should have priority over opening the hud,
     // since they have the same keybindings. Since we're doing the hud update before the
     // general guy input though, we need to handle that here...
@@ -78,15 +80,18 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
         guy := down(guy_entity, Guy);
 
         if find_entity_of_kind_at_position(client, .Chest, guy.target_position) {
-            maybe_open_hud(client, hud, guy, .Chest_Menu);
+            maybe_open_hud(client, local_player, guy, .Chest_Menu);
         } else {
-            maybe_open_hud(client, hud, guy, .Crafting_Menu);
+            maybe_open_hud(client, local_player, guy, .Crafting_Menu);
         }
+
+        hud_opened_this_frame = true;
     }
 
 #if DEVELOPER {
     if input_action_fired_for_local_player(client, local_player, .Cheat_Menu_Toggle, .Pressed) {
-        maybe_open_hud(client, hud, guy, .Cheat_Menu);
+        maybe_open_hud(client, local_player, guy, .Cheat_Menu);
+        hud_opened_this_frame = true;
     }
 }
 
@@ -96,10 +101,12 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     if hud.state != .Disabled {
         if input_action_fired_for_local_player(client, local_player, .Hud_Left, .Pressed) {
             hud.selected_option = (hud.selected_option - 1) % hud.available_options;
+            hud.cursor_enabled = false;
         }
 
         if input_action_fired_for_local_player(client, local_player, .Hud_Right, .Pressed) {
             hud.selected_option = (hud.selected_option + 1) % hud.available_options;
+            hud.cursor_enabled = false;
         }
 
         if local_player.input_binder.active_input_device == {
@@ -110,14 +117,20 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
             if magnitude > 0.5 {
                 hud.cursor_enabled = true;
                 hud.cursor_theta   = (atan2f(-position.x / magnitude, position.y / magnitude) + FPI) / FTAU;
-                hud.selected_option = (cast(s64) floor(hud.cursor_theta * cast(f32) hud.available_options)) % hud.available_options;
-            } else {
-                hud.cursor_enabled = false;
             }
 
           case .Keyboard;
-            // @Incomplete: Mouse handling
-            hud.cursor_enabled = false;
+            if !hud_opened_this_frame && (client.window.mouse_delta_x != 0 || client.window.mouse_delta_y != 0) { // In the frame where the hud is opened the mouse is moved by us programatically...
+                position := v2f.{ cast(f32) client.window.mouse_x - hud.screen_center.x, cast(f32) client.window.mouse_y - hud.screen_center.y };
+                
+                magnitude := v2_magnitude(position);
+                hud.cursor_theta = (atan2f(-position.x / magnitude, position.y / magnitude) + FPI) / FTAU;
+                hud.cursor_enabled = true;
+            }
+        }
+
+        if hud.cursor_enabled {
+            hud.selected_option = cast(s64) floor(hud.cursor_theta * cast(f32) hud.available_options) % hud.available_options;
         }
     }
     
@@ -189,7 +202,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     }
 
     // Draw the cursor if used
-    if hud.cursor_enabled {
+    if hud.cursor_enabled && hud.available_options > 1 {
         covered_angle := 0.9 / cast(f32) hud.available_options;
         theta0 := hud.cursor_theta - covered_angle / 2;
         theta1 := hud.cursor_theta + covered_angle / 2;
@@ -297,7 +310,9 @@ switch_to_hud_state :: (client: *Client, hud: *Hud, state: Hud_State, options: s
     hud.previously_opened_state = state;
 }
 
-maybe_open_hud :: (client: *Client, hud: *Hud, guy: *Guy, state: Hud_State) {
+maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, state: Hud_State) {
+    hud := *local_player.hud;
+
     if hud.state == state {
         close_hud(client, hud);
         return;
@@ -363,6 +378,10 @@ maybe_open_hud :: (client: *Client, hud: *Hud, guy: *Guy, state: Hud_State) {
         }
         
         switch_to_hud_state(client, hud, .Chest_Menu, separate_item_count);
+    }
+
+    if local_player.input_binder.active_input_device == .Keyboard {
+        set_cursor_position(*client.window, xx hud.screen_center.x, xx hud.screen_center.y);
     }
 }
 

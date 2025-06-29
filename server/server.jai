@@ -680,8 +680,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 create_entity(server, .Slab, guy.target_position, .North);
                 guy.state = .Idle;
             } else if !target_entity && guy.carrying_item == .Torch {
-                guy.state = .Idle;
-                create_entity(server, .Torch, guy.target_position, .North);
+                if position_in_bounds(server, guy.target_position) {
+                    guy.state = .Idle;
+                    create_entity(server, .Torch, guy.target_position, .North);
+                }
             } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
             }

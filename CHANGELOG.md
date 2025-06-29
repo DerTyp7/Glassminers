@@ -10,6 +10,7 @@ It also attempts to improve the user experience of the game.
     - No Rumble on bluetooth controllers on Linux or Windows
     - No LED on XBox controllers on Windows or any controllers on Linux
 - Implemented "repeating" input actions: When holding down movement inputs, the guy will now continuously walk
+- Implemented cursor input for the hud: You can drag the mouse or use the left stick on a gamepad to select an option in the hud wheel
 - Changed the key binding for opening the crafting hud to E from Shift
 - Changed the digging interaction from toggle to hold
 - Holding down Shift while pressing WASD will now just rotate the player instead of moving
@@ -21,6 +22,7 @@ It also attempts to improve the user experience of the game.
 - Fixed the guy never switching away from the Death animation after having been resurrected
 - Fixed the current action of a guy (digging, resurrecting) not being cancelled when being pushed by someone else
 - Fixed wrongly cancelling the current action of a guy when failing to move
+- Fixed a crash caused by being able to place torches out of bounds
 
 ## 0.2.2 (21.06.2025)
 
