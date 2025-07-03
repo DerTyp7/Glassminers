@@ -16,8 +16,8 @@ Lightmap :: struct {
 create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
     map.allocator = allocator;
     map.size      = size;
-    map.tiles     = allocate_array(allocator, f32, map.size.x * map.size.y);
-    map.blockers  = allocate_array(allocator, s32, map.size.x * map.size.y);
+    map.tiles     = allocate_array(map.allocator, f32, map.size.x * map.size.y);
+    map.blockers  = allocate_array(map.allocator, s32, map.size.x * map.size.y);
     for i := 0; i < map.tiles.count; ++i map.tiles[i] = 0;
     for i := 0; i < map.blockers.count; ++i map.blockers[i] = 0;
 
@@ -29,6 +29,23 @@ create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
 destroy_lightmap :: (map: *Lightmap) {
     deallocate_array(map.allocator, *map.tiles);
     map.size = .{ };
+}
+
+resize_lightmap :: (map: *Lightmap, new_size: v2i) {
+    new_tiles    := allocate_array(map.allocator, f32, new_size.x * new_size.y);
+    new_blockers := allocate_array(map.allocator, s32, new_size.x * new_size.y);
+
+    size_to_copy := v2i.{ min(new_size.x, map.size.x), min(new_size.y, map.size.y) };
+    
+    for y := 0; y < size_to_copy.y; ++y {
+        for x := 0; x < size_to_copy.x; ++x {
+            new_tiles[y * new_size.x + x]    = map.tiles[y * map.size.x + x];
+            new_blockers[y * new_size.x + x] = map.blockers[y * map.size.x + x];
+        }
+    }
+
+    deallocate_array(map.allocator, *map.tiles);
+    deallocate_array(map.allocator, *map.blockers);
 }
 
 update_lightmap :: (map: *Lightmap, dt: f32) {

@@ -165,6 +165,7 @@ Client :: struct {
 
     #using em: Entity_Manager;
     lightmap: Lightmap;
+    global_particle_system: Pid;
 }
 
 
@@ -370,8 +371,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             emitter.lifetime   = .[ 2, 10 ];
             emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
             emitter.particles_per_second = xx client.world_size.x;
-
+            
             prewarm_particle_system(system, 5, 0.1);
+
+            client.global_particle_system = system.pid;
         }
         
       case .Game_Over;
@@ -381,7 +384,18 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             client.previous_game_result = .We_Lost;
         }
         client.next_state = .Game_Over;
-        
+
+      case .World_Resize;
+        client.world_size = msg.world_resize.new_world_size;
+        resize_lightmap(*client.lightmap, client.world_size);
+
+        {
+            system := get_particle_system(client, client.global_particle_system);
+            system.world_position = .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) };
+            emitter := *system.emitters[0];
+            emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
+        }
+            
       case .Create_Entity;
         entity := create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
         maybe_add_blocker(*client.lightmap, entity);

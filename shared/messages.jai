@@ -6,6 +6,7 @@ Message_Type :: enum {
     Game_Pause;
     Game_Start;
     Game_Over;
+    World_Resize;
     Create_Entity;
     Destroy_Entity;
     Move_Entity;
@@ -60,6 +61,11 @@ Game_Start_Message :: struct {
 Game_Over_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Over;
     you_won: bool;
+}
+
+World_Resize_Message :: struct {
+    MSG_TYPE :: Message_Type.World_Resize;
+    new_world_size: v2i;
 }
 
 Create_Entity_Message :: struct {
@@ -166,6 +172,7 @@ Message :: struct {
         game_pause: Game_Pause_Message;
         game_start: Game_Start_Message;
         game_over: Game_Over_Message;
+        world_resize: World_Resize_Message;
         create_entity: Create_Entity_Message;
         destroy_entity: Destroy_Entity_Message;
         move_entity: Move_Entity_Message;
@@ -257,26 +264,27 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
     result: Type = type_id(void);
 
     if #complete type == {
-      case .Client_Disconnect;  result = type_id(Client_Disconnect_Message);
-      case .Player_Information; result = type_id(Player_Information_Message);
+      case .Client_Disconnect;   result = type_id(Client_Disconnect_Message);
+      case .Player_Information;  result = type_id(Player_Information_Message);
       case .Remove_Local_Player; result = type_id(Remove_Local_Player_Message);
-      case .Request_Game_Start; result = type_id(Request_Game_Start_Message);
-      case .Game_Pause;         result = type_id(Game_Pause_Message);
-      case .Game_Start;         result = type_id(Game_Start_Message);
-      case .Game_Over;          result = type_id(Game_Over_Message);
-      case .Create_Entity;      result = type_id(Create_Entity_Message);
-      case .Destroy_Entity;     result = type_id(Destroy_Entity_Message);
-      case .Move_Entity;        result = type_id(Move_Entity_Message); 
-      case .Entity_Health;      result = type_id(Entity_Health_Message);
-      case .Guy_State;          result = type_id(Guy_State_Message);
-      case .Guy_Input;          result = type_id(Guy_Input_Message);
-      case .Emitter_State;      result = type_id(Emitter_State_Message);
-      case .Receiver_State;     result = type_id(Receiver_State_Message);
-      case .Item_Stack_State;   result = type_id(Item_Stack_State_Message);
-      case .Chest_State;        result = type_id(Chest_State_Message);
-      case .Frog_State;         result = type_id(Frog_State_Message);
-      case .Goblin_State;       result = type_id(Goblin_State_Message);
-      case .Slime_State;        result = type_id(Slime_State_Message);
+      case .Request_Game_Start;  result = type_id(Request_Game_Start_Message);
+      case .Game_Pause;          result = type_id(Game_Pause_Message);
+      case .Game_Start;          result = type_id(Game_Start_Message);
+      case .Game_Over;           result = type_id(Game_Over_Message);
+      case .World_Resize;        result = type_id(World_Resize_Message);
+      case .Create_Entity;       result = type_id(Create_Entity_Message);
+      case .Destroy_Entity;      result = type_id(Destroy_Entity_Message);
+      case .Move_Entity;         result = type_id(Move_Entity_Message); 
+      case .Entity_Health;       result = type_id(Entity_Health_Message);
+      case .Guy_State;           result = type_id(Guy_State_Message);
+      case .Guy_Input;           result = type_id(Guy_Input_Message);
+      case .Emitter_State;       result = type_id(Emitter_State_Message);
+      case .Receiver_State;      result = type_id(Receiver_State_Message);
+      case .Item_Stack_State;    result = type_id(Item_Stack_State_Message);
+      case .Chest_State;         result = type_id(Chest_State_Message);
+      case .Frog_State;          result = type_id(Frog_State_Message);
+      case .Goblin_State;        result = type_id(Goblin_State_Message);
+      case .Slime_State;         result = type_id(Slime_State_Message);
     }
 
     return result;
@@ -399,6 +407,7 @@ print_message :: (message: *Message, prefix: string) {
       case .Game_Pause;         sprint(*builder, "%", message.game_pause);
       case .Game_Start;         sprint(*builder, "%", message.game_start);
       case .Game_Over;          sprint(*builder, "%", message.game_over);
+      case .World_Resize;       sprint(*builder, "%", message.world_resize);
       case .Create_Entity;      sprint(*builder, "%", message.create_entity);
       case .Destroy_Entity;     sprint(*builder, "%", message.destroy_entity);
       case .Move_Entity;        sprint(*builder, "%", message.move_entity);

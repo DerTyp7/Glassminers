@@ -1,4 +1,4 @@
-## 0.2.3 (unreleased)
+## 0.2.3 (29.06.2025)
 
 The previous changes apparently introduces a lot of regressions, which shall be fixed with this release.
 It also attempts to improve the user experience of the game.
