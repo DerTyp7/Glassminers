@@ -117,7 +117,7 @@ play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Ent
 
     if sound_pid != INVALID_SOUND_PID {
         stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
-        spatialize_sound_stream(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+        spatialize_sound_stream(stream, entity.visual_position.x, entity.visual_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
     }
         
     return sound_pid;
@@ -131,10 +131,10 @@ set_sound_playback_position :: (client: *Client, sound_pid: Sound_Pid, percentag
 }
 
 update_sound_players :: (client: *Client) {
-    forward :: [3]f32.[ 0, 1, 0 ];
+    forward :: [3]f32.[ 0, -1, 0 ];
     up :: [3]f32.[ 0, 0, 1 ];
     right :: [3]f32.[ 1, 0, 0 ];
-    inner_radius: f32 : 2;
+    inner_radius: f32 : 1;
 
     if client.current_state == .Ingame {
         for i := 0; i < client.local_player_count; ++i {
