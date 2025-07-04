@@ -1,3 +1,8 @@
+## 0.3.0 (unreleased)
+
+- Improved the spatialization feel of sounds
+- Fixed the sound channels being the wrong way around on linux
+
 ## 0.2.3 (29.06.2025)
 
 The previous changes apparently introduces a lot of regressions, which shall be fixed with this release.
