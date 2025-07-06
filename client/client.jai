@@ -171,15 +171,14 @@ Client :: struct {
     //
     // debug/developer UI
     // 
-    // TODO(Felix): Wrap this in #if DEVELOPER {  ?
-    // TODO(Felix): Consider pulling this out into its own struct
-    developer_panel_open: bool;
-    draw_call_count: u64; //
-    free_cam_is_enabled: bool = false;
-    free_cam_x_offset: f32;
-    free_cam_restore_x_position: f32;
-    lightmap_is_enabled: bool = true;
-    // TODO(Felix)
+    #if DEVELOPER {
+        developer_panel_open: bool;
+        draw_call_count: u64; //
+        free_cam_is_enabled: bool;
+        free_cam_x_offset: f32;
+        free_cam_restore_x_position: f32;
+        lightmap_is_enabled: bool;
+    }
 }
 
 
@@ -389,6 +388,14 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             prewarm_particle_system(system, 5, 0.1);
 
             client.global_particle_system = system.pid;
+        }
+        
+        // Reset debug settings
+        #if DEVELOPER {
+            client.developer_panel_open = false;
+            client.free_cam_is_enabled = false;
+            client.free_cam_x_offset = 0;
+            client.lightmap_is_enabled = true;
         }
         
       case .Game_Over;
@@ -1265,12 +1272,6 @@ do_game_tick :: (client: *Client) {
             input.crafting_recipe  = local_player.hud.crafting_recipe_confirmed_this_frame;
             input.cheat            = local_player.hud.cheat_confirmed_this_frame;
             input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
-
-#if DEVELOPER {
-    if input.cheat == .Toggle_Lighting {
-        client.lightmap.disabled = !client.lightmap.disabled;
-    }
-}
                 
             if !local_player.hud.was_open_this_frame {
                 if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
@@ -1328,7 +1329,7 @@ do_game_tick :: (client: *Client) {
     }
     
     // Debug panel
-    {
+    #if DEVELOPER {
         if client.window.keys[.F5] & .Pressed {
             client.developer_panel_open = ! client.developer_panel_open;
         }
@@ -1337,11 +1338,12 @@ do_game_tick :: (client: *Client) {
             ui :: *client.ui;
             
             window_flags : UI_Window_Flags : .Draggable;
+            ui_push_width(ui, .Pixels, 350, 0.8);
             ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
             
             ui_label(ui, true, "Stats");
-            ui_label(ui, false, "Frame Time %", client.window.frame_time); // TODO(Felix)
-            ui_label(ui, false, "Draw Call Count: %", client.window.frame_time); // TODO(Felix)
+            ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
+            ui_label(ui, false, "Draw Call Count: %ms", "TODO"); // TODO(Felix)
             ui_divider(ui, true);
 
             ui_label(ui, true, "Options");
@@ -1377,9 +1379,10 @@ do_game_tick :: (client: *Client) {
             }
             
             ui_pop_window(ui);
+            ui_pop_width(ui);
         }
     }
-        
+
     // Send all outgoing messages
     {
         for i := 0; i < outgoing_messages.count; ++i {
