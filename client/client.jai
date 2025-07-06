@@ -167,7 +167,6 @@ Client :: struct {
     lightmap: Lightmap;
     global_particle_system: Pid;
     
-
     //
     // debug/developer UI
     // 
@@ -1597,7 +1596,7 @@ main :: (args: []string) -> s32 {
             draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, .{ 255, 255, 255, 150 });
             ge_imm2d_flush(*client.graphics);
             
-            ge_swap_buffers(*client.graphics);       
+            ge_swap_buffers(*client.graphics);
         }
 
         //
