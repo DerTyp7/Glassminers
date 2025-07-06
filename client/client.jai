@@ -166,6 +166,20 @@ Client :: struct {
     #using em: Entity_Manager;
     lightmap: Lightmap;
     global_particle_system: Pid;
+    
+
+    //
+    // debug/developer UI
+    // 
+    // TODO(Felix): Wrap this in #if DEVELOPER {  ?
+    // TODO(Felix): Consider pulling this out into its own struct
+    developer_panel_open: bool;
+    draw_call_count: u64; //
+    free_cam_is_enabled: bool = false;
+    free_cam_x_offset: f32;
+    free_cam_restore_x_position: f32;
+    lightmap_is_enabled: bool = true;
+    // TODO(Felix)
 }
 
 
@@ -1312,6 +1326,59 @@ do_game_tick :: (client: *Client) {
             }
         }
     }
+    
+    // Debug panel
+    {
+        if client.window.keys[.F5] & .Pressed {
+            client.developer_panel_open = ! client.developer_panel_open;
+        }
+        
+        if client.developer_panel_open {
+            ui :: *client.ui;
+            
+            window_flags : UI_Window_Flags : .Draggable;
+            ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
+            
+            ui_label(ui, true, "Stats");
+            ui_label(ui, false, "Frame Time %", client.window.frame_time); // TODO(Felix)
+            ui_label(ui, false, "Draw Call Count: %", client.window.frame_time); // TODO(Felix)
+            ui_divider(ui, true);
+
+            ui_label(ui, true, "Options");
+            ui_check_box(ui, "Lightmap", *client.lightmap_is_enabled);
+            has_modified_freecam := ui_check_box(ui, "Free Cam", *client.free_cam_is_enabled);
+            client.lightmap.disabled = ! client.lightmap_is_enabled;
+            
+            // Debug camera is only for first player
+            {
+                player := *client.local_players[0];
+                guy := get_entity(client, player.guy_pid);
+
+                if has_modified_freecam {
+                    if client.free_cam_is_enabled {
+                        client.free_cam_restore_x_position = player.camera.world_center.x;
+                    } else {
+                        player.camera.world_center.x = client.free_cam_restore_x_position;
+                    }
+                }
+
+                
+                if client.free_cam_is_enabled {
+                    speed : f32 : 20.0;
+                    if client.window.keys[.Arrow_Left] { 
+                        client.free_cam_x_offset -= speed * client.tick_time;
+                    }
+                    if client.window.keys[.Arrow_Right] {
+                        client.free_cam_x_offset += speed * client.tick_time;
+                    }
+                    
+                    player.camera.world_center.x = client.free_cam_restore_x_position + client.free_cam_x_offset;
+                }
+            }
+            
+            ui_pop_window(ui);
+        }
+    }
         
     // Send all outgoing messages
     {
@@ -1528,8 +1595,7 @@ main :: (args: []string) -> s32 {
             draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, .{ 255, 255, 255, 150 });
             ge_imm2d_flush(*client.graphics);
             
-            ge_swap_buffers(*client.graphics);
-        }
+            ge_swap_buffers(*client.graphics);       }
 
         //
         // Output gamepad vibration if desired
