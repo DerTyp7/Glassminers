@@ -173,7 +173,6 @@ Client :: struct {
     // 
     #if DEVELOPER {
         developer_panel_open: bool;
-        draw_call_count: u64; //
         free_cam_is_enabled: bool;
         free_cam_x_offset: f32;
         free_cam_restore_x_position: f32;
@@ -1343,7 +1342,7 @@ do_game_tick :: (client: *Client) {
             
             ui_label(ui, true, "Stats");
             ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
-            ui_label(ui, false, "Draw Call Count: %ms", "TODO"); // TODO(Felix)
+            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count); // TODO(Felix)
             ui_divider(ui, true);
 
             ui_label(ui, true, "Options");
@@ -1598,7 +1597,8 @@ main :: (args: []string) -> s32 {
             draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, .{ 255, 255, 255, 150 });
             ge_imm2d_flush(*client.graphics);
             
-            ge_swap_buffers(*client.graphics);       }
+            ge_swap_buffers(*client.graphics);       
+        }
 
         //
         // Output gamepad vibration if desired
