@@ -1341,7 +1341,7 @@ do_game_tick :: (client: *Client) {
             
             ui_label(ui, true, "Stats");
             ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
-            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count); // TODO(Felix)
+            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
             ui_divider(ui, true);
 
             ui_label(ui, true, "Options");
