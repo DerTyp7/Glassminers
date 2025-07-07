@@ -333,7 +333,7 @@ switch_to_next_state :: (server: *Server) {
     }
 }
 
-fill_world_randomly :: (server: *Server) {
+fill_world_section_randomly :: (server: *Server, box: [2]v2i) {
     is_blocked_position :: (server: *Server, position: v2i) -> bool {
         if position.y >= 1 && position.y <= 3 &&
             position.x >= 0 && position.x <= 2 + server.clients.count + 1 return true;
@@ -343,8 +343,8 @@ fill_world_randomly :: (server: *Server) {
         return false;
     }
 
-    random_position :: (server: *Server) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
+    random_position :: (server: *Server, box: [2]v2i) -> v2i, bool {
+        position := v2i.{ random_u64_in(*server.random, box[0].x, box[1].x), random_u64_in(*server.random, box[0].y, box[1].y) };
 
         success := true;
         
@@ -364,34 +364,34 @@ fill_world_randomly :: (server: *Server) {
         return position, success;
     }
 
-    generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
+    generate_n_random_entities :: (server: *Server, box: [2]v2i, n: s64, kind: Entity_Kind) {
         for i := 0; i < n; ++i {
-            position, success := random_position(server);
+            position, success := random_position(server, box);
             if success create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
         }
     }
 
-    generate_n_random_slime_holes :: (server: *Server, n: s64) {
+    generate_n_random_slime_holes :: (server: *Server, box: [2]v2i, n: s64) {
         for i := 0; i < n; ++i {
-            position, success := random_position(server);
+            position, success := random_position(server, box);
             if success {
                 create_entity(server, .Slime_Hole, position, ENTITY_DEFAULT_DIRECTION[.Slime_Hole]);
                 create_entity(server, .Slime, position, ENTITY_DEFAULT_DIRECTION[.Slime]);
             }
         }
     }
+
+    width := box[1].x - box[0].x;
     
-    create_entity(server, .Emitter, .{ 0, 2 }, .East);
-    create_entity(server, .Receiver, .{ server.world_size.x - 1, random_u64_in(*server.random, 0, server.world_size.y) }, .West);
-    generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
-    generate_n_random_entities(server, .Bedrock, server.world_size.x);
-    generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
-    generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
-    generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
-    generate_n_random_entities(server, .Frog,    server.world_size.x / 9);
-    generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
-    generate_n_random_slime_holes(server, server.world_size.x / 18);
-    generate_n_random_entities(server, .Trader,  min(1, server.world_size.x / 36));
+    generate_n_random_entities(server, box, width / 2, .Lava);
+    generate_n_random_entities(server, box, width, .Bedrock);
+    generate_n_random_entities(server, box, width / 4, .Rock);
+    generate_n_random_entities(server, box, width / 4, .Crystal);
+    generate_n_random_entities(server, box, width / 4, .Coal);
+    generate_n_random_entities(server, box, width / 9, .Frog);
+    generate_n_random_entities(server, box, width / 9, .Goblin);
+    generate_n_random_entities(server, box, min(1, width / 36), .Trader); // @Incomplete: Once we actually have infinite world generation, we don't want to generate one trader per chunk. Pretty sure we can just remove the 'min' here and it should work pretty well for us?
+    generate_n_random_slime_holes(server, box, width / 18);
 }
 
 load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]string, bool {
@@ -547,16 +547,24 @@ create_the_game :: (server: *Server) {
     if server.campaign == .Tutorial || server.campaign == .Developer {
         fill_predefined_world(server, server.campaign);
     } else {
-        fill_world_randomly(server);
+        create_entity(server, .Emitter, .{ 0, 2 }, .East);
+        create_entity(server, .Receiver, .{ server.world_size.x - 1, random_u64_in(*server.random, 0, server.world_size.y) }, .West);
+        fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
     }
 }
 
 resize_world :: (server: *Server, new_size: v2i) {
+    // @Incomplete: Only do this if we're not in the tutorial / developer world?
+
+    previous_world_size := server.world_size;
     server.world_size = new_size;
 
     msg := make_message(World_Resize_Message);
     msg.world_resize.new_world_size = new_size;
     array_add(*server.outgoing_messages, msg);
+
+    
+    fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, new_size ]);
 }
 
 do_lobby_tick :: (server: *Server) {
@@ -850,7 +858,7 @@ do_game_tick :: (server: *Server) {
 
             // @Temporary: Try out resizing the world to the right if players keep reaching the end
             if guy.physical_position.x + 1 == server.world_size.x {
-                resize_world(server, .{ server.world_size.x + 5, server.world_size.y });
+                resize_world(server, .{ server.world_size.x + 9, server.world_size.y });
             }
             
             if guy.state == .Dead ++number_of_dead_guys;
