@@ -62,6 +62,7 @@ Remote_Player :: struct {
 Local_Player :: struct {
     name := "";
     guy_pid: Pid = INVALID_PID;
+    guy_to_focus_camera_on_pid: Pid = INVALID_PID;
     viewport: [4]f32;
     camera: Camera;
     hud: Hud;
@@ -1232,16 +1233,24 @@ do_game_tick :: (client: *Client) {
 
     for i := 0; i < client.local_player_count; ++i {
         local_player := *client.local_players[i];
+        guy_entity := get_entity(client, local_player.guy_pid);
+        guy := down(guy_entity, Guy);
+    
+        // Update camera
+        {
+            // Reset spectator while alive
+            if guy.state != .Dead && guy.state != .Resurrecting { 
+                local_player.guy_to_focus_camera_on_pid = local_player.guy_pid;
+            }
+            
+            focus_guy := get_entity(client, local_player.guy_to_focus_camera_on_pid);
+            update_camera(client, *local_player.camera, focus_guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
+        }
         
-        guy := get_entity(client, local_player.guy_pid);
-        update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
         update_hud(client, local_player);
 
         // Forward guy input to the server
         {
-            guy_entity := get_entity(client, local_player.guy_pid);
-            guy := down(guy_entity, Guy);
-            
             input: Guy_Input_Message = ---;
             input.guy_pid          = local_player.guy_pid;
             input.position         = guy.physical_position;
