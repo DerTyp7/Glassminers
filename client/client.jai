@@ -1352,7 +1352,7 @@ do_game_tick :: (client: *Client) {
             if !client.pause_menu_open && !client.server_paused_game && !is_spectating && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
                 msg := make_message_from(input);
                 array_add(*outgoing_messages, msg);
-            } else if is_spectating {
+            } else if is_spectating && input.wants_to_move {
                 // Spectate info doesn't need to be sent to the server
                 if input.aim_direction == .East { 
                     local_player.guy_to_focus_camera_on_pid = find_next_spectate_pid(client, local_player.guy_to_focus_camera_on_pid); 
