@@ -1238,9 +1238,33 @@ do_game_tick :: (client: *Client) {
     
         // Update camera
         {
+            find_next_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
+                pid_list: [..]Pid;
+                current_pid_index: u64;
+
+                for i := 0; i < client.guys.slot_count; ++i {
+                    guy, occupied := index_bucket_array(*client.guys, i);
+                    if occupied {
+                        array_add(*pid_list, guy.pid);
+                        if current_pid == guy.pid { current_pid_index = i; }
+                    }
+                }
+
+                // TODO(Felix): Sort by PID?
+                result: Pid = array_get(*pid_list, (current_pid_index+1)%pid_list.count);
+                return result;
+            }
+            
             // Reset spectator while alive
-            if guy.state != .Dead && guy.state != .Resurrecting { 
+            if /*(guy.state != .Dead && guy.state != .Resurrecting) ||*/ local_player.guy_to_focus_camera_on_pid == INVALID_PID { 
                 local_player.guy_to_focus_camera_on_pid = local_player.guy_pid;
+            }
+            
+            // TODO(Felix): DEBUG: Manual camera movement
+            {
+                if client.window.keys[.F4] & .Pressed {
+                    local_player.guy_to_focus_camera_on_pid = find_next_spectate_pid(client, local_player.guy_to_focus_camera_on_pid);
+                }
             }
             
             focus_guy := get_entity(client, local_player.guy_to_focus_camera_on_pid);
