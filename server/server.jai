@@ -551,6 +551,14 @@ create_the_game :: (server: *Server) {
     }
 }
 
+resize_world :: (server: *Server, new_size: v2i) {
+    server.world_size = new_size;
+
+    msg := make_message(World_Resize_Message);
+    msg.world_resize.new_world_size = new_size;
+    array_add(*server.outgoing_messages, msg);
+}
+
 do_lobby_tick :: (server: *Server) {
     read_incoming_packets(server);
     handle_client_timeouts(server);
@@ -840,6 +848,11 @@ do_game_tick :: (server: *Server) {
 
             update_guy(server, guy);
 
+            // @Temporary: Try out resizing the world to the right if players keep reaching the end
+            if guy.physical_position.x + 1 == server.world_size.x {
+                resize_world(server, .{ server.world_size.x + 5, server.world_size.y });
+            }
+            
             if guy.state == .Dead ++number_of_dead_guys;
         }
         
