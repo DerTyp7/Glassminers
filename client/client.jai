@@ -1136,7 +1136,9 @@ find_previous_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
     pid_list, current_index := alloc_and_fill_spectate_pid_list(client, current_pid);
     defer array_clear(*pid_list);
     
-    result_index := (current_index - 1) % pid_list.count;
+    // TODO(Felix)
+    //result_index := (current_index - 1) %% pid_list.count;
+    result_index : u64 = ifx current_index == 0 then xx pid_list.count-1 else current_index-1;
     result_pid: Pid = array_get(*pid_list, result_index);
     return result_pid;
 }
