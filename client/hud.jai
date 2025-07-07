@@ -275,10 +275,18 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         };
         draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
         
-        if local_player.guy_pid == local_player.guy_to_focus_camera_on_pid {
-            text = "YOU (DEAD)";
-        } else {
-            text = find_name_from_guy_pid(client, local_player.guy_to_focus_camera_on_pid);
+        // Text
+        {
+            if local_player.guy_pid == local_player.guy_to_focus_camera_on_pid {
+                text = "YOU";
+            } else {
+                text = find_name_from_guy_pid(client, local_player.guy_to_focus_camera_on_pid);
+            }
+            
+            spectated_guy := down(get_entity(client, local_player.guy_to_focus_camera_on_pid), Guy);
+            if spectated_guy.state == .Dead {
+                text = print_into_allocator(*temp, "% (DEAD)", text);
+            }
         }
         position.y += 50;
         color.a = 255;
