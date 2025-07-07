@@ -1110,6 +1110,37 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
     return result;
 }
 
+alloc_and_fill_spectate_pid_list :: (client: *Client, current_pid: Pid) -> [..]Pid, u64 {
+    current_pid_index: u64;
+    pid_list: [..]Pid;
+    for i := 0; i < client.guys.slot_count; ++i {
+        guy, occupied := index_bucket_array(*client.guys, i);
+        if occupied {
+            array_add(*pid_list, guy.pid);
+            if current_pid == guy.pid { current_pid_index = i; }
+        }
+    }
+    return pid_list, current_pid_index;
+}
+
+find_next_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
+    pid_list, current_index := alloc_and_fill_spectate_pid_list(client, current_pid);
+    defer array_clear(*pid_list);
+    
+    result_index := (current_index + 1) % pid_list.count;
+    result_pid: Pid = array_get(*pid_list, result_index);
+    return result_pid;
+}
+
+find_previous_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
+    pid_list, current_index := alloc_and_fill_spectate_pid_list(client, current_pid);
+    defer array_clear(*pid_list);
+    
+    result_index := (current_index - 1) % pid_list.count;
+    result_pid: Pid = array_get(*pid_list, result_index);
+    return result_pid;
+}
+
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
@@ -1235,28 +1266,12 @@ do_game_tick :: (client: *Client) {
         local_player := *client.local_players[i];
         guy_entity := get_entity(client, local_player.guy_pid);
         guy := down(guy_entity, Guy);
+        is_spectating := guy_is_spectating(guy);
     
         // Update camera
         {
-            find_next_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
-                pid_list: [..]Pid;
-                current_pid_index: u64;
-
-                for i := 0; i < client.guys.slot_count; ++i {
-                    guy, occupied := index_bucket_array(*client.guys, i);
-                    if occupied {
-                        array_add(*pid_list, guy.pid);
-                        if current_pid == guy.pid { current_pid_index = i; }
-                    }
-                }
-
-                // TODO(Felix): Sort by PID?
-                result: Pid = array_get(*pid_list, (current_pid_index+1)%pid_list.count);
-                return result;
-            }
-            
-            // Reset spectator while alive
-            if /*(guy.state != .Dead && guy.state != .Resurrecting) ||*/ local_player.guy_to_focus_camera_on_pid == INVALID_PID { 
+            is_invalid_pid := local_player.guy_to_focus_camera_on_pid == INVALID_PID;
+            if !is_spectating || is_invalid_pid { 
                 local_player.guy_to_focus_camera_on_pid = local_player.guy_pid;
             }
             
@@ -1339,9 +1354,16 @@ do_game_tick :: (client: *Client) {
                 if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Released) { input.interaction_kind = .Secondary_End; }
             }
             
-            if !client.pause_menu_open && !client.server_paused_game && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
+            if !client.pause_menu_open && !client.server_paused_game && !is_spectating && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
                 msg := make_message_from(input);
                 array_add(*outgoing_messages, msg);
+            } else if is_spectating {
+                // Spectate info doesn't need to be sent to the server
+                if input.aim_direction == .East { 
+                    local_player.guy_to_focus_camera_on_pid = find_next_spectate_pid(client, local_player.guy_to_focus_camera_on_pid); 
+                } else if input.aim_direction == .West {
+                    local_player.guy_to_focus_camera_on_pid = find_previous_spectate_pid(client, local_player.guy_to_focus_camera_on_pid); 
+                }
             }
         }
     }

@@ -194,57 +194,93 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
 draw_hud :: (client: *Client, local_player: *Local_Player) {
     hud := *local_player.hud;
 
-    if hud.state == .Disabled return;
+    if hud.state != .Disabled {
+        // Draw the circle background for each option
+        for i := 0; i < hud.available_options; ++i {
+            draw_circle_segment(client, hud, hud.animation_t[i], i);
+        }
 
-    // Draw the circle background for each option
-    for i := 0; i < hud.available_options; ++i {
-        draw_circle_segment(client, hud, hud.animation_t[i], i);
-    }
+        // Draw the cursor if used
+        if hud.cursor_enabled && hud.available_options > 1 {
+            covered_angle := 0.9 / cast(f32) hud.available_options;
+            theta0 := hud.cursor_theta - covered_angle / 2;
+            theta1 := hud.cursor_theta + covered_angle / 2;
+            draw_curve(client, hud, hud.inner_wheel_radius * 0.9, theta0, theta1);
+        }
 
-    // Draw the cursor if used
-    if hud.cursor_enabled && hud.available_options > 1 {
-        covered_angle := 0.9 / cast(f32) hud.available_options;
-        theta0 := hud.cursor_theta - covered_angle / 2;
-        theta1 := hud.cursor_theta + covered_angle / 2;
-        draw_curve(client, hud, hud.inner_wheel_radius * 0.9, theta0, theta1);
+        // Draw the specific option, which depends on the open hud
+        if #complete hud.state == {
+            case .Disabled;
+
+            case .Crafting_Menu;
+                for i := 0; i < hud.available_options; ++i {
+                    recipe := hud.crafting_menu.recipes[i];
+
+                    for j := 0; j < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++j {
+                        draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, xx j + 1);
+                    }
+
+                    draw_divider(client, hud, i);
+
+                    draw_icon(client, hud, CRAFTING_RECIPE_ICONS[recipe], 1, i, -1);
+                }
+
+            case .Cheat_Menu;
+                for i := 0; i < hud.available_options; ++i {
+                    draw_icon(client, hud, CHEAT_ICONS[i], 1, i, 0);
+                }
+
+            case .Chest_Menu;
+                for i := 0; i < hud.available_options; ++i {
+                    sprite_index := get_sprite_index_for_item(hud.chest_menu.item_kinds[i]);
+
+                    midpoint: f32 = xx hud.chest_menu.item_count[i] / 2;
+                    for j := 0; j < hud.chest_menu.item_count[i]; ++j {
+                        draw_icon(client, hud, sprite_index, 1, i, xx j + 0.5 - midpoint);
+                    }
+                }
+        }
+
+        // Draw the confirmation input binding hint
+        confirm_sprite := get_sprite_index_for_input_action(client, local_player, .Hud_Confirm);
+        draw_icon(client, hud, confirm_sprite, 0.6, hud.selected_option, 0);
     }
     
-    // Draw the specific option, which depends on the open hud
-    if #complete hud.state == {
-      case .Disabled;
-
-      case .Crafting_Menu;
-        for i := 0; i < hud.available_options; ++i {
-            recipe := hud.crafting_menu.recipes[i];
+    
+    // Spectating overlay
+    guy_entity := get_entity(client, local_player.guy_pid);
+    guy := down(guy_entity, Guy);
+    is_spectating := guy_is_spectating(guy);
+    if is_spectating || true { // TODO(Felix)
+        find_name_from_guy_pid :: (client: *Client, pid: Pid) -> string {
+            for i := 0; i < client.remote_players.count; ++i {
+                remote_player := array_get_pointer(*client.remote_players, i);
+                if remote_player.guy_pid == pid { return remote_player.name; }
+            }
             
-            for j := 0; j < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++j {
-                draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, xx j + 1);
+            for i := 0; i < client.local_player_count; ++i {
+                local_player := *client.local_players[i];
+                if local_player.guy_pid == pid { return local_player.name; }
             }
-
-            draw_divider(client, hud, i);
-
-            draw_icon(client, hud, CRAFTING_RECIPE_ICONS[recipe], 1, i, -1);
+            
+            return "UNKNOWN";
         }
-
-      case .Cheat_Menu;
-        for i := 0; i < hud.available_options; ++i {
-            draw_icon(client, hud, CHEAT_ICONS[i], 1, i, 0);
+        
+        color := GE_Color.{ 255, 255, 255, 100 };
+        
+        text: string = "Spectating";
+        position: v2f = .{ xx client.window.w / 2, 100 };
+        draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
+        
+        if local_player.guy_pid == local_player.guy_to_focus_camera_on_pid {
+            text = "YOU (DEAD)";
+        } else {
+            text = find_name_from_guy_pid(client, local_player.guy_to_focus_camera_on_pid);
         }
-
-      case .Chest_Menu;
-        for i := 0; i < hud.available_options; ++i {
-            sprite_index := get_sprite_index_for_item(hud.chest_menu.item_kinds[i]);
-
-            midpoint: f32 = xx hud.chest_menu.item_count[i] / 2;
-            for j := 0; j < hud.chest_menu.item_count[i]; ++j {
-                draw_icon(client, hud, sprite_index, 1, i, xx j + 0.5 - midpoint);
-            }
-        }
+        position.y += 50;
+        color.a = 255;
+        draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
     }
-
-    // Draw the confirmation input binding hint
-    confirm_sprite := get_sprite_index_for_input_action(client, local_player, .Hud_Confirm);
-    draw_icon(client, hud, confirm_sprite, 0.6, hud.selected_option, 0);
 }
 
 
