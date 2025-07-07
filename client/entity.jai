@@ -784,7 +784,6 @@ update_slime_hole :: (client: *Client, hole: *Entity) {
 
 
 
-
 #file_scope
 
 //
