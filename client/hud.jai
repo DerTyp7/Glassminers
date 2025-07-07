@@ -251,7 +251,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     guy_entity := get_entity(client, local_player.guy_pid);
     guy := down(guy_entity, Guy);
     is_spectating := guy_is_spectating(guy);
-    if is_spectating || true { // TODO(Felix)
+    if is_spectating {
         find_name_from_guy_pid :: (client: *Client, pid: Pid) -> string {
             for i := 0; i < client.remote_players.count; ++i {
                 remote_player := array_get_pointer(*client.remote_players, i);
@@ -269,7 +269,10 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         color := GE_Color.{ 255, 255, 255, 100 };
         
         text: string = "Spectating";
-        position: v2f = .{ xx client.window.w / 2, 100 };
+        position: v2f = .{ 
+            (local_player.viewport[0] + local_player.viewport[2]) / 2, 
+            xx local_player.viewport[1] + 100,
+        };
         draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
         
         if local_player.guy_pid == local_player.guy_to_focus_camera_on_pid {

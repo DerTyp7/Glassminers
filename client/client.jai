@@ -1275,13 +1275,6 @@ do_game_tick :: (client: *Client) {
                 local_player.guy_to_focus_camera_on_pid = local_player.guy_pid;
             }
             
-            // TODO(Felix): DEBUG: Manual camera movement
-            {
-                if client.window.keys[.F4] & .Pressed {
-                    local_player.guy_to_focus_camera_on_pid = find_next_spectate_pid(client, local_player.guy_to_focus_camera_on_pid);
-                }
-            }
-            
             focus_guy := get_entity(client, local_player.guy_to_focus_camera_on_pid);
             update_camera(client, *local_player.camera, focus_guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
         }
