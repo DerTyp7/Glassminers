@@ -721,10 +721,6 @@ update_guy :: (client: *Client, guy: *Guy) {
     }
 }
 
-guy_is_spectating :: (guy: *Guy) -> bool {
-    return (guy.state == .Dead || guy.state == .Resurrecting);
-}
-
 update_frog :: (client: *Client, frog: *Frog) {
     clear_beam_data(client, *frog.beam_data);
 

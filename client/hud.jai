@@ -250,7 +250,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     // Spectating overlay
     guy_entity := get_entity(client, local_player.guy_pid);
     guy := down(guy_entity, Guy);
-    is_spectating := guy_is_spectating(guy);
+    is_spectating := guy.state == .Dead;
     if is_spectating {
         find_name_from_guy_pid :: (client: *Client, pid: Pid) -> string {
             for i := 0; i < client.remote_players.count; ++i {

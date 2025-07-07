@@ -1268,7 +1268,7 @@ do_game_tick :: (client: *Client) {
         local_player := *client.local_players[i];
         guy_entity := get_entity(client, local_player.guy_pid);
         guy := down(guy_entity, Guy);
-        is_spectating := guy_is_spectating(guy);
+        is_spectating := guy.state == .Dead;
     
         // Update camera
         {
