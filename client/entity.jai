@@ -63,7 +63,8 @@ Emitter :: struct {
     beam_data: Beam_Data = ---;
     beam_intensity: f32 = ---;
     particles: Pid = INVALID_PID;
-    time_left_in_seconds: f32 = EMITTER_MAX_TIME;
+    powered_up := false;
+    charge_left_in_seconds: f32 = EMITTER_MAX_CHARGE_SECONDS;
 }
 
 Slab :: struct {
@@ -582,15 +583,15 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
         particle_emitter.line_strings = .[];
     }
         
-    if emitter.time_left_in_seconds > 0 {
-        emitter.time_left_in_seconds -= client.tick_time;
+    if emitter.powered_up && emitter.charge_left_in_seconds > 0 {
+        emitter.charge_left_in_seconds -= client.tick_time;
     }
     
-    if emitter.time_left_in_seconds <= 0 return;
+    if !emitter.powered_up || emitter.charge_left_in_seconds <= 0 return;
 
     recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
 
-    x := 1 - emitter.time_left_in_seconds / EMITTER_MAX_TIME;
+    x := 1 - emitter.charge_left_in_seconds / EMITTER_MAX_CHARGE_SECONDS;
     t := cosf(powf(x * 2, 8)) * 0.5 + 0.5;
     emitter.beam_intensity = smoothstep(t, 0, powf(x, 4) / 3);
 

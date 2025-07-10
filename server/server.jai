@@ -486,7 +486,11 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
             }
 
             if kind != .Count {
-                create_entity(server, kind, .{ x, y }, direction);
+                entity := create_entity(server, kind, .{ x, y }, direction);
+
+                if kind == .Emitter {
+                    set_emitter_charge(server, down(entity, Emitter), EMITTER_MAX_CHARGE_SECONDS);
+                }
             } else {
                 logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
                 success = false;
@@ -546,7 +550,8 @@ create_the_game :: (server: *Server) {
     if server.campaign == .Tutorial || server.campaign == .Developer {
         fill_predefined_world(server, server.campaign);
     } else {
-        create_entity(server, .Emitter, .{ 0, 2 }, .East);
+        emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
+        set_emitter_charge(server, down(emitter_entity, Emitter), EMITTER_MAX_CHARGE_SECONDS);
         fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
     }
 }
@@ -685,7 +690,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
           case .Carrying;
             if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Coal {
                 emitter := down(target_entity, Emitter);
-                set_emitter_time_left(server, emitter, emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME);
+                set_emitter_charge(server, emitter, emitter.charge_left_in_seconds + COAL_EMITTER_CHARGE_SECONDS);
                 guy.state = .Idle;
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
@@ -786,10 +791,6 @@ do_game_tick :: (server: *Server) {
             if !occupied continue;
 
             update_emitter(server, emitter);
-
-            if emitter.time_left_in_seconds <= 0 {
-                game_state = .Lost;
-            }
         }
         
         //

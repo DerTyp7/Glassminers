@@ -529,7 +529,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);
         emitter := down(entity, Emitter);
-        emitter.time_left_in_seconds = msg.emitter_state.time_left_in_seconds;
+        emitter.powered_up = msg.emitter_state.powered_up;
+        emitter.charge_left_in_seconds = msg.emitter_state.charge_left_in_seconds;
 
       case .Item_Stack_State;
         entity := get_entity(client, msg.item_stack_state.entity_pid);

@@ -49,7 +49,8 @@ Guy :: struct {
 Emitter :: struct {
     #using entity : *Entity  = ---;
     beam_data: Beam_Data = ---;
-    time_left_in_seconds: f32 = EMITTER_MAX_TIME;
+    powered_up := false;
+    charge_left_in_seconds: f32 = EMITTER_MAX_CHARGE_SECONDS;
 }
 
 Slab :: struct {
@@ -478,20 +479,22 @@ update_guy :: (server: *Server, guy: *Guy) {
     array_add(*server.outgoing_messages, msg);
 }
 
-set_emitter_time_left :: (server: *Server, emitter: *Emitter, time_left_in_seconds: f32) {
-    emitter.time_left_in_seconds = clamp(time_left_in_seconds, 0, EMITTER_MAX_TIME);
+set_emitter_charge :: (server: *Server, emitter: *Emitter, charge_left_in_seconds: f32) {
+    emitter.powered_up = true;
+    emitter.charge_left_in_seconds = clamp(charge_left_in_seconds, 0, EMITTER_MAX_CHARGE_SECONDS);
     msg := make_message(Emitter_State_Message);
     msg.emitter_state.entity_pid = emitter.pid;
-    msg.emitter_state.time_left_in_seconds = emitter.time_left_in_seconds;
+    msg.emitter_state.powered_up = emitter.powered_up;
+    msg.emitter_state.charge_left_in_seconds = emitter.charge_left_in_seconds;
     array_add(*server.outgoing_messages, msg);
 }
 
 update_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
     
-    if emitter.time_left_in_seconds > 0 {
+    if emitter.powered_up && emitter.charge_left_in_seconds > 0 {
         recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
-        emitter.time_left_in_seconds -= server.tick_time;
+        emitter.charge_left_in_seconds -= server.tick_time;
     }
 }
 

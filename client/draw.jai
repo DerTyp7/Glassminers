@@ -698,8 +698,8 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
 
         draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, true);
 
-        if emitter.time_left_in_seconds > 0 {
-            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
+        if emitter.powered_up && emitter.charge_left_in_seconds > 0 {
+            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.charge_left_in_seconds / EMITTER_MAX_CHARGE_SECONDS);
         }
     }
 
