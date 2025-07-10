@@ -554,8 +554,6 @@ create_the_game :: (server: *Server) {
 }
 
 resize_world :: (server: *Server, new_size: v2i) {
-    // @Incomplete: Only do this if we're not in the tutorial / developer world?
-
     previous_world_size := server.world_size;
     server.world_size = new_size;
 
@@ -857,7 +855,7 @@ do_game_tick :: (server: *Server) {
             update_guy(server, guy);
 
             // @Temporary: Try out resizing the world to the right if players keep reaching the end
-            if guy.physical_position.x + 1 == server.world_size.x {
+            if server.campaign != .Developer && server.campaign != .Tutorial && guy.physical_position.x + 1 == server.world_size.x {
                 resize_world(server, .{ server.world_size.x + 9, server.world_size.y });
             }
             
