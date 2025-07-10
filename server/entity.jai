@@ -52,11 +52,6 @@ Emitter :: struct {
     time_left_in_seconds: f32 = EMITTER_MAX_TIME;
 }
 
-Receiver :: struct {
-    #using entity : *Entity  = ---;
-    progress_time_in_seconds: f32;
-}
-
 Slab :: struct {
     #using entity : *Entity = ---;
     time_left_in_seconds: f32 = SLAB_TIME_TO_LIVE;
@@ -101,7 +96,6 @@ Entity_Manager :: struct {
     all_entities: Bucket_Array(Entity);
     guys:         Bucket_Array(Guy);
     emitters:     Bucket_Array(Emitter);
-    receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
     chests:       Bucket_Array(Chest);
@@ -123,7 +117,6 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.all_entities, *server.world_allocator);
     create_bucket_array(*server.guys, *server.world_allocator);
     create_bucket_array(*server.emitters, *server.world_allocator);
-    create_bucket_array(*server.receivers, *server.world_allocator);
     create_bucket_array(*server.slabs, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
     create_bucket_array(*server.chests, *server.world_allocator);
@@ -137,7 +130,6 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.all_entities);
     destroy_bucket_array(*server.guys);
     destroy_bucket_array(*server.emitters);
-    destroy_bucket_array(*server.receivers);
     destroy_bucket_array(*server.slabs);
     destroy_bucket_array(*server.item_stacks);
     destroy_bucket_array(*server.chests);
@@ -186,7 +178,6 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     if #complete entity.entity_kind == {
       case .Guy;        make_derived(entity, *server.guys);
       case .Emitter;    make_derived(entity, *server.emitters);
-      case .Receiver;   make_derived(entity, *server.receivers);
       case .Slab;       make_derived(entity, *server.slabs);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Chest;      make_derived(entity, *server.chests);
@@ -226,7 +217,6 @@ physically_remove_dead_entities :: (server: *Server) {
     
     remove_deriveds(*server.guys);
     remove_deriveds(*server.emitters);
-    remove_deriveds(*server.receivers);
     remove_deriveds(*server.slabs);
     remove_deriveds(*server.item_stacks);
     remove_deriveds(*server.chests);
@@ -502,27 +492,6 @@ update_emitter :: (server: *Server, emitter: *Emitter) {
     if emitter.time_left_in_seconds > 0 {
         recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
         emitter.time_left_in_seconds -= server.tick_time;
-    }
-}
-
-update_receiver :: (server: *Server, receiver: *Receiver) {
-    // @NetworkTraffic: Simple client-side predicition
-    
-    previous := receiver.progress_time_in_seconds;
-
-    lit_up, incoming_direction := is_emitter_field_at(server, receiver.physical_position);
-    if lit_up && incoming_direction == opposite_direction(receiver.physical_rotation) {
-        receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds + server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
-    } else {
-        receiver.progress_time_in_seconds = clamp(receiver.progress_time_in_seconds - server.tick_time, 0, RECEIVER_TIME_TO_CHARGE);
-    }
-
-    if receiver.progress_time_in_seconds != previous {
-        msg := make_message(Receiver_State_Message);
-        msg.receiver_state.entity_pid = receiver.pid;
-        msg.receiver_state.progress_time_in_seconds = receiver.progress_time_in_seconds;
-        msg.receiver_state.lit_up = lit_up;
-        array_add(*server.outgoing_messages, msg);
     }
 }
 
@@ -1014,7 +983,7 @@ recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction
             } else {
                 break;
             }
-        } else if blocking.entity_kind == .Receiver {
+        } else if blocking.entity_kind == .Emitter {
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             break;
         } else {

@@ -37,7 +37,6 @@ Sprite_Index :: enum {
     Rock;
     Coal_Block;
     Emitter;
-    Receiver;
     Mirror;
     Chest_Closed;
     
@@ -705,18 +704,6 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     }
 
     //
-    // Draw all receiver states
-    //
-    for i := 0; i < client.receivers.slot_count; ++i {
-        receiver, occupied := index_bucket_array(*client.receivers, i);
-        if !occupied continue;
-
-        if receiver.progress_time_in_seconds > 0 {
-            draw_progress_bar_world_space(client, local_player, receiver.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
-        }
-    }
-
-    //
     // Draw all frog states
     //
     for i := 0; i < client.frogs.slot_count; ++i {
@@ -948,7 +935,6 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         //
         if #complete entity.entity_kind == {
           case .Emitter;    index = .Emitter;
-          case .Receiver;   index = .Receiver;
           case .Mirror;     index = .Mirror;
           case .Lava;       index = .Lava_0;
           case .Bedrock;    index = .Bedrock;

@@ -530,20 +530,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.emitter_state.entity_pid);
         emitter := down(entity, Emitter);
         emitter.time_left_in_seconds = msg.emitter_state.time_left_in_seconds;
-        
-      case .Receiver_State;
-        entity := get_entity(client, msg.receiver_state.entity_pid);
-        receiver := down(entity, Receiver);
-
-        // Play a sound while the receiver is being charged
-        if msg.receiver_state.lit_up && !sound_active(client, entity.sound) {
-            entity.sound = play_sound(client, .Receiver_Charging, .Default);
-            set_sound_playback_position(client, entity.sound, msg.receiver_state.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
-        } else if !msg.receiver_state.lit_up && sound_active(client, entity.sound) {
-            stop_sound(client, *entity.sound);
-        }
-
-        receiver.progress_time_in_seconds = msg.receiver_state.progress_time_in_seconds;
 
       case .Item_Stack_State;
         entity := get_entity(client, msg.item_stack_state.entity_pid);

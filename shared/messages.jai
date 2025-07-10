@@ -14,7 +14,6 @@ Message_Type :: enum {
     Guy_State;
     Guy_Input;
     Emitter_State;
-    Receiver_State;
     Item_Stack_State;
     Chest_State;
     Frog_State;
@@ -121,13 +120,6 @@ Emitter_State_Message :: struct {
     time_left_in_seconds: f32;
 }
 
-Receiver_State_Message :: struct {
-    MSG_TYPE :: Message_Type.Receiver_State;
-    entity_pid: Pid;
-    progress_time_in_seconds: f32;
-    lit_up: bool;
-}
-
 Item_Stack_State_Message :: struct {
     MSG_TYPE :: Message_Type.Item_Stack_State;
     entity_pid: Pid;
@@ -180,7 +172,6 @@ Message :: struct {
         guy_state: Guy_State_Message;
         guy_input: Guy_Input_Message;
         emitter_state: Emitter_State_Message;
-        receiver_state: Receiver_State_Message;
         item_stack_state: Item_Stack_State_Message;
         chest_state: Chest_State_Message;
         frog_state: Frog_State_Message;
@@ -279,7 +270,6 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Guy_State;           result = type_id(Guy_State_Message);
       case .Guy_Input;           result = type_id(Guy_Input_Message);
       case .Emitter_State;       result = type_id(Emitter_State_Message);
-      case .Receiver_State;      result = type_id(Receiver_State_Message);
       case .Item_Stack_State;    result = type_id(Item_Stack_State_Message);
       case .Chest_State;         result = type_id(Chest_State_Message);
       case .Frog_State;          result = type_id(Frog_State_Message);
@@ -415,7 +405,6 @@ print_message :: (message: *Message, prefix: string) {
       case .Guy_State;          sprint(*builder, "%", message.guy_state);
       case .Guy_Input;          sprint(*builder, "%", message.guy_input);
       case .Emitter_State;      sprint(*builder, "%", message.emitter_state);
-      case .Receiver_State;     sprint(*builder, "%", message.receiver_state);
       case .Item_Stack_State;   sprint(*builder, "%", message.item_stack_state);
       case .Chest_State;        sprint(*builder, "%", message.chest_state);
       case .Frog_State;         sprint(*builder, "%", message.frog_state);

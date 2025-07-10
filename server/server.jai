@@ -158,7 +158,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -439,7 +439,6 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
-        #char "r", // Receiver
         #char "m", // Mirror
 
         // Environment
@@ -548,7 +547,6 @@ create_the_game :: (server: *Server) {
         fill_predefined_world(server, server.campaign);
     } else {
         create_entity(server, .Emitter, .{ 0, 2 }, .East);
-        create_entity(server, .Receiver, .{ server.world_size.x - 1, random_u64_in(*server.random, 0, server.world_size.y) }, .West);
         fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
     }
 }
@@ -794,20 +792,6 @@ do_game_tick :: (server: *Server) {
             }
         }
         
-        //
-        // Update all receivers
-        //
-        for i := 0; i < server.receivers.slot_count; ++i {
-            receiver, occupied := index_bucket_array(*server.receivers, i);
-            if !occupied continue;
-
-            update_receiver(server, receiver);
-
-            if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
-                game_state = .Won;
-            }
-        }
-
         //
         // Update all slab
         //

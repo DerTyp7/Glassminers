@@ -172,7 +172,6 @@ Entity_Flags :: enum bitfield {
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
     .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Emitter
-    .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Receiver
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting | .Auto_Heal, // Mirror
 
     // Environment
@@ -200,7 +199,6 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     // Beams
     0,  // Emitter
-    0,  // Receiver
     30, // Mirror
 
     // Environment
@@ -228,7 +226,6 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
 ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
     // Beams
     .East,  // Emitter
-    .West,  // Receiver
     .North, // Mirror
 
     // Environment
@@ -256,7 +253,6 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
     // Beams
     2, // Emitter
-    2, // Receiver
     2, // Mirror
 
     // Environment
@@ -292,7 +288,6 @@ Item_Kind :: enum {
 Entity_Kind :: enum {
     // Beams
     Emitter;
-    Receiver;
     Mirror;
 
     // Environment

@@ -66,11 +66,6 @@ Emitter :: struct {
     time_left_in_seconds: f32 = EMITTER_MAX_TIME;
 }
 
-Receiver :: struct {
-    #using entity : *Entity = ---;
-    progress_time_in_seconds: f32 = 0;
-}
-
 Slab :: struct {
     #using entity : *Entity = ---;
     time_left_in_seconds: f32 = SLAB_TIME_TO_LIVE;
@@ -117,7 +112,6 @@ Entity_Manager :: struct {
     all_entities: Bucket_Array(Entity);
     guys:         Bucket_Array(Guy);
     emitters:     Bucket_Array(Emitter);
-    receivers:    Bucket_Array(Receiver);
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
     torches:      Bucket_Array(Torch);
@@ -143,7 +137,6 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.all_entities, *client.world_allocator);
     create_bucket_array(*client.guys, *client.world_allocator);
     create_bucket_array(*client.emitters, *client.world_allocator);
-    create_bucket_array(*client.receivers, *client.world_allocator);
     create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.torches, *client.world_allocator);
@@ -162,7 +155,6 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.all_entities);
     destroy_bucket_array(*client.guys);
     destroy_bucket_array(*client.emitters);
-    destroy_bucket_array(*client.receivers);
     destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.torches);
@@ -318,7 +310,6 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     if #complete entity.entity_kind == {
       case .Guy;        make_derived(entity, *client.guys);
       case .Emitter;    make_derived(entity, *client.emitters);
-      case .Receiver;   make_derived(entity, *client.receivers);
       case .Slab;       make_derived(entity, *client.slabs);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
       case .Torch;      make_derived(entity, *client.torches);
@@ -544,7 +535,6 @@ physically_remove_dead_entities :: (client: *Client) {
     
     remove_deriveds(*client.guys);
     remove_deriveds(*client.emitters);
-    remove_deriveds(*client.receivers);
     remove_deriveds(*client.slabs);
     remove_deriveds(*client.item_stacks);
     remove_deriveds(*client.torches);
@@ -837,7 +827,7 @@ recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction
             } else {
                 break;
             }
-        } else if blocking.entity_kind == .Receiver {
+        } else if blocking.entity_kind == .Emitter {
             array_add(*beam.fields, Beam_Data.Field.{ position, direction });
             break;
         } else {
