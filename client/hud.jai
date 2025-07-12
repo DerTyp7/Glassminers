@@ -271,7 +271,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         text: string = "Spectating";
         position: v2f = .{ 
             (local_player.viewport[0] + local_player.viewport[2]) / 2, 
-            xx local_player.viewport[1] + 100,
+            (local_player.viewport[1] + local_player.viewport[3]) - 0.2*local_player.viewport[3]
         };
         draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
         
