@@ -62,7 +62,7 @@ Remote_Player :: struct {
 Local_Player :: struct {
     name := "";
     guy_pid: Pid = INVALID_PID;
-    guy_to_focus_camera_on_pid: Pid = INVALID_PID;
+    entity_tracked_by_camera: Pid = INVALID_PID;
     viewport: [4]f32;
     camera: Camera;
     hud: Hud;
@@ -1270,12 +1270,12 @@ do_game_tick :: (client: *Client) {
     
         // Update camera
         {
-            is_invalid_pid := local_player.guy_to_focus_camera_on_pid == INVALID_PID;
+            is_invalid_pid := local_player.entity_tracked_by_camera == INVALID_PID;
             if !is_spectating || is_invalid_pid { 
-                local_player.guy_to_focus_camera_on_pid = local_player.guy_pid;
+                local_player.entity_tracked_by_camera = local_player.guy_pid;
             }
             
-            focus_guy := get_entity(client, local_player.guy_to_focus_camera_on_pid);
+            focus_guy := get_entity(client, local_player.entity_tracked_by_camera);
             update_camera(client, *local_player.camera, focus_guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
         }
         
@@ -1353,9 +1353,9 @@ do_game_tick :: (client: *Client) {
             } else if is_spectating && input.wants_to_move {
                 // Spectate info doesn't need to be sent to the server
                 if input.aim_direction == .East { 
-                    local_player.guy_to_focus_camera_on_pid = find_next_spectate_pid(client, local_player.guy_to_focus_camera_on_pid); 
+                    local_player.entity_tracked_by_camera = find_next_spectate_pid(client, local_player.entity_tracked_by_camera); 
                 } else if input.aim_direction == .West {
-                    local_player.guy_to_focus_camera_on_pid = find_previous_spectate_pid(client, local_player.guy_to_focus_camera_on_pid); 
+                    local_player.entity_tracked_by_camera = find_previous_spectate_pid(client, local_player.entity_tracked_by_camera); 
                 }
             }
         }

@@ -277,13 +277,13 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         
         // Text
         {
-            if local_player.guy_pid == local_player.guy_to_focus_camera_on_pid {
+            if local_player.guy_pid == local_player.entity_tracked_by_camera {
                 text = "YOU";
             } else {
-                text = find_name_from_guy_pid(client, local_player.guy_to_focus_camera_on_pid);
+                text = find_name_from_guy_pid(client, local_player.entity_tracked_by_camera);
             }
             
-            spectated_guy := down(get_entity(client, local_player.guy_to_focus_camera_on_pid), Guy);
+            spectated_guy := down(get_entity(client, local_player.entity_tracked_by_camera), Guy);
             if spectated_guy.state == .Dead {
                 text = concatenate_strings(*temp, text, " (DEAD)");
             }
