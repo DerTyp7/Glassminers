@@ -37,7 +37,6 @@ Sprite_Index :: enum {
     Rock;
     Coal_Block;
     Emitter;
-    Receiver;
     Mirror;
     Chest_Closed;
     
@@ -697,22 +696,10 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, true);
+        draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, emitter.is_first_emitter);
 
-        if emitter.time_left_in_seconds > 0 {
-            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.time_left_in_seconds / EMITTER_MAX_TIME);
-        }
-    }
-
-    //
-    // Draw all receiver states
-    //
-    for i := 0; i < client.receivers.slot_count; ++i {
-        receiver, occupied := index_bucket_array(*client.receivers, i);
-        if !occupied continue;
-
-        if receiver.progress_time_in_seconds > 0 {
-            draw_progress_bar_world_space(client, local_player, receiver.visual_position, PROGRESS_BAR_WORLD_SIZE, receiver.progress_time_in_seconds / RECEIVER_TIME_TO_CHARGE);
+        if emitter.state == .Active && emitter.current_charge > 0 {
+            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.current_charge / EMITTER_MAX_CHARGE);
         }
     }
 
@@ -948,7 +935,6 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
         //
         if #complete entity.entity_kind == {
           case .Emitter;    index = .Emitter;
-          case .Receiver;   index = .Receiver;
           case .Mirror;     index = .Mirror;
           case .Lava;       index = .Lava_0;
           case .Bedrock;    index = .Bedrock;

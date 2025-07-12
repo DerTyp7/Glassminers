@@ -4,9 +4,10 @@ LAVA_BRIGHTNESS: f32 : 0.5;
 Lightmap :: struct {
     allocator: *Allocator;
     blockers: []s32;
-    intermediate: []f32;
     tiles: []f32;
     size: v2i;
+
+    intermediate: []f32;
 
 #if DEVELOPER {
     disabled: bool;
@@ -34,7 +35,9 @@ destroy_lightmap :: (map: *Lightmap) {
 resize_lightmap :: (map: *Lightmap, new_size: v2i) {
     new_tiles    := allocate_array(map.allocator, f32, new_size.x * new_size.y);
     new_blockers := allocate_array(map.allocator, s32, new_size.x * new_size.y);
-
+    clear_memory(new_tiles.data, new_tiles.count * size_of(f32));
+    clear_memory(new_blockers.data, new_blockers.count * size_of(s32));
+    
     size_to_copy := v2i.{ min(new_size.x, map.size.x), min(new_size.y, map.size.y) };
     
     for y := 0; y < size_to_copy.y; ++y {
@@ -46,6 +49,10 @@ resize_lightmap :: (map: *Lightmap, new_size: v2i) {
 
     deallocate_array(map.allocator, *map.tiles);
     deallocate_array(map.allocator, *map.blockers);
+
+    map.tiles = new_tiles;
+    map.blockers = new_blockers;
+    map.size = new_size;
 }
 
 update_lightmap :: (map: *Lightmap, dt: f32) {

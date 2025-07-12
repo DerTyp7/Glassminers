@@ -158,7 +158,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Receiver_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -333,7 +333,7 @@ switch_to_next_state :: (server: *Server) {
     }
 }
 
-fill_world_randomly :: (server: *Server) {
+fill_world_section_randomly :: (server: *Server, box: [2]v2i) {
     is_blocked_position :: (server: *Server, position: v2i) -> bool {
         if position.y >= 1 && position.y <= 3 &&
             position.x >= 0 && position.x <= 2 + server.clients.count + 1 return true;
@@ -343,8 +343,8 @@ fill_world_randomly :: (server: *Server) {
         return false;
     }
 
-    random_position :: (server: *Server) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
+    random_position :: (server: *Server, box: [2]v2i) -> v2i, bool {
+        position := v2i.{ random_u64_in(*server.random, box[0].x, box[1].x), random_u64_in(*server.random, box[0].y, box[1].y) };
 
         success := true;
         
@@ -364,34 +364,38 @@ fill_world_randomly :: (server: *Server) {
         return position, success;
     }
 
-    generate_n_random_entities :: (server: *Server, kind: Entity_Kind, n: s64) {
+    generate_n_random_entities :: (server: *Server, box: [2]v2i, n: s64, kind: Entity_Kind) {
         for i := 0; i < n; ++i {
-            position, success := random_position(server);
+            position, success := random_position(server, box);
             if success create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
         }
     }
 
-    generate_n_random_slime_holes :: (server: *Server, n: s64) {
+    generate_n_random_slime_holes :: (server: *Server, box: [2]v2i, n: s64) {
         for i := 0; i < n; ++i {
-            position, success := random_position(server);
+            position, success := random_position(server, box);
             if success {
                 create_entity(server, .Slime_Hole, position, ENTITY_DEFAULT_DIRECTION[.Slime_Hole]);
                 create_entity(server, .Slime, position, ENTITY_DEFAULT_DIRECTION[.Slime]);
             }
         }
     }
-    
-    create_entity(server, .Emitter, .{ 0, 2 }, .East);
-    create_entity(server, .Receiver, .{ server.world_size.x - 1, random_u64_in(*server.random, 0, server.world_size.y) }, .West);
-    generate_n_random_entities(server, .Lava,    server.world_size.x / 2);
-    generate_n_random_entities(server, .Bedrock, server.world_size.x);
-    generate_n_random_entities(server, .Rock,    server.world_size.x / 4);
-    generate_n_random_entities(server, .Crystal, server.world_size.x / 4);
-    generate_n_random_entities(server, .Coal,    server.world_size.x / 4);
-    generate_n_random_entities(server, .Frog,    server.world_size.x / 9);
-    generate_n_random_entities(server, .Goblin,  server.world_size.x / 9);
-    generate_n_random_slime_holes(server, server.world_size.x / 18);
-    generate_n_random_entities(server, .Trader,  min(1, server.world_size.x / 36));
+
+    width := box[1].x - box[0].x;
+
+    create_entity(server, .Emitter, .{ box[1].x - 1, random_u64_in(*server.random, box[0].y, box[1].y) }, .East);
+
+    if false {
+        generate_n_random_entities(server, box, width / 2, .Lava);
+        generate_n_random_entities(server, box, width, .Bedrock);
+        generate_n_random_entities(server, box, width / 4, .Rock);
+        generate_n_random_entities(server, box, width / 4, .Crystal);
+        generate_n_random_entities(server, box, width / 4, .Coal);
+        generate_n_random_entities(server, box, width / 9, .Frog);
+        generate_n_random_entities(server, box, width / 9, .Goblin);
+        generate_n_random_entities(server, box, min(1, width / 36), .Trader); // @Incomplete: Once we actually have infinite world generation, we don't want to generate one trader per chunk. Pretty sure we can just remove the 'min' here and it should work pretty well for us?
+        generate_n_random_slime_holes(server, box, width / 18);
+    }
 }
 
 load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]string, bool {
@@ -439,7 +443,6 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
-        #char "r", // Receiver
         #char "m", // Mirror
 
         // Environment
@@ -487,7 +490,13 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
             }
 
             if kind != .Count {
-                create_entity(server, kind, .{ x, y }, direction);
+                entity := create_entity(server, kind, .{ x, y }, direction);
+
+                if kind == .Emitter {
+                    emitter := down(entity, Emitter);
+                    emitter.is_first_emitter = true;
+                    set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
+                }
             } else {
                 logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
                 success = false;
@@ -547,8 +556,23 @@ create_the_game :: (server: *Server) {
     if server.campaign == .Tutorial || server.campaign == .Developer {
         fill_predefined_world(server, server.campaign);
     } else {
-        fill_world_randomly(server);
+        emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
+        emitter := down(emitter_entity, Emitter);
+        emitter.is_first_emitter = true;
+        set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
+        fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
     }
+}
+
+resize_world :: (server: *Server, new_size: v2i) {
+    previous_world_size := server.world_size;
+    server.world_size = new_size;
+
+    msg := make_message(World_Resize_Message);
+    msg.world_resize.new_world_size = new_size;
+    array_add(*server.outgoing_messages, msg);
+
+    fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, new_size ]);
 }
 
 do_lobby_tick :: (server: *Server) {
@@ -673,7 +697,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
           case .Carrying;
             if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Coal {
                 emitter := down(target_entity, Emitter);
-                set_emitter_time_left(server, emitter, emitter.time_left_in_seconds + COAL_EMITTER_CHARGE_TIME);
+                set_emitter_charge(server, emitter, emitter.current_charge + COAL_EMITTER_CHARGE);
                 guy.state = .Idle;
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
@@ -766,6 +790,8 @@ do_game_tick :: (server: *Server) {
     handle_client_timeouts(server);
 
     if !server.game_paused {
+        resize_world_on_emitter: *Emitter = null;
+
         //
         // Update all emitters
         //
@@ -773,27 +799,11 @@ do_game_tick :: (server: *Server) {
             emitter, occupied := index_bucket_array(*server.emitters, i);
             if !occupied continue;
 
-            update_emitter(server, emitter);
-
-            if emitter.time_left_in_seconds <= 0 {
-                game_state = .Lost;
+            if update_emitter(server, emitter) {
+                resize_world_on_emitter = emitter;
             }
         }
         
-        //
-        // Update all receivers
-        //
-        for i := 0; i < server.receivers.slot_count; ++i {
-            receiver, occupied := index_bucket_array(*server.receivers, i);
-            if !occupied continue;
-
-            update_receiver(server, receiver);
-
-            if receiver.progress_time_in_seconds >= RECEIVER_TIME_TO_CHARGE {
-                game_state = .Won;
-            }
-        }
-
         //
         // Update all slab
         //
@@ -839,7 +849,7 @@ do_game_tick :: (server: *Server) {
             guy.received_input_this_tick = false;
 
             update_guy(server, guy);
-
+            
             if guy.state == .Dead ++number_of_dead_guys;
         }
         
@@ -876,6 +886,9 @@ do_game_tick :: (server: *Server) {
             msg.game_over.you_won = game_state == .Won;
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
+        } else if resize_world_on_emitter {
+            assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
+            resize_world(server, .{ server.world_size.x + 18, 5 });
         }
     } else if server.clients.count == 0 {
         server.next_state = .Game_Over;
