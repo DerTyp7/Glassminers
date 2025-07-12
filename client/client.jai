@@ -173,9 +173,6 @@ Client :: struct {
     #if DEVELOPER {
         developer_panel_open: bool;
         free_cam_is_enabled: bool;
-        free_cam_x_offset: f32;
-        free_cam_restore_x_position: f32;
-        lightmap_is_enabled: bool;
     }
 }
 
@@ -392,8 +389,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         #if DEVELOPER {
             client.developer_panel_open = false;
             client.free_cam_is_enabled = false;
-            client.free_cam_x_offset = 0;
-            client.lightmap_is_enabled = true;
         }
         
       case .Game_Over;
@@ -1241,7 +1236,73 @@ do_game_tick :: (client: *Client) {
         local_player := *client.local_players[i];
         
         guy := get_entity(client, local_player.guy_pid);
-        update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
+        should_update_camera: bool = true;
+        
+// Debug panel
+#if DEVELOPER {
+    if client.window.keys[.F5] & .Pressed {
+        client.developer_panel_open = ! client.developer_panel_open;
+    }
+    
+    if client.developer_panel_open {
+        ui :: *client.ui;
+        
+        window_flags : UI_Window_Flags : .Draggable;
+        ui_push_width(ui, .Pixels, 350, 0.8);
+        ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
+        
+        ui_label(ui, true, "Stats");
+        ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
+        ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
+        ui_divider(ui, true);
+
+        ui_label(ui, true, "Options");
+        {
+            // Extra temp variable so we don't have to "enable disable light"
+            lightmap := !client.lightmap.disabled;
+            ui_check_box(ui, "Lightmap", *lightmap);
+            client.lightmap.disabled = !lightmap;
+            
+            ui_check_box(ui, "Free Cam", *client.free_cam_is_enabled);
+        }
+        
+        // Debug camera is only for first player
+        {
+            player := *client.local_players[0];
+            guy := get_entity(client, player.guy_pid);
+
+            if client.free_cam_is_enabled {
+                speed : f32 : 20.0;
+                movement: v2f;
+                
+                if input_action_fired_globally(client, .Cheat_FreeCam_Move_West, .Held) { 
+                    movement.x -= speed * client.tick_time;
+                }
+                if input_action_fired_globally(client, .Cheat_FreeCam_Move_East, .Held) { 
+                    movement.x += speed * client.tick_time;
+                }
+                if input_action_fired_globally(client, .Cheat_FreeCam_Move_North, .Held) { 
+                    movement.y -= speed * client.tick_time;
+                }
+                if input_action_fired_globally(client, .Cheat_FreeCam_Move_South, .Held) { 
+                    movement.y += speed * client.tick_time;
+                }
+                
+                player.camera.world_center.x += movement.x;
+                player.camera.world_center.y += movement.y;
+            }
+        }
+        
+        ui_pop_window(ui);
+        ui_pop_width(ui);
+    }
+    
+    should_update_camera = !client.free_cam_is_enabled;
+}
+
+        if should_update_camera {
+            update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
+        }
         update_hud(client, local_player);
 
         // Forward guy input to the server
@@ -1314,61 +1375,6 @@ do_game_tick :: (client: *Client) {
         }
     }
     
-    // Debug panel
-    #if DEVELOPER {
-        if client.window.keys[.F5] & .Pressed {
-            client.developer_panel_open = ! client.developer_panel_open;
-        }
-        
-        if client.developer_panel_open {
-            ui :: *client.ui;
-            
-            window_flags : UI_Window_Flags : .Draggable;
-            ui_push_width(ui, .Pixels, 350, 0.8);
-            ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
-            
-            ui_label(ui, true, "Stats");
-            ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
-            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
-            ui_divider(ui, true);
-
-            ui_label(ui, true, "Options");
-            ui_check_box(ui, "Lightmap", *client.lightmap_is_enabled);
-            has_modified_freecam := ui_check_box(ui, "Free Cam", *client.free_cam_is_enabled);
-            client.lightmap.disabled = ! client.lightmap_is_enabled;
-            
-            // Debug camera is only for first player
-            {
-                player := *client.local_players[0];
-                guy := get_entity(client, player.guy_pid);
-
-                if has_modified_freecam {
-                    if client.free_cam_is_enabled {
-                        client.free_cam_restore_x_position = player.camera.world_center.x;
-                    } else {
-                        player.camera.world_center.x = client.free_cam_restore_x_position;
-                    }
-                }
-
-                
-                if client.free_cam_is_enabled {
-                    speed : f32 : 20.0;
-                    if client.window.keys[.Arrow_Left] { 
-                        client.free_cam_x_offset -= speed * client.tick_time;
-                    }
-                    if client.window.keys[.Arrow_Right] {
-                        client.free_cam_x_offset += speed * client.tick_time;
-                    }
-                    
-                    player.camera.world_center.x = client.free_cam_restore_x_position + client.free_cam_x_offset;
-                }
-            }
-            
-            ui_pop_window(ui);
-            ui_pop_width(ui);
-        }
-    }
-
     // Send all outgoing messages
     {
         for i := 0; i < outgoing_messages.count; ++i {
