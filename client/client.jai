@@ -1274,22 +1274,32 @@ do_game_tick :: (client: *Client) {
         guy_entity := get_entity(client, local_player.guy_pid);
         guy := down(guy_entity, Guy);
         is_spectating := guy.state == .Dead;
-    
+
         // Update camera
         {
             is_invalid_pid := local_player.entity_tracked_by_camera == INVALID_PID;
             if !is_spectating || is_invalid_pid { 
                 local_player.entity_tracked_by_camera = local_player.guy_pid;
             }
-            
+
             focus_guy := get_entity(client, local_player.entity_tracked_by_camera);
             update_camera(client, *local_player.camera, focus_guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
         }
-        
+
         update_hud(client, local_player);
 
-        // Forward guy input to the server
-        {
+        // Input handling outside of hud
+        if client.pause_menu_open ||client.server_paused_game {
+            // Do nothing
+        } else if is_spectating {
+            if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
+                local_player.entity_tracked_by_camera = find_next_spectate_pid(client, local_player.entity_tracked_by_camera); 
+            } else if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
+                local_player.entity_tracked_by_camera = find_previous_spectate_pid(client, local_player.entity_tracked_by_camera); 
+            }
+            // (Spectate info doesn't need to be sent to the server)
+        } else {
+            // Input which requires info sent to server
             input: Guy_Input_Message = ---;
             input.guy_pid          = local_player.guy_pid;
             input.position         = guy.physical_position;
@@ -1305,7 +1315,7 @@ do_game_tick :: (client: *Client) {
         client.lightmap.disabled = !client.lightmap.disabled;
     }
 }
-                
+
             if !local_player.hud.was_open_this_frame {
                 if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
                     if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
@@ -1353,17 +1363,10 @@ do_game_tick :: (client: *Client) {
                 if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Pressed)  { input.interaction_kind = .Secondary_Start; }
                 if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Released) { input.interaction_kind = .Secondary_End; }
             }
-            
-            if !client.pause_menu_open && !client.server_paused_game && !is_spectating && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
+
+            if (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
                 msg := make_message_from(input);
                 array_add(*outgoing_messages, msg);
-            } else if is_spectating && input.wants_to_move {
-                // Spectate info doesn't need to be sent to the server
-                if input.aim_direction == .East { 
-                    local_player.entity_tracked_by_camera = find_next_spectate_pid(client, local_player.entity_tracked_by_camera); 
-                } else if input.aim_direction == .West {
-                    local_player.entity_tracked_by_camera = find_previous_spectate_pid(client, local_player.entity_tracked_by_camera); 
-                }
             }
         }
     }
