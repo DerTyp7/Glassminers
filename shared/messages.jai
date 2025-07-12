@@ -117,8 +117,9 @@ Guy_Input_Message :: struct {
 Emitter_State_Message :: struct {
     MSG_TYPE :: Message_Type.Emitter_State;
     entity_pid: Pid;
-    powered_up: bool;
-    charge_left_in_seconds: f32;
+    state: Emitter_State;
+    current_charge: f32;
+    is_first_emitter: bool;
 }
 
 Item_Stack_State_Message :: struct {

@@ -125,8 +125,8 @@ VISUAL_ITEM_STACK_CAPACITY :: 5;
 VISUAL_ITEM_STACK_OFFSETS: [VISUAL_ITEM_STACK_CAPACITY]v2f : .[ .{ 0, 0 }, .{ -0.1, 0.2 }, .{ 0.2, 0.1 }, .{ -0.2, -0.1 }, .{ 0.2, -0.2 } ];
 
 EMITTER_TIME_TO_POWER_UP: f32 : 5;
-EMITTER_MAX_CHARGE_SECONDS: f32 : 180;
-COAL_EMITTER_CHARGE_SECONDS: f32 : 60;
+EMITTER_MAX_CHARGE: f32 : 180;
+COAL_EMITTER_CHARGE: f32 : 60;
 SLAB_TIME_TO_LIVE: f32 : 10;
 
 RESURRECTION_TIME: f32 : 5;
@@ -325,6 +325,12 @@ Guy_State :: enum {
     Digging;
     Carrying;
     Resurrecting;
+}
+
+Emitter_State :: enum {
+    Off; // Hasn't yet been powered on by another emitter
+    Active; // Is the currently active emitter - Losing charge over time
+    Complete; // Has powered another emitter - Always on for better playing experience
 }
 
 Frog_State :: enum {

@@ -48,9 +48,10 @@ Guy :: struct {
 
 Emitter :: struct {
     #using entity : *Entity  = ---;
+    state: Emitter_State;
+    current_charge: f32 = 0;
+    is_first_emitter := false;
     beam_data: Beam_Data = ---;
-    powered_up := false;
-    charge_left_in_seconds: f32 = EMITTER_MAX_CHARGE_SECONDS;
 }
 
 Slab :: struct {
@@ -305,7 +306,7 @@ damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
 }
 
 damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
-    lit_up, _ := is_emitter_field_at(server, entity.physical_position);
+    lit_up, _ := is_emitter_beam_at(server, entity.physical_position);
     if lit_up {
         damage_and_maybe_kill_entity(server, entity, BEAM_DPS * server.tick_time);
     }
@@ -479,23 +480,40 @@ update_guy :: (server: *Server, guy: *Guy) {
     array_add(*server.outgoing_messages, msg);
 }
 
-set_emitter_charge :: (server: *Server, emitter: *Emitter, charge_left_in_seconds: f32) {
-    emitter.powered_up = true;
-    emitter.charge_left_in_seconds = clamp(charge_left_in_seconds, 0, EMITTER_MAX_CHARGE_SECONDS);
+set_emitter_charge :: (server: *Server, emitter: *Emitter, new_charge: f32) {
+    emitter.state = .Active;
+    emitter.current_charge = clamp(new_charge, 0, EMITTER_MAX_CHARGE);
+
     msg := make_message(Emitter_State_Message);
     msg.emitter_state.entity_pid = emitter.pid;
-    msg.emitter_state.powered_up = emitter.powered_up;
-    msg.emitter_state.charge_left_in_seconds = emitter.charge_left_in_seconds;
+    msg.emitter_state.state      = emitter.state;
+    msg.emitter_state.current_charge = emitter.current_charge;
+    msg.emitter_state.is_first_emitter = emitter.is_first_emitter;
     array_add(*server.outgoing_messages, msg);
 }
 
-update_emitter :: (server: *Server, emitter: *Emitter) {
+update_emitter :: (server: *Server, emitter: *Emitter) -> bool {
+    resize_on_emitter := false;
+
     clear_beam_data(*emitter.beam_data);
-    
-    if emitter.powered_up && emitter.charge_left_in_seconds > 0 {
+
+    if #complete emitter.state == {
+      case .Off;
+        is_beam, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
+        if is_beam && incoming_direction == emitter.physical_rotation {
+            set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
+            resize_on_emitter = true;
+        }
+
+      case .Active;
         recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
-        emitter.charge_left_in_seconds -= server.tick_time;
+        emitter.current_charge -= server.tick_time;
+
+      case .Complete;
+        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
     }
+
+    return resize_on_emitter;
 }
 
 update_slab :: (server: *Server, slab: *Slab) {
@@ -682,7 +700,7 @@ update_slime :: (server: *Server, slime: *Slime) {
                 for i := 0; i < Direction.Count; ++i {
                     random_vector := vector_from_direction((direction + i) % Direction.Count);
                     random_position := v2i.{ slime.physical_position.x + random_vector.x, slime.physical_position.y + random_vector.y };
-                    is_emitter_field, emitter_field_direction := is_emitter_field_at(server, random_position);
+                    is_emitter_field, emitter_field_direction := is_emitter_beam_at(server, random_position);
                     if !is_emitter_field && abs(random_position.x - target_hole.physical_position.x) <= SLIME_ACTION_RADIUS && can_move_to_position(server, slime, random_position, 0) {
                         // Again we want to limit the slime's action radius to be around the slime hole
                         target_position = random_position;
@@ -860,7 +878,7 @@ try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
 // Helpers
 //
 
-is_emitter_field_at :: (server: *Server, position: v2i) -> bool, Direction {
+is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, Direction {
     for i := 0; i < server.emitters.slot_count; ++i {
         emitter, occupied := index_bucket_array(*server.emitters, i);
         if !occupied continue;
