@@ -285,7 +285,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
             
             spectated_guy := down(get_entity(client, local_player.guy_to_focus_camera_on_pid), Guy);
             if spectated_guy.state == .Dead {
-                text = print_into_allocator(*temp, "% (DEAD)", text);
+                text = concatenate_strings(*temp, text, " (DEAD)");
             }
         }
         position.y += 50;
