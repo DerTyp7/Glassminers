@@ -305,7 +305,7 @@ damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
 }
 
 damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
-    lit_up, _ := is_emitter_beam_at(server, entity.physical_position);
+    lit_up, emitter, direction := is_emitter_beam_at(server, entity.physical_position);
     if lit_up {
         damage_and_maybe_kill_entity(server, entity, BEAM_DPS * server.tick_time);
     }
@@ -479,6 +479,22 @@ update_guy :: (server: *Server, guy: *Guy) {
     array_add(*server.outgoing_messages, msg);
 }
 
+set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State) {
+    emitter.state = state;
+
+    if #complete emitter.state == {
+      case .Off;      emitter.current_charge = 0;
+      case .Active;   emitter.current_charge = 0;
+      case .Complete; emitter.current_charge = EMITTER_MAX_CHARGE;
+    }
+
+    msg := make_message(Emitter_State_Message);
+    msg.emitter_state.entity_pid = emitter.pid;
+    msg.emitter_state.state      = emitter.state;
+    msg.emitter_state.current_charge = emitter.current_charge;
+    array_add(*server.outgoing_messages, msg);
+}
+
 set_emitter_charge :: (server: *Server, emitter: *Emitter, new_charge: f32) {
     emitter.state = .Active;
     emitter.current_charge = clamp(new_charge, 0, EMITTER_MAX_CHARGE);
@@ -497,8 +513,9 @@ update_emitter :: (server: *Server, emitter: *Emitter) -> bool {
 
     if #complete emitter.state == {
       case .Off;
-        is_beam, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
+        is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
         if is_beam && incoming_direction == emitter.physical_rotation {
+            set_emitter_state(server, other_emitter, .Complete);
             set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
             resize_on_emitter = true;
         }
@@ -698,7 +715,7 @@ update_slime :: (server: *Server, slime: *Slime) {
                 for i := 0; i < Direction.Count; ++i {
                     random_vector := vector_from_direction((direction + i) % Direction.Count);
                     random_position := v2i.{ slime.physical_position.x + random_vector.x, slime.physical_position.y + random_vector.y };
-                    is_emitter_field, emitter_field_direction := is_emitter_beam_at(server, random_position);
+                    is_emitter_field, emitter, emitter_field_direction := is_emitter_beam_at(server, random_position);
                     if !is_emitter_field && abs(random_position.x - target_hole.physical_position.x) <= SLIME_ACTION_RADIUS && can_move_to_position(server, slime, random_position, 0) {
                         // Again we want to limit the slime's action radius to be around the slime hole
                         target_position = random_position;
@@ -876,18 +893,18 @@ try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
 // Helpers
 //
 
-is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, Direction {
+is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, *Emitter, Direction {
     for i := 0; i < server.emitters.slot_count; ++i {
         emitter, occupied := index_bucket_array(*server.emitters, i);
         if !occupied continue;
 
         for j := 0; j < emitter.beam_data.fields.count; ++j {
             field := array_get(*emitter.beam_data.fields, j);
-            if field.x == position.x && field.y == position.y return true, field.incoming_direction;
+            if field.x == position.x && field.y == position.y return true, emitter, field.incoming_direction;
         }
     }
     
-    return false, ---;
+    return false, ---, ---;
 }
 
 

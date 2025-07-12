@@ -695,8 +695,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
           case .Carrying;
             if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Coal {
                 emitter := down(target_entity, Emitter);
-                set_emitter_charge(server, emitter, emitter.current_charge + COAL_EMITTER_CHARGE);
-                guy.state = .Idle;
+                if emitter.state == .Active {
+                    set_emitter_charge(server, emitter, emitter.current_charge + COAL_EMITTER_CHARGE);
+                    guy.state = .Idle;
+                }
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
                 create_entity(server, .Slab, guy.target_position, .North);

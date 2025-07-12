@@ -615,19 +615,21 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
             particles := get_particle_system(client, emitter.particles);
             particles.global_alpha = emitter.beam_intensity;
             particles.world_position = emitter.visual_position;
+
+            fields_with_particles_count := emitter.beam_data.fields.count - emitter.beam_ends_in_other_emitter;
             
             particle_emitter := *particles.emitters[0];
-            particle_emitter.line_strings = allocate_array(*client.tick_allocator, Line_String, emitter.beam_data.fields.count);
+            particle_emitter.line_strings = allocate_array(*client.tick_allocator, Line_String, fields_with_particles_count);
 
             WIDTH: f32 : 0.9;
             
-            for i := 1; i < emitter.beam_data.fields.count; ++i {
+            for i := 1; i < fields_with_particles_count; ++i {
                 field := array_get(*emitter.beam_data.fields, i);
 
                 my_displacement := vector_from_direction(field.incoming_direction);
 
                 previous_direction := array_get(*emitter.beam_data.fields, i - 1).incoming_direction;
-                next_direction     := ifx i + 1 < emitter.beam_data.fields.count then array_get(*emitter.beam_data.fields, i + 1).incoming_direction else field.incoming_direction;
+                next_direction     := ifx i + 1 < fields_with_particles_count then array_get(*emitter.beam_data.fields, i + 1).incoming_direction else field.incoming_direction;
 
                 start_angle := (visual_from_physical_rotation(previous_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
                 end_angle   := (visual_from_physical_rotation(next_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
@@ -642,7 +644,7 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
 
                 particle_emitter.line_strings[i - 1] = .{ .[ start_field, end_field ], .[ start_angle, end_angle ], .[ start_width, end_width ] };
 
-                if i == emitter.beam_data.fields.count - 1 {
+                if i + 1 == fields_with_particles_count {
                     final_field := v2f.{ xx field.position.x + xx my_displacement.x / 2 - emitter.visual_position.x,
                                          xx field.position.y + xx my_displacement.y / 2 - emitter.visual_position.y };
                     particle_emitter.line_strings[i] = .{ .[ end_field, final_field ], .[ end_angle, end_angle ], .[ end_width, end_width] };
