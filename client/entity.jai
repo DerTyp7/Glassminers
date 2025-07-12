@@ -62,10 +62,10 @@ Emitter :: struct {
     #using entity : *Entity = ---;
     state: Emitter_State;
     current_charge: f32 = 0;
-    is_first_emitter := false;
     particles: Pid = INVALID_PID;
     beam_data: Beam_Data = ---;
     beam_intensity: f32 = ---;
+    beam_ends_in_other_emitter := false;
 }
 
 Slab :: struct {
@@ -591,6 +591,12 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
     if emitter.state != .Off && emitter.current_charge > 0 {
         recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
 
+        if emitter.beam_data.fields.count {
+            emitter.beam_ends_in_other_emitter = find_entity_of_kind_at_position(client, .Emitter, array_get(*emitter.beam_data.fields, emitter.beam_data.fields.count - 1).position) != null;
+        } else {
+            emitter.beam_ends_in_other_emitter = false;
+        }
+        
         x := 1 - emitter.current_charge / EMITTER_MAX_CHARGE;
         t := cosf(powf(x * 2, 8)) * 0.5 + 0.5;
         emitter.beam_intensity = smoothstep(t, 0, powf(x, 4) / 3);

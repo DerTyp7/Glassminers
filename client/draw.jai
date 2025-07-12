@@ -590,10 +590,10 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
 //
 
 draw_world :: (client: *Client, local_player: *Local_Player) {
-    draw_beam :: (client: *Client, local_player: *Local_Player, beam: *Beam_Data, color: GE_Color, intensity: f32, first_field_as_v: bool) {
+    draw_beam :: (client: *Client, local_player: *Local_Player, beam: *Beam_Data, color: GE_Color, intensity: f32, flags: Draw_Beam_Flags) {
         intense_color := GE_Color.{ color.r, color.g, color.b, cast(u8) (cast(f32) color.a * intensity) };
 
-        vertices: []v2f = build_mesh_for_beam(beam, first_field_as_v);
+        vertices: []v2f = build_mesh_for_beam(beam, flags);
 
         for i := 0; i < vertices.count; ++i {
             world_space := vertices[i];
@@ -696,7 +696,11 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         emitter, occupied := index_bucket_array(*client.emitters, i);
         if !occupied continue;
 
-        draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, emitter.is_first_emitter);
+        flags: Draw_Beam_Flags = .First_As_V;
+
+        if emitter.beam_ends_in_other_emitter then flags |= .Last_As_V;
+        
+        draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, flags);
 
         if emitter.state == .Active && emitter.current_charge > 0 {
             draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.current_charge / EMITTER_MAX_CHARGE);
@@ -711,7 +715,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         if !occupied continue;
 
         intensity := smoothstep(FROG_ATTACK_TIME - frog.state_t, 0, 0.5);
-        draw_beam(client, local_player, *frog.beam_data, .{ 255, 82, 0, 150 }, intensity, false);
+        draw_beam(client, local_player, *frog.beam_data, .{ 255, 82, 0, 150 }, intensity, .Default);
     }
 
     //
@@ -852,6 +856,12 @@ Draw_Sprite_Flags :: enum bitfield {
     None :: 0x0;
     Flipped;
     Lit;
+}
+
+Draw_Beam_Flags :: enum bitfield {
+    Default :: 0;
+    First_As_V;
+    Last_As_V;
 }
 
 darken_color :: (color: GE_Color, brightness: f32) -> GE_Color {
@@ -1087,12 +1097,14 @@ clear_ui_scissors :: (client: *Client) {
     ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w - 1, xx client.window.h - 1 ]);
 }
 
-build_mesh_for_beam :: (beam: *Beam_Data, first_field_as_v: bool) -> []v2f {
+build_mesh_for_beam :: (beam: *Beam_Data, flags: Draw_Beam_Flags) -> []v2f {
     vertices: [..]v2f;
     vertices.allocator = *temp;
 
     HALF_WIDTH: f32 : 0.75 / 2;
     HALF_HEIGHT: f32 : 1 / 2;
+    OPEN_TRIANGLE_OFFSET:  f32 : -HALF_HEIGHT * 0.25;
+    CLOSE_TRIANGLE_OFFSET: f32 : +HALF_HEIGHT * 0.25;
 
     for i := 0; i < beam.fields.count; ++i {
         field := array_get(*beam.fields, i);
@@ -1109,8 +1121,10 @@ build_mesh_for_beam :: (beam: *Beam_Data, first_field_as_v: bool) -> []v2f {
             array_add(vertices, v2f.{ visual_position.x + rotated_p2.x, visual_position.y + rotated_p2.y });
         }
         
-        if i == 0 && first_field_as_v {
-            add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ 0, HALF_HEIGHT * 0.8 }, .{ HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
+        if i == 0 && flags & .First_As_V {
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, -HALF_HEIGHT }, .{ 0, OPEN_TRIANGLE_OFFSET }, .{ HALF_WIDTH, -HALF_HEIGHT }, field.incoming_direction);
+        } else if i == beam.fields.count - 1 && flags & .Last_As_V {
+            add_triangle(*vertices, field, .{ -HALF_WIDTH, HALF_HEIGHT }, .{ 0, CLOSE_TRIANGLE_OFFSET }, .{ HALF_WIDTH, HALF_HEIGHT }, field.incoming_direction);
         } else if i + 1 < beam.fields.count && field.incoming_direction != array_get(*beam.fields, i + 1).incoming_direction {
             mirror_rotation, valid_rotation := get_mirror_rotation_from_reflection(field.incoming_direction, array_get(*beam.fields, i + 1).incoming_direction);
             assert(valid_rotation, "The Beam Data somehow has an invalid corner.");

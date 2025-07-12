@@ -385,7 +385,7 @@ fill_world_section_randomly :: (server: *Server, box: [2]v2i) {
 
     create_entity(server, .Emitter, .{ box[1].x - 1, random_u64_in(*server.random, box[0].y, box[1].y) }, .East);
 
-    if false {
+    if false { // @Temporary
         generate_n_random_entities(server, box, width / 2, .Lava);
         generate_n_random_entities(server, box, width, .Bedrock);
         generate_n_random_entities(server, box, width / 4, .Rock);
@@ -494,7 +494,6 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    emitter.is_first_emitter = true;
                     set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
                 }
             } else {
@@ -558,7 +557,6 @@ create_the_game :: (server: *Server) {
     } else {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
-        emitter.is_first_emitter = true;
         set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
         fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
     }

@@ -532,7 +532,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         emitter := down(entity, Emitter);
         emitter.state = msg.emitter_state.state;
         emitter.current_charge = msg.emitter_state.current_charge;
-        emitter.is_first_emitter = msg.emitter_state.is_first_emitter;
         
       case .Item_Stack_State;
         entity := get_entity(client, msg.item_stack_state.entity_pid);

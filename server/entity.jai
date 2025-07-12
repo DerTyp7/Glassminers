@@ -50,7 +50,6 @@ Emitter :: struct {
     #using entity : *Entity  = ---;
     state: Emitter_State;
     current_charge: f32 = 0;
-    is_first_emitter := false;
     beam_data: Beam_Data = ---;
 }
 
@@ -488,7 +487,6 @@ set_emitter_charge :: (server: *Server, emitter: *Emitter, new_charge: f32) {
     msg.emitter_state.entity_pid = emitter.pid;
     msg.emitter_state.state      = emitter.state;
     msg.emitter_state.current_charge = emitter.current_charge;
-    msg.emitter_state.is_first_emitter = emitter.is_first_emitter;
     array_add(*server.outgoing_messages, msg);
 }
 

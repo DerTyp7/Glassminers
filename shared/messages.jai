@@ -119,7 +119,6 @@ Emitter_State_Message :: struct {
     entity_pid: Pid;
     state: Emitter_State;
     current_charge: f32;
-    is_first_emitter: bool;
 }
 
 Item_Stack_State_Message :: struct {
