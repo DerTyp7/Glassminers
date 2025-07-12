@@ -124,9 +124,9 @@ VISUAL_ITEM_STACK_CAPACITY :: 5;
 
 VISUAL_ITEM_STACK_OFFSETS: [VISUAL_ITEM_STACK_CAPACITY]v2f : .[ .{ 0, 0 }, .{ -0.1, 0.2 }, .{ 0.2, 0.1 }, .{ -0.2, -0.1 }, .{ 0.2, -0.2 } ];
 
-RECEIVER_TIME_TO_CHARGE: f32 : 5;
-EMITTER_MAX_TIME: f32 : 180;
-COAL_EMITTER_CHARGE_TIME: f32 : 60;
+EMITTER_TIME_TO_POWER_UP: f32 : 5;
+EMITTER_MAX_CHARGE: f32 : 180;
+COAL_EMITTER_CHARGE: f32 : 60;
 SLAB_TIME_TO_LIVE: f32 : 10;
 
 RESURRECTION_TIME: f32 : 5;
@@ -172,7 +172,6 @@ Entity_Flags :: enum bitfield {
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
     .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Emitter
-    .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Receiver
     .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting | .Auto_Heal, // Mirror
 
     // Environment
@@ -200,7 +199,6 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     // Beams
     0,  // Emitter
-    0,  // Receiver
     30, // Mirror
 
     // Environment
@@ -228,7 +226,6 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
 ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
     // Beams
     .East,  // Emitter
-    .West,  // Receiver
     .North, // Mirror
 
     // Environment
@@ -256,7 +253,6 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
     // Beams
     2, // Emitter
-    2, // Receiver
     2, // Mirror
 
     // Environment
@@ -292,7 +288,6 @@ Item_Kind :: enum {
 Entity_Kind :: enum {
     // Beams
     Emitter;
-    Receiver;
     Mirror;
 
     // Environment
@@ -330,6 +325,12 @@ Guy_State :: enum {
     Digging;
     Carrying;
     Resurrecting;
+}
+
+Emitter_State :: enum {
+    Off; // Hasn't yet been powered on by another emitter
+    Active; // Is the currently active emitter - Losing charge over time
+    Complete; // Has powered another emitter - Always on for better playing experience
 }
 
 Frog_State :: enum {
