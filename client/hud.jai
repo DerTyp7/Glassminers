@@ -268,6 +268,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         
         color := GE_Color.{ 255, 255, 255, 100 };
         
+        // Text Spectating
         text: string = "Spectating";
         position: v2f = .{ 
             (local_player.viewport[0] + local_player.viewport[2]) / 2, 
@@ -275,7 +276,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         };
         draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
         
-        // Text
+        // Text Player
         {
             if local_player.guy_pid == local_player.entity_tracked_by_camera {
                 text = "YOU";
@@ -291,6 +292,31 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
         position.y += 50;
         color.a = 255;
         draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
+        
+        // Draw Arrows indicating that you can switch to other players
+        {
+            font := *client.title_font;
+            text_width := get_string_width_in_pixels(font, text);
+            
+            sprite_index :: Sprite_Index.Hud_Arrow;
+            center := position;
+            size: GE_Vector2 = .{ 32, 32 };
+            padding: f32 = 10;
+            offset: f32 = xx text_width * 0.5 + padding + size.x;
+            
+            sprite_position: v2f;
+            rotation: f32;
+            
+            // Right
+            rotation = 0.25;
+            sprite_position = .{ center.x + offset, center.y };
+            draw_sprite_screen_space(client, sprite_index, sprite_position, size, rotation, .{ 255, 255, 255, 255 }, .None);
+            
+            // Left
+            rotation = 0.75;
+            sprite_position = .{ center.x - offset, center.y };
+            draw_sprite_screen_space(client, sprite_index, sprite_position, size, rotation, .{ 255, 255, 255, 255 }, .None);
+        }
     }
 }
 
