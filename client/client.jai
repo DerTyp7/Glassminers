@@ -1148,10 +1148,12 @@ do_game_tick :: (client: *Client) {
         
         for i := 0; i < client.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*client.emitters, i);
-            if occupied {
-                update_emitter(client, emitter);
-                fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
-            }
+            if occupied && emitter.state != .Off then update_powered_emitter(client, emitter);
+        }
+        
+        for i := 0; i < client.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*client.emitters, i);
+            if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
         }
 
         for i := 0; i < client.slabs.slot_count; ++i {

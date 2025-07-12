@@ -479,14 +479,9 @@ update_guy :: (server: *Server, guy: *Guy) {
     array_add(*server.outgoing_messages, msg);
 }
 
-set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State) {
+set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, charge: f32) {
     emitter.state = state;
-
-    if #complete emitter.state == {
-      case .Off;      emitter.current_charge = 0;
-      case .Active;   emitter.current_charge = 0;
-      case .Complete; emitter.current_charge = EMITTER_MAX_CHARGE;
-    }
+    emitter.current_charge = charge;
 
     msg := make_message(Emitter_State_Message);
     msg.emitter_state.entity_pid = emitter.pid;
@@ -495,40 +490,32 @@ set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State) 
     array_add(*server.outgoing_messages, msg);
 }
 
-set_emitter_charge :: (server: *Server, emitter: *Emitter, new_charge: f32) {
-    emitter.state = .Active;
-    emitter.current_charge = clamp(new_charge, 0, EMITTER_MAX_CHARGE);
-
-    msg := make_message(Emitter_State_Message);
-    msg.emitter_state.entity_pid = emitter.pid;
-    msg.emitter_state.state      = emitter.state;
-    msg.emitter_state.current_charge = emitter.current_charge;
-    array_add(*server.outgoing_messages, msg);
-}
-
-update_emitter :: (server: *Server, emitter: *Emitter) -> bool {
-    resize_on_emitter := false;
-
+update_powered_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
+    recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
 
-    if #complete emitter.state == {
-      case .Off;
-        is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
-        if is_beam && incoming_direction == emitter.physical_rotation {
-            set_emitter_state(server, other_emitter, .Complete);
-            set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
-            resize_on_emitter = true;
+    if emitter.state == .Active {
+        emitter.current_charge = clamp(emitter.current_charge - server.tick_time, 0, EMITTER_MAX_CHARGE);
+    }
+}
+
+update_off_emitter :: (server: *Server, emitter: *Emitter) -> bool {
+    resize_world_on_emitter := false;
+
+    is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
+    if is_beam && incoming_direction == emitter.physical_rotation {
+        emitter.current_charge = clamp(emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
+        
+        if emitter.current_charge >= EMITTER_MAX_CHARGE {
+            set_emitter_state(server, other_emitter, .Complete, EMITTER_MAX_CHARGE);
+            set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+            resize_world_on_emitter = true;
         }
-
-      case .Active;
-        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
-        emitter.current_charge -= server.tick_time;
-
-      case .Complete;
-        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
+    } else {
+        emitter.current_charge = clamp(emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
     }
 
-    return resize_on_emitter;
+    return resize_world_on_emitter;
 }
 
 update_slab :: (server: *Server, slab: *Slab) {
@@ -896,7 +883,7 @@ try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
 is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, *Emitter, Direction {
     for i := 0; i < server.emitters.slot_count; ++i {
         emitter, occupied := index_bucket_array(*server.emitters, i);
-        if !occupied continue;
+        if !occupied || emitter.state == .Off continue;
 
         for j := 0; j < emitter.beam_data.fields.count; ++j {
             field := array_get(*emitter.beam_data.fields, j);
@@ -1020,7 +1007,9 @@ recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction
                 break;
             }
         } else if blocking.entity_kind == .Emitter {
-            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            if direction == blocking.physical_rotation {
+                array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            }
             break;
         } else {
             break;

@@ -494,7 +494,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
+                    set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
                 }
             } else {
                 logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
@@ -557,7 +557,7 @@ create_the_game :: (server: *Server) {
     } else {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
-        set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
+        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
         fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
     }
 }
@@ -696,7 +696,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Coal {
                 emitter := down(target_entity, Emitter);
                 if emitter.state == .Active {
-                    set_emitter_charge(server, emitter, emitter.current_charge + COAL_EMITTER_CHARGE);
+                    set_emitter_state(server, emitter, .Active, emitter.current_charge + COAL_EMITTER_CHARGE);
                     guy.state = .Idle;
                 }
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
@@ -793,13 +793,21 @@ do_game_tick :: (server: *Server) {
         resize_world_on_emitter: *Emitter = null;
 
         //
-        // Update all emitters
+        // Update all emitters. The emitters that are off need to access the beams of the emitters
+        // that have power, so we need to update the powered emitters first to build up the beams.
         //
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
             if !occupied continue;
 
-            if update_emitter(server, emitter) {
+            update_powered_emitter(server, emitter);
+        }
+
+        for i := 0; i < server.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*server.emitters, i);
+            if !occupied || emitter.state != .Off continue;
+
+            if update_off_emitter(server, emitter) {
                 resize_world_on_emitter = emitter;
             }
         }

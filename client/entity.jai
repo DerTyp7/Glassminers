@@ -575,8 +575,17 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
 // Derived Types
 //
 
-update_emitter :: (client: *Client, emitter: *Emitter) {
+update_powered_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(client, *emitter.beam_data);
+
+    if emitter.current_charge > 0 {
+        recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
+        fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
+    }
+        
+    if emitter.state == .Active {
+        emitter.current_charge -= client.tick_time;
+    }
 
     if particle_system_exists(client, emitter.particles) {
         particles := get_particle_system(client, emitter.particles);
@@ -584,13 +593,7 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
         particle_emitter.line_strings = .[];
     }
 
-    if emitter.state == .Active && emitter.current_charge > 0 {
-        emitter.current_charge -= client.tick_time;
-    }
-
-    if emitter.state != .Off && emitter.current_charge > 0 {
-        recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
-
+    if emitter.current_charge > 0 {
         if emitter.beam_data.fields.count {
             emitter.beam_ends_in_other_emitter = find_entity_of_kind_at_position(client, .Emitter, array_get(*emitter.beam_data.fields, emitter.beam_data.fields.count - 1).position) != null;
         } else {
@@ -651,6 +654,15 @@ update_emitter :: (client: *Client, emitter: *Emitter) {
                 }
             }
         }
+    }
+}
+
+update_off_emitter :: (client: *Client, emitter: *Emitter) {
+    is_beam, other_emitter, incoming_direction := is_emitter_beam_at(client, emitter.physical_position);
+    if is_beam && incoming_direction == emitter.physical_rotation {
+        emitter.current_charge = clamp(emitter.current_charge + client.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
+    } else {
+        emitter.current_charge = clamp(emitter.current_charge - client.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
     }
 }
 
@@ -811,6 +823,20 @@ calculate_camera_target_position :: (client: *Client, camera: *Camera, target_ce
     return target_camera_position;
 }
 
+is_emitter_beam_at :: (client: *Client, position: v2i) -> bool, *Emitter, Direction {
+    for i := 0; i < client.emitters.slot_count; ++i {
+        emitter, occupied := index_bucket_array(*client.emitters, i);
+        if !occupied || emitter.state == .Off continue;
+
+        for j := 0; j < emitter.beam_data.fields.count; ++j {
+            field := array_get(*emitter.beam_data.fields, j);
+            if field.x == position.x && field.y == position.y return true, emitter, field.incoming_direction;
+        }
+    }
+    
+    return false, ---, ---;
+}
+
 clear_beam_data :: (client: *Client, data: *Beam_Data) {
     array_clear_without_deallocation(*data.fields);
     data.fields.allocator = *client.tick_allocator;
@@ -838,7 +864,9 @@ recalculate_beam :: (client: *Client, beam: *Beam_Data, position: v2i, direction
                 break;
             }
         } else if blocking.entity_kind == .Emitter {
-            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            if direction == blocking.physical_rotation {
+                array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            }
             break;
         } else {
             break;
