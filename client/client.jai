@@ -1110,34 +1110,41 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
     return result;
 }
 
-alloc_and_fill_spectate_pid_list :: (client: *Client, current_pid: Pid) -> [..]Pid, u64 {
-    current_pid_index: u64;
-    pid_list: [..]Pid;
-    for i := 0; i < client.guys.slot_count; ++i {
-        guy, occupied := index_bucket_array(*client.guys, i);
-        if occupied {
-            array_add(*pid_list, guy.pid);
-            if current_pid == guy.pid { current_pid_index = i; }
+find_next_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
+    first_pid := INVALID_PID;
+    next_pid := INVALID_PID;
+    {
+        found_current_pid: bool = false;
+        for i := 0; i < client.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*client.guys, i);
+            if occupied {
+                if first_pid == INVALID_PID { first_pid = guy.pid; }
+                if next_pid == INVALID_PID && found_current_pid { next_pid = guy.pid; }
+                if !found_current_pid && guy.pid == current_pid { found_current_pid = true; }
+            }
         }
     }
-    return pid_list, current_pid_index;
-}
-
-find_next_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
-    pid_list, current_index := alloc_and_fill_spectate_pid_list(client, current_pid);
-    defer array_clear(*pid_list);
     
-    result_index := (current_index + 1) % pid_list.count;
-    result_pid: Pid = array_get(*pid_list, result_index);
+    result_pid := ifx next_pid != INVALID_PID then next_pid else first_pid;
     return result_pid;
 }
 
 find_previous_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
-    pid_list, current_index := alloc_and_fill_spectate_pid_list(client, current_pid);
-    defer array_clear(*pid_list);
+    last_pid := INVALID_PID;
+    previous_pid := INVALID_PID;
+    {
+        found_current_pid: bool = false;
+        for i := 0; i < client.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*client.guys, i);
+            if occupied {
+                if !found_current_pid && guy.pid == current_pid { found_current_pid = true; }
+                if !found_current_pid { previous_pid = guy.pid; }
+                last_pid = guy.pid;
+            }
+        }
+    }
     
-    result_index : u64 = ifx current_index == 0 then xx pid_list.count-1 else current_index-1;
-    result_pid: Pid = array_get(*pid_list, result_index);
+    result_pid := ifx previous_pid != INVALID_PID then previous_pid else last_pid;
     return result_pid;
 }
 
