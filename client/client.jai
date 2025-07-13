@@ -174,6 +174,10 @@ Client :: struct {
     #if DEVELOPER {
         developer_panel_open: bool;
         free_cam_is_enabled: bool;
+        
+        timing_update: f32;
+        timing_draw: f32;
+        timing_total_no_sleep: f32;
     }
 }
 
@@ -1293,11 +1297,16 @@ do_game_tick :: (client: *Client) {
             window_flags : UI_Window_Flags : .Draggable;
             ui_push_width(ui, .Pixels, 350, 0.8);
             ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
+            
+            ui_label(ui, true, "Timings (last frame)");
+            ui_label(ui, false, "Window %ms", client.window.frame_time * 1000.0);
+            ui_label(ui, false, "Update %ms", client.timing_update);
+            ui_label(ui, false, "Draw   %ms", client.timing_draw);
+            ui_label(ui, false, "Total (no sleep) %ms", client.timing_total_no_sleep);
+            ui_divider(ui, true);
 
-            ui_label(ui, true, "Stats");
+            ui_label(ui, true, "Misc.");
             {
-
-                ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
                 ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
                 ui_label(ui, false, "World Size: ", client.world_size);
                 ui_label(ui, false, "Entity Count: %", client.all_entities.alive_count);
@@ -1600,6 +1609,14 @@ main :: (args: []string) -> s32 {
         // Do one frame
         //
         {
+#if DEVELOPER {
+           begin := os_get_hardware_time();
+           defer { 
+               end := os_get_hardware_time();
+               client.timing_update = os_convert_hardware_time(end - begin, .Milliseconds);
+           }
+}
+            
             update_window(*client.window);
             begin_ui_frame(*client.ui, .{ 128, 24 });
             recalculate_local_player_viewports(*client);
@@ -1630,6 +1647,14 @@ main :: (args: []string) -> s32 {
         // Draw one frame
         //
         {
+#if DEVELOPER {
+           begin := os_get_hardware_time();
+           defer { 
+               end := os_get_hardware_time();
+               client.timing_draw = os_convert_hardware_time(end - begin, .Milliseconds);
+           }
+}
+
             ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
             
             if #complete client.current_state == {
@@ -1729,6 +1754,7 @@ main :: (args: []string) -> s32 {
         release_temp_allocator(0);
         
         frame_end := os_get_hardware_time();
+        #if DEVELOPER { client.timing_total_no_sleep = os_convert_hardware_time(frame_end - frame_start, .Milliseconds); }
         os_sleep_to_tick_rate(frame_start, frame_end, TARGET_FRAMES_PER_SECOND);
     }
     
