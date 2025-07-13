@@ -1295,11 +1295,35 @@ do_game_tick :: (client: *Client) {
             ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
 
             ui_label(ui, true, "Stats");
-            ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
-            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
-            ui_label(ui, false, "World Size: ", client.world_size);
-            ui_label(ui, false, "Entity Count: %", client.all_entities.alive_count);
-            // TODO(Felix): Particle count
+            {
+
+                ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
+                ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
+                ui_label(ui, false, "World Size: ", client.world_size);
+                ui_label(ui, false, "Entity Count: %", client.all_entities.alive_count);
+
+                system := get_particle_system(client, client.global_particle_system);
+                particle_count := 0;
+                for emitter_index := 0; emitter_index < system.emitters.count; ++emitter_index {
+                    particle_count += system.emitters[emitter_index].particles.count;
+                }
+                ui_label(ui, false, "Particle Count: %", particle_count);
+            }
+            ui_divider(ui, true);
+            
+            ui_label(ui, true, "Allocators: working_set");
+            {
+                string_from_bytes :: (size_in_bytes: u64) -> string {
+                    size_in_units, units := convert_to_biggest_memory_unit(size_in_bytes);
+                    text := print_into_allocator(*temp, "% %", size_in_units, suffix_string_from_memory_unit(units));
+                    return text;
+                }
+                
+                ui_label(ui, false, "Default: %", string_from_bytes(Default_Allocator.stats.working_set));
+                ui_label(ui, false, "Engine:  %", string_from_bytes(client.engine_allocator.stats.working_set));
+                ui_label(ui, false, "World:   %", string_from_bytes(client.world_allocator.stats.working_set));
+                ui_label(ui, false, "Temp:    %", string_from_bytes(temp.stats.working_set));
+            }
             ui_divider(ui, true);
             
             ui_label(ui, true, "Player Positions");
