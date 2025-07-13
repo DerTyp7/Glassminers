@@ -317,6 +317,18 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
             sprite_position = .{ center.x - offset, center.y };
             draw_sprite_screen_space(client, sprite_index, sprite_position, size, rotation, .{ 255, 255, 255, 255 }, .None);
         }
+   }
+}
+
+draw_debug_indicators :: (client: *Client, local_player: *Local_Player) {
+    if client.free_cam_is_enabled {
+        viewport_width := local_player.viewport[2] - local_player.viewport[0];
+        viewport_height := local_player.viewport[3] - local_player.viewport[1];
+        position: v2f = .{ 
+            (local_player.viewport[0] + viewport_width * 0.03),
+            (local_player.viewport[1] + viewport_height * 0.05)
+        };
+        draw_text_screen_space(client, *client.title_font, "Freecam", position, .Left | .Median, .{ 255, 255, 255, 255 });
     }
 }
 
@@ -351,7 +363,6 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Slime_Idle_Front_0,    // Spawn Slime
     .Trader_Idle_Front_0,   // Spawn Trader
     .Hud_Heart_Full,        // Toggle Invincibility
-    .Torch_0,               // Toggle Lighting
 ];
 
 close_hud :: (client: *Client, hud: *Hud) {
