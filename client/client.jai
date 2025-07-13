@@ -62,6 +62,7 @@ Remote_Player :: struct {
 Local_Player :: struct {
     name := "";
     guy_pid: Pid = INVALID_PID;
+    entity_tracked_by_camera: Pid = INVALID_PID;
     viewport: [4]f32;
     camera: Camera;
     hud: Hud;
@@ -545,7 +546,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         emitter := down(entity, Emitter);
         emitter.state = msg.emitter_state.state;
         emitter.current_charge = msg.emitter_state.current_charge;
-        emitter.is_first_emitter = msg.emitter_state.is_first_emitter;
         
       case .Item_Stack_State;
         entity := get_entity(client, msg.item_stack_state.entity_pid);
@@ -1111,6 +1111,44 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
     return result;
 }
 
+find_next_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
+    first_pid := INVALID_PID;
+    next_pid := INVALID_PID;
+    {
+        found_current_pid: bool = false;
+        for i := 0; i < client.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*client.guys, i);
+            if occupied {
+                if first_pid == INVALID_PID { first_pid = guy.pid; }
+                if next_pid == INVALID_PID && found_current_pid { next_pid = guy.pid; }
+                if !found_current_pid && guy.pid == current_pid { found_current_pid = true; }
+            }
+        }
+    }
+    
+    result_pid := ifx next_pid != INVALID_PID then next_pid else first_pid;
+    return result_pid;
+}
+
+find_previous_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
+    last_pid := INVALID_PID;
+    previous_pid := INVALID_PID;
+    {
+        found_current_pid: bool = false;
+        for i := 0; i < client.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*client.guys, i);
+            if occupied {
+                if !found_current_pid && guy.pid == current_pid { found_current_pid = true; }
+                if !found_current_pid { previous_pid = guy.pid; }
+                last_pid = guy.pid;
+            }
+        }
+    }
+    
+    result_pid := ifx previous_pid != INVALID_PID then previous_pid else last_pid;
+    return result_pid;
+}
+
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
@@ -1124,10 +1162,12 @@ do_game_tick :: (client: *Client) {
         
         for i := 0; i < client.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*client.emitters, i);
-            if occupied {
-                update_emitter(client, emitter);
-                fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
-            }
+            if occupied && emitter.state != .Off then update_powered_emitter(client, emitter);
+        }
+        
+        for i := 0; i < client.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*client.emitters, i);
+            if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
         }
 
         for i := 0; i < client.slabs.slot_count; ++i {
@@ -1235,10 +1275,12 @@ do_game_tick :: (client: *Client) {
     for i := 0; i < client.local_player_count; ++i {
         local_player := *client.local_players[i];
         
-        guy := get_entity(client, local_player.guy_pid);
-        should_update_camera: bool = true;
-        
-// Debug panel
+        guy_entity := get_entity(client, local_player.guy_pid);
+        guy := down(guy_entity, Guy);
+        is_spectating := guy.state == .Dead;
+        is_in_freecam: bool = false;
+
+        // Debug panel
 #if DEVELOPER {
     if client.window.keys[.F5] & .Pressed {
         client.developer_panel_open = ! client.developer_panel_open;
@@ -1297,19 +1339,35 @@ do_game_tick :: (client: *Client) {
         ui_pop_width(ui);
     }
     
-    should_update_camera = !client.free_cam_is_enabled;
+    is_in_freecam = client.free_cam_is_enabled;
 }
 
-        if should_update_camera {
-            update_camera(client, *local_player.camera, guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
+
+        // Update camera
+        if !is_in_freecam {
+            is_invalid_pid := local_player.entity_tracked_by_camera == INVALID_PID;
+            if !is_spectating || is_invalid_pid { 
+                local_player.entity_tracked_by_camera = local_player.guy_pid;
+            }
+
+            focus_guy := get_entity(client, local_player.entity_tracked_by_camera);
+            update_camera(client, *local_player.camera, focus_guy.physical_position, local_player.viewport, min(10 * client.tick_time, 1));
         }
+
         update_hud(client, local_player);
 
-        // Forward guy input to the server
-        {
-            guy_entity := get_entity(client, local_player.guy_pid);
-            guy := down(guy_entity, Guy);
-            
+        // Input handling outside of hud
+        if client.pause_menu_open ||client.server_paused_game {
+            // Do nothing
+        } else if is_spectating {
+            if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
+                local_player.entity_tracked_by_camera = find_next_spectate_pid(client, local_player.entity_tracked_by_camera); 
+            } else if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
+                local_player.entity_tracked_by_camera = find_previous_spectate_pid(client, local_player.entity_tracked_by_camera); 
+            }
+            // (Spectate info doesn't need to be sent to the server)
+        } else {
+            // Input which requires info sent to server
             input: Guy_Input_Message = ---;
             input.guy_pid          = local_player.guy_pid;
             input.position         = guy.physical_position;
@@ -1321,40 +1379,42 @@ do_game_tick :: (client: *Client) {
             input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
                 
             if !local_player.hud.was_open_this_frame {
-                if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
-                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                        input.position.x = guy.physical_position.x;
-                        input.position.y = guy.physical_position.y - 1;
+                if !is_in_freecam {
+                    if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
+                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                            input.position.x = guy.physical_position.x;
+                            input.position.y = guy.physical_position.y - 1;
+                        }
+                        input.aim_direction = .North;
+                        input.wants_to_move = true;
                     }
-                    input.aim_direction = .North;
-                    input.wants_to_move = true;
-                }
 
-                if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
-                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                        input.position.x = guy.physical_position.x - 1;
-                        input.position.y = guy.physical_position.y;
+                    if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
+                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                            input.position.x = guy.physical_position.x - 1;
+                            input.position.y = guy.physical_position.y;
+                        }
+                        input.aim_direction = .West;
+                        input.wants_to_move = true;
                     }
-                    input.aim_direction = .West;
-                    input.wants_to_move = true;
-                }
 
-                if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
-                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                        input.position.x = guy.physical_position.x;
-                        input.position.y = guy.physical_position.y + 1;
+                    if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
+                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                            input.position.x = guy.physical_position.x;
+                            input.position.y = guy.physical_position.y + 1;
+                        }
+                        input.aim_direction = .South;
+                        input.wants_to_move = true;
                     }
-                    input.aim_direction = .South;
-                    input.wants_to_move = true;
-                }
 
-                if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
-                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                        input.position.x = guy.physical_position.x + 1;
-                        input.position.y = guy.physical_position.y;
+                    if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
+                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                            input.position.x = guy.physical_position.x + 1;
+                            input.position.y = guy.physical_position.y;
+                        }
+                        input.aim_direction = .East;
+                        input.wants_to_move = true;
                     }
-                    input.aim_direction = .East;
-                    input.wants_to_move = true;
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Look_North, .Pressed) { input.aim_direction = .North; input.wants_to_move = true; }
@@ -1367,8 +1427,8 @@ do_game_tick :: (client: *Client) {
                 if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Pressed)  { input.interaction_kind = .Secondary_Start; }
                 if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Released) { input.interaction_kind = .Secondary_End; }
             }
-            
-            if !client.pause_menu_open && !client.server_paused_game && (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
+
+            if (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
                 msg := make_message_from(input);
                 array_add(*outgoing_messages, msg);
             }

@@ -2,6 +2,7 @@
 
 The game's design has been updated to have infinitely growing worlds. Emitters have been repurposed as checkpoints. The emitter at the end of the current chunk must be powered up using a light beam to unlock the next chunk of the world.
 
+- Implemented a spectator mode when a player is dead - Use the regular movement inputs to switch the player to spectate
 - Improved the spatialization feel of sounds
 - Fixed the sound channels being the wrong way around on linux
 

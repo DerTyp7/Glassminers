@@ -50,7 +50,6 @@ Emitter :: struct {
     #using entity : *Entity  = ---;
     state: Emitter_State;
     current_charge: f32 = 0;
-    is_first_emitter := false;
     beam_data: Beam_Data = ---;
 }
 
@@ -306,7 +305,7 @@ damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
 }
 
 damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
-    lit_up, _ := is_emitter_beam_at(server, entity.physical_position);
+    lit_up, emitter, direction := is_emitter_beam_at(server, entity.physical_position);
     if lit_up {
         damage_and_maybe_kill_entity(server, entity, BEAM_DPS * server.tick_time);
     }
@@ -480,40 +479,43 @@ update_guy :: (server: *Server, guy: *Guy) {
     array_add(*server.outgoing_messages, msg);
 }
 
-set_emitter_charge :: (server: *Server, emitter: *Emitter, new_charge: f32) {
-    emitter.state = .Active;
-    emitter.current_charge = clamp(new_charge, 0, EMITTER_MAX_CHARGE);
+set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, charge: f32) {
+    emitter.state = state;
+    emitter.current_charge = charge;
 
     msg := make_message(Emitter_State_Message);
     msg.emitter_state.entity_pid = emitter.pid;
     msg.emitter_state.state      = emitter.state;
     msg.emitter_state.current_charge = emitter.current_charge;
-    msg.emitter_state.is_first_emitter = emitter.is_first_emitter;
     array_add(*server.outgoing_messages, msg);
 }
 
-update_emitter :: (server: *Server, emitter: *Emitter) -> bool {
-    resize_on_emitter := false;
-
+update_powered_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
+    recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
 
-    if #complete emitter.state == {
-      case .Off;
-        is_beam, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
-        if is_beam && incoming_direction == emitter.physical_rotation {
-            set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
-            resize_on_emitter = true;
+    if emitter.state == .Active {
+        emitter.current_charge = clamp(emitter.current_charge - server.tick_time, 0, EMITTER_MAX_CHARGE);
+    }
+}
+
+update_off_emitter :: (server: *Server, emitter: *Emitter) -> bool {
+    resize_world_on_emitter := false;
+
+    is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
+    if is_beam && incoming_direction == emitter.physical_rotation {
+        emitter.current_charge = clamp(emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
+        
+        if emitter.current_charge >= EMITTER_MAX_CHARGE {
+            set_emitter_state(server, other_emitter, .Complete, EMITTER_MAX_CHARGE);
+            set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+            resize_world_on_emitter = true;
         }
-
-      case .Active;
-        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
-        emitter.current_charge -= server.tick_time;
-
-      case .Complete;
-        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
+    } else {
+        emitter.current_charge = clamp(emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
     }
 
-    return resize_on_emitter;
+    return resize_world_on_emitter;
 }
 
 update_slab :: (server: *Server, slab: *Slab) {
@@ -700,7 +702,7 @@ update_slime :: (server: *Server, slime: *Slime) {
                 for i := 0; i < Direction.Count; ++i {
                     random_vector := vector_from_direction((direction + i) % Direction.Count);
                     random_position := v2i.{ slime.physical_position.x + random_vector.x, slime.physical_position.y + random_vector.y };
-                    is_emitter_field, emitter_field_direction := is_emitter_beam_at(server, random_position);
+                    is_emitter_field, emitter, emitter_field_direction := is_emitter_beam_at(server, random_position);
                     if !is_emitter_field && abs(random_position.x - target_hole.physical_position.x) <= SLIME_ACTION_RADIUS && can_move_to_position(server, slime, random_position, 0) {
                         // Again we want to limit the slime's action radius to be around the slime hole
                         target_position = random_position;
@@ -878,18 +880,18 @@ try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
 // Helpers
 //
 
-is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, Direction {
+is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, *Emitter, Direction {
     for i := 0; i < server.emitters.slot_count; ++i {
         emitter, occupied := index_bucket_array(*server.emitters, i);
-        if !occupied continue;
+        if !occupied || emitter.state == .Off continue;
 
         for j := 0; j < emitter.beam_data.fields.count; ++j {
             field := array_get(*emitter.beam_data.fields, j);
-            if field.x == position.x && field.y == position.y return true, field.incoming_direction;
+            if field.x == position.x && field.y == position.y return true, emitter, field.incoming_direction;
         }
     }
     
-    return false, ---;
+    return false, ---, ---;
 }
 
 
@@ -1005,7 +1007,9 @@ recalculate_beam :: (server: *Server, beam: *Beam_Data, position: v2i, direction
                 break;
             }
         } else if blocking.entity_kind == .Emitter {
-            array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            if direction == blocking.physical_rotation {
+                array_add(*beam.fields, Beam_Data.Field.{ position, direction });
+            }
             break;
         } else {
             break;

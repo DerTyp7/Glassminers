@@ -385,17 +385,15 @@ fill_world_section_randomly :: (server: *Server, box: [2]v2i) {
 
     create_entity(server, .Emitter, .{ box[1].x - 1, random_u64_in(*server.random, box[0].y, box[1].y) }, .East);
 
-    if false {
-        generate_n_random_entities(server, box, width / 2, .Lava);
-        generate_n_random_entities(server, box, width, .Bedrock);
-        generate_n_random_entities(server, box, width / 4, .Rock);
-        generate_n_random_entities(server, box, width / 4, .Crystal);
-        generate_n_random_entities(server, box, width / 4, .Coal);
-        generate_n_random_entities(server, box, width / 9, .Frog);
-        generate_n_random_entities(server, box, width / 9, .Goblin);
-        generate_n_random_entities(server, box, min(1, width / 36), .Trader); // @Incomplete: Once we actually have infinite world generation, we don't want to generate one trader per chunk. Pretty sure we can just remove the 'min' here and it should work pretty well for us?
-        generate_n_random_slime_holes(server, box, width / 18);
-    }
+    generate_n_random_entities(server, box, width / 2, .Lava);
+    generate_n_random_entities(server, box, width, .Bedrock);
+    generate_n_random_entities(server, box, width / 4, .Rock);
+    generate_n_random_entities(server, box, width / 4, .Crystal);
+    generate_n_random_entities(server, box, width / 4, .Coal);
+    generate_n_random_entities(server, box, width / 9, .Frog);
+    generate_n_random_entities(server, box, width / 9, .Goblin);
+    generate_n_random_entities(server, box, min(1, width / 36), .Trader); // @Incomplete: Once we actually have infinite world generation, we don't want to generate one trader per chunk. Pretty sure we can just remove the 'min' here and it should work pretty well for us?
+    generate_n_random_slime_holes(server, box, width / 18);
 }
 
 load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]string, bool {
@@ -494,8 +492,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    emitter.is_first_emitter = true;
-                    set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
+                    set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
                 }
             } else {
                 logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
@@ -558,8 +555,7 @@ create_the_game :: (server: *Server) {
     } else {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
-        emitter.is_first_emitter = true;
-        set_emitter_charge(server, emitter, EMITTER_MAX_CHARGE);
+        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
         fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
     }
 }
@@ -697,8 +693,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
           case .Carrying;
             if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Coal {
                 emitter := down(target_entity, Emitter);
-                set_emitter_charge(server, emitter, emitter.current_charge + COAL_EMITTER_CHARGE);
-                guy.state = .Idle;
+                if emitter.state == .Active {
+                    set_emitter_state(server, emitter, .Active, emitter.current_charge + COAL_EMITTER_CHARGE);
+                    guy.state = .Idle;
+                }
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
                 create_entity(server, .Slab, guy.target_position, .North);
@@ -792,13 +790,21 @@ do_game_tick :: (server: *Server) {
         resize_world_on_emitter: *Emitter = null;
 
         //
-        // Update all emitters
+        // Update all emitters. The emitters that are off need to access the beams of the emitters
+        // that have power, so we need to update the powered emitters first to build up the beams.
         //
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
             if !occupied continue;
 
-            if update_emitter(server, emitter) {
+            update_powered_emitter(server, emitter);
+        }
+
+        for i := 0; i < server.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*server.emitters, i);
+            if !occupied || emitter.state != .Off continue;
+
+            if update_off_emitter(server, emitter) {
                 resize_world_on_emitter = emitter;
             }
         }
