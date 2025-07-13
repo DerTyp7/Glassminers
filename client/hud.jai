@@ -317,6 +317,16 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
             sprite_position = .{ center.x - offset, center.y };
             draw_sprite_screen_space(client, sprite_index, sprite_position, size, rotation, .{ 255, 255, 255, 255 }, .None);
         }
+   }
+}
+
+draw_debug_indicators :: (client: *Client, local_player: *Local_Player) {
+    if client.free_cam_is_enabled {
+        position: v2f = .{ 
+            (local_player.viewport[0] + local_player.viewport[2] * 0.01),
+            (local_player.viewport[1] + local_player.viewport[3] * 0.05)
+        };
+        draw_text_screen_space(client, *client.title_font, "Freecam", position, .Left | .Median, .{ 255, 255, 255, 255 });
     }
 }
 
