@@ -1308,7 +1308,7 @@ do_game_tick :: (client: *Client) {
             ui_label(ui, true, "Misc.");
             {
                 ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
-                ui_label(ui, false, "World Size: ", client.world_size);
+                ui_label(ui, false, "World Size: %", client.world_size);
                 ui_label(ui, false, "Entity Count: %", client.all_entities.alive_count);
 
                 system := get_particle_system(client, client.global_particle_system);
