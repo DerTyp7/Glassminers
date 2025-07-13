@@ -1282,64 +1282,80 @@ do_game_tick :: (client: *Client) {
 
         // Debug panel
 #if DEVELOPER {
-    if client.window.keys[.F5] & .Pressed {
-        client.developer_panel_open = ! client.developer_panel_open;
-    }
-    
-    if client.developer_panel_open {
-        ui :: *client.ui;
-        
-        window_flags : UI_Window_Flags : .Draggable;
-        ui_push_width(ui, .Pixels, 350, 0.8);
-        ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
-        
-        ui_label(ui, true, "Stats");
-        ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
-        ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
-        ui_divider(ui, true);
+    if i == 0 {
+        if input_action_fired_globally(client, .Cheat_Debug_Window_Toggle, .Pressed) {
+            client.developer_panel_open = ! client.developer_panel_open;
+        }
 
-        ui_label(ui, true, "Options");
-        {
-            // Extra temp variable so we don't have to "enable disable light"
-            lightmap := !client.lightmap.disabled;
-            ui_check_box(ui, "Lightmap", *lightmap);
-            client.lightmap.disabled = !lightmap;
+        if client.developer_panel_open {
+            ui :: *client.ui;
+
+            window_flags : UI_Window_Flags : .Draggable;
+            ui_push_width(ui, .Pixels, 350, 0.8);
+            ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
+
+            ui_label(ui, true, "Stats");
+            ui_label(ui, false, "Frame Time %ms", client.window.frame_time * 1000.0);
+            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
+            ui_label(ui, false, "World Size: ", client.world_size);
+            ui_label(ui, false, "Entity Count: %", client.all_entities.alive_count);
+            // TODO(Felix): Particle count
+            ui_divider(ui, true);
             
-            ui_check_box(ui, "Free Cam", *client.free_cam_is_enabled);
-        }
-        
-        // Debug camera is only for first player
-        {
-            player := *client.local_players[0];
-            guy := get_entity(client, player.guy_pid);
-
-            if client.free_cam_is_enabled {
-                speed : f32 : 20.0;
-                movement: v2f;
-                
-                if input_action_fired_globally(client, .Cheat_FreeCam_Move_West, .Held) { 
-                    movement.x -= speed * client.tick_time;
-                }
-                if input_action_fired_globally(client, .Cheat_FreeCam_Move_East, .Held) { 
-                    movement.x += speed * client.tick_time;
-                }
-                if input_action_fired_globally(client, .Cheat_FreeCam_Move_North, .Held) { 
-                    movement.y -= speed * client.tick_time;
-                }
-                if input_action_fired_globally(client, .Cheat_FreeCam_Move_South, .Held) { 
-                    movement.y += speed * client.tick_time;
-                }
-                
-                player.camera.world_center.x += movement.x;
-                player.camera.world_center.y += movement.y;
+            ui_label(ui, true, "Player Positions");
+            for local_player_index := 0; local_player_index < client.local_player_count; ++local_player_index {
+                entity := get_entity(client, client.local_players[local_player_index].guy_pid);
+                ui_label(ui, false, "Local Player %: %", local_player_index, entity.physical_position); // TODO(Felix)
             }
+            for remote_player_index := 0; remote_player_index < client.remote_players.count; ++remote_player_index {
+                entity := get_entity(client, array_get(*client.remote_players, remote_player_index).guy_pid);
+                ui_label(ui, false, "Remote Player %: %", remote_player_index, entity.physical_position); // TODO(Felix)
+            }
+            ui_divider(ui, true);
+
+            ui_label(ui, true, "Options");
+            {
+                // Extra temp variable so we don't have to "enable disable light"
+                lightmap := !client.lightmap.disabled;
+                ui_check_box(ui, "Lightmap", *lightmap);
+                client.lightmap.disabled = !lightmap;
+
+                ui_check_box(ui, "Free Cam", *client.free_cam_is_enabled);
+            }
+
+            // Debug camera is only for first player
+            {
+                player := *client.local_players[0];
+                guy := get_entity(client, player.guy_pid);
+
+                if client.free_cam_is_enabled {
+                    speed : f32 : 20.0;
+                    movement: v2f;
+
+                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_West, .Held) { 
+                        movement.x -= speed * client.tick_time;
+                    }
+                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_East, .Held) { 
+                        movement.x += speed * client.tick_time;
+                    }
+                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_North, .Held) { 
+                        movement.y -= speed * client.tick_time;
+                    }
+                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_South, .Held) { 
+                        movement.y += speed * client.tick_time;
+                    }
+
+                    player.camera.world_center.x += movement.x;
+                    player.camera.world_center.y += movement.y;
+                }
+            }
+
+            ui_pop_window(ui);
+            ui_pop_width(ui);
         }
-        
-        ui_pop_window(ui);
-        ui_pop_width(ui);
+
+        is_in_freecam = client.free_cam_is_enabled;
     }
-    
-    is_in_freecam = client.free_cam_is_enabled;
 }
 
 
@@ -1377,44 +1393,42 @@ do_game_tick :: (client: *Client) {
             input.crafting_recipe  = local_player.hud.crafting_recipe_confirmed_this_frame;
             input.cheat            = local_player.hud.cheat_confirmed_this_frame;
             input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
-                
-            if !local_player.hud.was_open_this_frame {
-                if !is_in_freecam {
-                    if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x;
-                            input.position.y = guy.physical_position.y - 1;
-                        }
-                        input.aim_direction = .North;
-                        input.wants_to_move = true;
-                    }
 
-                    if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x - 1;
-                            input.position.y = guy.physical_position.y;
-                        }
-                        input.aim_direction = .West;
-                        input.wants_to_move = true;
+            if !local_player.hud.was_open_this_frame && !is_in_freecam{
+                if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                        input.position.x = guy.physical_position.x;
+                        input.position.y = guy.physical_position.y - 1;
                     }
+                    input.aim_direction = .North;
+                    input.wants_to_move = true;
+                }
 
-                    if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x;
-                            input.position.y = guy.physical_position.y + 1;
-                        }
-                        input.aim_direction = .South;
-                        input.wants_to_move = true;
+                if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                        input.position.x = guy.physical_position.x - 1;
+                        input.position.y = guy.physical_position.y;
                     }
+                    input.aim_direction = .West;
+                    input.wants_to_move = true;
+                }
 
-                    if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x + 1;
-                            input.position.y = guy.physical_position.y;
-                        }
-                        input.aim_direction = .East;
-                        input.wants_to_move = true;
+                if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                        input.position.x = guy.physical_position.x;
+                        input.position.y = guy.physical_position.y + 1;
                     }
+                    input.aim_direction = .South;
+                    input.wants_to_move = true;
+                }
+
+                if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
+                    if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                        input.position.x = guy.physical_position.x + 1;
+                        input.position.y = guy.physical_position.y;
+                    }
+                    input.aim_direction = .East;
+                    input.wants_to_move = true;
                 }
 
                 if input_action_fired_for_local_player(client, local_player, .Look_North, .Pressed) { input.aim_direction = .North; input.wants_to_move = true; }
@@ -1631,6 +1645,10 @@ main :: (args: []string) -> s32 {
                 for i := 0; i < client.local_player_count; ++i {
                     draw_world(*client, *client.local_players[i]);
                     draw_hud(*client, *client.local_players[i]);
+                    
+                    #if DEVELOPER {
+                        if i == 0 { draw_debug_indicators(*client, *client.local_players[i]); }
+                    }
                 }
 
                 draw_viewports(*client);
