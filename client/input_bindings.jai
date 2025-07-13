@@ -34,10 +34,6 @@ Input_Action :: enum {
 
     Cheat_Menu_Toggle;
     Cheat_Debug_Window_Toggle;
-    Cheat_FreeCam_Move_North;
-    Cheat_FreeCam_Move_East;
-    Cheat_FreeCam_Move_South;
-    Cheat_FreeCam_Move_West;
 }
 
 Input_Binding :: struct {
@@ -109,10 +105,6 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Hud_Right]          = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper) ];
     ib[.Cheat_Menu_Toggle]  = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
     ib[.Cheat_Debug_Window_Toggle]  = .[ keycode(.F5) ];
-    ib[.Cheat_FreeCam_Move_North] = .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up)];
-    ib[.Cheat_FreeCam_Move_East]  = .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right)];
-    ib[.Cheat_FreeCam_Move_South] = .[ keycode(.S), gamepad_gesture(.Left_Swipe_Down)];
-    ib[.Cheat_FreeCam_Move_West]  = .[ keycode(.A), gamepad_gesture(.Left_Swipe_Left)];
     
     for i := 0; i < ib.Capacity; ++i {
         client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);

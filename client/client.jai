@@ -1365,16 +1365,16 @@ do_game_tick :: (client: *Client) {
                     speed : f32 : 20.0;
                     movement: v2f;
 
-                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_West, .Held) { 
+                    if input_action_fired_globally(client, .Move_West, .Held) { 
                         movement.x -= speed * client.tick_time;
                     }
-                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_East, .Held) { 
+                    if input_action_fired_globally(client, .Move_East, .Held) { 
                         movement.x += speed * client.tick_time;
                     }
-                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_North, .Held) { 
+                    if input_action_fired_globally(client, .Move_North, .Held) { 
                         movement.y -= speed * client.tick_time;
                     }
-                    if input_action_fired_globally(client, .Cheat_FreeCam_Move_South, .Held) { 
+                    if input_action_fired_globally(client, .Move_South, .Held) { 
                         movement.y += speed * client.tick_time;
                     }
 
