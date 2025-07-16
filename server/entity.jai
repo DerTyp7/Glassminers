@@ -761,6 +761,16 @@ update_trader :: (server: *Server, entity: *Entity) {
     }    
 }
 
+update_score :: (server: *Server, new_score: u64) {
+    if server.point_score < new_score {
+        server.point_score = new_score;
+        
+        msg := make_message(Score_State_Message);
+        msg.score_state.point_score = server.point_score;
+        array_add(*server.outgoing_messages, msg);
+    }
+}
+
 take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
     --stack.count;
 

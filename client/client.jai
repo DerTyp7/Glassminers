@@ -157,6 +157,7 @@ Client :: struct {
 
     game_seed: s64;
     world_size: v2i;
+    point_score: u64;
 
     tick_time: f32;
     game_epoch_time: f32;
@@ -634,6 +635,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
         }
+        
+      case .Score_State;
+        client.point_score = msg.score_state.point_score;
     }
 }
 
@@ -1700,7 +1704,6 @@ main :: (args: []string) -> s32 {
                 for i := 0; i < client.local_player_count; ++i {
                     draw_world(*client, *client.local_players[i]);
                     draw_hud(*client, *client.local_players[i]);
-                    
                 }
                 
                 #if DEVELOPER {

@@ -91,6 +91,7 @@ Server :: struct {
     tick_time: f32;
     game_paused := false;
     world_size: v2i;
+    point_score: u64;
     #using em: Entity_Manager;
 }
 
@@ -158,7 +159,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State, .Score_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -856,6 +857,21 @@ do_game_tick :: (server: *Server) {
             update_guy(server, guy);
             
             if guy.state == .Dead ++number_of_dead_guys;
+        }
+        
+        //
+        // Update highscore
+        //
+        {
+            current_score: u64 = 0;
+            for i := 0; i < server.guys.slot_count; ++i {
+                guy, occupied := index_bucket_array(*server.guys, i);
+                if !occupied continue;
+
+                score := guy.physical_position.x;
+                current_score = max(current_score, score);
+            }
+            update_score(server, current_score);
         }
         
         //
