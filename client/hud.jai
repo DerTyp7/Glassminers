@@ -320,6 +320,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
    }
 }
 
+#if DEVELOPER {
 draw_debug_indicators :: (client: *Client, local_player: *Local_Player) {
     if client.free_cam_is_enabled {
         viewport_width := local_player.viewport[2] - local_player.viewport[0];
@@ -330,6 +331,7 @@ draw_debug_indicators :: (client: *Client, local_player: *Local_Player) {
         };
         draw_text_screen_space(client, *client.title_font, "Freecam", position, .Left | .Median, .{ 255, 255, 255, 255 });
     }
+}
 }
 
 

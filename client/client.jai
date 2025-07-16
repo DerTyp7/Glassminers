@@ -1153,6 +1153,7 @@ find_previous_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
     return result_pid;
 }
 
+#if DEVELOPER {
 do_debug_panel :: (client: *Client) {
     ui :: *client.ui;
 
@@ -1247,6 +1248,7 @@ do_debug_panel :: (client: *Client) {
 
     ui_pop_window(ui);
     ui_pop_width(ui);
+}
 }
 
 do_game_tick :: (client: *Client) {
