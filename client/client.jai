@@ -1087,7 +1087,7 @@ do_game_over_screen :: (client: *Client) {
 
     if client.previous_game_result == {
         case .We_Won; ui_label(ui, true, "You won!");
-        case .We_Lost; ui_label(ui, true, "You lost!");
+        case .We_Lost; ui_label(ui, true, "Game Over! Points: %", client.point_score);
         case .Connection_Lost; ui_label(ui, true, "Connection died!");
     }
     
