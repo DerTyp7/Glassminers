@@ -781,6 +781,16 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 }
 }
 
+update_score :: (server: *Server, new_score: u64) {
+    if server.point_score < new_score {
+        server.point_score = new_score;
+        
+        msg := make_message(Score_State_Message);
+        msg.score_state.point_score = server.point_score;
+        array_add(*server.outgoing_messages, msg);
+    }
+}
+
 do_game_tick :: (server: *Server) {
     game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
 
