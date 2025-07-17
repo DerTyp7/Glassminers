@@ -64,6 +64,7 @@ Animation_Index :: enum {
     Slab;
     Torch;
     Slime_Hole_Filled;
+    Flag; 
 }
 
 Animation_Flags :: enum bitfield {

@@ -62,6 +62,11 @@ Torch_0      sprites/animates/torch-0.png
 Torch_1      sprites/animates/torch-1.png
 Torch_2      sprites/animates/torch-2.png
 Torch_3      sprites/animates/torch-3.png
+Flag_0       sprites/animates/flag-0.png
+Flag_1       sprites/animates/flag-1.png
+Flag_2       sprites/animates/flag-2.png
+Flag_3       sprites/animates/flag-3.png
+Flag_4       sprites/animates/flag-4.png
 Slime_Hole_Empty     sprites/animates/slime-hole-empty.png
 Slime_Hole_Filled_0  sprites/animates/slime-hole-filled-0.png
 Slime_Hole_Filled_1  sprites/animates/slime-hole-filled-1.png

@@ -109,6 +109,14 @@ Torch :: struct {
     particles: Pid = INVALID_PID;
 }
 
+// TODO(Felix): Maybe don't care about this / don't make this derived?
+// TODO(Felix): All base information is in the "all_entities".
+//              Additional info is stored in the extra buckets.
+//              if we don't have extra information, we probably don't need the extra bucket
+Flag :: struct {
+    #using entity : *Entity = ---;
+}
+
 Entity_Manager :: struct {
     entity_pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
@@ -117,6 +125,7 @@ Entity_Manager :: struct {
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
     torches:      Bucket_Array(Torch);
+    //flags:        Bucket_Array(Flag); // TODO(Felix)
     chests:       Bucket_Array(Chest);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
@@ -142,6 +151,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.torches, *client.world_allocator);
+    //create_bucket_array(*client.flags, *client.world_allocator); // TODO(Felix)
     create_bucket_array(*client.chests, *client.world_allocator);
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
@@ -160,6 +170,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.torches);
+    //destroy_bucket_array(*client.flags); // TODO(Felix)
     destroy_bucket_array(*client.chests);
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
@@ -319,7 +330,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -372,6 +383,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Lava;   play_animation(entity, .Lava);
       case .Slab;   play_animation(entity, .Slab);
       case .Torch;  play_animation(entity, .Torch);
+      case .Flag;   play_animation(entity, .Flag);
       case .Guy;    play_animation_from_group(client, entity, .Guy_Idle);
       case .Frog;   play_animation_from_group(client, entity, .Frog_Idle);
       case .Goblin; play_animation_from_group(client, entity, .Goblin_Idle);

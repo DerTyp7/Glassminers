@@ -464,6 +464,9 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char "G", // Goblin
         #char "S", // Slime
         #char "T", // Trader
+        
+        // Misc
+        #char "f", // Flag
     ];
 
     lines, success := load_predefined_world_data(server, campaign);

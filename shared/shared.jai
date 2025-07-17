@@ -194,6 +194,21 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
     .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
     .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
+    
+    // Misc
+    .Blocks_Move | .Blocks_Crafting, // Flag
+    
+    // TODO(Felix): 
+    //  - "There's no easy way to pick stuff up" -> "handle_guy_interaction" (or smth like that)
+    //     -  "I mean when I say there's no easy way to pick stuff up - What I mean is: You have to manually write the code that deletes the flag entity, puts the flag item into the guy's hand - and vice verca Should only be a few lines, but there's no nice entity flag available for that"
+    //  - All items on the floor are "Item Stack"
+    //  - Separate Entity-Flags / Extra Entity-flag: 
+    //     - Player should be able to walk over the flag,
+    //     - but other entities / rocks / whatever should be blocked by it
+    //  - Make server use flag for scoring points
+    //  - Think about behavior when player dies with flag / on lava / whatever
+    //  - Remove "// TODO(Felix)" from temporary changes
+    //
 ];
 
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
@@ -221,6 +236,9 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     20, // Goblin
     20, // Slime
     30, // Trader
+    
+    // Misc
+    0, // Flag
 ];
 
 ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
@@ -248,6 +266,9 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
     .South, // Goblin
     .South, // Slime
     .South, // Trader
+    
+    // Misc
+    .North, // Flag
 ];
 
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
@@ -275,6 +296,9 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     3, // Goblin
     3, // Slime
     3, // Trader
+    
+    // Misc
+    1, // Flag
 ];
 
 Item_Kind :: enum {
@@ -310,6 +334,9 @@ Entity_Kind :: enum {
     Goblin;
     Slime;
     Trader;
+    
+    // Misc
+    Flag;
 }
 
 Direction :: enum {

@@ -375,3 +375,11 @@ Torch_3
 :Slime_Hole_Filled 0.5 loop
 Slime_Hole_Filled_0
 Slime_Hole_Filled_1
+
+:Flag 0.10 loop
+Flag_0
+Flag_1
+Flag_2
+Flag_3
+Flag_4
+
