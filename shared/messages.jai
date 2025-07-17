@@ -19,6 +19,7 @@ Message_Type :: enum {
     Frog_State;
     Goblin_State;
     Slime_State;
+    Score_State;
 }
 
 Client_Disconnect_Message :: struct {
@@ -59,7 +60,7 @@ Game_Start_Message :: struct {
 
 Game_Over_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Over;
-    you_won: bool;
+    point_score: u64;
 }
 
 World_Resize_Message :: struct {
@@ -153,6 +154,11 @@ Slime_State_Message :: struct {
     state: Slime_State;
 }
 
+Score_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Score_State;
+    point_score: u64;
+}
+
 Message :: struct {
     msg_type: Message_Type;
     local_type_id: Type;
@@ -178,6 +184,7 @@ Message :: struct {
         frog_state: Frog_State_Message;
         goblin_state: Goblin_State_Message;
         slime_state: Slime_State_Message;
+        score_state: Score_State_Message;
     };
 }
 
@@ -276,6 +283,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Frog_State;          result = type_id(Frog_State_Message);
       case .Goblin_State;        result = type_id(Goblin_State_Message);
       case .Slime_State;         result = type_id(Slime_State_Message);
+      case .Score_State;         result = type_id(Score_State_Message);
     }
 
     return result;
@@ -411,6 +419,7 @@ print_message :: (message: *Message, prefix: string) {
       case .Frog_State;         sprint(*builder, "%", message.frog_state);
       case .Goblin_State;       sprint(*builder, "%", message.goblin_state);
       case .Slime_State;        sprint(*builder, "%", message.slime_state);
+      case .Score_State;        sprint(*builder, "%", message.score_state);
     }
     
     logprint(.Debug, finish_string_builder(*builder));

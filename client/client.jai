@@ -45,8 +45,7 @@ Game_State :: enum {
 }
 
 Previous_Game_Result :: enum {
-    We_Won;
-    We_Lost;
+    Show_Points;
     Connection_Lost;
 }
 
@@ -157,6 +156,7 @@ Client :: struct {
 
     game_seed: s64;
     world_size: v2i;
+    point_score: u64;
 
     tick_time: f32;
     game_epoch_time: f32;
@@ -397,11 +397,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
         
       case .Game_Over;
-        if msg.game_over.you_won {
-            client.previous_game_result = .We_Won;
-        } else {
-            client.previous_game_result = .We_Lost;
-        }
+        client.point_score = msg.game_over.point_score;
         client.next_state = .Game_Over;
 
       case .World_Resize;
@@ -634,6 +630,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
         }
+        
+      case .Score_State;
+        client.point_score = msg.score_state.point_score;
     }
 }
 
@@ -1082,8 +1081,7 @@ do_game_over_screen :: (client: *Client) {
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
 
     if client.previous_game_result == {
-        case .We_Won; ui_label(ui, true, "You won!");
-        case .We_Lost; ui_label(ui, true, "You lost!");
+        case .Show_Points; ui_label(ui, true, "Final Score: % Points", client.point_score);
         case .Connection_Lost; ui_label(ui, true, "Connection died!");
     }
     
@@ -1700,7 +1698,6 @@ main :: (args: []string) -> s32 {
                 for i := 0; i < client.local_player_count; ++i {
                     draw_world(*client, *client.local_players[i]);
                     draw_hud(*client, *client.local_players[i]);
-                    
                 }
                 
                 #if DEVELOPER {

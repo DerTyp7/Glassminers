@@ -91,6 +91,7 @@ Server :: struct {
     tick_time: f32;
     game_paused := false;
     world_size: v2i;
+    point_score: u64;
     #using em: Entity_Manager;
 }
 
@@ -158,7 +159,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State, .Score_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -780,6 +781,16 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 }
 }
 
+update_score :: (server: *Server, new_score: u64) {
+    if server.point_score < new_score {
+        server.point_score = new_score;
+        
+        msg := make_message(Score_State_Message);
+        msg.score_state.point_score = server.point_score;
+        array_add(*server.outgoing_messages, msg);
+    }
+}
+
 do_game_tick :: (server: *Server) {
     game_state: enum { Keep_Going; Won; Lost; } = .Keep_Going;
 
@@ -859,6 +870,21 @@ do_game_tick :: (server: *Server) {
         }
         
         //
+        // Update highscore
+        //
+        {
+            current_score: u64 = 0;
+            for i := 0; i < server.guys.slot_count; ++i {
+                guy, occupied := index_bucket_array(*server.guys, i);
+                if !occupied continue;
+
+                score := guy.physical_position.x;
+                current_score = max(current_score, score);
+            }
+            update_score(server, current_score);
+        }
+        
+        //
         // Update all other kinds entities
         //
         for i := 0; i < server.all_entities.slot_count; ++i {
@@ -888,7 +914,7 @@ do_game_tick :: (server: *Server) {
 
         if game_state != .Keep_Going {
             msg := make_message(Game_Over_Message);
-            msg.game_over.you_won = game_state == .Won;
+            msg.game_over.point_score = server.point_score;
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
