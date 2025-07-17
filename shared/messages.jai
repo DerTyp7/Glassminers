@@ -60,7 +60,7 @@ Game_Start_Message :: struct {
 
 Game_Over_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Over;
-    you_won: bool;
+    point_score: u64;
 }
 
 World_Resize_Message :: struct {

@@ -904,7 +904,7 @@ do_game_tick :: (server: *Server) {
 
         if game_state != .Keep_Going {
             msg := make_message(Game_Over_Message);
-            msg.game_over.you_won = game_state == .Won;
+            msg.game_over.point_score = server.point_score;
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {

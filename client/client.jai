@@ -45,8 +45,7 @@ Game_State :: enum {
 }
 
 Previous_Game_Result :: enum {
-    We_Won;
-    We_Lost;
+    Show_Points;
     Connection_Lost;
 }
 
@@ -398,11 +397,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
         
       case .Game_Over;
-        if msg.game_over.you_won {
-            client.previous_game_result = .We_Won;
-        } else {
-            client.previous_game_result = .We_Lost;
-        }
+        client.point_score = msg.game_over.point_score;
         client.next_state = .Game_Over;
 
       case .World_Resize;
@@ -1086,8 +1081,7 @@ do_game_over_screen :: (client: *Client) {
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
 
     if client.previous_game_result == {
-        case .We_Won; ui_label(ui, true, "You won!");
-        case .We_Lost; ui_label(ui, true, "Game Over! Points: %", client.point_score);
+        case .Show_Points; ui_label(ui, true, "Final Score: % Points", client.point_score);
         case .Connection_Lost; ui_label(ui, true, "Connection died!");
     }
     
