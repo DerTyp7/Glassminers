@@ -282,6 +282,10 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
       case .Guy;
         guy := down(entity, Guy);
         guy.state = .Dead;
+        if guy.carrying_item == .Flag {
+            try_to_place_down_flag(server, guy.physical_position);
+            guy.carrying_item = .Count;
+        }
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
@@ -794,6 +798,19 @@ try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind)
     }
 
     return false;
+}
+
+// TODO(Felix): We should be able to place the flag on corpses/ living creatures as well
+try_to_place_down_flag :: (server: *Server, target_position: v2i) -> bool {
+    if !position_in_bounds(server, target_position) return false;
+    
+    // TODO(Felix): If entity does not live, don't place
+    //collision := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);
+    
+    // TODO(Felix): This assumes all checks passed
+    create_entity(server, .Flag, target_position, .North);
+    update_score(server, target_position.x);
+    return true;
 }
 
 // This will first try to put the item on the ground, and if that doesn't work it'll try to

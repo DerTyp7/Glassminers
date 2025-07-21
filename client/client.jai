@@ -1199,11 +1199,11 @@ do_debug_panel :: (client: *Client) {
     ui_label(ui, true, "Player Positions");
     for local_player_index := 0; local_player_index < client.local_player_count; ++local_player_index {
         entity := get_entity(client, client.local_players[local_player_index].guy_pid);
-        ui_label(ui, false, "Local Player %: %", local_player_index, entity.physical_position); // TODO(Felix)
+        ui_label(ui, false, "Local Player %: %", local_player_index, entity.physical_position);
     }
     for remote_player_index := 0; remote_player_index < client.remote_players.count; ++remote_player_index {
         entity := get_entity(client, array_get(*client.remote_players, remote_player_index).guy_pid);
-        ui_label(ui, false, "Remote Player %: %", remote_player_index, entity.physical_position); // TODO(Felix)
+        ui_label(ui, false, "Remote Player %: %", remote_player_index, entity.physical_position);
     }
     ui_divider(ui, true);
 

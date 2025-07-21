@@ -109,14 +109,6 @@ Torch :: struct {
     particles: Pid = INVALID_PID;
 }
 
-// TODO(Felix): Maybe don't care about this / don't make this derived?
-// TODO(Felix): All base information is in the "all_entities".
-//              Additional info is stored in the extra buckets.
-//              if we don't have extra information, we probably don't need the extra bucket
-Flag :: struct {
-    #using entity : *Entity = ---;
-}
-
 Entity_Manager :: struct {
     entity_pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
@@ -125,7 +117,6 @@ Entity_Manager :: struct {
     slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
     torches:      Bucket_Array(Torch);
-    //flags:        Bucket_Array(Flag); // TODO(Felix)
     chests:       Bucket_Array(Chest);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
@@ -151,7 +142,6 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.torches, *client.world_allocator);
-    //create_bucket_array(*client.flags, *client.world_allocator); // TODO(Felix)
     create_bucket_array(*client.chests, *client.world_allocator);
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
@@ -170,7 +160,6 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.torches);
-    //destroy_bucket_array(*client.flags); // TODO(Felix)
     destroy_bucket_array(*client.chests);
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
@@ -398,6 +387,16 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
     pointer := probed_hash_table_query(*client.entity_pid_lookup, pid);
     assert(pointer != null, "Tried to get a non-existent entity.");
     return ~pointer;
+}
+
+get_flag_entity :: (client: *Client) -> *Entity {
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if occupied && entity.entity_kind == .Flag {
+            return entity;
+        }
+    }
+    return null;
 }
 
 down :: (entity: *Entity, $T: Type) -> *T {

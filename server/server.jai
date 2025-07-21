@@ -659,7 +659,11 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     if #complete guy.received_input.interaction_kind == {            
       case .Primary_Start;
-        target_entity := find_any_entity_at_position(server, guy.target_position);
+        // Flag entity takes precedence
+        target_entity := find_entity_of_kind_at_position(server, .Flag, guy.target_position);
+        if !target_entity { 
+            target_entity = find_any_entity_at_position(server, guy.target_position);
+        }
 
         if #complete guy.state == {
           case .Dead, .Resurrecting;
@@ -687,6 +691,11 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.state = .Carrying;
                 guy.carrying_item = .Torch;
                 remove_entity(server, target_entity);
+
+              case .Flag;
+                guy.state = .Carrying;
+                guy.carrying_item = .Flag;
+                remove_entity(server, target_entity);
                 
               case;
                 if target_entity.entity_flags & .Diggable {
@@ -709,6 +718,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 if position_in_bounds(server, guy.target_position) {
                     guy.state = .Idle;
                     create_entity(server, .Torch, guy.target_position, .North);
+                }
+            } else if !target_entity && guy.carrying_item == .Flag { // TODO(Felix): We should be able to place the flag on corpses/ living creatures as well
+                if try_to_place_down_flag(server, guy.target_position) {
+                    guy.state = .Idle;
                 }
             } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
@@ -870,21 +883,6 @@ do_game_tick :: (server: *Server) {
             update_guy(server, guy);
             
             if guy.state == .Dead ++number_of_dead_guys;
-        }
-        
-        //
-        // Update highscore
-        //
-        {
-            current_score: u64 = 0;
-            for i := 0; i < server.guys.slot_count; ++i {
-                guy, occupied := index_bucket_array(*server.guys, i);
-                if !occupied continue;
-
-                score := guy.physical_position.x;
-                current_score = max(current_score, score);
-            }
-            update_score(server, current_score);
         }
         
         //

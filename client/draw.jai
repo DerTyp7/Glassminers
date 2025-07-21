@@ -281,6 +281,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
       case .Coal;  index = .Coal_Item;
       case .Coin;  index = .Coin;
       case .Torch; index = .Torch_0;
+      case .Flag;  index = .Flag_0;
     }
     
     return index;

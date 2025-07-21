@@ -199,16 +199,10 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Blocks_Move | .Blocks_Crafting, // Flag
     
     // TODO(Felix): 
-    //  - "There's no easy way to pick stuff up" -> "handle_guy_interaction" (or smth like that)
-    //     -  "I mean when I say there's no easy way to pick stuff up - What I mean is: You have to manually write the code that deletes the flag entity, puts the flag item into the guy's hand - and vice verca Should only be a few lines, but there's no nice entity flag available for that"
-    //  - All items on the floor are "Item Stack"
     //  - Separate Entity-Flags / Extra Entity-flag: 
     //     - Player should be able to walk over the flag,
     //     - but other entities / rocks / whatever should be blocked by it
-    //  - Make server use flag for scoring points
     //  - Think about behavior when player dies with flag / on lava / whatever
-    //  - Remove "// TODO(Felix)" from temporary changes
-    //
 ];
 
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
@@ -307,6 +301,7 @@ Item_Kind :: enum {
     Coal;
     Coin;
     Torch;
+    Flag;
 }
 
 Entity_Kind :: enum {
