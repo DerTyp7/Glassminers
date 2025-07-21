@@ -529,6 +529,12 @@ create_the_game :: (server: *Server) {
     game_start.game_start.seed = server.game_seed;
     game_start.game_start.size = server.world_size;
     array_add(*server.outgoing_messages, game_start);
+    
+    //
+    // Generate Flag
+    //
+    flag_entity := create_entity(server, .Flag, .{ 1, 2 }, .North);
+    update_score(server, flag_entity.physical_position.x);
 
     //
     // Generate one entity for each player and attach it to the player
