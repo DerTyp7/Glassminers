@@ -159,9 +159,13 @@ Entity_Flags :: enum bitfield {
     Pushable;
     Diggable;
     Living;
-    Blocks_Move;
+    
+    // TODO(Felix): Think about how to structure
+    Blocks_Movement;
+    Blocks_Non_Living_Movement;
+    
     Blocks_Beam;
-    Blocks_Los;
+    Blocks_Line_Of_Sight;
     Blocks_Crafting;
     Disable_Visual_Rotation;
     Disabled_Temporarily;
@@ -171,38 +175,37 @@ Entity_Flags :: enum bitfield {
 
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
-    .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Emitter
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting | .Auto_Heal, // Mirror
+    .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Emitter
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting | .Auto_Heal, // Mirror
 
     // Environment
-    .Blocks_Move | .Blocks_Crafting | .Emissive, // Lava
-    .Blocks_Move | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Los, // Bedrock
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Rock
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Coal
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Crystal
+    .Blocks_Movement | .Blocks_Crafting | .Emissive, // Lava
+    .Blocks_Movement | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Line_Of_Sight, // Bedrock
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Rock
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Coal
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Crystal
     .Blocks_Crafting, // Slime Hole
     
     // Creations
     0, // Item Stack
     0, // Slab
     .Blocks_Crafting, // Torch
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Crafting | .Auto_Heal, // Chest
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Crafting | .Auto_Heal, // Chest
     
     // Beings
-    .Living | .Pushable | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
+    .Living | .Pushable | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
     
     // Misc
-    .Blocks_Move | .Blocks_Crafting, // Flag
+    .Blocks_Non_Living_Movement | .Blocks_Crafting, // Flag
     
     // TODO(Felix): 
     //  - Separate Entity-Flags / Extra Entity-flag: 
     //     - Player should be able to walk over the flag,
     //     - but other entities / rocks / whatever should be blocked by it
-    //  - Think about behavior when player dies with flag / on lava / whatever
 ];
 
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
@@ -292,7 +295,7 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     3, // Trader
     
     // Misc
-    1, // Flag
+    3, // Flag
 ];
 
 Item_Kind :: enum {

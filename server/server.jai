@@ -720,7 +720,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
             } else if guy.carrying_item == .Flag {
-                if try_to_place_down_flag(server, guy.target_position) {
+                if try_to_put_flag(server, guy.target_position) {
                     guy.state = .Idle;
                 }
             } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
