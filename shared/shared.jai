@@ -159,11 +159,8 @@ Entity_Flags :: enum bitfield {
     Pushable;
     Diggable;
     Living;
-    
-    // TODO(Felix): Think about how to structure
-    Blocks_Movement;
-    Blocks_Non_Living_Movement;
-    
+    Blocks_Movement; // Blocks all movement
+    Blocks_Non_Living_Movement; // Only blocks movement for non-living entities (rocks, mirrors, ...)
     Blocks_Beam;
     Blocks_Line_Of_Sight;
     Blocks_Crafting;
@@ -201,11 +198,6 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     
     // Misc
     .Blocks_Non_Living_Movement | .Blocks_Crafting, // Flag
-    
-    // TODO(Felix): 
-    //  - Separate Entity-Flags / Extra Entity-flag: 
-    //     - Player should be able to walk over the flag,
-    //     - but other entities / rocks / whatever should be blocked by it
 ];
 
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
