@@ -719,7 +719,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     guy.state = .Idle;
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
-            } else if !target_entity && guy.carrying_item == .Flag { // TODO(Felix): We should be able to place the flag on corpses/ living creatures as well
+            } else if guy.carrying_item == .Flag {
                 if try_to_place_down_flag(server, guy.target_position) {
                     guy.state = .Idle;
                 }
