@@ -133,6 +133,17 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
     if server.current_state == .Ingame {
         for i := 0; i < client.local_player_count; ++i {
             entity := get_entity(server, client.local_players[i].guy_pid);
+            
+            // Drop items carried by player
+            guy := down(entity, Guy);
+            if guy.carrying_item == .Flag {
+                // Force drop flag
+                flag_entity := create_entity(server, .Flag, guy.physical_position, .North);
+                server.flag_pid = flag_entity.pid;
+            } else if guy.carrying_item != .Count {
+                try_to_put_item(server, guy.physical_position, guy.carrying_item, null);
+            }
+            
             remove_entity(server, entity);
         }
     }
@@ -534,6 +545,7 @@ create_the_game :: (server: *Server) {
     // Generate Flag
     //
     flag_entity := create_entity(server, .Flag, .{ 1, 2 }, .North);
+    server.flag_pid = flag_entity.pid;
     update_score(server, flag_entity.physical_position.x);
 
     //
@@ -698,6 +710,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.state = .Carrying;
                 guy.carrying_item = .Flag;
                 remove_entity(server, target_entity);
+                server.flag_pid = INVALID_PID;
                 
               case;
                 if target_entity.entity_flags & .Diggable {
@@ -904,6 +917,21 @@ do_game_tick :: (server: *Server) {
             }
             
             entity.damaged_this_frame = false;
+        }
+        
+        // 
+        // Check if flag is lost
+        //
+        if server.flag_pid != INVALID_PID {
+            // Flag is placed down
+            flag_entity := get_entity(server, server.flag_pid);
+            
+            // Check that flag is not in lava
+            slab := find_entity_of_kind_at_position(server, .Slab, flag_entity.physical_position);
+            lava := find_entity_of_kind_at_position(server, .Lava, flag_entity.physical_position);
+            if lava && !slab { 
+                game_state = .Lost;
+            }
         }
 
         number_of_players := 0;

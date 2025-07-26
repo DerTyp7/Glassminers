@@ -103,6 +103,7 @@ Entity_Manager :: struct {
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
+    flag_pid:     Pid;
 }
 
 
@@ -283,10 +284,10 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         guy := down(entity, Guy);
         guy.state = .Dead;
         if guy.carrying_item == .Flag {
-            // Forcefully spawn Flag. We cannot afford to delete the flag out of existance.
-            // Given that the player is standing on that position, it's probably fine
-            // TODO(Felix): What to do with flag if fallen into lava?
-            create_entity(server, .Flag, guy.physical_position, .North);
+            // Forcefully spawn Flag. Lava checks will be done later.
+            flag_entity := create_entity(server, .Flag, guy.physical_position, .North);
+            server.flag_pid = flag_entity.pid;
+            
             update_score(server, guy.physical_position.x);
             guy.carrying_item = .Count;
         }
@@ -814,7 +815,9 @@ try_to_put_flag :: (server: *Server, target_position: v2i) -> bool {
         return false;
     }
     
-    create_entity(server, .Flag, target_position, .North);
+    flag_entity := create_entity(server, .Flag, target_position, .North);
+    server.flag_pid = flag_entity.pid;
+    
     update_score(server, target_position.x);
     return true;
 }
