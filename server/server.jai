@@ -137,9 +137,7 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
             // Drop items carried by player
             guy := down(entity, Guy);
             if guy.carrying_item == .Flag {
-                // Force drop flag
-                flag_entity := create_entity(server, .Flag, guy.physical_position, .North);
-                server.flag_pid = flag_entity.pid;
+                force_put_flag(server, guy.physical_position);
             } else if guy.carrying_item != .Count {
                 try_to_put_item(server, guy.physical_position, guy.carrying_item, null);
             }
@@ -544,8 +542,7 @@ create_the_game :: (server: *Server) {
     //
     // Generate Flag
     //
-    flag_entity := create_entity(server, .Flag, .{ 1, 2 }, .North);
-    server.flag_pid = flag_entity.pid;
+    flag_entity := force_put_flag(server, .{ 1, 2 });
     update_score(server, flag_entity.physical_position.x);
 
     //

@@ -285,9 +285,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         guy.state = .Dead;
         if guy.carrying_item == .Flag {
             // Forcefully spawn Flag. Lava checks will be done later.
-            flag_entity := create_entity(server, .Flag, guy.physical_position, .North);
-            server.flag_pid = flag_entity.pid;
-            
+            force_put_flag(server, guy.physical_position);
             update_score(server, guy.physical_position.x);
             guy.carrying_item = .Count;
         }
@@ -815,9 +813,7 @@ try_to_put_flag :: (server: *Server, target_position: v2i) -> bool {
         return false;
     }
     
-    flag_entity := create_entity(server, .Flag, target_position, .North);
-    server.flag_pid = flag_entity.pid;
-    
+    force_put_flag(server, target_position);
     update_score(server, target_position.x);
     return true;
 }
@@ -887,6 +883,12 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
     }
     
     return success;
+}
+
+force_put_flag :: (server: *Server, position: v2i) -> *Entity {
+    flag_entity := create_entity(server, .Flag, position, .North);
+    server.flag_pid = flag_entity.pid;
+    return flag_entity;
 }
 
 // This will first try to put the item inside the guy's hand, and if that doesn't work it'll try to
