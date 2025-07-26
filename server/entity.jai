@@ -285,6 +285,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         if guy.carrying_item == .Flag {
             // Forcefully spawn Flag. We cannot afford to delete the flag out of existance.
             // Given that the player is standing on that position, it's probably fine
+            // TODO(Felix): What to do with flag if fallen into lava?
             create_entity(server, .Flag, guy.physical_position, .North);
             update_score(server, guy.physical_position.x);
             guy.carrying_item = .Count;
@@ -809,8 +810,7 @@ try_to_put_flag :: (server: *Server, target_position: v2i) -> bool {
     collision_entity := find_any_entity_at_position(server, target_position);
     if collision_entity && 
        !(collision_entity.entity_flags & .Living) && 
-       (collision_entity.entity_flags & .Blocks_Movement) && 
-       (collision_entity.entity_kind != .Lava) {
+       (collision_entity.entity_flags & .Blocks_Movement) {
         return false;
     }
     

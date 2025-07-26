@@ -389,16 +389,6 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
     return ~pointer;
 }
 
-get_flag_entity :: (client: *Client) -> *Entity {
-    for i := 0; i < client.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && entity.entity_kind == .Flag {
-            return entity;
-        }
-    }
-    return null;
-}
-
 down :: (entity: *Entity, $T: Type) -> *T {
 #if DEVELOPER {
     assert(entity != null && entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");

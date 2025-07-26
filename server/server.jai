@@ -665,11 +665,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     if #complete guy.received_input.interaction_kind == {            
       case .Primary_Start;
-        // Flag entity takes precedence
-        target_entity := find_entity_of_kind_at_position(server, .Flag, guy.target_position);
-        if !target_entity { 
-            target_entity = find_any_entity_at_position(server, guy.target_position);
-        }
+        target_entity := find_any_entity_at_position(server, guy.target_position);
 
         if #complete guy.state == {
           case .Dead, .Resurrecting;
