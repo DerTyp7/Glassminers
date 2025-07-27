@@ -1209,10 +1209,10 @@ do_developer_panel :: (client: *Client) {
             }
 
             ui_label(ui, true, "Allocators:");
-            ui_label(ui, false, "Default: %", allocator_string(Default_Allocator));
-            ui_label(ui, false, "Engine:  %", allocator_string(*client.engine_allocator));
-            ui_label(ui, false, "World:   %", allocator_string(*client.world_allocator));
-            ui_label(ui, false, "Temp:    %", allocator_string(*temp));
+            ui_label(ui, false, "Heap:   %", allocator_string(Default_Allocator));
+            ui_label(ui, false, "Engine: %", allocator_string(*client.engine_allocator));
+            ui_label(ui, false, "World:  %", allocator_string(*client.world_allocator));
+            ui_label(ui, false, "Temp:   %", allocator_string(*temp));
             ui_divider(ui, true);
         }
     

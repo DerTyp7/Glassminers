@@ -117,7 +117,7 @@ play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Ent
 
     if sound_pid != INVALID_SOUND_PID {
         stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
-        spatialize_sound_stream(stream, entity.visual_position.x, entity.visual_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+        spatialize_sound_stream(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
     }
         
     return sound_pid;
@@ -131,16 +131,59 @@ set_sound_playback_position :: (client: *Client, sound_pid: Sound_Pid, percentag
 }
 
 update_sound_players :: (client: *Client) {
-    forward :: [3]f32.[ 0, -1, 0 ];
-    up :: [3]f32.[ 0, 0, 1 ];
-    right :: [3]f32.[ 1, 0, 0 ];
-    inner_radius: f32 : 1;
+    //
+    // The mixer works in 3d, but the game is in 2d.
+    // We must therefore "project" both the listener and the sources into the 3d dimensional
+    // space.
+    //
+    // The sources are simply projected onto the XY plane, with the Z coordinate set to zero.
+    //
+    // The listener is defined using a rotation (through the forward, up and right vectors),
+    // as well as a position. We statically define the rotation to basically point
+    // inwards to the screen, as how the human player would look into the world.
+    //
+    // With the position we do something similar; we mimic the position that the human listener
+    // would have in the game world - The human listener sits "above" the world on the Z axis,
+    // looking down onto the world plane.
+    //
+    // If the listener was on the world plane (meaning: listener and sources had the same Z value),
+    // sounds that were slightly left on the screen would only come from the left audio channel.
+    // Imagine this as a "top-down" view in 3d (* is listener, @ is source):
+    //        Z
+    //        ^       With this projection, there's a 90 degree angle between the forward
+    //        |       vector of the listener and the vector to the source -> All audio is
+    // X@<----*       played on the left channel
+    //
+    // Therefore, we slightly shift the listener back in 3d space so that sounds are coming
+    // from a different angle and are therefore panned less aggressively. The actual distance
+    // by which we shift was chosen arbitrarily to sound good.
+    //        Z
+    //  @<|   ^       With this projection, there's a 45 degree angle between the forward
+    //    --| |       vector of the listener and the vector to the source -> Some audio is
+    // X<-----*       also played on the right channel
+    //
 
+    forward :: [3]f32.[ 0, 0, 1 ];
+    up :: [3]f32.[ 0, 1, 0 ];
+    right :: [3]f32.[ 1, 0, 0 ];
+    inner_radius: f32 : 0.5;
+
+    z_offset: f32 : -3;
+    USE_CAMERA_AS_LISTENER :: false;
+    
     if client.current_state == .Ingame {
         for i := 0; i < client.local_player_count; ++i {
-            entity := get_entity(client, client.local_players[i].guy_pid);
+            local_player := *client.local_players[i];
+
+            #if USE_CAMERA_AS_LISTENER {
+                position := local_player.camera.world_center;
+            } #else {
+                entity := get_entity(client, local_player.guy_pid);
+                position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
+            }
+                
             update_sound_listener(*client.mixer, i,
-                                  entity.visual_position.x, entity.visual_position.y, 0,
+                                  position.x, position.y, z_offset,
                                   forward[0], forward[1], forward[2],
                                   up[0], up[1], up[2],
                                   right[0], right[1], right[2],
