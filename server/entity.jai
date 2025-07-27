@@ -207,6 +207,11 @@ get_entity :: (server: *Server, pid: Pid) -> *Entity {
     return entity;
 }
 
+entity_exists :: (server: *Server, pid: Pid) -> bool {
+    pointer := probed_hash_table_query(*server.pid_lookup, pid);
+    return pointer != null;
+}
+
 physically_remove_dead_entities :: (server: *Server) {
     remove_deriveds :: (array: *Bucket_Array($T)) {
         for i := 0; i < array.slot_count; ++i {
@@ -303,9 +308,6 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Coin, killer);
         
-      case .Flag;
-        destroy_flag(server);
-
       case;
         remove_entity(server, entity);
     }
@@ -343,18 +345,6 @@ remove_entity :: (server: *Server, entity: *Entity) {
     msg := make_message(Destroy_Entity_Message);
     msg.destroy_entity.entity_pid = entity.pid;
     array_add(*server.outgoing_messages, msg);
-}
-
-destroy_flag :: (server: *Server) { // nocheckin: Remove this
-    flag_entity := get_entity(server, server.flag_pid);
-    remove_entity(server, flag_entity);
-
-    msg := make_message(Game_Over_Message);
-    msg.game_over.score  = server.game_score;
-    msg.game_over.result = .Flag_Destroyed;
-    array_add(*server.outgoing_messages, msg);
-    
-    server.next_state = .Game_Over;
 }
 
 find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {

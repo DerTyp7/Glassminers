@@ -916,6 +916,9 @@ do_game_tick :: (server: *Server) {
             entity.damaged_this_frame = false;
         }
 
+        //
+        // Check for game over scenarios
+        //
         number_of_players := 0;
         for i := 0; i < server.clients.count; ++i {
             number_of_players += array_get(*server.clients, i).local_player_count;
@@ -925,6 +928,12 @@ do_game_tick :: (server: *Server) {
             game_result = .All_Players_Dead;
         }
 
+        if server.flag_pid != INVALID_PID && !entity_exists(server, server.flag_pid) {
+            // This means that the flag is not currently carried by any player, but it no longer
+            // physically exists, which can only mean it got killed (e.g. by lava or whatever).
+            game_result = .Flag_Destroyed;
+        }
+        
         if game_result != .Keep_Going {
             msg := make_message(Game_Over_Message);
             msg.game_over.score  = server.game_score;
