@@ -188,7 +188,28 @@ screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
     return round(height * camera.world_to_screen.y);
 }
 
-update_camera :: (client: *Client, camera: *Camera, tracking_entity_position: v2i, viewport: [4]f32, interpolation: f32) {
+snap_position_to_rooms :: (client: *Client, camera: *Camera, target_center_position: v2f) -> v2f {
+    custom_clamp :: (value, low, high: $T) -> T {
+        if low < high {
+            return clamp(value, low, high);
+        } else {
+            return (low + high) * 0.5;
+        }
+    }
+
+    room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
+                           floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
+
+    world_half_size := v2f.{ camera.world_area.x / 2 - 0.5, camera.world_area.y / 2 - 0.5 };
+    
+    target_position := v2f.{
+        custom_clamp(room_position.x, world_half_size.x, xx client.world_size.x - world_half_size.x - 1),
+        custom_clamp(room_position.y, world_half_size.y, xx client.world_size.y - world_half_size.y - 1) };
+    
+    return target_position;
+}
+
+update_camera :: (client: *Client, camera: *Camera, target_world_center: v2f, viewport: [4]f32, interpolation: f32, snap_to_room_center: bool) {
     camera.viewport     = viewport;
     camera.aspect_ratio = (camera.viewport[2] - camera.viewport[0]) / (camera.viewport[3] - camera.viewport[1]);
 
@@ -203,8 +224,11 @@ update_camera :: (client: *Client, camera: *Camera, tracking_entity_position: v2
         camera.world_area.y      = camera.DESIRED_UNITS / camera.aspect_ratio;
         camera.world_area.x      = camera.DESIRED_UNITS;
     }
+
+    if snap_to_room_center {
+        target_world_center = snap_position_to_rooms(client, camera, target_world_center);
+    }
         
-    target_world_center := calculate_camera_target_position(client, camera, .{ xx tracking_entity_position.x, xx tracking_entity_position.y });
     camera.world_center.x = lerp_with_snap(camera.world_center.x, target_world_center.x, interpolation);
     camera.world_center.y = lerp_with_snap(camera.world_center.y, target_world_center.y, interpolation);
 }
@@ -387,6 +411,11 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
     pointer := probed_hash_table_query(*client.entity_pid_lookup, pid);
     assert(pointer != null, "Tried to get a non-existent entity.");
     return ~pointer;
+}
+
+entity_exists :: (client: *Client, pid: Pid) -> bool {
+    pointer := probed_hash_table_query(*client.entity_pid_lookup, pid);
+    return pointer != null;
 }
 
 down :: (entity: *Entity, $T: Type) -> *T {
@@ -802,27 +831,6 @@ update_slime_hole :: (client: *Client, hole: *Entity) {
 //
 // Helpers
 //
-
-calculate_camera_target_position :: (client: *Client, camera: *Camera, target_center_position: v2i) -> v2f {
-    custom_clamp :: (value, low, high: $T) -> T {
-        if low < high {
-            return clamp(value, low, high);
-        } else {
-            return (low + high) * 0.5;
-        }
-    }
-
-    room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
-                           floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
-
-    world_half_size := v2f.{ camera.world_area.x / 2 - 0.5, camera.world_area.y / 2 - 0.5 };
-    
-    target_camera_position := v2f.{
-        custom_clamp(room_position.x, world_half_size.x, xx client.world_size.x - world_half_size.x - 1),
-        custom_clamp(room_position.y, world_half_size.y, xx client.world_size.y - world_half_size.y - 1) };
-    
-    return target_camera_position;
-}
 
 is_emitter_beam_at :: (client: *Client, position: v2i) -> bool, *Emitter, Direction {
     for i := 0; i < client.emitters.slot_count; ++i {
