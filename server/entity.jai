@@ -242,6 +242,15 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
     }
 }
 
+    //
+    // If the entity has no more health we consider it dead, but the entity itself might be kept in storage.
+    // For example, guy entities should never go away, they go into a special "dead" mode (instead of removing
+    // the entity physically).
+    // When in that special state though, we don't want to damage these entities further (which might have weird
+    // side effects, like the controller vibrating on "damage" when the guy is already dead...)
+    //
+    if entity.health <= 0 return false;
+    
     entity.damaged_this_frame = true;
     entity.health = max(entity.health - immediate_damage, 0);
     has_died := entity.health <= 0;
