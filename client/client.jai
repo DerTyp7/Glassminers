@@ -99,7 +99,7 @@ Client :: struct {
     //
     // Assets
     //
-    ui_font, title_font: Font;
+    ui_font, title_font, hud_font: Font;
     ui_pipeline: *GE_Pipeline;
     entity_pipeline: *GE_Pipeline;
     sprite_atlases: [SPRITE_ATLAS_COUNT]*GE_Texture;
@@ -168,7 +168,7 @@ Client :: struct {
     // 
     #if DEVELOPER {
         developer_panel_open: bool;
-        free_cam_is_enabled: bool;
+        free_camera_enabled: bool;
         
         timing_update: f32;
         timing_draw: f32;
@@ -294,6 +294,20 @@ find_remote_player_by_pid_and_local_index :: (client: *Client, pid: Pid, index: 
     return null;
 }
 
+find_player_name_from_guy_pid :: (client: *Client, pid: Pid) -> string {
+    for i := 0; i < client.remote_players.count; ++i {
+        remote_player := array_get_pointer(*client.remote_players, i);
+        if remote_player.guy_pid == pid { return remote_player.name; }
+    }
+
+    for i := 0; i < client.local_player_count; ++i {
+        local_player := *client.local_players[i];
+        if local_player.guy_pid == pid { return local_player.name; }
+    }
+
+    return "?UNKNOWN?";
+}
+
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
       case .Request_Game_Start, .Guy_Input; // Ignore
@@ -388,7 +402,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         // Reset debug settings
         #if DEVELOPER {
             client.developer_panel_open = false;
-            client.free_cam_is_enabled = false;
+            client.free_camera_enabled = false;
         }
         
       case .Game_Over;
@@ -1221,7 +1235,7 @@ do_debug_panel :: (client: *Client) {
         ui_check_box(ui, "Lightmap", *lightmap);
         client.lightmap.disabled = !lightmap;
 
-        ui_check_box(ui, "Free Cam", *client.free_cam_is_enabled);
+        ui_check_box(ui, "Free Camera", *client.free_camera_enabled);
     }
 
     // Debug camera is only for first player
@@ -1229,8 +1243,8 @@ do_debug_panel :: (client: *Client) {
         player := *client.local_players[0];
         guy := get_entity(client, player.guy_pid);
 
-        if client.free_cam_is_enabled {
-            speed : f32 : 20.0;
+        if client.free_camera_enabled {
+            speed : f32 : 10.0;
             movement: v2f;
 
             if input_action_fired_globally(client, .Move_West, .Held) { 
@@ -1392,6 +1406,9 @@ do_game_tick :: (client: *Client) {
         }
     }
 
+    // nocheckin: Can we clean this up?
+    
+    // Forward any input for the guys to the server
     for i := 0; i < client.local_player_count; ++i {
         local_player := *client.local_players[i];
         
@@ -1400,8 +1417,7 @@ do_game_tick :: (client: *Client) {
         is_spectating := guy.state == .Dead;
         
         is_in_freecam: bool = false;
-        #if DEVELOPER { is_in_freecam = i == 0 && client.free_cam_is_enabled; }
-        
+        #if DEVELOPER    is_in_freecam = i == 0 && client.free_camera_enabled;
 
         // Update camera
         if !is_in_freecam {
@@ -1684,20 +1700,20 @@ main :: (args: []string) -> s32 {
                     color := GE_Color.{ 200, 200, 200, cast(u8) (alpha * 255) };
 
                     text := tprint("%: ", client.local_players[input.local_player_index].name);
-                    draw_text_screen_space(*client, *client.ui_font, text, .{ x, y }, .Right | .Median, color);
+                    draw_text_screen_space(*client, *client.ui_font, text, .{ x, y }, .Right | .Median, color, .Default);
                     draw_sprite_screen_space(*client, input.sprite_index, .{ x + 16, y }, .{ 32, 32 }, 0, color, false);
                     
                     y -= 34;
                 }
 
                 if !client.test_inputs.count {
-                    draw_text_screen_space(*client, *client.ui_font, "Press some buttons...", .{ x + 32, y }, .Right | .Median, .{ 200, 200, 200, 255 });
+                    draw_text_screen_space(*client, *client.ui_font, "Press some buttons...", .{ x + 32, y }, .Right | .Median, GRAY_COLOR, .Default);
                 }
                 
               case .Main_Menu, .Connecting, .Game_Over;
-                draw_text_screen_space(*client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, .{ 255, 255, 255, 255 });
+                draw_text_screen_space(*client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, WHITE_COLOR, .Default);
                 if client.info_text_t >= 0 {
-                    draw_text_screen_space(*client, *client.ui_font, client.info_text, .{ xx client.window.w / 2, xx (client.window.h / 4 + client.title_font.line_height) }, .Center | .Median, .{ 252, 238, 28, 255 });
+                    draw_text_screen_space(*client, *client.ui_font, client.info_text, .{ xx client.window.w / 2, xx (client.window.h / 4 + client.title_font.line_height) }, .Center | .Median, YELLOW_COLOR, .Default);
                     client.info_text_t -= client.tick_time;
                 }
                 
@@ -1706,18 +1722,14 @@ main :: (args: []string) -> s32 {
                     draw_world(*client, *client.local_players[i]);
                     draw_hud(*client, *client.local_players[i]);
                 }
-                
-                #if DEVELOPER {
-                    draw_debug_indicators(*client, *client.local_players[0]); 
-                }
 
-                draw_viewports(*client);
+                draw_viewport_information(*client);
+                draw_global_hud(*client);
                 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
                 if client.server_paused_game {
-                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2 + 2, xx client.window.h * 0.33 + 2 }, .Center | .Median, .{ 100, 100, 100, 255 });
-                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2, xx client.window.h * 0.33 }, .Center | .Median, .{ 255, 166, 0, 255 });
+                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2 + 2, xx client.window.h * 0.33 + 2 }, .Center | .Median, ORANGE_COLOR, .Shadow);
                 }
                 
                 ge_imm2d_flush(*client.graphics);
@@ -1725,7 +1737,7 @@ main :: (args: []string) -> s32 {
 
             draw_ui_frame(*client.ui);
 
-            draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, .{ 255, 255, 255, 150 });
+            draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
             ge_imm2d_flush(*client.graphics);
             
             ge_swap_buffers(*client.graphics);

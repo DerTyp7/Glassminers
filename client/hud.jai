@@ -250,102 +250,58 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     // Spectating overlay
     guy_entity := get_entity(client, local_player.guy_pid);
     guy := down(guy_entity, Guy);
-    is_spectating := guy.state == .Dead;
-    if is_spectating {
-        find_name_from_guy_pid :: (client: *Client, pid: Pid) -> string {
-            for i := 0; i < client.remote_players.count; ++i {
-                remote_player := array_get_pointer(*client.remote_players, i);
-                if remote_player.guy_pid == pid { return remote_player.name; }
-            }
 
-            for i := 0; i < client.local_player_count; ++i {
-                local_player := *client.local_players[i];
-                if local_player.guy_pid == pid { return local_player.name; }
-            }
-
-            return "UNKNOWN";
-        }
-
-        color := GE_Color.{ 255, 255, 255, 100 };
-
-        // Text Spectating
-        text: string = "Spectating";
+    if guy.state == .Dead {
+        font :: *client.hud_font;
         position: v2f = .{ 
-            (local_player.viewport[0] + local_player.viewport[2]) / 2, 
-            (local_player.viewport[1] + local_player.viewport[3]) - 0.2*local_player.viewport[3]
+            round((local_player.viewport[0] + local_player.viewport[2]) * 0.5), 
+            round((local_player.viewport[1] + local_player.viewport[3]) * 0.75)
         };
-        draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
 
-        // Text Player
-        {
+        // Draw the "spectating" hint
+        draw_text_screen_space(client, font, "Spectating", position, .Center | .Median, GRAY_COLOR, .Default);
+        position.y += cast(f32) font.line_height;
+
+        player_name_text: string;
+
+        // Draw the player name
+        {            
             if local_player.guy_pid == local_player.entity_tracked_by_camera {
-                text = "YOU";
+                player_name_text = "YOU";
             } else {
-                text = find_name_from_guy_pid(client, local_player.entity_tracked_by_camera);
+                player_name_text = find_player_name_from_guy_pid(client, local_player.entity_tracked_by_camera);
             }
 
             spectated_guy := down(get_entity(client, local_player.entity_tracked_by_camera), Guy);
             if spectated_guy.state == .Dead {
-                text = concatenate_strings(*temp, text, " (DEAD)");
+                player_name_text = concatenate_strings(*temp, player_name_text, " (DEAD)");
             }
+
+            draw_text_screen_space(client, font, player_name_text, position, .Center | .Median, WHITE_COLOR, .Default);
         }
-        position.y += 50;
-        color.a = 255;
-        draw_text_screen_space(client, *client.title_font, text, position, .Center | .Median, color);
 
         // Draw Arrows indicating that you can switch to other players
         {
-            font := *client.title_font;
-            text_width := get_string_width_in_pixels(font, text);
+            text_width: f32 = xx get_string_width_in_pixels(font, player_name_text);
 
             sprite_index :: Sprite_Index.Hud_Arrow;
-            center := position;
-            size: GE_Vector2 = .{ 32, 32 };
-            padding: f32 = 10;
-            offset: f32 = xx text_width * 0.5 + padding + size.x;
+            screen_size: GE_Vector2 : .{ 32, 32 };
+            screen_padding: f32 = 10;
+            screen_offset: f32 = round(text_width * 0.5) + screen_padding + screen_size.x;
 
-            sprite_position: v2f;
-            rotation: f32;
-
-            // Right
-            rotation = 0.25;
-            sprite_position = .{ center.x + offset, center.y };
-            draw_sprite_screen_space(client, sprite_index, sprite_position, size, rotation, .{ 255, 255, 255, 255 }, .None);
-
-            // Left
-            rotation = 0.75;
-            sprite_position = .{ center.x - offset, center.y };
-            draw_sprite_screen_space(client, sprite_index, sprite_position, size, rotation, .{ 255, 255, 255, 255 }, .None);
+            draw_sprite_screen_space(client, sprite_index, .{ position.x + screen_offset, position.y }, screen_size, 0.25, .{ 255, 255, 255, 255 }, .None);
+            draw_sprite_screen_space(client, sprite_index, .{ position.x - screen_offset, position.y }, screen_size, -0.25, .{ 255, 255, 255, 255 }, .None);
         }
     }
-    
+}
 
-    // Point score
+draw_global_hud :: (client: *Client) {
+    // Game Score
     {
-        viewport_width := local_player.viewport[2] - local_player.viewport[0];
-        viewport_height := local_player.viewport[3] - local_player.viewport[1];
         text := tprint("Score: %", client.game_score);
-        position: v2f = .{ 
-            (local_player.viewport[0] + viewport_width * 0.95),
-            (local_player.viewport[1] + viewport_height * 0.05)
-        };
-        color := GE_Color.{ 255, 255, 255, 100 };
-        draw_text_screen_space(client, *client.title_font, text, position, .Right | .Median, color);
+        position: v2f = .{ round(cast(f32) client.window.w * 0.95), round(cast(f32) client.window.h * 0.05) };
+        draw_text_screen_space(client, *client.hud_font, text, position, .Right | .Top, ORANGE_COLOR, .Shadow);
     }
-}
-
-#if DEVELOPER {
-draw_debug_indicators :: (client: *Client, local_player: *Local_Player) {
-    if client.free_cam_is_enabled {
-        viewport_width := local_player.viewport[2] - local_player.viewport[0];
-        viewport_height := local_player.viewport[3] - local_player.viewport[1];
-        position: v2f = .{ 
-            (local_player.viewport[0] + viewport_width * 0.03),
-            (local_player.viewport[1] + viewport_height * 0.05)
-        };
-        draw_text_screen_space(client, *client.title_font, "Freecam", position, .Left | .Median, .{ 255, 255, 255, 255 });
-    }
-}
 }
 
 

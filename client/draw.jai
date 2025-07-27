@@ -1,3 +1,8 @@
+WHITE_COLOR  :: GE_Color.{ 255, 255, 255, 255 };
+GRAY_COLOR   :: GE_Color.{ 100, 100, 100, 255 };
+ORANGE_COLOR :: GE_Color.{ 255, 166, 0, 255 };
+YELLOW_COLOR :: GE_Color.{ 252, 238, 28, 255 };
+
 Sprite_Index :: enum {
     // HUD
     Hud_Heart_Full;
@@ -230,6 +235,8 @@ create_draw_data :: (client: *Client) -> bool {
 #if BAKE_ASSETS {
     ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, 13, .Ascii);
     ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, 45, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, 25, .Ascii);
+
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         client.sprite_atlases[i] = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLASES[i].width, BAKED_SPRITE_ATLASES[i].height, BAKED_SPRITE_ATLASES[i].channels, BAKED_SPRITE_ATLASES[i].pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
     }
@@ -237,6 +244,7 @@ create_draw_data :: (client: *Client) -> bool {
 } #else {
     ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", 25, .Ascii);
     return reload_sprite_atlases_from_disk(client);
 }
 }
@@ -248,6 +256,7 @@ destroy_draw_data :: (client: *Client) {
 
     ge_destroy_font(*client.graphics, *client.ui_font);
     ge_destroy_font(*client.graphics, *client.title_font);
+    ge_destroy_font(*client.graphics, *client.hud_font);
     ge_destroy_pipeline(*client.graphics, client.ui_pipeline);
     ge_destroy_pipeline(*client.graphics, client.entity_pipeline);
     ge_destroy(*client.graphics);
@@ -343,8 +352,53 @@ draw_outlined_rect_screen_space :: (client: *Client, c0, c1: v2f, thickness: f32
     ge_imm2d_colored_rect_outline(*client.graphics, c0.x, c0.y, c1.x, c1.y, thickness, color);
 }
 
-draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: GE_Color) {
-    ge_draw_text(*client.graphics, font, text, position.x, position.y, alignment, .{ foreground.r, foreground.g, foreground.b, foreground.a });
+Draw_Text_Flags :: enum bitfield {
+    Default;
+    Shadow;
+    Background;
+}
+
+draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: GE_Color, flags: Draw_Text_Flags) {
+    if bitfield_contains(*flags, Draw_Text_Flags.Background) {
+        width: f32 = xx get_string_width_in_pixels(font, text);
+        height: f32 = xx font.average_character_height;
+        padding: f32 = cast(f32) font.average_character_height * 0.2;
+        x0, y0, x1, y1: f32 = ---;
+
+        if alignment & .Center {
+            x0 = position.x - width * 0.5;
+        } else if alignment & .Right {
+            x0 = position.x - width;
+        } else {
+            x0 = position.x;
+        }
+
+        if alignment & .Median {
+            y0 = position.y - height * 0.5;
+        } else if alignment & .Bottom {
+            y0 = position.y - height;
+        } else {
+            y0 = position.y;
+        }
+
+        x1 = x0 + width;
+        y1 = y0 + height;
+        
+        x0 = round(x0) - padding;
+        y0 = round(y0) - padding;
+        x1 = round(x1) + padding;
+        y1 = round(y1) + padding;
+
+        BACKGROUND_COLOR :: GE_Color.{ 100, 100, 100, 100 };
+        
+        ge_imm2d_colored_rect(*client.graphics, x0, y0, x1, y1, BACKGROUND_COLOR);
+    }
+
+    if bitfield_contains(*flags, Draw_Text_Flags.Shadow) {
+        ge_draw_text(*client.graphics, font, text, position.x + 2, position.y + 2, alignment, GRAY_COLOR);
+    }
+
+    ge_draw_text(*client.graphics, font, text, position.x, position.y, alignment, foreground);
 }
 
 draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
@@ -613,14 +667,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         entity := get_entity(client, entity_pid);
         if entity {
             screen_center := screen_from_world_position(*local_player.camera, v2f.{ entity.visual_position.x, entity.visual_position.y - 0.55 });
-            screen_size   := v2f.{ xx get_string_width_in_pixels(*client.ui_font, label) + 5, xx client.ui_font.line_height };
-            
-            draw_rect_screen_space(client, .{ screen_center.x - screen_size.x / 2,
-                                              screen_center.y - screen_size.y / 2 },
-                                           .{ screen_center.x + screen_size.x / 2,
-                                              screen_center.y + screen_size.y / 2 },
-                                   .{ 100, 100, 100, 100 });
-            draw_text_screen_space(client, *client.ui_font, label, screen_center, .Center | .Median, .{ 255, 255, 255, 255 });
+            draw_text_screen_space(client, *client.ui_font, label, screen_center, .Center | .Median, WHITE_COLOR, .Background);
         }
     }
 
@@ -734,7 +781,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
 
         if item_stack.count > VISUAL_ITEM_STACK_CAPACITY {
             screen_center := screen_from_world_position(*local_player.camera, v2f.{ item_stack.visual_position.x + 0.3, item_stack.visual_position.y + 0.3 });
-            draw_text_screen_space(client, *client.ui_font, tprint("%", item_stack.count), screen_center, .Center | .Median, .{ 255, 255, 255, 255 });
+            draw_text_screen_space(client, *client.ui_font, tprint("%", item_stack.count), screen_center, .Center | .Median, WHITE_COLOR, .Default);
         }
     }
     
@@ -826,32 +873,46 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     ge_set_scissors(*client.graphics, .[ 0, 0, xx client.window.w, xx client.window.h ]);
 }
 
-draw_viewports :: (client: *Client) {
+draw_viewport_information :: (client: *Client) {
     THICKNESS: f32 : 5;
-    COLOR :: GE_Color.{ 255, 255, 255, 255 };
 
     #assert(MAX_LOCAL_PLAYERS == 4);
 
-    draw_viewport_label :: (client: *Client, player: *Local_Player) {
-        if client.game_epoch_time > 15 return;
-        draw_text_screen_space(client, *client.ui_font, player.name, .{ player.viewport[2] - 10, player.viewport[3] - 10 }, .Right | .Bottom, COLOR);
+    draw_viewport_label :: (client: *Client, local_player_index: s64, text: string, index: s64) -> s64 {
+        local_player := *client.local_players[local_player_index];
+        draw_text_screen_space(client, *client.ui_font, text, .{ local_player.viewport[2] - 10, local_player.viewport[3] - 10 - cast(f32) (index * client.ui_font.line_height) }, .Right | .Bottom, WHITE_COLOR, .Default);
+        return index + 1;
     }
-    
+
+    //
+    // Draw the viewport boundaries
+    //
     if client.local_player_count == {
       case 2;
         center_x: f32 = floor(cast(f32) client.window.w * 0.5);
-        draw_line_screen_space(client, .{ center_x, 0 }, .{ center_x, xx client.window.h }, COLOR, THICKNESS);
+        draw_line_screen_space(client, .{ center_x, 0 }, .{ center_x, xx client.window.h }, WHITE_COLOR, THICKNESS);
       case 3, 4;
         center_x: f32 = floor(cast(f32) client.window.w * 0.5);
         center_y: f32 = floor(cast(f32) client.window.h * 0.5);
-        draw_line_screen_space(client, .{ center_x, 0 }, .{ center_x, xx client.window.h }, COLOR, THICKNESS);
-        draw_line_screen_space(client, .{ 0, center_y }, .{ xx client.window.w, center_y }, COLOR, THICKNESS);
+        draw_line_screen_space(client, .{ center_x, 0 }, .{ center_x, xx client.window.h }, WHITE_COLOR, THICKNESS);
+        draw_line_screen_space(client, .{ 0, center_y }, .{ xx client.window.w, center_y }, WHITE_COLOR, THICKNESS);
     }
 
-    if client.local_player_count > 1 {
-        for i := 0; i < client.local_player_count; ++i {
-            draw_viewport_label(client, *client.local_players[i]);
+    //
+    // Draw the viewport labels
+    //
+    for i := 0; i < client.local_player_count; ++i {
+        j := 0;
+        
+        if client.local_player_count > 1 && client.game_epoch_time < 15 {
+            j = draw_viewport_label(client, i, client.local_players[i].name, j);
         }
+        
+#if DEVELOPER {
+    if i == 0 && client.free_camera_enabled {
+        j = draw_viewport_label(client, i, "Freecam", j);
+    }
+}
     }
 }
 
