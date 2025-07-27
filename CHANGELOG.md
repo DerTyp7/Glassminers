@@ -1,10 +1,15 @@
 ## 0.3.0 (unreleased)
 
-The game's design has been updated to have infinitely growing worlds. Emitters have been repurposed as checkpoints. The emitter at the end of the current chunk must be powered up using a light beam to unlock the next chunk of the world.
+The game design has been updated to no longer have one discrete goal; instead the goal is to come as far as possible. This is indicated by a new score mechanism. This score is driven by the furthest position the new flag entity has been placed on by a player. The world is now also growing infinitely large - as long as the latest emitter (acting as a checkpoint) has been powered up using a previous emitter.
+    The flag is spawned once in a new world and can be picked up and placed down like regular items. It is therefore the players' job to make a safe path forward through the world to later carry the flag forward, to increase their score.
+    The receiver entity has been completely removed.
+    The emitter entity now acts as a gate between sections of the world, and can be powered up using beams. Once an emitter is powered up, the next part of the world will be generated. An emitter that has been powered up will always stay powered on and no longer requires coal intake.
 
 - Implemented a spectator mode when a player is dead - Use the regular movement inputs to switch the player to spectate
+- Implemented a simple developer panel for debugging purposes
 - Improved the spatialization feel of sounds
 - Fixed the sound channels being the wrong way around on linux
+- Fixed the controller rumbling when guys were attacked while already being dead
 
 ## 0.2.3 (29.06.2025)
 
