@@ -167,7 +167,8 @@ Client :: struct {
     // debug/developer UI
     // 
     #if DEVELOPER {
-        developer_panel_open: bool;
+        developer_panel_state: UI_Window_State;
+        developer_panel_position: UI_Vector2;
         free_camera_enabled: bool;
         
         timing_update: f32;
@@ -401,7 +402,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         
         // Reset debug settings
         #if DEVELOPER {
-            client.developer_panel_open = false;
+            client.developer_panel_state = .Closed;
             client.free_camera_enabled = false;
         }
         
@@ -1173,77 +1174,59 @@ find_previous_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
 }
 
 #if DEVELOPER {
-do_debug_panel :: (client: *Client) {
+do_developer_panel :: (client: *Client) {
+    if client.developer_panel_state == .Closed then return;
+
     ui :: *client.ui;
+    
+    ui_push_width(ui, .Pixels, 360, 0.8);
+    client.developer_panel_state, client.developer_panel_position = ui_push_window(ui, "Developer Window", .Draggable | .Closeable | .Collapsable, client.developer_panel_position);
 
-    window_flags : UI_Window_Flags : .Draggable;
-    ui_push_width(ui, .Pixels, 350, 0.8);
-    ui_push_window(ui, "Developer Window", window_flags, .{ 0.5, 0.5 });
-
-    ui_label(ui, true, "Timings (last frame)");
-    ui_label(ui, false, "Window %ms", client.window.frame_time * 1000.0);
-    ui_label(ui, false, "Update %ms", client.timing_update);
-    ui_label(ui, false, "Draw   %ms", client.timing_draw);
-    ui_label(ui, false, "Total (no sleep) %ms", client.timing_total_no_sleep);
-    ui_divider(ui, true);
-
-    ui_label(ui, true, "Misc.");
-    {
-        ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
-        ui_label(ui, false, "World Size: %", client.world_size);
-        ui_label(ui, false, "Entity Count: %", client.all_entities.alive_count);
-
-        system := get_particle_system(client, client.global_particle_system);
-        particle_count := 0;
-        for emitter_index := 0; emitter_index < system.emitters.count; ++emitter_index {
-            particle_count += system.emitters[emitter_index].particles.count;
+    if client.developer_panel_state == .Open {
+        {
+            ui_label(ui, true, "Timings (last frame)");
+            ui_label(ui, false, "Window %ms", client.window.frame_time * 1000.0);
+            ui_label(ui, false, "Update %ms", client.timing_update);
+            ui_label(ui, false, "Draw   %ms", client.timing_draw);
+            ui_label(ui, false, "Total (no sleep) %ms", client.timing_total_no_sleep);
+            ui_divider(ui, true);
         }
-        ui_label(ui, false, "Particle Count: %", particle_count);
-    }
-    ui_divider(ui, true);
-
-    ui_label(ui, true, "Allocators: working_set");
-    {
-        string_from_bytes :: (size_in_bytes: u64) -> string {
-            size_in_units, units := convert_to_biggest_memory_unit(size_in_bytes);
-            text := print_into_allocator(*temp, "% %", size_in_units, suffix_string_from_memory_unit(units));
-            return text;
+            
+        {
+            ui_label(ui, true, "Misc.");
+            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
+            ui_label(ui, false, "World Size: %x%", client.world_size.x, client.world_size.y);
+            ui_label(ui, false, "Entities: %", client.all_entities.alive_count);
+            ui_label(ui, false, "Particle Systems: %", client.particle_systems.alive_count);
+            ui_divider(ui, true);
         }
 
-        ui_label(ui, false, "Default: %", string_from_bytes(Default_Allocator.stats.working_set));
-        ui_label(ui, false, "Engine:  %", string_from_bytes(client.engine_allocator.stats.working_set));
-        ui_label(ui, false, "World:   %", string_from_bytes(client.world_allocator.stats.working_set));
-        ui_label(ui, false, "Temp:    %", string_from_bytes(temp.stats.working_set));
-    }
-    ui_divider(ui, true);
+        {
+            allocator_string :: (allocator: *Allocator) -> string {
+                size_in_units, units := convert_to_biggest_memory_unit(allocator.stats.working_set);
+                text := print_into_allocator(*temp, "% %", size_in_units, suffix_string_from_memory_unit(units));
+                return text;
+            }
 
-    ui_label(ui, true, "Player Positions");
-    for local_player_index := 0; local_player_index < client.local_player_count; ++local_player_index {
-        entity := get_entity(client, client.local_players[local_player_index].guy_pid);
-        ui_label(ui, false, "Local Player %: %", local_player_index, entity.physical_position);
-    }
-    for remote_player_index := 0; remote_player_index < client.remote_players.count; ++remote_player_index {
-        entity := get_entity(client, array_get(*client.remote_players, remote_player_index).guy_pid);
-        ui_label(ui, false, "Remote Player %: %", remote_player_index, entity.physical_position);
-    }
-    ui_divider(ui, true);
+            ui_label(ui, true, "Allocators:");
+            ui_label(ui, false, "Default: %", allocator_string(Default_Allocator));
+            ui_label(ui, false, "Engine:  %", allocator_string(*client.engine_allocator));
+            ui_label(ui, false, "World:   %", allocator_string(*client.world_allocator));
+            ui_label(ui, false, "Temp:    %", allocator_string(*temp));
+            ui_divider(ui, true);
+        }
+    
+        {
+            ui_label(ui, true, "Options");
+            ui_check_box(ui, "Disable Lightmap", *client.lightmap.disabled);
+            ui_check_box(ui, "Free Camera", *client.free_camera_enabled);
+        }
 
-    ui_label(ui, true, "Options");
-    {
-        // Extra temp variable so we don't have to "enable disable light"
-        lightmap := !client.lightmap.disabled;
-        ui_check_box(ui, "Lightmap", *lightmap);
-        client.lightmap.disabled = !lightmap;
-
-        ui_check_box(ui, "Free Camera", *client.free_camera_enabled);
-    }
-
-    // Debug camera is only for first player
-    {
-        player := *client.local_players[0];
-        guy := get_entity(client, player.guy_pid);
-
+        // Free camera is only for first player
         if client.free_camera_enabled {
+            player := *client.local_players[0];
+            guy := get_entity(client, player.guy_pid);
+
             speed : f32 : 10.0;
             movement: v2f;
 
@@ -1264,7 +1247,7 @@ do_debug_panel :: (client: *Client) {
             player.camera.world_center.y += movement.y;
         }
     }
-
+        
     ui_pop_window(ui);
     ui_pop_width(ui);
 }
@@ -1359,12 +1342,10 @@ do_game_tick :: (client: *Client) {
     // Developer UI
 #if DEVELOPER { 
     if input_action_fired_globally(client, .Cheat_Debug_Window_Toggle, .Pressed) {
-        client.developer_panel_open = ! client.developer_panel_open;
+        client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
     }
     
-    if client.developer_panel_open { 
-        do_debug_panel(client);
-    }
+    do_developer_panel(client);
 }
 
 

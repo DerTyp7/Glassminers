@@ -10,6 +10,8 @@ The game design has been updated to no longer have one discrete goal; instead th
 - Improved the spatialization feel of sounds
 - Fixed the sound channels being the wrong way around on linux
 - Fixed the controller rumbling when guys were attacked while already being dead
+- Fixed the font size not being off on linux
+- Fixed some artifacts when drawing some icons or texts
 
 ## 0.2.3 (29.06.2025)
 
