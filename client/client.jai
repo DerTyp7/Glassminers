@@ -44,13 +44,6 @@ Game_State :: enum {
     Game_Over;
 }
 
-Previous_Game_Result :: enum {
-    All_Players_Dead;
-    Flag_Destroyed;
-    
-    Connection_Lost;
-}
-
 Remote_Player :: struct {
     local_player_index: s64 = -1;
     client_pid: Pid = INVALID_PID;
@@ -99,7 +92,7 @@ Client :: struct {
     
     current_state: Game_State;
     next_state: Game_State;
-    previous_game_result: Previous_Game_Result;
+    previous_game_result: Game_Result;
     info_text: string;
     info_text_t: f32;
     
@@ -157,8 +150,8 @@ Client :: struct {
     server_paused_game: bool;
 
     game_seed: s64;
+    game_score: u64;
     world_size: v2i;
-    point_score: u64;
 
     tick_time: f32;
     game_epoch_time: f32;
@@ -399,12 +392,12 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
         
       case .Game_Over;
-        client.point_score = msg.game_over.point_score;
-        if #complete msg.game_over.reason == {
-            case .All_Players_Dead; client.previous_game_result = .All_Players_Dead;
-            case .Flag_Destroyed;   client.previous_game_result = .Flag_Destroyed;
-        }
+        client.game_score = msg.game_over.score;
+        client.previous_game_result = msg.game_over.result;
         client.next_state = .Game_Over;
+
+      case .Game_Score;
+        client.game_score = msg.game_score.score;
 
       case .World_Resize;
         client.world_size = msg.world_resize.new_world_size;
@@ -636,9 +629,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
         }
-        
-      case .Score_State;
-        client.point_score = msg.score_state.point_score;
     }
 }
 
@@ -1086,18 +1076,20 @@ do_game_over_screen :: (client: *Client) {
     ui_push_width(ui, .Pixels, 256, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
     
-    score_text := tprint("Final Score: %", client.point_score);
+    score_text := tprint("Final Score: %", client.game_score);
     
-    if client.previous_game_result == {
-        case .All_Players_Dead; 
-            ui_label(ui, true, "All players have died!");
-            ui_label(ui, true, score_text);
-        
-        case .Flag_Destroyed;
-            ui_label(ui, true, "The flag was destroyed!");
-            ui_label(ui, true, score_text);
+    if #complete client.previous_game_result == {
+      case .Keep_Going; // Should never happen, this value is just used on the server side
 
-        case .Connection_Lost; ui_label(ui, true, "Connection died!");
+      case .All_Players_Dead; 
+        ui_label(ui, true, "All players have died!");
+        ui_label(ui, true, score_text);
+        
+      case .Flag_Destroyed;
+        ui_label(ui, true, "The flag was destroyed!");
+        ui_label(ui, true, score_text);
+
+      case .Connection_Lost; ui_label(ui, true, "Connection died!");
     }
     
     ui_divider(ui, true);

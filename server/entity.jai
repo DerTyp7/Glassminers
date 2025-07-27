@@ -345,16 +345,15 @@ remove_entity :: (server: *Server, entity: *Entity) {
     array_add(*server.outgoing_messages, msg);
 }
 
-destroy_flag :: (server: *Server)
-{
+destroy_flag :: (server: *Server) { // nocheckin: Remove this
     flag_entity := get_entity(server, server.flag_pid);
     remove_entity(server, flag_entity);
-    
-    msg := make_message(Game_Over_Message);
-    msg.game_over.point_score = server.point_score;
-    msg.game_over.reason = .Flag_Destroyed;
-    array_add(*server.outgoing_messages, msg);
 
+    msg := make_message(Game_Over_Message);
+    msg.game_over.score  = server.game_score;
+    msg.game_over.result = .Flag_Destroyed;
+    array_add(*server.outgoing_messages, msg);
+    
     server.next_state = .Game_Over;
 }
 

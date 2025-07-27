@@ -324,7 +324,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     {
         viewport_width := local_player.viewport[2] - local_player.viewport[0];
         viewport_height := local_player.viewport[3] - local_player.viewport[1];
-        text := tprint("Score: %", client.point_score);
+        text := tprint("Score: %", client.game_score);
         position: v2f = .{ 
             (local_player.viewport[0] + viewport_width * 0.95),
             (local_player.viewport[1] + viewport_height * 0.05)

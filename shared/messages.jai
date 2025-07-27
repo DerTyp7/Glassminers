@@ -6,6 +6,7 @@ Message_Type :: enum {
     Game_Pause;
     Game_Start;
     Game_Over;
+    Game_Score;
     World_Resize;
     Create_Entity;
     Destroy_Entity;
@@ -19,7 +20,6 @@ Message_Type :: enum {
     Frog_State;
     Goblin_State;
     Slime_State;
-    Score_State;
 }
 
 Client_Disconnect_Message :: struct {
@@ -60,8 +60,13 @@ Game_Start_Message :: struct {
 
 Game_Over_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Over;
-    reason: Game_Over_Reason;
-    point_score: u64;
+    result: Game_Result;
+    score: u64;
+}
+
+Game_Score_Message :: struct {
+    MSG_TYPE :: Message_Type.Game_Score;
+    score: u64;
 }
 
 World_Resize_Message :: struct {
@@ -155,11 +160,6 @@ Slime_State_Message :: struct {
     state: Slime_State;
 }
 
-Score_State_Message :: struct {
-    MSG_TYPE :: Message_Type.Score_State;
-    point_score: u64;
-}
-
 Message :: struct {
     msg_type: Message_Type;
     local_type_id: Type;
@@ -172,6 +172,7 @@ Message :: struct {
         game_pause: Game_Pause_Message;
         game_start: Game_Start_Message;
         game_over: Game_Over_Message;
+        game_score: Game_Score_Message;
         world_resize: World_Resize_Message;
         create_entity: Create_Entity_Message;
         destroy_entity: Destroy_Entity_Message;
@@ -185,7 +186,6 @@ Message :: struct {
         frog_state: Frog_State_Message;
         goblin_state: Goblin_State_Message;
         slime_state: Slime_State_Message;
-        score_state: Score_State_Message;
     };
 }
 
@@ -271,6 +271,7 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Game_Pause;          result = type_id(Game_Pause_Message);
       case .Game_Start;          result = type_id(Game_Start_Message);
       case .Game_Over;           result = type_id(Game_Over_Message);
+      case .Game_Score;          result = type_id(Game_Score_Message);
       case .World_Resize;        result = type_id(World_Resize_Message);
       case .Create_Entity;       result = type_id(Create_Entity_Message);
       case .Destroy_Entity;      result = type_id(Destroy_Entity_Message);
@@ -284,7 +285,6 @@ message_type_to_type_id :: (type: Message_Type) -> Type {
       case .Frog_State;          result = type_id(Frog_State_Message);
       case .Goblin_State;        result = type_id(Goblin_State_Message);
       case .Slime_State;         result = type_id(Slime_State_Message);
-      case .Score_State;         result = type_id(Score_State_Message);
     }
 
     return result;
@@ -407,6 +407,7 @@ print_message :: (message: *Message, prefix: string) {
       case .Game_Pause;         sprint(*builder, "%", message.game_pause);
       case .Game_Start;         sprint(*builder, "%", message.game_start);
       case .Game_Over;          sprint(*builder, "%", message.game_over);
+      case .Game_Score;         sprint(*builder, "%", message.game_score);
       case .World_Resize;       sprint(*builder, "%", message.world_resize);
       case .Create_Entity;      sprint(*builder, "%", message.create_entity);
       case .Destroy_Entity;     sprint(*builder, "%", message.destroy_entity);
@@ -420,7 +421,6 @@ print_message :: (message: *Message, prefix: string) {
       case .Frog_State;         sprint(*builder, "%", message.frog_state);
       case .Goblin_State;       sprint(*builder, "%", message.goblin_state);
       case .Slime_State;        sprint(*builder, "%", message.slime_state);
-      case .Score_State;        sprint(*builder, "%", message.score_state);
     }
     
     logprint(.Debug, finish_string_builder(*builder));

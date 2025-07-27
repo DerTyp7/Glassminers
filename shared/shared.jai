@@ -407,9 +407,11 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     false, // Strength Potion
 ];
 
-Game_Over_Reason :: enum {
+Game_Result :: enum {
+    Keep_Going;
     All_Players_Dead;
     Flag_Destroyed;
+    Connection_Lost;
 }
 
 Cheat :: enum {
