@@ -1382,8 +1382,18 @@ do_game_tick :: (client: *Client) {
                 //
                 update_hud(client, local_player);
             }
-                
-            if guy.state == .Dead {
+
+            if is_in_free_camera {
+                //
+                // Move the free camera
+                //
+                speed: f32 : 10.0;
+
+                if input_action_fired_globally(client, .Move_West, .Held)  local_player.camera.world_center.x -= speed * client.tick_time;
+                if input_action_fired_globally(client, .Move_East, .Held)  local_player.camera.world_center.x += speed * client.tick_time;
+                if input_action_fired_globally(client, .Move_North, .Held) local_player.camera.world_center.y -= speed * client.tick_time;
+                if input_action_fired_globally(client, .Move_South, .Held) local_player.camera.world_center.y += speed * client.tick_time;
+            } else if guy.state == .Dead {
                 //
                 // If spectating, update the tracked entity
                 //
@@ -1397,7 +1407,7 @@ do_game_tick :: (client: *Client) {
                     // Fallback in case the tracked entity disappears for some reason
                     local_player.entity_tracked_by_camera = local_player.guy_pid;
                 }
-            } else if !is_in_free_camera {
+            } else {
                 //
                 // If alive, send some input to the server
                 //
@@ -1477,15 +1487,7 @@ do_game_tick :: (client: *Client) {
                 interpolation_speed: f32 = ---;
 
                 if is_in_free_camera {
-                    speed: f32 : 10.0;
-
                     target_world_center = local_player.camera.world_center;
-
-                    if input_action_fired_globally(client, .Move_West, .Held)  target_world_center.x -= speed * client.tick_time;
-                    if input_action_fired_globally(client, .Move_East, .Held)  target_world_center.x += speed * client.tick_time;
-                    if input_action_fired_globally(client, .Move_North, .Held) target_world_center.y -= speed * client.tick_time;
-                    if input_action_fired_globally(client, .Move_South, .Held) target_world_center.y += speed * client.tick_time;
-
                     interpolation_speed = 1; // Be snappy with the free camera
                 } else {
                     target_entity := get_entity(client, local_player.entity_tracked_by_camera);
