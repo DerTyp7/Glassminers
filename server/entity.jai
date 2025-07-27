@@ -304,7 +304,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         try_to_put_item(server, entity.physical_position, .Coin, killer);
         
       case .Flag;
-          destroy_flag(server);
+        destroy_flag(server);
 
       case;
         remove_entity(server, entity);
