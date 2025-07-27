@@ -227,7 +227,7 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     30, // Trader
     
     // Misc
-    0, // Flag
+    1, // Flag
 ];
 
 ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
