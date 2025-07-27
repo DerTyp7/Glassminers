@@ -734,6 +734,22 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
                 }
             } else {
                 draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, flags);
+
+                if entity.entity_kind == .Guy {
+                    // We want to draw the item that this guy is carrying in world space, so that
+                    // the items appear under any overlays (like UI or beams)...
+                    guy := down(entity, Guy);
+
+                    if guy.state == .Carrying {
+                        tint :: GE_Color.{ 255, 255, 255, 255 };
+                        active_guy_sprite_index, flags := get_sprite_index_for_entity(client, guy);
+
+                        world_position := get_visual_hand_position_for_guy(client, guy);
+                        world_size := visual_size_for_item_kind(guy.carrying_item);
+                        sprite_index := get_sprite_index_for_item(guy.carrying_item);
+                        draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, tint, .Lit);
+                    }
+                }
             }
         }
     }
@@ -742,7 +758,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         system, occupied := index_bucket_array(*client.particle_systems, i);
         if occupied then draw_particle_system(client, local_player, system);
     }
-    
+
     //
     // Draw all emitter states
     //
@@ -811,14 +827,8 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
             }
 
           case .Carrying;
-            tint :: GE_Color.{ 255, 255, 255, 255 };
-            active_guy_sprite_index, flags := get_sprite_index_for_entity(client, guy);
-
-            world_position := get_visual_hand_position_for_guy(client, guy);
-            world_size := visual_size_for_item_kind(guy.carrying_item);
-            sprite_index := get_sprite_index_for_item(guy.carrying_item);
-            draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, tint, .Lit);
-
+            // This happened before, so that the items appear under the beams...
+            
           case .Resurrecting;
             draw_progress_bar_world_space(client, local_player, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
         }
@@ -857,9 +867,6 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         draw_label(client, local_player, remote_player.name, remote_player.guy_pid);
     }
 
-    //
-    // Draw an indicate above this guy's entity
-    //
     for i := 0; i < client.local_player_count; ++i {
         other_local_player := *client.local_players[i];
 

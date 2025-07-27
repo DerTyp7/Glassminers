@@ -12,6 +12,7 @@ The game design has been updated to no longer have one discrete goal; instead th
 - Fixed the controller rumbling when guys were attacked while already being dead
 - Fixed the font size not being off on linux
 - Fixed some artifacts when drawing some icons or texts
+- Fixed drawing the items that guys are carrying over the beams
 
 ## 0.2.3 (29.06.2025)
 
