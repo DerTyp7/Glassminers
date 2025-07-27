@@ -55,6 +55,11 @@ Sprite_Index :: enum {
     Torch_1;
     Torch_2;
     Torch_3;
+    Flag_0;
+    Flag_1;
+    Flag_2;
+    Flag_3;
+    Flag_4;
     Slime_Hole_Empty;
     Slime_Hole_Filled_0;
     Slime_Hole_Filled_1;
@@ -276,6 +281,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
       case .Coal;  index = .Coal_Item;
       case .Coin;  index = .Coin;
       case .Torch; index = .Torch_0;
+      case .Flag;  index = .Flag_0;
     }
     
     return index;
@@ -449,6 +455,7 @@ draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, 
     foreground :: GE_Color.{ 100, 240, 150, 200 };
     draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
 }
+
 
 draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
     if sprite_index == .Count return; // This makes it more convenient when drawing input action hints, because we might not have sprites for every input binding...
@@ -955,6 +962,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
           case .Item_Stack; index = get_sprite_index_for_item(down(entity, Item_Stack).item_kind);
           case .Slab;       index = .Slab_0;
           case .Torch;      index = .Torch_0;
+          case .Flag;       index = .Flag_0;
           case .Chest;      index = .Chest_Closed;
           case .Guy;        index = .Guy_Idle_Front_0;
           case .Frog;       index = .Frog_Idle_Front_0;

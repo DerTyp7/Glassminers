@@ -319,7 +319,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -372,6 +372,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Lava;   play_animation(entity, .Lava);
       case .Slab;   play_animation(entity, .Slab);
       case .Torch;  play_animation(entity, .Torch);
+      case .Flag;   play_animation(entity, .Flag);
       case .Guy;    play_animation_from_group(client, entity, .Guy_Idle);
       case .Frog;   play_animation_from_group(client, entity, .Frog_Idle);
       case .Goblin; play_animation_from_group(client, entity, .Goblin_Idle);

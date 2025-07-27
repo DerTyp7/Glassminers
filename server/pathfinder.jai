@@ -13,7 +13,7 @@ find_path :: (server: *Server, light_tile_cost: s32, from, to: v2i) -> []v2i {
             entity, occupied := index_bucket_array(*server.all_entities, i);
             if !occupied continue;
 
-            if !(entity.entity_flags & .Blocks_Move) || (entity.physical_position.x == to.x && entity.physical_position.y == to.y) continue;
+            if !(entity.entity_flags & .Blocks_Movement) || (entity.physical_position.x == to.x && entity.physical_position.y == to.y) continue;
 
             node := grid.get(*grid, entity.physical_position);
             node.state = .Blocked;

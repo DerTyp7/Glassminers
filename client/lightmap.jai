@@ -113,19 +113,19 @@ query_lightmap_at_fractional :: (map: *Lightmap, position: v2f) -> f32 {
 }
 
 maybe_add_blocker :: (map: *Lightmap, entity: *Entity) {
-    if entity.entity_flags & .Blocks_Los {
+    if entity.entity_flags & .Blocks_Line_Of_Sight {
         ++map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
     }
 }
 
 maybe_remove_blocker :: (map: *Lightmap, entity: *Entity) {
-    if entity.entity_flags & .Blocks_Los {
+    if entity.entity_flags & .Blocks_Line_Of_Sight {
         --map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
     }
 }
 
 maybe_move_blocker :: (map: *Lightmap, entity: *Entity, new_position: v2i) {
-    if entity.entity_flags & .Blocks_Los {
+    if entity.entity_flags & .Blocks_Line_Of_Sight {
         --map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
         ++map.blockers[new_position.y * map.size.x + new_position.x];
     }

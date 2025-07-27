@@ -159,9 +159,10 @@ Entity_Flags :: enum bitfield {
     Pushable;
     Diggable;
     Living;
-    Blocks_Move;
+    Blocks_Movement; // Blocks all movement
+    Blocks_Non_Living_Movement; // Only blocks movement for non-living entities (rocks, mirrors, ...)
     Blocks_Beam;
-    Blocks_Los;
+    Blocks_Line_Of_Sight;
     Blocks_Crafting;
     Disable_Visual_Rotation;
     Disabled_Temporarily;
@@ -171,29 +172,32 @@ Entity_Flags :: enum bitfield {
 
 ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
-    .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Emitter
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting | .Auto_Heal, // Mirror
+    .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Emitter
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting | .Auto_Heal, // Mirror
 
     // Environment
-    .Blocks_Move | .Blocks_Crafting | .Emissive, // Lava
-    .Blocks_Move | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Los, // Bedrock
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Rock
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Coal
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Los | .Blocks_Crafting, // Crystal
+    .Blocks_Movement | .Blocks_Crafting | .Emissive, // Lava
+    .Blocks_Movement | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Line_Of_Sight, // Bedrock
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Rock
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Coal
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Crystal
     .Blocks_Crafting, // Slime Hole
     
     // Creations
     0, // Item Stack
     0, // Slab
     .Blocks_Crafting, // Torch
-    .Pushable | .Diggable | .Blocks_Move | .Blocks_Beam | .Blocks_Crafting | .Auto_Heal, // Chest
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Crafting | .Auto_Heal, // Chest
     
     // Beings
-    .Living | .Pushable | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
-    .Living | .Blocks_Move | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
+    .Living | .Pushable | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
+    
+    // Misc
+    .Blocks_Non_Living_Movement | .Blocks_Crafting, // Flag
 ];
 
 ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
@@ -221,6 +225,9 @@ ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
     20, // Goblin
     20, // Slime
     30, // Trader
+    
+    // Misc
+    1, // Flag
 ];
 
 ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
@@ -248,6 +255,9 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
     .South, // Goblin
     .South, // Slime
     .South, // Trader
+    
+    // Misc
+    .North, // Flag
 ];
 
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
@@ -275,6 +285,9 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     3, // Goblin
     3, // Slime
     3, // Trader
+    
+    // Misc
+    3, // Flag
 ];
 
 Item_Kind :: enum {
@@ -283,6 +296,7 @@ Item_Kind :: enum {
     Coal;
     Coin;
     Torch;
+    Flag;
 }
 
 Entity_Kind :: enum {
@@ -310,6 +324,9 @@ Entity_Kind :: enum {
     Goblin;
     Slime;
     Trader;
+    
+    // Misc
+    Flag;
 }
 
 Direction :: enum {
@@ -389,6 +406,11 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     false, // Health Potion
     false, // Strength Potion
 ];
+
+Game_Over_Reason :: enum {
+    All_Players_Dead;
+    Flag_Destroyed;
+}
 
 Cheat :: enum {
     Give_Coin;

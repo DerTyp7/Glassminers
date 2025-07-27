@@ -103,6 +103,7 @@ Entity_Manager :: struct {
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
+    flag_pid:     Pid;
 }
 
 
@@ -185,7 +186,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Frog;       make_derived(entity, *server.frogs);
       case .Goblin;     make_derived(entity, *server.goblins);
       case .Slime;      make_derived(entity, *server.slimes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Torch, .Trader;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Torch, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -291,11 +292,20 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
       case .Guy;
         guy := down(entity, Guy);
         guy.state = .Dead;
+        if guy.carrying_item == .Flag {
+            // Forcefully spawn Flag. Lava checks will be done later.
+            force_put_flag(server, guy.physical_position);
+            update_score(server, guy.physical_position.x);
+            guy.carrying_item = .Count;
+        }
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
         try_to_put_item(server, entity.physical_position, .Coin, killer);
         
+      case .Flag;
+        destroy_flag(server);
+
       case;
         remove_entity(server, entity);
     }
@@ -333,6 +343,19 @@ remove_entity :: (server: *Server, entity: *Entity) {
     msg := make_message(Destroy_Entity_Message);
     msg.destroy_entity.entity_pid = entity.pid;
     array_add(*server.outgoing_messages, msg);
+}
+
+destroy_flag :: (server: *Server)
+{
+    flag_entity := get_entity(server, server.flag_pid);
+    remove_entity(server, flag_entity);
+    
+    msg := make_message(Game_Over_Message);
+    msg.game_over.point_score = server.point_score;
+    msg.game_over.reason = .Flag_Destroyed;
+    array_add(*server.outgoing_messages, msg);
+
+    server.next_state = .Game_Over;
 }
 
 find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
@@ -805,6 +828,21 @@ try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind)
     return false;
 }
 
+try_to_put_flag :: (server: *Server, target_position: v2i) -> bool {
+    if !position_in_bounds(server, target_position) return false;
+    
+    collision_entity := find_any_entity_at_position(server, target_position);
+    if collision_entity && 
+       !(collision_entity.entity_flags & .Living) && 
+       (collision_entity.entity_flags & .Blocks_Movement) {
+        return false;
+    }
+    
+    force_put_flag(server, target_position);
+    update_score(server, target_position.x);
+    return true;
+}
+
 // This will first try to put the item on the ground, and if that doesn't work it'll try to
 // place the item inside the guy's hand.
 try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
@@ -812,7 +850,7 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
 
     success := false;
 
-    collision    := find_entity_with_flags_at_position(server, .Blocks_Move, target_position);
+    collision    := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
     stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
     chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
     hole_entity  := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
@@ -872,6 +910,12 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
     return success;
 }
 
+force_put_flag :: (server: *Server, position: v2i) -> *Entity {
+    flag_entity := create_entity(server, .Flag, position, .North);
+    server.flag_pid = flag_entity.pid;
+    return flag_entity;
+}
+
 // This will first try to put the item inside the guy's hand, and if that doesn't work it'll try to
 // place the item on the ground
 try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
@@ -910,6 +954,7 @@ is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, *Emitter, Direct
 recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i, strength: s64) -> bool {
     assert(move_delta.x != 0 || move_delta.y != 0, "Recursive move check with a delta of 0 leads to an infinite loop!");
 
+    original_entity_flags := entity.entity_flags;
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
     // Make sure the position is in bounds of the world
@@ -925,7 +970,10 @@ recursive_move_check :: (server: *Server, entity: *Entity, move_delta: v2i, stre
 
         if entity.entity_flags & .Pushable {
             pushable_entity = entity;
-        } else if entity.entity_flags & .Blocks_Move {
+        } else if entity.entity_flags & .Blocks_Movement {
+            blocking_entity = entity;
+            break;
+        } else if !(original_entity_flags & .Living) && (entity.entity_flags & .Blocks_Non_Living_Movement) {
             blocking_entity = entity;
             break;
         }
@@ -942,7 +990,7 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
 
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
-    collision := find_entity_with_flags_at_position(server, .Blocks_Move, position);
+    collision := find_entity_with_flags_at_position(server, .Blocks_Movement, position);
     if collision recursive_move(server, collision, move_delta);
 
     update_physical_location(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);
@@ -986,7 +1034,7 @@ has_line_of_sight :: (server: *Server, source: v2i, target: v2i) -> bool {
     position := v2i.{ source.x + delta.x, source.y + delta.y };
 
     while position.x != target.x || position.y != target.y {
-        if find_entity_with_flags_at_position(server, .Blocks_Los, position) return false;
+        if find_entity_with_flags_at_position(server, .Blocks_Line_Of_Sight, position) return false;
         position.x += delta.x;
         position.y += delta.y;
     }

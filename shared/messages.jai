@@ -60,6 +60,7 @@ Game_Start_Message :: struct {
 
 Game_Over_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Over;
+    reason: Game_Over_Reason;
     point_score: u64;
 }
 

@@ -133,6 +133,15 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
     if server.current_state == .Ingame {
         for i := 0; i < client.local_player_count; ++i {
             entity := get_entity(server, client.local_players[i].guy_pid);
+            
+            // Drop items carried by player
+            guy := down(entity, Guy);
+            if guy.carrying_item == .Flag {
+                force_put_flag(server, guy.physical_position);
+            } else if guy.carrying_item != .Count {
+                try_to_put_item(server, guy.physical_position, guy.carrying_item, null);
+            }
+            
             remove_entity(server, entity);
         }
     }
@@ -464,6 +473,9 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char "G", // Goblin
         #char "S", // Slime
         #char "T", // Trader
+        
+        // Misc
+        #char "f", // Flag
     ];
 
     lines, success := load_predefined_world_data(server, campaign);
@@ -526,6 +538,12 @@ create_the_game :: (server: *Server) {
     game_start.game_start.seed = server.game_seed;
     game_start.game_start.size = server.world_size;
     array_add(*server.outgoing_messages, game_start);
+    
+    //
+    // Generate Flag
+    //
+    flag_entity := force_put_flag(server, .{ 1, 2 });
+    update_score(server, flag_entity.physical_position.x);
 
     //
     // Generate one entity for each player and attach it to the player
@@ -684,6 +702,12 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 guy.state = .Carrying;
                 guy.carrying_item = .Torch;
                 remove_entity(server, target_entity);
+
+              case .Flag;
+                guy.state = .Carrying;
+                guy.carrying_item = .Flag;
+                remove_entity(server, target_entity);
+                server.flag_pid = INVALID_PID;
                 
               case;
                 if target_entity.entity_flags & .Diggable {
@@ -706,6 +730,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 if position_in_bounds(server, guy.target_position) {
                     guy.state = .Idle;
                     create_entity(server, .Torch, guy.target_position, .North);
+                }
+            } else if guy.carrying_item == .Flag {
+                if try_to_put_flag(server, guy.target_position) {
+                    guy.state = .Idle;
                 }
             } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
@@ -870,21 +898,6 @@ do_game_tick :: (server: *Server) {
         }
         
         //
-        // Update highscore
-        //
-        {
-            current_score: u64 = 0;
-            for i := 0; i < server.guys.slot_count; ++i {
-                guy, occupied := index_bucket_array(*server.guys, i);
-                if !occupied continue;
-
-                score := guy.physical_position.x;
-                current_score = max(current_score, score);
-            }
-            update_score(server, current_score);
-        }
-        
-        //
         // Update all other kinds entities
         //
         for i := 0; i < server.all_entities.slot_count; ++i {
@@ -893,7 +906,7 @@ do_game_tick :: (server: *Server) {
 
             if entity.entity_kind == {
               case .Trader; update_trader(server, entity);
-              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack; damage_and_maybe_kill_if_in_lava(server, entity);
+              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Flag; damage_and_maybe_kill_if_in_lava(server, entity);
             }
 
             if entity.entity_flags & .Auto_Heal && !entity.damaged_this_frame {
@@ -915,6 +928,8 @@ do_game_tick :: (server: *Server) {
         if game_state != .Keep_Going {
             msg := make_message(Game_Over_Message);
             msg.game_over.point_score = server.point_score;
+            msg.game_over.reason = .All_Players_Dead;
+            
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
