@@ -45,7 +45,9 @@ Game_State :: enum {
 }
 
 Previous_Game_Result :: enum {
-    Show_Points;
+    All_Players_Dead;
+    Flag_Destroyed;
+    
     Connection_Lost;
 }
 
@@ -398,6 +400,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         
       case .Game_Over;
         client.point_score = msg.game_over.point_score;
+        if #complete msg.game_over.reason == {
+            case .All_Players_Dead; client.previous_game_result = .All_Players_Dead;
+            case .Flag_Destroyed;   client.previous_game_result = .Flag_Destroyed;
+        }
         client.next_state = .Game_Over;
 
       case .World_Resize;
@@ -1079,9 +1085,18 @@ do_game_over_screen :: (client: *Client) {
     ui :: *client.ui;
     ui_push_width(ui, .Pixels, 256, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
-
+    
+    score_text := tprint("Final Score: %", client.point_score);
+    
     if client.previous_game_result == {
-        case .Show_Points; ui_label(ui, true, "Final Score: % Points", client.point_score);
+        case .All_Players_Dead; 
+            ui_label(ui, true, "All players have died!");
+            ui_label(ui, true, score_text);
+        
+        case .Flag_Destroyed;
+            ui_label(ui, true, "The flag was destroyed!");
+            ui_label(ui, true, score_text);
+
         case .Connection_Lost; ui_label(ui, true, "Connection died!");
     }
     

@@ -919,6 +919,7 @@ do_game_tick :: (server: *Server) {
         // 
         // Check if flag is lost
         //
+        flag_was_destroyed: bool = false;
         if server.flag_pid != INVALID_PID {
             // Flag is placed down
             flag_entity := get_entity(server, server.flag_pid);
@@ -928,6 +929,7 @@ do_game_tick :: (server: *Server) {
             lava := find_entity_of_kind_at_position(server, .Lava, flag_entity.physical_position);
             if lava && !slab { 
                 game_state = .Lost;
+                flag_was_destroyed = true;
             }
         }
 
@@ -943,6 +945,10 @@ do_game_tick :: (server: *Server) {
         if game_state != .Keep_Going {
             msg := make_message(Game_Over_Message);
             msg.game_over.point_score = server.point_score;
+            
+            if flag_was_destroyed { msg.game_over.reason = .Flag_Destroyed; }
+            else { msg.game_over.reason = .All_Players_Dead; }
+            
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
