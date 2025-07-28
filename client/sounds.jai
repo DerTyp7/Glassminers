@@ -169,7 +169,7 @@ update_sound_players :: (client: *Client) {
     inner_radius: f32 : 0.5;
 
     z_offset: f32 : -3;
-    USE_CAMERA_AS_LISTENER :: false;
+    USE_CAMERA_AS_LISTENER :: true;
     
     if client.current_state == .Ingame {
         for i := 0; i < client.local_player_count; ++i {

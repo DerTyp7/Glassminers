@@ -1,3 +1,7 @@
+## 0.3.1 (unreleased)
+
+- Sounds are now spatialized relative to the 
+
 ## 0.3.0 (27.07.2025)
 
 The game design has been updated to no longer have one discrete goal; instead the goal is to come as far as possible. This is indicated by a new score mechanism. This score is driven by the furthest position the new flag entity has been placed on by a player. The world is now also growing infinitely large - as long as the latest emitter (acting as a checkpoint) has been powered up using a previous emitter.
