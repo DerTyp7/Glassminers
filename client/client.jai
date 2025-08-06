@@ -1518,27 +1518,29 @@ do_game_tick :: (client: *Client) {
     physically_remove_dead_entities(client);
 }
 
-inside_allocator_callback := false;
+#if MEMORY_DEBUGGING {
+    inside_allocator_callback := false;
 
-allocator_callback_procedure :: (client: *Client, allocator: *Allocator, operation: Allocator_Operation, pointer: *void, size_in_bytes: s64, old_pointer: *void, old_size_in_bytes: s64) {
-    if inside_allocator_callback return;
+    allocator_callback_procedure :: (client: *Client, allocator: *Allocator, operation: Allocator_Operation, pointer: *void, size_in_bytes: s64, old_pointer: *void, old_size_in_bytes: s64) {
+        if inside_allocator_callback return;
 
-    inside_allocator_callback = true;
-    defer inside_allocator_callback = false;
-    
-    if allocator == Default_Allocator && operation == .Allocation {
-        print_into_buffer(*client.memory_debug_printer, "%, %\n", pointer, size_in_bytes);
-
-        trace := os_get_stack_trace(*temp, 3);
-        for i := 0; i < trace.count; ++i {
-            frame := *trace[i];
-            print_into_buffer(*client.memory_debug_printer, "    - %:% - %\n", frame.source_file, frame.source_line, frame.description);
-        }
+        inside_allocator_callback = true;
+        defer inside_allocator_callback = false;
         
-        flush_file_printer(*client.memory_debug_printer);
+        if allocator == Default_Allocator && operation == .Allocation {
+            print_into_buffer(*client.memory_debug_printer, "%, %\n", pointer, size_in_bytes);
+
+            trace := os_get_stack_trace(*temp, 3);
+            for i := 0; i < trace.count; ++i {
+                frame := *trace[i];
+                print_into_buffer(*client.memory_debug_printer, "    - %:% - %\n", frame.source_file, frame.source_line, frame.description);
+            }
+            
+            flush_file_printer(*client.memory_debug_printer);
+        }
     }
 }
-
+    
 main :: (args: []string) -> s32 {
     //
     // Start up the engine
