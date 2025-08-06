@@ -32,7 +32,7 @@
 #load "draw.jai";
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
-MEMORY_DEBUGGING :: DEVELOPER && true;
+MEMORY_DEBUGGING :: DEVELOPER && false;
 BAKE_ASSETS :: !DEVELOPER;
 DEFAULT_INFO_TEXT_TIMER: f32 : 5;
 TARGET_FRAMES_PER_SECOND: f32 : 144;
