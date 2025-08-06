@@ -135,6 +135,8 @@ Entity_Manager :: struct {
 
 create_entity_manager :: (client: *Client) {
     client.entity_pid_lookup.allocator = *client.world_allocator;
+    client.particle_pid_lookup.allocator = *client.world_allocator;
+
     probed_hash_table_create(*client.entity_pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.all_entities, *client.world_allocator);
     create_bucket_array(*client.guys, *client.world_allocator);
@@ -147,7 +149,6 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.goblins, *client.world_allocator);
     create_bucket_array(*client.slimes, *client.world_allocator);
 
-    client.entity_pid_lookup.allocator = *client.world_allocator;
     probed_hash_table_create(*client.particle_pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.particle_systems, *client.world_allocator);
 }

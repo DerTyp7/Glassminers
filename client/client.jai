@@ -1627,9 +1627,9 @@ main :: (args: []string) -> s32 {
         filepath := array_get(*changed_sounds, i);
         sound_index := find_sound_index_from_filepath(filepath);
         if sound_index != .Count {
-            destroy_sound_data(*client.sounds[i]);
+            destroy_sound_data(*client.mixer, *client.sounds[i]);
             status: Sound_File_Status = ---;
-            client.sounds[sound_index], status = create_sound_data_from_file(filepath);
+            client.sounds[sound_index], status = create_sound_data_from_file(*client.engine_allocator, filepath);
             if status == .Success {
                 logprint(.Debug, "Hot-loaded the sound '%'.", sound_index);
             } else {

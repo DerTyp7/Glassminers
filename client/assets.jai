@@ -61,6 +61,8 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     allocator: Allocator = allocator_from_memory_arena(*arena);
     
     entries: [..]Entry;
+    entries.allocator = *allocator;
+    
     defer {
         for i := 0; i < entries.count; ++i free_texture_data(*array_get(*entries, i).texture);
         destroy_memory_arena(*arena);
@@ -290,7 +292,7 @@ bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
         filepath := print_into_allocator(Default_Allocator, "%/%", directory, SOUND_FILEPATH_MAP[i]);
 
         status: Sound_File_Status = ---;
-        result[i], status = create_sound_data_from_file(filepath);
+        result[i], status = create_sound_data_from_file(Default_Allocator, filepath);
         
         if status != .Success {
             compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the sound '%': %.\n", filepath, status));
