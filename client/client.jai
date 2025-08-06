@@ -13,7 +13,7 @@
 
 #load "stb/stb_image_write.jai";
 #load "file_watcher.jai";
-
+    
 // Shared
 #load "../shared/messages.jai";
 #load "../shared/shared.jai";
@@ -32,6 +32,7 @@
 #load "draw.jai";
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
+MEMORY_DEBUGGING :: DEVELOPER && true;
 BAKE_ASSETS :: !DEVELOPER;
 DEFAULT_INFO_TEXT_TIMER: f32 : 5;
 TARGET_FRAMES_PER_SECOND: f32 : 144;
@@ -164,17 +165,21 @@ Client :: struct {
     global_particle_system: Pid;
     
     //
-    // debug/developer UI
+    // Debugging
     // 
-    #if DEVELOPER {
-        developer_panel_state: UI_Window_State;
-        developer_panel_position: UI_Vector2;
-        free_camera_enabled: bool;
-        
-        timing_update: f32;
-        timing_draw: f32;
-        timing_total_no_sleep: f32;
-    }
+#if DEVELOPER {
+    developer_panel_state: UI_Window_State;
+    developer_panel_position: UI_Vector2;
+    free_camera_enabled: bool;
+    
+    timing_update: f32;
+    timing_draw: f32;
+    timing_total_no_sleep: f32;
+}
+
+#if MEMORY_DEBUGGING {
+    memory_debug_printer: File_Printer;
+}
 }
 
 
@@ -1212,6 +1217,8 @@ do_developer_panel :: (client: *Client) {
             ui_label(ui, false, "Heap:   %", allocator_string(Default_Allocator));
             ui_label(ui, false, "Engine: %", allocator_string(*client.engine_allocator));
             ui_label(ui, false, "World:  %", allocator_string(*client.world_allocator));
+            ui_label(ui, false, "UI:     %", allocator_string(*client.ui.allocator));
+            ui_label(ui, false, "Tick:   %", allocator_string(*client.tick_allocator));
             ui_label(ui, false, "Temp:   %", allocator_string(*temp));
             ui_divider(ui, true);
         }
@@ -1511,6 +1518,27 @@ do_game_tick :: (client: *Client) {
     physically_remove_dead_entities(client);
 }
 
+inside_allocator_callback := false;
+
+allocator_callback_procedure :: (client: *Client, allocator: *Allocator, operation: Allocator_Operation, pointer: *void, size_in_bytes: s64, old_pointer: *void, old_size_in_bytes: s64) {
+    if inside_allocator_callback return;
+
+    inside_allocator_callback = true;
+    defer inside_allocator_callback = false;
+    
+    if allocator == Default_Allocator && operation == .Allocation {
+        print_into_buffer(*client.memory_debug_printer, "%, %\n", pointer, size_in_bytes);
+
+        trace := os_get_stack_trace(*temp, 3);
+        for i := 0; i < trace.count; ++i {
+            frame := *trace[i];
+            print_into_buffer(*client.memory_debug_printer, "    - %:% - %\n", frame.source_file, frame.source_line, frame.description);
+        }
+        
+        flush_file_printer(*client.memory_debug_printer);
+    }
+}
+
 main :: (args: []string) -> s32 {
     //
     // Start up the engine
@@ -1528,7 +1556,7 @@ main :: (args: []string) -> s32 {
     client.world_allocator = allocator_from_memory_pool(*client.world_pool);
     create_memory_arena(*client.tick_arena, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes, false);
     client.tick_allocator = allocator_from_memory_arena(*client.tick_arena);
-
+    
     client.ui_state.account_name = os_get_user_name(*client.engine_allocator);
     client.ui_state.network_port = 9876;
 
@@ -1536,6 +1564,13 @@ main :: (args: []string) -> s32 {
     client.ui_state.network_host = copy_string(*client.engine_allocator, "localhost");
 } #else {
     client.ui_state.network_host = copy_string(*client.engine_allocator, "tealfire.de");
+}
+
+#if MEMORY_DEBUGGING {
+    create_file_printer(*client.memory_debug_printer, *temp, "memory.log");
+    //create_stdio_printer(*client.memory_debug_printer, *temp);
+    callback: Allocator_Callback = .{ ---, allocator_callback_procedure, *client };
+    install_allocator_callback(*callback);
 }
     
 #if DEVELOPER {
@@ -1648,7 +1683,6 @@ main :: (args: []string) -> s32 {
                     set_window_style(*client.window, .Fullscreen);                
                 }
             }
-
             
             if #complete client.current_state == {
               case .Main_Menu;  do_main_menu(*client);
@@ -1788,6 +1822,11 @@ main :: (args: []string) -> s32 {
     destroy_memory_pool(*client.world_pool);
     destroy_memory_pool(*client.engine_pool);
 
+#if MEMORY_DEBUGGING {
+    flush_file_printer(*client.memory_debug_printer);
+    destroy_file_printer(*client.memory_debug_printer);
+}
+    
     logprint(.Info, "Stopped the client.");
 
     destroy_temp_allocator();
