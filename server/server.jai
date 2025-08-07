@@ -19,6 +19,7 @@
 TICK_RATE: f32 : 60;
 DEVELOPER   :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
+DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 
 #if BAKE_ASSETS {
     bake_file :: (filepath: string) -> string {
@@ -435,6 +436,19 @@ load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]strin
     return lines, true;
 }
 
+get_maximum_expansions_of_tutorial :: (server: *Server) -> u32 {
+    lines, success := load_predefined_world_data(server, .Tutorial);
+    line := array_get(*lines, 0);
+    
+    number_of_separators := 0;
+    for x := 0; x < line.count; ++x {
+        if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
+            number_of_separators += 1;
+        }
+    }
+    return number_of_separators;
+}
+
 get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
     lines, success := load_predefined_world_data(server, campaign);
     if !success return .{};
@@ -447,8 +461,7 @@ get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
         width_within_line := 0;
         seperator_count := 0;
         for x := 0; x < line.count && seperator_count <= server.world_expanded_count; ++x {
-            // TODO(Felix)
-            if line[x] == #char "|" {
+            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
                 seperator_count += 1;
             }
             
@@ -504,7 +517,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         for x := 0; x < line.count && separator_count <= server.world_expanded_count; ++x {
             if line[x] == #char " " continue;
             
-            if line[x] == #char "|" { // TODO(Felix)
+            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
                 separator_count += 1;
                 continue;
             }
@@ -835,6 +848,26 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 }
 }
 
+tutorial_world_expand_or_finish :: (server: *Server) {
+    if server.world_expanded_count < get_maximum_expansions_of_tutorial(server) {
+        server.world_expanded_count += 1;
+        server.world_size = get_predefined_world_size(server, server.campaign);
+
+        msg := make_message(World_Resize_Message);
+        msg.world_resize.new_world_size = server.world_size;
+        array_add(*server.outgoing_messages, msg);
+
+        fill_predefined_world(server, server.campaign);
+    } else {
+        // Finished tutorial, Exit game
+        msg := make_message(Game_Over_Message);
+        msg.game_over.result = .Tutorial_Completed;
+
+        array_add(*server.outgoing_messages, msg);
+        server.next_state = .Game_Over;
+    }
+}
+
 update_score :: (server: *Server, new_score: u64) {
     if server.game_score < new_score {
         server.game_score = new_score;
@@ -969,24 +1002,7 @@ do_game_tick :: (server: *Server) {
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
             if server.campaign == .Tutorial {
-                // TODO(Felix)
-                if server.world_expanded_count == 0 || server.world_expanded_count == 1 {
-                    server.world_expanded_count += 1;
-                    server.world_size = get_predefined_world_size(server, server.campaign);
-                    
-                    msg := make_message(World_Resize_Message);
-                    msg.world_resize.new_world_size = server.world_size;
-                    array_add(*server.outgoing_messages, msg);
-                   
-                    fill_predefined_world(server, server.campaign);
-                } else {
-                    // Finished tutorial, Exit game
-                    msg := make_message(Game_Over_Message);
-                    msg.game_over.result = .Tutorial_Completed;
-
-                    array_add(*server.outgoing_messages, msg);
-                    server.next_state = .Game_Over;
-                }
+                tutorial_world_expand_or_finish(server);
             } else {
                 assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
                 resize_world(server);
