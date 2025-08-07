@@ -20,7 +20,7 @@ apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Tar
         options.target_subsystem  = .Console;
         options.runtime_features  = .Bounds_Check | .Cast_Check | .Overflow_Check;
         options.debug_information = target == .Executable || options.target_backend == .C;
-        options.user_options = DEVELOPER_OPTIONS;
+        options.user_options      = DEVELOPER_OPTIONS;
         
       case .Release;
         options.target_backend    = .C;
