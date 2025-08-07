@@ -505,7 +505,9 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+                    if x == 0 {
+                        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+                    }
                 }
             } else {
                 logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
