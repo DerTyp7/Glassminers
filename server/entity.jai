@@ -43,6 +43,7 @@ Guy :: struct {
 
 #if DEVELOPER {
     invincible := false;
+    ghost_mode := false;
 }
 }
 

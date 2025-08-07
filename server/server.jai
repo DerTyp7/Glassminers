@@ -660,10 +660,14 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     if guy.received_input.wants_to_move {
         distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
-        
-        if distance_to_move == 1 && can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
-            guy.physical_rotation = guy.received_input.aim_direction;
-            move_to_position(server, guy, guy.received_input.position);
+
+        if distance_to_move == 1 {
+            if guy.ghost_mode { // Bypass checks and recursive move routine
+                update_physical_location(server, guy, guy.received_input.position, guy.received_input.aim_direction);
+            } else if can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
+                guy.physical_rotation = guy.received_input.aim_direction;
+                move_to_position(server, guy, guy.received_input.position);
+            }
         } else {
             update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
         }
@@ -805,6 +809,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Spawn_Slime; spawn_creature_with_cheat(server, guy, .Slime);
       case .Spawn_Trader; spawn_creature_with_cheat(server, guy, .Trader);
       case .Toggle_Invincibility; guy.invincible = !guy.invincible;
+	    case .Toggle_GhostMode; guy.ghost_mode = !guy.ghost_mode;
     }
 }
 }

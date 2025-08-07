@@ -335,6 +335,7 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Slime_Idle_Front_0,    // Spawn Slime
     .Trader_Idle_Front_0,   // Spawn Trader
     .Hud_Heart_Full,        // Toggle Invincibility
+    .Coin // TODO(Felix)
 ];
 
 close_hud :: (client: *Client, hud: *Hud) {
