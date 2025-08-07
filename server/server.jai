@@ -92,6 +92,7 @@ Server :: struct {
     game_paused := false;
     tick_time: f32;
     world_size: v2i;
+    world_expanded_count: u64;
     #using em: Entity_Manager;
 }
 
@@ -581,15 +582,16 @@ create_the_game :: (server: *Server) {
     }
 }
 
-resize_world :: (server: *Server, new_size: v2i) {
+resize_world :: (server: *Server) {
     previous_world_size := server.world_size;
-    server.world_size = new_size;
+    server.world_size.x += SECTION_SIZE;
+    server.world_expanded_count += 1;
 
     msg := make_message(World_Resize_Message);
-    msg.world_resize.new_world_size = new_size;
+    msg.world_resize.new_world_size = server.world_size;
     array_add(*server.outgoing_messages, msg);
 
-    fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, new_size ]);
+    fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, server.world_size ]);
 }
 
 do_lobby_tick :: (server: *Server) {
@@ -944,8 +946,9 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
+            // TODO(Felix)
             assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
-            resize_world(server, .{ server.world_size.x + 18, 5 });
+            resize_world(server);
         }
     } else if server.clients.count == 0 {
         server.next_state = .Game_Over;
