@@ -581,13 +581,7 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
     gap_size := round(cast(f32) screen_size * 0.1);
     leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
 
-    // TODO(Felix): Ask Victor: 
-    //  - remove assertion for out of bounds access and return default value, or
-    //  - do additional checks before querying?
-    brightness := 1.0f;
-    if !guy.ghost_mode {
-        brightness = query_lightmap(*client.lightmap, entity.physical_position);
-    }
+    brightness := query_lightmap(*client.lightmap, entity.physical_position);
     
     for i := 0; i < heart_count; ++i {
         heart_0 := (cast(f32) i) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
