@@ -441,44 +441,62 @@ get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
     
     width: s32 = 0;
 
-    for i := 0; i < lines.count; ++i {
-        width = max(width, array_get(*lines, i).count);
+    for y := 0; y < lines.count; ++y {
+        line := array_get(*lines, y);
+        
+        width_within_line := 0;
+        seperator_count := 0;
+        for x := 0; x < line.count; ++x {
+            // TODO(Felix)
+            if line[x] == #char "|" {
+                seperator_count += 1;
+            }
+            
+            if seperator_count > server.world_expanded_count {
+                width_within_line = x;
+                break;
+            } else {
+                width_within_line = x - seperator_count;
+            }
+        }
+        
+        width = max(width, width_within_line);
     }
 
     return .{ width, lines.count };
 }
 
+ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
+    // Beams
+    #char "e", // Emitter
+    #char "m", // Mirror
+
+    // Environment
+    #char "l", // Lava
+    #char "b", // Bedrock
+    #char "s", // Rock
+    #char "c", // Coal
+    #char "g", // Crystal
+    #char "h", // Slime Hole
+
+    // Creations
+    #char " ", // Item Stack
+    #char " ", // Slab
+    #char " ", // Torch
+    #char " ", // Chest
+
+    // Beings
+    #char ".", // Guy
+    #char "F", // Frog
+    #char "G", // Goblin
+    #char "S", // Slime
+    #char "T", // Trader
+
+    // Misc
+    #char "f", // Flag
+];
+
 fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
-    ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
-        // Beams
-        #char "e", // Emitter
-        #char "m", // Mirror
-
-        // Environment
-        #char "l", // Lava
-        #char "b", // Bedrock
-        #char "s", // Rock
-        #char "c", // Coal
-        #char "g", // Crystal
-        #char "h", // Slime Hole
-        
-        // Creations
-        #char " ", // Item Stack
-        #char " ", // Slab
-        #char " ", // Torch
-        #char " ", // Chest
-        
-        // Beings
-        #char ".", // Guy
-        #char "F", // Frog
-        #char "G", // Goblin
-        #char "S", // Slime
-        #char "T", // Trader
-        
-        // Misc
-        #char "f", // Flag
-    ];
-
     lines, success := load_predefined_world_data(server, campaign);
     if !success return false;
 
@@ -488,6 +506,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
         for x := 0; x < line.count; ++x {
+            if line[x] == #char "|" break; // TODO(Felix)
             if line[x] == #char " " continue;
 
             direction: Direction = ---;
@@ -527,6 +546,7 @@ create_the_game :: (server: *Server) {
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
+    server.world_expanded_count = 0;
     if #complete server.campaign == {
       case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server, server.campaign);
       case .Easy;      server.world_size = .{ 20, 5 };
@@ -946,9 +966,22 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
-            // TODO(Felix)
-            assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
-            resize_world(server);
+            if server.campaign == .Tutorial {
+                if server.world_expanded_count == 0 {
+                    // TODO(Felix): Expand from file
+                    
+                } else {
+                    // Finished tutorial, Exit game
+                    msg := make_message(Game_Over_Message);
+                    msg.game_over.result = .Tutorial_Completed;
+
+                    array_add(*server.outgoing_messages, msg);
+                    server.next_state = .Game_Over;
+                }
+            } else {
+                assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
+                resize_world(server);
+            }
         }
     } else if server.clients.count == 0 {
         server.next_state = .Game_Over;

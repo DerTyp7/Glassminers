@@ -1100,6 +1100,9 @@ do_game_over_screen :: (client: *Client) {
     
     if #complete client.previous_game_result == {
       case .Keep_Going; // Should never happen, this value is just used on the server side
+          
+      case .Tutorial_Completed;
+        ui_label(ui, true, "You completed the tutorial!");
 
       case .All_Players_Dead; 
         ui_label(ui, true, "All players have died!");

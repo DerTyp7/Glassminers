@@ -410,6 +410,7 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
 
 Game_Result :: enum {
     Keep_Going;
+    Tutorial_Completed;
     All_Players_Dead;
     Flag_Destroyed;
     Connection_Lost;
