@@ -654,32 +654,33 @@ try_to_fulfill_recipe :: (server: *Server, guy: *Guy, recipe: Crafting_Recipe) -
     return true;
 }
 
-handle_guy_input :: (server: *Server, guy: *Guy) {
-    //
-    // Handle movement
-    //
-    if guy.received_input.wants_to_move {
-        distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
+handle_guy_movement :: (server: *Server, guy: *Guy) {
+    if ! guy.received_input.wants_to_move return; 
 
-        if distance_to_move == 1 {
-            is_in_ghost_mode := false;
+    distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
+    if distance_to_move != 1 {
+        update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
+        return;
+    }
 
-#if DEVELOPER { 
-            is_in_ghost_mode = guy.ghost_mode;
+    is_in_ghost_mode := false;
+    #if DEVELOPER { 
+        is_in_ghost_mode = guy.ghost_mode;
+    }
+
+    if is_in_ghost_mode {
+        // Bypass checks and recursive move routine
+        if position_in_bounds(server, guy.received_input.position) {
+            update_physical_location(server, guy, guy.received_input.position, guy.received_input.aim_direction);
+        }
+    } else if can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
+        guy.physical_rotation = guy.received_input.aim_direction;
+        move_to_position(server, guy, guy.received_input.position);
+    }
 }
 
-            if is_in_ghost_mode { // Bypass checks and recursive move routine
-                if position_in_bounds(server, guy.received_input.position) {
-                    update_physical_location(server, guy, guy.received_input.position, guy.received_input.aim_direction);
-                }
-            } else if can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
-                guy.physical_rotation = guy.received_input.aim_direction;
-                move_to_position(server, guy, guy.received_input.position);
-            }
-        } else {
-            update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
-        }
-    }
+handle_guy_input :: (server: *Server, guy: *Guy) {
+    handle_guy_movement(server, guy);
     
     //
     // Handle interaction
