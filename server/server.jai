@@ -446,18 +446,13 @@ get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
         
         width_within_line := 0;
         seperator_count := 0;
-        for x := 0; x < line.count; ++x {
+        for x := 0; x < line.count && seperator_count <= server.world_expanded_count; ++x {
             // TODO(Felix)
             if line[x] == #char "|" {
                 seperator_count += 1;
             }
             
-            if seperator_count > server.world_expanded_count {
-                width_within_line = x;
-                break;
-            } else {
-                width_within_line = x - seperator_count;
-            }
+            width_within_line = x+1 - seperator_count;
         }
         
         width = max(width, width_within_line);
@@ -505,11 +500,18 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     //
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
-        for x := 0; x < line.count; ++x {
-            if line[x] == #char "|" break; // TODO(Felix)
+        separator_count := 0;
+        for x := 0; x < line.count && separator_count <= server.world_expanded_count; ++x {
             if line[x] == #char " " continue;
+            
+            if line[x] == #char "|" { // TODO(Felix)
+                separator_count += 1;
+                continue;
+            }
+            if separator_count < server.world_expanded_count continue;
 
             direction: Direction = ---;
+            xPos := x - separator_count;
             
             kind := Entity_Kind.Count;
             for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
@@ -521,7 +523,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
             }
 
             if kind != .Count {
-                entity := create_entity(server, kind, .{ x, y }, direction);
+                entity := create_entity(server, kind, .{ xPos, y }, direction);
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
@@ -967,9 +969,16 @@ do_game_tick :: (server: *Server) {
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
             if server.campaign == .Tutorial {
-                if server.world_expanded_count == 0 {
-                    // TODO(Felix): Expand from file
+                // TODO(Felix)
+                if server.world_expanded_count == 0 || server.world_expanded_count == 1 {
+                    server.world_expanded_count += 1;
+                    server.world_size = get_predefined_world_size(server, server.campaign);
                     
+                    msg := make_message(World_Resize_Message);
+                    msg.world_resize.new_world_size = server.world_size;
+                    array_add(*server.outgoing_messages, msg);
+                   
+                    fill_predefined_world(server, server.campaign);
                 } else {
                     // Finished tutorial, Exit game
                     msg := make_message(Game_Over_Message);
