@@ -662,10 +662,16 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
 
         if distance_to_move == 1 {
-            if guy.ghost_mode { // Bypass checks and recursive move routine
+            is_in_ghost_mode := false;
+
+#if DEVELOPER { 
+            is_in_ghost_mode = guy.ghost_mode;
+}
+
+            if is_in_ghost_mode { // Bypass checks and recursive move routine
                 new_position := guy.received_input.position;
                 if 0 <= new_position.x && new_position.x < server.world_size.x &&
-                   0 <= new_position.y && new_position.y < server.world_size.y {
+                0 <= new_position.y && new_position.y < server.world_size.y {
                     update_physical_location(server, guy, guy.received_input.position, guy.received_input.aim_direction);
                 }
             } else if can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
