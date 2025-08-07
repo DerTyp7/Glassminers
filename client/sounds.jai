@@ -72,7 +72,7 @@ create_sound_data :: (client: *Client) -> bool {
         add_file_to_watch(*client.sound_watchdog, filepath);
 
         status: Sound_File_Status = ---;
-        client.sounds[i], status = create_sound_data_from_file(filepath);
+        client.sounds[i], status = create_sound_data_from_file(*client.engine_allocator, filepath);
         
         if status != .Success logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
     }
@@ -84,7 +84,7 @@ create_sound_data :: (client: *Client) -> bool {
 destroy_all_sounds :: (client: *Client) {
 #if !BAKE_ASSETS {
     for i := 0; i < client.sounds.Capacity; ++i {
-        destroy_sound_data(*client.sounds[i]);
+        destroy_sound_data(*client.mixer, *client.sounds[i]);
     }
 }
 }
