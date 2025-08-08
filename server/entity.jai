@@ -43,6 +43,7 @@ Guy :: struct {
 
 #if DEVELOPER {
     invincible := false;
+    ghost_mode := false;
 }
 }
 
@@ -1013,6 +1014,7 @@ find_target_guy_for_monster :: (server: *Server, monster_position: v2i) -> *Guy,
 has_line_of_sight :: (server: *Server, source: v2i, target: v2i) -> bool {
     delta := v2i.{ target.x - source.x, target.y - source.y };
 
+    if delta.x == 0 && delta.y == 0 return true; 
     if delta.x != 0 && delta.y != 0 return false; // There's no clean line between the target and the entity
 
     // Normalize the delta so that one coordinate has magnitude 1, and the other coordinate has

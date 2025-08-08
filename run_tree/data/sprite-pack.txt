@@ -33,6 +33,11 @@ Health_Potion   sprites/items/health-potion.png
 Strength_Potion sprites/items/strength-potion.png
 
 #
+# Debug Icons
+#
+Ghost_Mode      sprites/items/ghost-mode.png
+
+#
 # Inanimates
 #
 Background  sprites/inanimates/background.png
