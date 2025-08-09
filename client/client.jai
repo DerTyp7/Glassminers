@@ -1093,7 +1093,7 @@ do_lobby_screen :: (client: *Client) {
 
 do_game_over_screen :: (client: *Client) {
     ui :: *client.ui;
-    ui_push_width(ui, .Pixels, 256, 1);
+    ui_push_width(ui, .Pixels, 350, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
     
     score_text := tprint("Final Score: %", client.game_score);
