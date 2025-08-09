@@ -474,7 +474,7 @@ get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
     return .{ width, lines.count };
 }
 
-fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
+fill_predefined_world_section :: (server: *Server, campaign: Campaign, section_index_to_fill: u32) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
@@ -514,14 +514,14 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
         current_section_index := 0;
-        for x := 0; x < line.count && current_section_index <= server.current_section_index; ++x {
+        for x := 0; x < line.count && current_section_index <= section_index_to_fill; ++x {
             if line[x] == #char " " continue;
             
             if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
                 current_section_index += 1;
                 continue;
             }
-            if current_section_index < server.current_section_index continue;
+            if current_section_index < section_index_to_fill continue;
 
             direction: Direction = ---;
             xPos := x - current_section_index;
@@ -540,7 +540,14 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    if current_section_index == 0 {
+                    
+                    // Cannot use section_index for this, because the first
+                    // section index consists of two emitters.
+                    // (Every following section index should contain 
+                    //  exactly one emitter)
+                    is_first_emitter := (x == 0);
+                    
+                    if is_first_emitter {
                         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
                     }
                 }
@@ -608,7 +615,7 @@ create_the_game :: (server: *Server) {
     }
 
     if server.campaign == .Tutorial || server.campaign == .Developer {
-        fill_predefined_world(server, server.campaign);
+        fill_predefined_world_section(server, server.campaign, 0);
     } else {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
@@ -857,7 +864,7 @@ tutorial_world_expand_or_finish :: (server: *Server) {
         msg.world_resize.new_world_size = server.world_size;
         array_add(*server.outgoing_messages, msg);
 
-        fill_predefined_world(server, server.campaign);
+        fill_predefined_world_section(server, server.campaign, server.current_section_index);
     } else {
         // Finished tutorial, Exit game
         msg := make_message(Game_Over_Message);
