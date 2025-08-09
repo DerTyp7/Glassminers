@@ -513,18 +513,18 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     //
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
-        separator_count := 0;
-        for x := 0; x < line.count && separator_count <= server.current_section_index; ++x {
+        current_section_index := 0;
+        for x := 0; x < line.count && current_section_index <= server.current_section_index; ++x {
             if line[x] == #char " " continue;
             
             if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
-                separator_count += 1;
+                current_section_index += 1;
                 continue;
             }
-            if separator_count < server.current_section_index continue;
+            if current_section_index < server.current_section_index continue;
 
             direction: Direction = ---;
-            xPos := x - separator_count;
+            xPos := x - current_section_index;
             
             kind := Entity_Kind.Count;
             for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
@@ -540,7 +540,7 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    if x == 0 {
+                    if current_section_index == 0 {
                         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
                     }
                 }
