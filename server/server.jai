@@ -1003,7 +1003,7 @@ do_game_tick :: (server: *Server) {
         } else if resize_world_on_emitter {
             if server.campaign == .Tutorial {
                 tutorial_world_expand_or_finish(server);
-            } else {
+            } else if server.campaign != .Developer {
                 assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
                 resize_world(server);
             }
