@@ -93,7 +93,7 @@ Server :: struct {
     game_paused := false;
     tick_time: f32;
     world_size: v2i;
-    world_expanded_count: u64;
+    current_section_index: u64; // keeps track of how often the world was expanded & next section generation
     #using em: Entity_Manager;
 }
 
@@ -460,7 +460,7 @@ get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
         
         width_within_line := 0;
         seperator_count := 0;
-        for x := 0; x < line.count && seperator_count <= server.world_expanded_count; ++x {
+        for x := 0; x < line.count && seperator_count <= server.current_section_index; ++x {
             if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
                 seperator_count += 1;
             }
@@ -514,14 +514,14 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
         separator_count := 0;
-        for x := 0; x < line.count && separator_count <= server.world_expanded_count; ++x {
+        for x := 0; x < line.count && separator_count <= server.current_section_index; ++x {
             if line[x] == #char " " continue;
             
             if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
                 separator_count += 1;
                 continue;
             }
-            if separator_count < server.world_expanded_count continue;
+            if separator_count < server.current_section_index continue;
 
             direction: Direction = ---;
             xPos := x - separator_count;
@@ -561,7 +561,7 @@ create_the_game :: (server: *Server) {
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
-    server.world_expanded_count = 0;
+    server.current_section_index = 0;
     if #complete server.campaign == {
       case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server, server.campaign);
       case .Easy;      server.world_size = .{ 20, 5 };
@@ -620,7 +620,7 @@ create_the_game :: (server: *Server) {
 resize_world :: (server: *Server) {
     previous_world_size := server.world_size;
     server.world_size.x += SECTION_SIZE;
-    server.world_expanded_count += 1;
+    server.current_section_index += 1;
 
     msg := make_message(World_Resize_Message);
     msg.world_resize.new_world_size = server.world_size;
@@ -849,8 +849,8 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 }
 
 tutorial_world_expand_or_finish :: (server: *Server) {
-    if server.world_expanded_count < get_maximum_expansions_of_tutorial(server) {
-        server.world_expanded_count += 1;
+    if server.current_section_index < get_maximum_expansions_of_tutorial(server) {
+        server.current_section_index += 1;
         server.world_size = get_predefined_world_size(server, server.campaign);
 
         msg := make_message(World_Resize_Message);
