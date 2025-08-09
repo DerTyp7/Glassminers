@@ -474,37 +474,37 @@ get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
     return .{ width, lines.count };
 }
 
-ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
-    // Beams
-    #char "e", // Emitter
-    #char "m", // Mirror
-
-    // Environment
-    #char "l", // Lava
-    #char "b", // Bedrock
-    #char "s", // Rock
-    #char "c", // Coal
-    #char "g", // Crystal
-    #char "h", // Slime Hole
-
-    // Creations
-    #char " ", // Item Stack
-    #char " ", // Slab
-    #char " ", // Torch
-    #char " ", // Chest
-
-    // Beings
-    #char ".", // Guy
-    #char "F", // Frog
-    #char "G", // Goblin
-    #char "S", // Slime
-    #char "T", // Trader
-
-    // Misc
-    #char "f", // Flag
-];
-
 fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
+    ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
+        // Beams
+        #char "e", // Emitter
+        #char "m", // Mirror
+
+        // Environment
+        #char "l", // Lava
+        #char "b", // Bedrock
+        #char "s", // Rock
+        #char "c", // Coal
+        #char "g", // Crystal
+        #char "h", // Slime Hole
+
+        // Creations
+        #char " ", // Item Stack
+        #char " ", // Slab
+        #char " ", // Torch
+        #char " ", // Chest
+
+        // Beings
+        #char ".", // Guy
+        #char "F", // Frog
+        #char "G", // Goblin
+        #char "S", // Slime
+        #char "T", // Trader
+
+        // Misc
+        #char "f", // Flag
+    ];
+
     lines, success := load_predefined_world_data(server, campaign);
     if !success return false;
 
