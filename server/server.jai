@@ -19,6 +19,7 @@
 TICK_RATE: f32 : 60;
 DEVELOPER   :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
+DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 
 #if BAKE_ASSETS {
     bake_file :: (filepath: string) -> string {
@@ -92,6 +93,7 @@ Server :: struct {
     game_paused := false;
     tick_time: f32;
     world_size: v2i;
+    current_section_index: u64; // keeps track of how often the world was expanded & next section generation
     #using em: Entity_Manager;
 }
 
@@ -434,20 +436,45 @@ load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]strin
     return lines, true;
 }
 
+get_maximum_expansions_of_tutorial :: (server: *Server) -> u32 {
+    lines, success := load_predefined_world_data(server, .Tutorial);
+    line := array_get(*lines, 0);
+    
+    number_of_separators := 0;
+    for x := 0; x < line.count; ++x {
+        if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
+            number_of_separators += 1;
+        }
+    }
+    return number_of_separators;
+}
+
 get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
     lines, success := load_predefined_world_data(server, campaign);
     if !success return .{};
     
     width: s32 = 0;
 
-    for i := 0; i < lines.count; ++i {
-        width = max(width, array_get(*lines, i).count);
+    for y := 0; y < lines.count; ++y {
+        line := array_get(*lines, y);
+        
+        width_within_line := 0;
+        seperator_count := 0;
+        for x := 0; x < line.count && seperator_count <= server.current_section_index; ++x {
+            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
+                seperator_count += 1;
+            }
+            
+            width_within_line = x+1 - seperator_count;
+        }
+        
+        width = max(width, width_within_line);
     }
 
     return .{ width, lines.count };
 }
 
-fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
+fill_predefined_world_section :: (server: *Server, campaign: Campaign, section_index_to_fill: u32) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
@@ -460,20 +487,20 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
         #char "c", // Coal
         #char "g", // Crystal
         #char "h", // Slime Hole
-        
+
         // Creations
         #char " ", // Item Stack
         #char " ", // Slab
         #char " ", // Torch
         #char " ", // Chest
-        
+
         // Beings
         #char ".", // Guy
         #char "F", // Frog
         #char "G", // Goblin
         #char "S", // Slime
         #char "T", // Trader
-        
+
         // Misc
         #char "f", // Flag
     ];
@@ -486,10 +513,18 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
     //
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
-        for x := 0; x < line.count; ++x {
+        current_section_index := 0;
+        for x := 0; x < line.count && current_section_index <= section_index_to_fill; ++x {
             if line[x] == #char " " continue;
+            
+            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
+                current_section_index += 1;
+                continue;
+            }
+            if current_section_index < section_index_to_fill continue;
 
             direction: Direction = ---;
+            xPos := x - current_section_index;
             
             kind := Entity_Kind.Count;
             for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
@@ -501,11 +536,20 @@ fill_predefined_world :: (server: *Server, campaign: Campaign) -> bool {
             }
 
             if kind != .Count {
-                entity := create_entity(server, kind, .{ x, y }, direction);
+                entity := create_entity(server, kind, .{ xPos, y }, direction);
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+                    
+                    // Cannot use section_index for this, because the first
+                    // section index consists of two emitters.
+                    // (Every following section index should contain 
+                    //  exactly one emitter)
+                    is_first_emitter := (x == 0);
+                    
+                    if is_first_emitter {
+                        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+                    }
                 }
             } else {
                 logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
@@ -524,6 +568,7 @@ create_the_game :: (server: *Server) {
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
+    server.current_section_index = 0;
     if #complete server.campaign == {
       case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server, server.campaign);
       case .Easy;      server.world_size = .{ 20, 5 };
@@ -570,7 +615,7 @@ create_the_game :: (server: *Server) {
     }
 
     if server.campaign == .Tutorial || server.campaign == .Developer {
-        fill_predefined_world(server, server.campaign);
+        fill_predefined_world_section(server, server.campaign, 0);
     } else {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
@@ -579,15 +624,16 @@ create_the_game :: (server: *Server) {
     }
 }
 
-resize_world :: (server: *Server, new_size: v2i) {
+resize_world :: (server: *Server) {
     previous_world_size := server.world_size;
-    server.world_size = new_size;
+    server.world_size.x += SECTION_SIZE;
+    server.current_section_index += 1;
 
     msg := make_message(World_Resize_Message);
-    msg.world_resize.new_world_size = new_size;
+    msg.world_resize.new_world_size = server.world_size;
     array_add(*server.outgoing_messages, msg);
 
-    fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, new_size ]);
+    fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, server.world_size ]);
 }
 
 do_lobby_tick :: (server: *Server) {
@@ -823,6 +869,26 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 }
 }
 
+tutorial_world_expand_or_finish :: (server: *Server) {
+    if server.current_section_index < get_maximum_expansions_of_tutorial(server) {
+        server.current_section_index += 1;
+        server.world_size = get_predefined_world_size(server, server.campaign);
+
+        msg := make_message(World_Resize_Message);
+        msg.world_resize.new_world_size = server.world_size;
+        array_add(*server.outgoing_messages, msg);
+
+        fill_predefined_world_section(server, server.campaign, server.current_section_index);
+    } else {
+        // Finished tutorial, Exit game
+        msg := make_message(Game_Over_Message);
+        msg.game_over.result = .Tutorial_Completed;
+
+        array_add(*server.outgoing_messages, msg);
+        server.next_state = .Game_Over;
+    }
+}
+
 update_score :: (server: *Server, new_score: u64) {
     if server.game_score < new_score {
         server.game_score = new_score;
@@ -956,8 +1022,12 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if resize_world_on_emitter {
-            assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
-            resize_world(server, .{ server.world_size.x + 18, 5 });
+            if server.campaign == .Tutorial {
+                tutorial_world_expand_or_finish(server);
+            } else if server.campaign != .Developer {
+                assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
+                resize_world(server);
+            }
         }
     } else if server.clients.count == 0 {
         server.next_state = .Game_Over;

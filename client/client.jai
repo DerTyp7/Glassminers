@@ -1093,13 +1093,16 @@ do_lobby_screen :: (client: *Client) {
 
 do_game_over_screen :: (client: *Client) {
     ui :: *client.ui;
-    ui_push_width(ui, .Pixels, 256, 1);
+    ui_push_width(ui, .Pixels, 350, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
     
     score_text := tprint("Final Score: %", client.game_score);
     
     if #complete client.previous_game_result == {
       case .Keep_Going; // Should never happen, this value is just used on the server side
+          
+      case .Tutorial_Completed;
+        ui_label(ui, true, "You completed the tutorial!");
 
       case .All_Players_Dead; 
         ui_label(ui, true, "All players have died!");

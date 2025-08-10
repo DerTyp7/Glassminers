@@ -117,6 +117,7 @@ NETWORK_DIE_TIME: f32 : 3;
 
 
 /* -------------------------------------------------- World -------------------------------------------------- */
+SECTION_SIZE :: 18; // used when expanding the world after charging a receiver/emitter
 
 VISUAL_ROOM_SIZE   :: v2f.{ 5, 5 };
 VISUAL_ROOM_OFFSET :: v2f.{ #run VISUAL_ROOM_SIZE.x / 2 - 0.5, #run VISUAL_ROOM_SIZE.y / 2 - 0.5 };
@@ -409,6 +410,7 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
 
 Game_Result :: enum {
     Keep_Going;
+    Tutorial_Completed;
     All_Players_Dead;
     Flag_Destroyed;
     Connection_Lost;
