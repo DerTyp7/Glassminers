@@ -206,6 +206,9 @@ Sprite_Index :: enum {
     Trader_Idle_Front_1;
     Trader_Idle_Side_0;
     Trader_Idle_Side_1;
+    
+    // Debug/Cheat only
+    Ghost_Mode;
 }
 
 find_sprite_index_from_name :: (name: string) -> s64, bool {
