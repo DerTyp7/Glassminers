@@ -198,10 +198,10 @@ snap_position_to_rooms :: (client: *Client, camera: *Camera, target_center_posit
         }
     }
 
-    room_position := v2f.{ floor(xx target_center_position.x / VISUAL_ROOM_SIZE.x) * VISUAL_ROOM_SIZE.x + VISUAL_ROOM_OFFSET.x, 
-                           floor(xx target_center_position.y / VISUAL_ROOM_SIZE.y) * VISUAL_ROOM_SIZE.y + VISUAL_ROOM_OFFSET.y };
-
     world_half_size := v2f.{ camera.world_area.x / 2 - 0.5, camera.world_area.y / 2 - 0.5 };
+
+    room_position := v2f.{ floor(xx target_center_position.x / CAMERA_AREA_WIDTH) * CAMERA_AREA_WIDTH + CAMERA_AREA_OFFSET, 
+                           world_half_size.y };
     
     target_position := v2f.{
         custom_clamp(room_position.x, world_half_size.x, xx client.world_size.x - world_half_size.x - 1),

@@ -117,12 +117,13 @@ NETWORK_DIE_TIME: f32 : 3;
 
 
 /* -------------------------------------------------- World -------------------------------------------------- */
-SECTION_SIZE :: 18; // used when expanding the world after charging a receiver/emitter
 
-VISUAL_ROOM_SIZE   :: v2f.{ 5, 5 };
-VISUAL_ROOM_OFFSET :: v2f.{ #run VISUAL_ROOM_SIZE.x / 2 - 0.5, #run VISUAL_ROOM_SIZE.y / 2 - 0.5 };
+SECTION_WIDTH: s32 : 18; // The world is extended when the players have activated the latest checkpoint. The world is grown by this number of tiles.
+
+CAMERA_AREA_WIDTH: f32 : 5; // The camera position snaps to multiples of this area width, to decrease the number of camera movements.
+CAMERA_AREA_OFFSET: f32 : CAMERA_AREA_WIDTH / 2 - 0.5;
+
 VISUAL_ITEM_STACK_CAPACITY :: 5;
-
 VISUAL_ITEM_STACK_OFFSETS: [VISUAL_ITEM_STACK_CAPACITY]v2f : .[ .{ 0, 0 }, .{ -0.1, 0.2 }, .{ 0.2, 0.1 }, .{ -0.2, -0.1 }, .{ 0.2, -0.2 } ];
 
 EMITTER_TIME_TO_POWER_UP: f32 : 5;

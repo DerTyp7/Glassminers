@@ -626,7 +626,7 @@ create_the_game :: (server: *Server) {
 
 resize_world :: (server: *Server) {
     previous_world_size := server.world_size;
-    server.world_size.x += SECTION_SIZE;
+    server.world_size.x += SECTION_WIDTH;
     server.current_section_index += 1;
 
     msg := make_message(World_Resize_Message);

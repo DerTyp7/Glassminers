@@ -362,7 +362,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
             // Calculate the initial camera position to avoid lerping the first few frames
             guy := get_entity(client, local_player.guy_pid);
-            update_camera(client, *local_player.camera, guy.visual_position, local_player.viewport, 1, true);
+            update_camera(client, *local_player.camera, .{ xx guy.physical_position.x, xx guy.physical_position.y }, local_player.viewport, 1, true);
         }
 
       case .Game_Pause;
@@ -1501,7 +1501,7 @@ do_game_tick :: (client: *Client) {
                     interpolation_speed = 1; // Be snappy with the free camera
                 } else {
                     target_entity := get_entity(client, local_player.entity_tracked_by_camera);
-                    target_world_center = target_entity.visual_position;
+                    target_world_center = .{ xx target_entity.physical_position.x, xx target_entity.physical_position.y };
                     interpolation_speed = min(10 * client.tick_time, 1);
                 }
                 
