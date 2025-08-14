@@ -583,15 +583,15 @@ create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
     create_entity_manager(server);
 
+    server.world_size = .{ 0, 0 };
+    server.current_section_index = 0;
     server.game_seed = cast(s64) os_get_hardware_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
-    server.current_section_index = 0;
-    if #complete server.campaign == {
-      case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server.campaign, 0);
-      case .Easy;      server.world_size = .{ 20, SECTION_HEIGHT };
-      case .Medium;    server.world_size = .{ 36, SECTION_HEIGHT };
-      case .Hard;      server.world_size = .{ 72, SECTION_HEIGHT };
+    if use_random_world_generation(server) {
+        server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
+    } else {
+        server.world_size = get_predefined_world_size(server.campaign, server.current_section_index);
     }
     
     //
@@ -601,9 +601,9 @@ create_the_game :: (server: *Server) {
     game_start.game_start.seed = server.game_seed;
     game_start.game_start.size = server.world_size;
     array_add(*server.outgoing_messages, game_start);
-    
+
     //
-    // Generate Flag
+    // Generate the required entities
     //
     flag_entity := force_put_flag(server, .{ 1, 2 });
     update_score(server, flag_entity.physical_position.x);
@@ -632,19 +632,21 @@ create_the_game :: (server: *Server) {
         }
     }
 
+    //
+    // Generate the first section
+    //
     if use_random_world_generation(server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+
         fill_world_section_randomly(server, 0, server.world_size.x);
     } else {
-        fill_predefined_world_section(server, server.campaign, 0);
+        fill_predefined_world_section(server, server.campaign, server.current_section_index);
     }
 }
 
-resize_world :: (server: *Server) {
-    server.current_section_index += 1;
-
+generate_next_world_section :: (server: *Server) {
     if use_random_world_generation(server) {
         previous_width := server.world_size.x;
         server.world_size.x += SECTION_WIDTH;
@@ -1040,7 +1042,8 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if activated_emitter {
-            resize_world(server);
+            ++server.current_section_index;
+            generate_next_world_section(server);
         }
     } else if server.clients.count == 0 {
         server.next_state = .Game_Over;

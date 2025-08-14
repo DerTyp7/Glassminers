@@ -903,6 +903,7 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
 force_put_flag :: (server: *Server, position: v2i) -> *Entity {
     flag_entity := create_entity(server, .Flag, position, .North);
     server.flag_pid = flag_entity.pid;
+    // @Incomplete: Why not update the score here?
     return flag_entity;
 }
 
