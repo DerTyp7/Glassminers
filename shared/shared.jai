@@ -119,6 +119,7 @@ NETWORK_DIE_TIME: f32 : 3;
 /* -------------------------------------------------- World -------------------------------------------------- */
 
 SECTION_WIDTH: s32 : 18; // The world is extended when the players have activated the latest checkpoint. The world is grown by this number of tiles.
+SECTION_HEIGHT: s32 : 5; // The height of the world for randomly generated worlds
 
 CAMERA_AREA_WIDTH: f32 : 5; // The camera position snaps to multiples of this area width, to decrease the number of camera movements.
 CAMERA_AREA_OFFSET: f32 : CAMERA_AREA_WIDTH / 2 - 0.5;
@@ -409,12 +410,11 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     false, // Strength Potion
 ];
 
-// @Cleanup: Rename all of these...
 Game_Result :: enum {
-    Keep_Going;
-    Tutorial_Completed;
-    All_Players_Dead;
-    Flag_Destroyed;
+    Unfinished_Game;
+    Completed_Tutorial;
+    All_Players_Died;
+    Flag_Was_Destroyed;
     Connection_Lost;
 }
 

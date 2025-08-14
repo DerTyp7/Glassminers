@@ -1099,26 +1099,28 @@ do_game_over_screen :: (client: *Client) {
     score_text := tprint("Final Score: %", client.game_score);
     
     if #complete client.previous_game_result == {
-      case .Keep_Going; // Should never happen, this value is just used on the server side
+      case .Unfinished_Game; // Should never happen, this value is just used on the server side
           
-      case .Tutorial_Completed;
+      case .Completed_Tutorial;
         ui_label(ui, true, "You completed the tutorial!");
 
-      case .All_Players_Dead; 
+      case .All_Players_Died; 
         ui_label(ui, true, "All players have died!");
         ui_label(ui, true, score_text);
         
-      case .Flag_Destroyed;
+      case .Flag_Was_Destroyed;
         ui_label(ui, true, "The flag was destroyed!");
         ui_label(ui, true, score_text);
 
-      case .Connection_Lost; ui_label(ui, true, "Connection died!");
+      case .Connection_Lost;
+        ui_label(ui, true, "Connection died!");
     }
     
     ui_divider(ui, true);
     if ui_button(ui, "Back to Main Menu!") {
         client.next_state = .Main_Menu;
     }
+
     ui_pop_window(ui);
     ui_pop_width(ui);
 }

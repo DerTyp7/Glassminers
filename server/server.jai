@@ -349,7 +349,7 @@ use_random_world_generation :: (server: *Server) -> bool {
     return !(server.campaign == .Tutorial || server.campaign == .Developer);
 }
 
-fill_world_section_randomly :: (server: *Server, box: [2]v2i) { // @Incomplete: Make this not take v2i's as boundaries
+fill_world_section_randomly :: (server: *Server, low, high: s32) {
     is_blocked_position :: (server: *Server, position: v2i) -> bool {
         if position.y >= 1 && position.y <= 3 &&
             position.x >= 0 && position.x <= 2 + server.clients.count + 1 return true;
@@ -359,16 +359,16 @@ fill_world_section_randomly :: (server: *Server, box: [2]v2i) { // @Incomplete: 
         return false;
     }
 
-    random_position :: (server: *Server, box: [2]v2i) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.random, box[0].x, box[1].x),
-                          random_u64_in(*server.random, box[0].y, box[1].y) };
+    random_position :: (server: *Server, low, high: s32) -> v2i, bool {
+        position := v2i.{ random_u64_in(*server.random, low, high),
+                          random_u64_in(*server.random, 0, SECTION_HEIGHT) };
 
         success := true;
         
         iteration := 0;
         while is_blocked_position(server, position) {
-            position = v2i.{ random_u64_in(*server.random, box[0].x, box[1].x),
-                             random_u64_in(*server.random, box[0].y, box[1].y) };
+            position = v2i.{ random_u64_in(*server.random, low, high),
+                             random_u64_in(*server.random, 0, SECTION_HEIGHT) };
 
             if iteration > 10 {
                 logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
@@ -378,20 +378,22 @@ fill_world_section_randomly :: (server: *Server, box: [2]v2i) { // @Incomplete: 
 
             ++iteration;
         }
+
+        assert(!success || position_in_bounds(server, position), "Somehow generated a position out-of-bounds...");
         
         return position, success;
     }
 
-    generate_n_random_entities :: (server: *Server, box: [2]v2i, n: s64, kind: Entity_Kind) {
+    generate_n_random_entities :: (server: *Server, low, high: s32, n: s64, kind: Entity_Kind) {
         for i := 0; i < n; ++i {
-            position, success := random_position(server, box);
+            position, success := random_position(server, low, high);
             if success create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
         }
     }
 
-    generate_n_random_slime_holes :: (server: *Server, box: [2]v2i, n: s64) {
+    generate_n_random_slime_holes :: (server: *Server, low, high: s32, n: s64) {
         for i := 0; i < n; ++i {
-            position, success := random_position(server, box);
+            position, success := random_position(server, low, high);
             if success {
                 create_entity(server, .Slime_Hole, position, ENTITY_DEFAULT_DIRECTION[.Slime_Hole]);
                 create_entity(server, .Slime, position, ENTITY_DEFAULT_DIRECTION[.Slime]);
@@ -399,19 +401,25 @@ fill_world_section_randomly :: (server: *Server, box: [2]v2i) { // @Incomplete: 
         }
     }
 
-    width := box[1].x - box[0].x;
+    generate_random_count :: (server: *Server, base_probability: f32, width: s32) -> s32 {
+        return cast(s32) round(random_f32_zero_to_one(*server.random) * base_probability * cast(f32) width);
+    }
+    
+    width := high - low;
 
-    create_entity(server, .Emitter, .{ box[1].x - 1, random_u64_in(*server.random, box[0].y, box[1].y) }, .East);
+    create_entity(server, .Emitter, .{ high - 1, random_u64_in(*server.random, 0, SECTION_HEIGHT) }, .East);
 
-    generate_n_random_entities(server, box, width / 2, .Lava);
-    generate_n_random_entities(server, box, width, .Bedrock);
-    generate_n_random_entities(server, box, width / 4, .Rock);
-    generate_n_random_entities(server, box, width / 4, .Crystal);
-    generate_n_random_entities(server, box, width / 4, .Coal);
-    generate_n_random_entities(server, box, width / 9, .Frog);
-    generate_n_random_entities(server, box, width / 9, .Goblin);
-    generate_n_random_entities(server, box, min(1, width / 36), .Trader); // @Incomplete: Once we actually have infinite world generation, we don't want to generate one trader per chunk. Pretty sure we can just remove the 'min' here and it should work pretty well for us?
-    generate_n_random_slime_holes(server, box, width / 18);
+    generate_n_random_entities(server, low, high, width / 2, .Lava);
+    generate_n_random_entities(server, low, high, width, .Bedrock);
+    generate_n_random_entities(server, low, high, width / 4, .Rock);
+    generate_n_random_entities(server, low, high, width / 4, .Crystal);
+    generate_n_random_entities(server, low, high, width / 4, .Coal);
+    generate_n_random_entities(server, low, high, width / 9, .Frog);
+    generate_n_random_entities(server, low, high, width / 9, .Goblin);
+    generate_n_random_slime_holes(server, low, high, width / 18);
+
+    trader_count := generate_random_count(server, 1 / cast(f32) SECTION_WIDTH, width);    
+    generate_n_random_entities(server, low, high, trader_count, .Trader);
 }
 
 count_sections_in_predefined_world :: (campaign: Campaign) -> u32 {
@@ -581,9 +589,9 @@ create_the_game :: (server: *Server) {
     server.current_section_index = 0;
     if #complete server.campaign == {
       case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server.campaign, 0);
-      case .Easy;      server.world_size = .{ 20, 5 };
-      case .Medium;    server.world_size = .{ 36, 5 };
-      case .Hard;      server.world_size = .{ 72, 5 };
+      case .Easy;      server.world_size = .{ 20, SECTION_HEIGHT };
+      case .Medium;    server.world_size = .{ 36, SECTION_HEIGHT };
+      case .Hard;      server.world_size = .{ 72, SECTION_HEIGHT };
     }
     
     //
@@ -628,7 +636,7 @@ create_the_game :: (server: *Server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
-        fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
+        fill_world_section_randomly(server, 0, server.world_size.x);
     } else {
         fill_predefined_world_section(server, server.campaign, 0);
     }
@@ -638,14 +646,14 @@ resize_world :: (server: *Server) {
     server.current_section_index += 1;
 
     if use_random_world_generation(server) {
-        previous_world_size := server.world_size;
+        previous_width := server.world_size.x;
         server.world_size.x += SECTION_WIDTH;
 
         msg := make_message(World_Resize_Message);
         msg.world_resize.new_world_size = server.world_size;
         array_add(*server.outgoing_messages, msg);
 
-        fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, server.world_size ]);
+        fill_world_section_randomly(server, previous_width, server.world_size.x);
     } else {
         server.world_size = get_predefined_world_size(server.campaign, server.current_section_index);
 
@@ -905,7 +913,7 @@ do_game_tick :: (server: *Server) {
     handle_client_timeouts(server);
 
     if !server.game_paused {
-        game_result: Game_Result = .Keep_Going;
+        game_result: Game_Result = .Unfinished_Game;
         
         activated_emitter: bool = false;
 
@@ -1000,26 +1008,31 @@ do_game_tick :: (server: *Server) {
         //
         // Check for game over scenarios
         //
-        number_of_players := 0;
-        for i := 0; i < server.clients.count; ++i {
-            number_of_players += array_get(*server.clients, i).local_player_count;
+        {
+            number_of_players := 0;
+            for i := 0; i < server.clients.count; ++i {
+                number_of_players += array_get(*server.clients, i).local_player_count;
+            }
+            
+            if number_of_dead_guys == number_of_players {
+                game_result = .All_Players_Died;
+            }
         }
-        
-        if number_of_dead_guys == number_of_players {
-            game_result = .All_Players_Dead;
-        }
-
+            
         if server.flag_pid != INVALID_PID && !entity_exists(server, server.flag_pid) {
             // This means that the flag is not currently carried by any player, but it no longer
             // physically exists, which can only mean it got killed (e.g. by lava or whatever).
-            game_result = .Flag_Destroyed;
+            game_result = .Flag_Was_Destroyed;
         }
 
         if !use_random_world_generation(server) && activated_emitter && server.current_section_index + 1 == count_sections_in_predefined_world(server.campaign) {
-            game_result = .Tutorial_Completed;
+            game_result = .Completed_Tutorial;
         }
-        
-        if game_result != .Keep_Going {
+
+        //
+        // Progress through the game state
+        //
+        if game_result != .Unfinished_Game {
             msg := make_message(Game_Over_Message);
             msg.game_over.score  = server.game_score;
             msg.game_over.result = game_result;
