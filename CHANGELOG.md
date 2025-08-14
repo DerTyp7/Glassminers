@@ -6,6 +6,7 @@
 - Improved the probability of traders appearing in randomly generated worlds
 - Fixed a bug where the camera would start interpolating between areas late
 - Fixed a bug where new entities might be generated in previous sections when resizing the world
+- Flags can now only be placed on tiles where no move-blocking entity is (previously an exception was made for living entities)
 
 ## 0.3.0 (27.07.2025)
 

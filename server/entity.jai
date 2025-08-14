@@ -277,37 +277,36 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
     if entity.entity_kind == {
       case .Mirror;
         remove_entity(server, entity);
-        try_to_put_item(server, entity.physical_position, .Shard, killer);
+        try_to_place_item(server, entity.physical_position, .Shard, killer);
 
       case .Rock;
         remove_entity(server, entity);
-        try_to_put_item(server, entity.physical_position, .Stone, killer);
+        try_to_place_item(server, entity.physical_position, .Stone, killer);
 
       case .Coal;
         remove_entity(server, entity);
-        try_to_put_item(server, entity.physical_position, .Coal, killer);
+        try_to_place_item(server, entity.physical_position, .Coal, killer);
 
       case .Crystal;
         remove_entity(server, entity);
-        try_to_put_item(server, entity.physical_position, .Shard, killer);
+        try_to_place_item(server, entity.physical_position, .Shard, killer);
 
       case .Chest;
         remove_entity(server, entity);
-        try_to_put_item(server, entity.physical_position, .Stone, killer);
+        try_to_place_item(server, entity.physical_position, .Stone, killer);
 
       case .Guy;
         guy := down(entity, Guy);
         guy.state = .Dead;
         if guy.carrying_item == .Flag {
             // Forcefully spawn Flag. Lava checks will be done later.
-            force_put_flag(server, guy.physical_position);
-            update_score(server, guy.physical_position.x);
+            place_flag(server, guy.physical_position);
             guy.carrying_item = .Count;
         }
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
-        try_to_put_item(server, entity.physical_position, .Coin, killer);
+        try_to_place_item(server, entity.physical_position, .Coin, killer);
         
       case;
         remove_entity(server, entity);
@@ -818,24 +817,19 @@ try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind)
     return false;
 }
 
-try_to_put_flag :: (server: *Server, target_position: v2i) -> bool {
+try_to_place_flag :: (server: *Server, target_position: v2i) -> bool {
     if !position_in_bounds(server, target_position) return false;
     
-    collision_entity := find_any_entity_at_position(server, target_position);
-    if collision_entity && 
-       !(collision_entity.entity_flags & .Living) && 
-       (collision_entity.entity_flags & .Blocks_Movement) {
-        return false;
-    }
+    collision_entity := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
+    if collision_entity return false;
     
-    force_put_flag(server, target_position);
-    update_score(server, target_position.x);
+    place_flag(server, target_position);
     return true;
 }
 
 // This will first try to put the item on the ground, and if that doesn't work it'll try to
 // place the item inside the guy's hand.
-try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
+try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
     if !position_in_bounds(server, target_position) return false;
 
     success := false;
@@ -900,10 +894,17 @@ try_to_put_item :: (server: *Server, target_position: v2i, kind: Item_Kind, targ
     return success;
 }
 
-force_put_flag :: (server: *Server, position: v2i) -> *Entity {
+place_flag :: (server: *Server, position: v2i) -> *Entity {
     flag_entity := create_entity(server, .Flag, position, .North);
     server.flag_pid = flag_entity.pid;
-    // @Incomplete: Why not update the score here?
+
+    if position.x > server.game_score {
+        server.game_score = position.x;
+        msg := make_message(Game_Score_Message);
+        msg.game_score.score = server.game_score;
+        array_add(*server.outgoing_messages, msg);
+    }
+    
     return flag_entity;
 }
 
@@ -914,7 +915,7 @@ try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
         guy.state = .Carrying;
         guy.carrying_item = kind;
     } else {
-        try_to_put_item(server, guy.physical_position, kind, null);
+        try_to_place_item(server, guy.physical_position, kind, null);
     }
 }
 

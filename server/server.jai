@@ -139,9 +139,9 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
             // Drop items carried by player
             guy := down(entity, Guy);
             if guy.carrying_item == .Flag {
-                force_put_flag(server, guy.physical_position);
+                place_flag(server, guy.physical_position);
             } else if guy.carrying_item != .Count {
-                try_to_put_item(server, guy.physical_position, guy.carrying_item, null);
+                try_to_place_item(server, guy.physical_position, guy.carrying_item, null);
             }
             
             remove_entity(server, entity);
@@ -605,8 +605,7 @@ create_the_game :: (server: *Server) {
     //
     // Generate the required entities
     //
-    flag_entity := force_put_flag(server, .{ 1, 2 });
-    update_score(server, flag_entity.physical_position.x);
+    place_flag(server, .{ 1, 2 });
 
     //
     // Generate one entity for each player and attach it to the player
@@ -822,10 +821,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
             } else if guy.carrying_item == .Flag {
-                if try_to_put_flag(server, guy.target_position) {
+                if try_to_place_flag(server, guy.target_position) {
                     guy.state = .Idle;
                 }
-            } else if try_to_put_item(server, guy.target_position, guy.carrying_item, null) {
+            } else if try_to_place_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
             }
         }
@@ -898,16 +897,6 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 	  case .Toggle_GhostMode; guy.ghost_mode = !guy.ghost_mode;
     }
 }
-}
-
-update_score :: (server: *Server, new_score: u64) {
-    if server.game_score < new_score {
-        server.game_score = new_score;
-        
-        msg := make_message(Game_Score_Message);
-        msg.game_score.score = server.game_score;
-        array_add(*server.outgoing_messages, msg);
-    }
 }
 
 do_game_tick :: (server: *Server) {
