@@ -345,7 +345,11 @@ switch_to_next_state :: (server: *Server) {
     }
 }
 
-fill_world_section_randomly :: (server: *Server, box: [2]v2i) {
+use_random_world_generation :: (server: *Server) -> bool {
+    return !(server.campaign == .Tutorial || server.campaign == .Developer);
+}
+
+fill_world_section_randomly :: (server: *Server, box: [2]v2i) { // @Incomplete: Make this not take v2i's as boundaries
     is_blocked_position :: (server: *Server, position: v2i) -> bool {
         if position.y >= 1 && position.y <= 3 &&
             position.x >= 0 && position.x <= 2 + server.clients.count + 1 return true;
@@ -356,13 +360,15 @@ fill_world_section_randomly :: (server: *Server, box: [2]v2i) {
     }
 
     random_position :: (server: *Server, box: [2]v2i) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.random, box[0].x, box[1].x), random_u64_in(*server.random, box[0].y, box[1].y) };
+        position := v2i.{ random_u64_in(*server.random, box[0].x, box[1].x),
+                          random_u64_in(*server.random, box[0].y, box[1].y) };
 
         success := true;
         
         iteration := 0;
         while is_blocked_position(server, position) {
-            position = .{ random_u64_in(*server.random, 0, server.world_size.x), random_u64_in(*server.random, 0, server.world_size.y) };
+            position = v2i.{ random_u64_in(*server.random, box[0].x, box[1].x),
+                             random_u64_in(*server.random, box[0].y, box[1].y) };
 
             if iteration > 10 {
                 logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
@@ -408,7 +414,26 @@ fill_world_section_randomly :: (server: *Server, box: [2]v2i) {
     generate_n_random_slime_holes(server, box, width / 18);
 }
 
-load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]string, bool {
+count_sections_in_predefined_world :: (campaign: Campaign) -> u32 {
+    lines, success := load_predefined_world_data(.Tutorial);
+    if !success return 0;
+
+    max_section_count := 0;
+    for y := 0; y < lines.count; ++y {
+        line := array_get(*lines, y);
+        line_section_count := 0;
+
+        for x := 0; x < line.count; ++x {
+            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR then ++line_section_count;
+        }
+
+        max_section_count = max(max_section_count, line_section_count);
+    }
+
+    return max_section_count;
+}
+
+load_predefined_world_data :: (campaign: Campaign) -> [..]string, bool {
 #if !BAKE_ASSETS {
     data, success := read_entire_file(*temp, CAMPAIGN_WORLD_FILE_PATHS[campaign]);
     if !success {
@@ -436,42 +461,27 @@ load_predefined_world_data :: (server: *Server, campaign: Campaign) -> [..]strin
     return lines, true;
 }
 
-get_maximum_expansions_of_tutorial :: (server: *Server) -> u32 {
-    lines, success := load_predefined_world_data(server, .Tutorial);
-    line := array_get(*lines, 0);
-    
-    number_of_separators := 0;
-    for x := 0; x < line.count; ++x {
-        if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
-            number_of_separators += 1;
-        }
-    }
-    return number_of_separators;
-}
-
-get_predefined_world_size :: (server: *Server, campaign: Campaign) -> v2i {
-    lines, success := load_predefined_world_data(server, campaign);
+get_predefined_world_size :: (campaign: Campaign, current_section_index: s64) -> v2i {
+    lines, success := load_predefined_world_data(campaign);
     if !success return .{};
     
-    width: s32 = 0;
+    max_width: s64 = 0;
 
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
-        
-        width_within_line := 0;
-        seperator_count := 0;
-        for x := 0; x < line.count && seperator_count <= server.current_section_index; ++x {
-            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
-                seperator_count += 1;
-            }
-            
-            width_within_line = x+1 - seperator_count;
+        line_width: s64 = 0;
+        line_section_index := 0;
+
+        for x := 0; x < line.count && line_section_index <= current_section_index; ++x {
+            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR then ++line_section_index;
+
+            line_width += 1;
         }
         
-        width = max(width, width_within_line);
+        max_width = max(max_width, line_width - line_section_index); // The separator characters don't actually represent entities and therefore don't count here
     }
 
-    return .{ width, lines.count };
+    return .{ max_width, lines.count };
 }
 
 fill_predefined_world_section :: (server: *Server, campaign: Campaign, section_index_to_fill: u32) -> bool {
@@ -505,7 +515,7 @@ fill_predefined_world_section :: (server: *Server, campaign: Campaign, section_i
         #char "f", // Flag
     ];
 
-    lines, success := load_predefined_world_data(server, campaign);
+    lines, success := load_predefined_world_data(campaign);
     if !success return false;
 
     //
@@ -570,7 +580,7 @@ create_the_game :: (server: *Server) {
 
     server.current_section_index = 0;
     if #complete server.campaign == {
-      case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server, server.campaign);
+      case .Tutorial, .Developer; server.world_size = get_predefined_world_size(server.campaign, 0);
       case .Easy;      server.world_size = .{ 20, 5 };
       case .Medium;    server.world_size = .{ 36, 5 };
       case .Hard;      server.world_size = .{ 72, 5 };
@@ -614,26 +624,37 @@ create_the_game :: (server: *Server) {
         }
     }
 
-    if server.campaign == .Tutorial || server.campaign == .Developer {
-        fill_predefined_world_section(server, server.campaign, 0);
-    } else {
+    if use_random_world_generation(server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
         fill_world_section_randomly(server, .[ .{ }, server.world_size ]);
+    } else {
+        fill_predefined_world_section(server, server.campaign, 0);
     }
 }
 
 resize_world :: (server: *Server) {
-    previous_world_size := server.world_size;
-    server.world_size.x += SECTION_WIDTH;
     server.current_section_index += 1;
 
-    msg := make_message(World_Resize_Message);
-    msg.world_resize.new_world_size = server.world_size;
-    array_add(*server.outgoing_messages, msg);
+    if use_random_world_generation(server) {
+        previous_world_size := server.world_size;
+        server.world_size.x += SECTION_WIDTH;
 
-    fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, server.world_size ]);
+        msg := make_message(World_Resize_Message);
+        msg.world_resize.new_world_size = server.world_size;
+        array_add(*server.outgoing_messages, msg);
+
+        fill_world_section_randomly(server, .[ .{ previous_world_size.x, 0 }, server.world_size ]);
+    } else {
+        server.world_size = get_predefined_world_size(server.campaign, server.current_section_index);
+
+        msg := make_message(World_Resize_Message);
+        msg.world_resize.new_world_size = server.world_size;
+        array_add(*server.outgoing_messages, msg);
+
+        fill_predefined_world_section(server, server.campaign, server.current_section_index);
+    }
 }
 
 do_lobby_tick :: (server: *Server) {
@@ -869,26 +890,6 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 }
 }
 
-tutorial_world_expand_or_finish :: (server: *Server) {
-    if server.current_section_index < get_maximum_expansions_of_tutorial(server) {
-        server.current_section_index += 1;
-        server.world_size = get_predefined_world_size(server, server.campaign);
-
-        msg := make_message(World_Resize_Message);
-        msg.world_resize.new_world_size = server.world_size;
-        array_add(*server.outgoing_messages, msg);
-
-        fill_predefined_world_section(server, server.campaign, server.current_section_index);
-    } else {
-        // Finished tutorial, Exit game
-        msg := make_message(Game_Over_Message);
-        msg.game_over.result = .Tutorial_Completed;
-
-        array_add(*server.outgoing_messages, msg);
-        server.next_state = .Game_Over;
-    }
-}
-
 update_score :: (server: *Server, new_score: u64) {
     if server.game_score < new_score {
         server.game_score = new_score;
@@ -906,7 +907,7 @@ do_game_tick :: (server: *Server) {
     if !server.game_paused {
         game_result: Game_Result = .Keep_Going;
         
-        resize_world_on_emitter: *Emitter = null;
+        activated_emitter: bool = false;
 
         //
         // Update all emitters. The emitters that are off need to access the beams of the emitters
@@ -924,7 +925,7 @@ do_game_tick :: (server: *Server) {
             if !occupied || emitter.state != .Off continue;
 
             if update_off_emitter(server, emitter) {
-                resize_world_on_emitter = emitter;
+                activated_emitter = true;
             }
         }
         
@@ -1013,6 +1014,10 @@ do_game_tick :: (server: *Server) {
             // physically exists, which can only mean it got killed (e.g. by lava or whatever).
             game_result = .Flag_Destroyed;
         }
+
+        if !use_random_world_generation(server) && activated_emitter && server.current_section_index + 1 == count_sections_in_predefined_world(server.campaign) {
+            game_result = .Tutorial_Completed;
+        }
         
         if game_result != .Keep_Going {
             msg := make_message(Game_Over_Message);
@@ -1021,13 +1026,8 @@ do_game_tick :: (server: *Server) {
             
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
-        } else if resize_world_on_emitter {
-            if server.campaign == .Tutorial {
-                tutorial_world_expand_or_finish(server);
-            } else if server.campaign != .Developer {
-                assert(resize_world_on_emitter.physical_position.x + 1 == server.world_size.x, "Cannot resize the world on an emitter that is not on the rightwards edge");
-                resize_world(server);
-            }
+        } else if activated_emitter {
+            resize_world(server);
         }
     } else if server.clients.count == 0 {
         server.next_state = .Game_Over;

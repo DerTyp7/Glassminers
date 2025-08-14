@@ -409,6 +409,7 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     false, // Strength Potion
 ];
 
+// @Cleanup: Rename all of these...
 Game_Result :: enum {
     Keep_Going;
     Tutorial_Completed;
