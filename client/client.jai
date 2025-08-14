@@ -1143,42 +1143,28 @@ get_available_resources_for_guy :: (client: *Client, guy: *Guy) -> [..]Item_Kind
     return result;
 }
 
-find_next_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
-    first_pid := INVALID_PID;
-    next_pid := INVALID_PID;
-    {
-        found_current_pid: bool = false;
-        for i := 0; i < client.guys.slot_count; ++i {
-            guy, occupied := index_bucket_array(*client.guys, i);
-            if occupied {
-                if first_pid == INVALID_PID { first_pid = guy.pid; }
-                if next_pid == INVALID_PID && found_current_pid { next_pid = guy.pid; }
-                if !found_current_pid && guy.pid == current_pid { found_current_pid = true; }
-            }
-        }
-    }
-    
-    result_pid := ifx next_pid != INVALID_PID then next_pid else first_pid;
-    return result_pid;
-}
+find_next_entity_to_spectate :: (client: *Client, current_pid: Pid, forwards: bool) -> Pid {
+    build_list_of_candidates :: (client: *Client) -> [..]Pid {
+        result: [..]Pid;
+        result.allocator = *temp;
 
-find_previous_spectate_pid :: (client: *Client, current_pid: Pid) -> Pid {
-    last_pid := INVALID_PID;
-    previous_pid := INVALID_PID;
-    {
-        found_current_pid: bool = false;
         for i := 0; i < client.guys.slot_count; ++i {
             guy, occupied := index_bucket_array(*client.guys, i);
-            if occupied {
-                if !found_current_pid && guy.pid == current_pid { found_current_pid = true; }
-                if !found_current_pid { previous_pid = guy.pid; }
-                last_pid = guy.pid;
-            }
+            if occupied array_add(*result, guy.pid);
         }
+        
+        return result;
     }
+
+    candidates := build_list_of_candidates(client);
+
+    current_index, found_index := array_index_of(*candidates, current_pid);
+    assert(found_index, "The currently spectated entity is not part of the candidates.");
     
-    result_pid := ifx previous_pid != INVALID_PID then previous_pid else last_pid;
-    return result_pid;
+    next_index := ifx forwards then current_index + 1 else current_index - 1;
+    next_index = next_index % candidates.count;
+    
+    return array_get(*candidates, next_index);
 }
 
 #if DEVELOPER {
@@ -1408,9 +1394,9 @@ do_game_tick :: (client: *Client) {
                 // If spectating, update the tracked entity
                 //
                 if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
-                    local_player.entity_tracked_by_camera = find_next_spectate_pid(client, local_player.entity_tracked_by_camera); 
+                    local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, true);
                 } else if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
-                    local_player.entity_tracked_by_camera = find_previous_spectate_pid(client, local_player.entity_tracked_by_camera); 
+                    local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, false);
                 }
 
                 if !entity_exists(client, local_player.entity_tracked_by_camera) {
