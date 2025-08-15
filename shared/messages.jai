@@ -43,7 +43,7 @@ Remove_Local_Player_Message :: struct {
 
 Request_Game_Start_Message :: struct {
     MSG_TYPE :: Message_Type.Request_Game_Start;
-    campaign: Campaign;
+    game_mode: Game_Mode;
 }
 
 Game_Pause_Message :: struct {

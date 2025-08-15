@@ -28,7 +28,7 @@ DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
         return file_content;
     }
 
-    CAMPAIGN_WORLD_STRINGS :: [Campaign.Count]string.[
+    GAME_MODE_WORLD_STRINGS :: [Game_Mode.Count]string.[
         #run bake_file("run_tree/data/developer-world.txt"),
         #run bake_file("run_tree/data/tutorial-world.txt"),
         "", // Easy
@@ -36,7 +36,7 @@ DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
         "" // Hard
     ];
 } #else {
-    CAMPAIGN_WORLD_FILE_PATHS :: [Campaign.Count]string.[
+    GAME_MODE_WORLD_FILE_PATHS :: [Game_Mode.Count]string.[
         "data/developer-world.txt",
         "data/tutorial-world.txt",
         "", // Easy
@@ -85,7 +85,7 @@ Server :: struct {
     //
     // Game Data
     //
-    campaign: Campaign = .Tutorial;
+    game_mode: Game_Mode = .Tutorial;
     world_pool: Memory_Pool;
     world_allocator: Allocator;
     game_seed: s64;
@@ -220,7 +220,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         array_add(*server.outgoing_messages, broadcasted_msg);
         
       case .Request_Game_Start;
-        server.campaign = msg.request_game_start.campaign;
+        server.game_mode = msg.request_game_start.game_mode;
         server.next_state = .Ingame;
 
       case .Game_Pause;
@@ -346,7 +346,7 @@ switch_to_next_state :: (server: *Server) {
 }
 
 use_random_world_generation :: (server: *Server) -> bool {
-    return !(server.campaign == .Tutorial || server.campaign == .Developer);
+    return !(server.game_mode == .Tutorial || server.game_mode == .Developer);
 }
 
 fill_world_section_randomly :: (server: *Server, low, high: s32) {
@@ -422,8 +422,8 @@ fill_world_section_randomly :: (server: *Server, low, high: s32) {
     generate_n_random_entities(server, low, high, trader_count, .Trader);
 }
 
-count_sections_in_predefined_world :: (campaign: Campaign) -> u32 {
-    lines, success := load_predefined_world_data(.Tutorial);
+count_sections_in_predefined_world :: (game_mode: Game_Mode) -> u32 {
+    lines, success := load_predefined_world_data(game_mode);
     if !success return 0;
 
     max_section_count := 0;
@@ -441,15 +441,15 @@ count_sections_in_predefined_world :: (campaign: Campaign) -> u32 {
     return max_section_count;
 }
 
-load_predefined_world_data :: (campaign: Campaign) -> [..]string, bool {
+load_predefined_world_data :: (game_mode: Game_Mode) -> [..]string, bool {
 #if !BAKE_ASSETS {
-    data, success := read_entire_file(*temp, CAMPAIGN_WORLD_FILE_PATHS[campaign]);
+    data, success := read_entire_file(*temp, GAME_MODE_WORLD_FILE_PATHS[game_mode]);
     if !success {
-        logprint(.Error, "Failed to load the predefined world file '%' from disk.", CAMPAIGN_WORLD_FILE_PATHS[campaign]);
+        logprint(.Error, "Failed to load the predefined world file '%' from disk.", GAME_MODE_WORLD_FILE_PATHS[game_mode]);
         return ---, false;
     }
 } #else {
-    data := CAMPAIGN_WORLD_STRINGS[campaign];
+    data := GAME_MODE_WORLD_STRINGS[game_mode];
 }
 
     lines := string_split(data, #char "\n", false, *temp);
@@ -469,8 +469,8 @@ load_predefined_world_data :: (campaign: Campaign) -> [..]string, bool {
     return lines, true;
 }
 
-get_predefined_world_size :: (campaign: Campaign, current_section_index: s64) -> v2i {
-    lines, success := load_predefined_world_data(campaign);
+get_predefined_world_size :: (game_mode: Game_Mode, current_section_index: s64) -> v2i {
+    lines, success := load_predefined_world_data(game_mode);
     if !success return .{};
     
     max_width: s64 = 0;
@@ -492,7 +492,7 @@ get_predefined_world_size :: (campaign: Campaign, current_section_index: s64) ->
     return .{ max_width, lines.count };
 }
 
-fill_predefined_world_section :: (server: *Server, campaign: Campaign, section_index_to_fill: u32) -> bool {
+fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section_index_to_fill: u32) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
@@ -523,7 +523,7 @@ fill_predefined_world_section :: (server: *Server, campaign: Campaign, section_i
         #char "f", // Flag
     ];
 
-    lines, success := load_predefined_world_data(campaign);
+    lines, success := load_predefined_world_data(game_mode);
     if !success return false;
 
     //
@@ -570,7 +570,7 @@ fill_predefined_world_section :: (server: *Server, campaign: Campaign, section_i
                     }
                 }
             } else {
-                logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", campaign, y + 1, line[x]);
+                logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", game_mode, y + 1, line[x]);
                 success = false;
             }
         }
@@ -591,7 +591,7 @@ create_the_game :: (server: *Server) {
     if use_random_world_generation(server) {
         server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
     } else {
-        server.world_size = get_predefined_world_size(server.campaign, server.current_section_index);
+        server.world_size = get_predefined_world_size(server.game_mode, server.current_section_index);
     }
     
     //
@@ -641,7 +641,7 @@ create_the_game :: (server: *Server) {
 
         fill_world_section_randomly(server, 0, server.world_size.x);
     } else {
-        fill_predefined_world_section(server, server.campaign, server.current_section_index);
+        fill_predefined_world_section(server, server.game_mode, server.current_section_index);
     }
 }
 
@@ -656,13 +656,13 @@ generate_next_world_section :: (server: *Server) {
 
         fill_world_section_randomly(server, previous_width, server.world_size.x);
     } else {
-        server.world_size = get_predefined_world_size(server.campaign, server.current_section_index);
+        server.world_size = get_predefined_world_size(server.game_mode, server.current_section_index);
 
         msg := make_message(World_Resize_Message);
         msg.world_resize.new_world_size = server.world_size;
         array_add(*server.outgoing_messages, msg);
 
-        fill_predefined_world_section(server, server.campaign, server.current_section_index);
+        fill_predefined_world_section(server, server.game_mode, server.current_section_index);
     }
 }
 
@@ -1016,7 +1016,7 @@ do_game_tick :: (server: *Server) {
             game_result = .Flag_Was_Destroyed;
         }
 
-        if !use_random_world_generation(server) && activated_emitter && server.current_section_index + 1 == count_sections_in_predefined_world(server.campaign) {
+        if !use_random_world_generation(server) && activated_emitter && server.current_section_index + 1 == count_sections_in_predefined_world(server.game_mode) {
             game_result = .Completed_Tutorial;
         }
 

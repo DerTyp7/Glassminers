@@ -12,9 +12,14 @@ MAX_LOCAL_PLAYERS :: 4;
 
 LOG_MESSAGES :: false;
 
-Campaign :: enum {
+Game_Mode :: enum {
+    // Developer
     Developer;
+
+    // Campaigns
     Tutorial;
+
+    // Random Generations
     Easy;
     Medium;
     Hard;

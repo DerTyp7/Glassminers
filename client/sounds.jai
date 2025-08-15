@@ -117,7 +117,7 @@ play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Ent
 
     if sound_pid != INVALID_SOUND_PID {
         stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
-        spatialize_sound_stream(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+        spatialize_sound_stream_3d(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
     }
         
     return sound_pid;
@@ -166,7 +166,6 @@ update_sound_players :: (client: *Client) {
     forward :: [3]f32.[ 0, 0, 1 ];
     up :: [3]f32.[ 0, 1, 0 ];
     right :: [3]f32.[ 1, 0, 0 ];
-    inner_radius: f32 : 0.5;
 
     z_offset: f32 : -3;
     USE_CAMERA_AS_LISTENER :: true;
@@ -182,12 +181,12 @@ update_sound_players :: (client: *Client) {
                 position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
             }
                 
-            update_sound_listener(*client.mixer, i,
-                                  position.x, position.y, z_offset,
-                                  forward[0], forward[1], forward[2],
-                                  up[0], up[1], up[2],
-                                  right[0], right[1], right[2],
-                                  inner_radius);
+            update_sound_listener_3d(*client.mixer, i,
+                                     position.x, position.y, z_offset,
+                                     forward[0], forward[1], forward[2],
+                                     up[0], up[1], up[2],
+                                     right[0], right[1], right[2],
+                                     SOUNDS_INNER_RADIUS);
         }
     } else {
         set_sound_listener_count(*client.mixer, 1);

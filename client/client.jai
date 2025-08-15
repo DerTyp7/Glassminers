@@ -135,7 +135,7 @@ Client :: struct {
     //
     // Lobby Screen
     //
-    requested_campaign: Campaign = .Tutorial; // Lobby screen
+    requested_game_mode: Game_Mode = .Tutorial; // Lobby screen
     immediately_start_game: bool = false; // Lobby screen, after pressing "single player" in the main menu
     test_inputs: [..]Test_Input;
     
@@ -282,7 +282,7 @@ disconnect_from_server :: (client: *Client) {
 
 start_lobby :: (client: *Client) {
     msg := make_message(Request_Game_Start_Message);
-    msg.request_game_start.campaign = client.requested_campaign;
+    msg.request_game_start.game_mode = client.requested_game_mode;
     send_reliable_message(*client.connection, *msg);
 }
 
@@ -791,15 +791,15 @@ reassign_gamepad_indices :: (client: *Client) {
 
 
 
-do_campaign_selector :: (client: *Client) {
+do_game_mode_selector :: (client: *Client) {
     ui :: *client.ui;
 
-    if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Campaign)[client.requested_campaign]) {
-        for i := 0; i < Campaign.Count; ++i {
-            if !DEVELOPER && i == Campaign.Developer continue;
+    if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Game_Mode)[client.requested_game_mode]) {
+        for i := 0; i < Game_Mode.Count; ++i {
+            if !DEVELOPER && i == Game_Mode.Developer continue;
 
-            if ui_button(ui, enum_names(Campaign)[i]) {
-                client.requested_campaign = i;
+            if ui_button(ui, enum_names(Game_Mode)[i]) {
+                client.requested_game_mode = i;
             }
         }
     }
@@ -849,7 +849,7 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Single Player", .Default, window_position(client, 0));
 
-        do_campaign_selector(client);
+        do_game_mode_selector(client);
         ui_divider(ui, true);
 
         if client.server_data.state == .Closed && ui_button(ui, "Play!") && host_server(client, DEFAULT_PORT) {
@@ -1038,7 +1038,7 @@ do_lobby_screen :: (client: *Client) {
         }
 
         ui_divider(ui, true);
-        do_campaign_selector(client);
+        do_game_mode_selector(client);
         
         if ui_button(ui, "Start!") {
             start_lobby(client);
@@ -1597,7 +1597,7 @@ main :: (args: []string) -> s32 {
 
 #if DEVELOPER {
     client.mixer.volumes[.Master] = 0.0;
-    client.requested_campaign = .Developer;
+    client.requested_game_mode = .Developer;
 }
     
     //
