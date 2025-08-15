@@ -426,10 +426,10 @@ count_sections_in_predefined_world :: (game_mode: Game_Mode) -> u32 {
     lines, success := load_predefined_world_data(game_mode);
     if !success return 0;
 
-    max_section_count := 0;
+    max_section_count := 1;
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
-        line_section_count := 0;
+        line_section_count := 1;
 
         for x := 0; x < line.count; ++x {
             if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR then ++line_section_count;

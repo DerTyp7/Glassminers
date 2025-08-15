@@ -789,8 +789,6 @@ reassign_gamepad_indices :: (client: *Client) {
     }
 }
 
-
-
 do_game_mode_selector :: (client: *Client) {
     ui :: *client.ui;
 
