@@ -304,6 +304,95 @@ draw_global_hud :: (client: *Client) {
     }
 }
 
+draw_sound_hud :: (client: *Client) {
+    waveform_offset_top: f32 : 0.2;
+    waveform_height:     f32 : 32;
+    waveform_linegap:    f32 : waveform_height + 16;
+
+    draw_history :: (client: *Client, history: []Sound_History_Sample, channel_index: s64, channel_name: string) {
+        width: f32 = cast(f32) min(client.window.w / 2, history.count);
+
+        top_left := GE_Vector2.{ (xx client.window.w - width) * 0.5, xx client.window.h * waveform_offset_top + xx channel_index * waveform_linegap };
+        bottom_right := GE_Vector2.{ top_left.x + width, top_left.y + waveform_height };
+        median := (top_left.y + bottom_right.y) * 0.5;
+
+        BACKGROUND_COLOR: GE_Color : .{ 50, 50, 50, 230 };
+        DEFAULT_SAMPLE_COLOR: GE_Color : .{ 100, 100, 255, 255 };
+        WARNING_SAMPLE_COLOR: GE_Color : .{ 255, 100, 100, 255 };
+        WARNING_THRESHOLD: f32 : 0.99;
+
+        draw_text_screen_space(client, *client.ui_font, channel_name, .{ top_left.x - 5, median }, .Right | .Median, WHITE_COLOR, .Shadow);
+        draw_rect_screen_space(client, top_left, bottom_right, BACKGROUND_COLOR);
+
+        samples_to_draw := cast(s64) width;
+
+        for x := 0; x < samples_to_draw; ++x {
+            sample := history[x];
+
+            if sample.high <= sample.low then continue;
+
+            color := DEFAULT_SAMPLE_COLOR;
+            if sample.low < -WARNING_THRESHOLD || sample.high > WARNING_THRESHOLD then color = WARNING_SAMPLE_COLOR;
+
+            x0 := top_left.x + cast(f32) x;
+            x1 := x0;
+            y0 := ceil(median + sample.low * waveform_height);
+            y1 := floor(median + sample.high * waveform_height);
+
+            draw_rect_screen_space(client, .{ x0, y0 }, .{ x1, y1 }, color);
+        }
+
+    }
+
+    //
+    // Draw the waveform of all channels
+    //
+    for channel := 0; channel < client.mixer.history.Capacity; ++channel {
+        history := client.mixer.history[channel];
+        draw_history(client, history, channel, enum_names(Sound_Channel)[channel]);
+    }
+
+    //
+    // Draw all active sound streams
+    //
+    {
+        // @Cleanup: Always make these centered on the screen
+        x_category:   f32 = 0;
+        x_identifier: f32 = x_category + 200;
+        x_volume:     f32 = x_identifier + 200;
+        x_channels:   f32 = x_volume + 120;
+        x_progress:   f32 = x_channels + 120;
+        x_flags:      f32 = x_progress + 120;
+
+        x: f32 = xx client.window.w * 0.5 - (x_flags + 200) * 0.5;
+
+        y: f32 = xx client.window.h * waveform_offset_top + xx client.mixer.history.Capacity * waveform_linegap;
+
+        for i := 0; i < client.mixer.streams.count; ++i {
+            stream := *client.mixer.streams[i];
+            if stream.state == .Stopped continue;
+
+            draw_text_screen_space(client, *client.ui_font, enum_names(Sound_Category)[stream.category], .{ x + x_category, y }, .Left | .Top, WHITE_COLOR, .Default);
+
+            draw_text_screen_space(client, *client.ui_font, stream.sound_data.debug_identifier, .{ x + x_identifier, y }, .Left | .Top, YELLOW_COLOR, .Default);
+
+            volume_text := tprint("vol: %%", cast(s64) (stream.desired_gain * 100));
+            draw_text_screen_space(client, *client.ui_font, volume_text, .{ x + x_volume, y }, .Left | .Top, WHITE_COLOR, .Default);
+
+            channel_text := tprint("ch: %", cast(s64) stream.sound_data.channels);
+            draw_text_screen_space(client, *client.ui_font, channel_text, .{ x + x_channels, y }, .Left | .Top, WHITE_COLOR, .Default);
+
+            progress_text := tprint("t: %s", format_float(cast(f64) (stream.sound_data.available_frames - stream.offset_in_frames) / cast(f64) MIXER_SAMPLE_RATE, 0, 2));
+            draw_text_screen_space(client, *client.ui_font, progress_text, .{ x + x_progress, y }, .Left | .Top, YELLOW_COLOR, .Default);
+
+            flags_text: string = tprint("%", stream.flags);
+            draw_text_screen_space(client, *client.ui_font, flags_text, .{ x + x_flags, y }, .Left | .Top, WHITE_COLOR, .Default);
+
+            y += xx client.ui_font.line_height;
+        }
+    }
+}
+
 
 
 #file_scope

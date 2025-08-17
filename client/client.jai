@@ -170,8 +170,10 @@ Client :: struct {
 #if DEVELOPER {
     developer_panel_state: UI_Window_State;
     developer_panel_position: UI_Vector2;
+
     free_camera_enabled: bool;
-    
+    sound_hud_enabled: bool;
+
     timing_update: f32;
     timing_draw: f32;
     timing_total_no_sleep: f32;
@@ -1312,11 +1314,16 @@ do_game_tick :: (client: *Client) {
     
     // Developer UI
 #if DEVELOPER { 
-    if input_action_fired_globally(client, .Cheat_Debug_Window_Toggle, .Pressed) {
+    if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
         client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
     }
-    
+
     do_developer_panel(client);
+
+    if input_action_fired_globally(client, .Sound_Hud_Toggle, .Pressed) {
+        client.sound_hud_enabled = !client.sound_hud_enabled;
+        enable_mixer_history(*client.mixer, 128, 2);
+    }
 }
 
 
@@ -1741,7 +1748,11 @@ main :: (args: []string) -> s32 {
 
                 draw_viewport_information(*client);
                 draw_global_hud(*client);
-                
+
+#if DEVELOPER {
+                if client.sound_hud_enabled then draw_sound_hud(*client);
+}
+
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
                 if client.server_paused_game {

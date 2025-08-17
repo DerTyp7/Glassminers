@@ -35,27 +35,27 @@ Sound_Index :: enum {
 }
 
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
-    "hud-pickup-0.wav",
-    "hud-placedown-0.wav",
-    "hud-success-0.wav",
-    "hud-failure-0.wav",
+    "hud-pickup-0",
+    "hud-placedown-0",
+    "hud-success-0",
+    "hud-failure-0",
 
-    "receiver-charging.wav",
-    "guy-digging-0.wav",
-    "guy-walk-0.wav",
-    "guy-walk-1.wav",
-    "rock-sliding-0.wav",
-    "guy-death-0.wav",
-    "frog-attack-0.wav",
-    "frog-hurt-0.wav",
-    "frog-death-0.wav",
-    "goblin-attack-0.wav",
-    "goblin-hurt-0.wav",
-    "goblin-death-0.wav",
-    "slime-hurt-0.wav",
-    "slime-death-0.wav",
-    "slime-scared-0.wav",
-    "slime-walk-0.wav",
+    "receiver-charging",
+    "guy-digging-0",
+    "guy-walk-0",
+    "guy-walk-1",
+    "rock-sliding-0",
+    "guy-death-0",
+    "frog-attack-0",
+    "frog-hurt-0",
+    "frog-death-0",
+    "goblin-attack-0",
+    "goblin-hurt-0",
+    "goblin-death-0",
+    "slime-hurt-0",
+    "slime-death-0",
+    "slime-scared-0",
+    "slime-walk-0",
 ];
 
 create_sound_data :: (client: *Client) -> bool {
@@ -68,12 +68,13 @@ create_sound_data :: (client: *Client) -> bool {
     create_file_watcher(*client.sound_watchdog, *client.engine_allocator);
 
     for i := 0; i < client.sounds.Capacity; ++i {
-        filepath := print_into_allocator(*temp, "data/sounds/%", SOUND_FILEPATH_MAP[i]);
+        filepath := print_into_allocator(*temp, "data/sounds/%.wav", SOUND_FILEPATH_MAP[i]);
         add_file_to_watch(*client.sound_watchdog, filepath);
 
         status: Sound_File_Status = ---;
         client.sounds[i], status = create_sound_data_from_file(*client.engine_allocator, filepath);
-        
+        client.sounds[i].debug_identifier = SOUND_FILEPATH_MAP[i];
+
         if status != .Success logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
     }
     
@@ -106,7 +107,7 @@ play_sound :: (client: *Client, sound_index: Sound_Index, flags: Play_Sound_Flag
         return INVALID_SOUND_PID;
     }
 
-    mixer_sound_flags: Sound_Stream_Flags = .Fade_In | .Fade_Out;
+    mixer_sound_flags: Sound_Stream_Flags = .Default;
     if flags & .Looping then mixer_sound_flags |= .Looping;
     play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], mixer_sound_flags);
     client.sounds_played_this_frame[sound_index] = true;
