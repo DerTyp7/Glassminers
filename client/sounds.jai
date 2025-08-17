@@ -1,8 +1,8 @@
 Sound_Pid :: u64;
 INVALID_SOUND_PID: Sound_Pid : 0;
 
-SOUNDS_INNER_RADIUS: f32 : 3;
-SOUNDS_OUTER_RADIUS: f32 : 18;
+SOUND_INNER_RADIUS: f32 : 1;
+SOUND_OUTER_RADIUS: f32 : xx SECTION_WIDTH + 2;
 
 Play_Sound_Flags :: enum bitfield {
     Default;
@@ -100,13 +100,15 @@ play_sound :: (client: *Client, sound_index: Sound_Index, flags: Play_Sound_Flag
 
     sound := *client.sounds[sound_index];
     
-    stream := get_unused_sound_stream(*client.mixer);
+    stream := find_available_sound_stream(*client.mixer);
     if !stream {
         logprint(.Warning, "Failed to play a sound because no stream was available!");
         return INVALID_SOUND_PID;
     }
 
-    play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], flags & .Looping);
+    mixer_sound_flags: Sound_Stream_Flags = .Fade_In | .Fade_Out;
+    if flags & .Looping then mixer_sound_flags |= .Looping;
+    play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], mixer_sound_flags);
     client.sounds_played_this_frame[sound_index] = true;
 
     return (stream.play_counter << 48) | (stream & 0xffffffffffff);
@@ -117,7 +119,7 @@ play_sound_on_entity :: (client: *Client, sound_index: Sound_Index, entity: *Ent
 
     if sound_pid != INVALID_SOUND_PID {
         stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
-        spatialize_sound_stream_3d(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUNDS_INNER_RADIUS, SOUNDS_OUTER_RADIUS);
+        spatialize_sound_stream(stream, xx entity.physical_position.x, xx entity.physical_position.y, 0, SOUND_INNER_RADIUS, SOUND_OUTER_RADIUS);
     }
         
     return sound_pid;
@@ -127,7 +129,7 @@ set_sound_playback_position :: (client: *Client, sound_pid: Sound_Pid, percentag
     if !sound_active(client, sound_pid) return;
 
     stream: *Sound_Stream = xx (sound_pid & 0xffffffffffff);
-    stream.frame_offset = cast(u64) (cast(f32) stream.sound_data.available_frames * percentage);
+    stream.offset_in_frames = cast(u64) (cast(f32) stream.sound_data.available_frames * percentage);
 }
 
 update_sound_players :: (client: *Client) {
@@ -137,37 +139,15 @@ update_sound_players :: (client: *Client) {
     // space.
     //
     // The sources are simply projected onto the XY plane, with the Z coordinate set to zero.
-    //
-    // The listener is defined using a rotation (through the forward, up and right vectors),
-    // as well as a position. We statically define the rotation to basically point
-    // inwards to the screen, as how the human player would look into the world.
-    //
-    // With the position we do something similar; we mimic the position that the human listener
-    // would have in the game world - The human listener sits "above" the world on the Z axis,
-    // looking down onto the world plane.
-    //
-    // If the listener was on the world plane (meaning: listener and sources had the same Z value),
-    // sounds that were slightly left on the screen would only come from the left audio channel.
-    // Imagine this as a "top-down" view in 3d (* is listener, @ is source):
-    //        Z
-    //        ^       With this projection, there's a 90 degree angle between the forward
-    //        |       vector of the listener and the vector to the source -> All audio is
-    // X@<----*       played on the left channel
-    //
-    // Therefore, we slightly shift the listener back in 3d space so that sounds are coming
-    // from a different angle and are therefore panned less aggressively. The actual distance
-    // by which we shift was chosen arbitrarily to sound good.
-    //        Z
-    //  @<|   ^       With this projection, there's a 45 degree angle between the forward
-    //    --| |       vector of the listener and the vector to the source -> Some audio is
-    // X<-----*       also played on the right channel
+    // We set a pretty big inner radius for the sound streams, to avoid the case where streams
+    // just right of the player are played only on the right speaker.
+    // Instead, we the listener to be closer to how the player actually looks on the screen.
     //
 
     forward :: [3]f32.[ 0, 0, 1 ];
     up :: [3]f32.[ 0, 1, 0 ];
     right :: [3]f32.[ 1, 0, 0 ];
 
-    z_offset: f32 : -3;
     USE_CAMERA_AS_LISTENER :: true;
     
     if client.current_state == .Ingame {
@@ -181,12 +161,11 @@ update_sound_players :: (client: *Client) {
                 position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };
             }
                 
-            update_sound_listener_3d(*client.mixer, i,
-                                     position.x, position.y, z_offset,
-                                     forward[0], forward[1], forward[2],
-                                     up[0], up[1], up[2],
-                                     right[0], right[1], right[2],
-                                     SOUNDS_INNER_RADIUS);
+            update_sound_listener(*client.mixer, i,
+                                   position.x, position.y, 0,
+                                   forward[0], forward[1], forward[2],
+                                   up[0], up[1], up[2],
+                                   right[0], right[1], right[2]);
         }
     } else {
         set_sound_listener_count(*client.mixer, 1);
