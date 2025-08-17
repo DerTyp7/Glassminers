@@ -731,7 +731,7 @@ try_to_fulfill_recipe :: (server: *Server, guy: *Guy, recipe: Crafting_Recipe) -
 }
 
 handle_guy_movement :: (server: *Server, guy: *Guy) {
-    if ! guy.received_input.wants_to_move return; 
+    if !guy.received_input.wants_to_move return; 
 
     distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
     if distance_to_move != 1 {
@@ -750,8 +750,12 @@ handle_guy_movement :: (server: *Server, guy: *Guy) {
             update_physical_location(server, guy, guy.received_input.position, guy.received_input.aim_direction);
         }
     } else if can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
+        // Rotate and move to the target position by recursively pushing things
         guy.physical_rotation = guy.received_input.aim_direction;
         move_to_position(server, guy, guy.received_input.position);
+    } else {
+        // If we can't move to the position then at least update the rotation
+        update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
     }
 }
 
