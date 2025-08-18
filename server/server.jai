@@ -568,6 +568,8 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
                     if is_first_emitter {
                         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
                     }
+                } else if kind == .Slime_Hole {
+                    slime := create_entity(server, .Slime, .{ xPos, y }, direction);
                 }
             } else {
                 logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", game_mode, y + 1, line[x]);

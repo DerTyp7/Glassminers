@@ -1,7 +1,7 @@
 ## 0.3.1 (unreleased)
 
 - Sounds are now spatialized relative to the screen-center instead of the player position
-- The tutorial can now span more than one section, so that this part of the game mechanics is also explained
+- The tutorial was reworked to have multiple sections and explain more of the new mechanics
 - Added a ghost mode cheat that enables players to walk through walls, monsters, etc
 - Added a simple debug sound hud for developers
 - Improved the probability of traders appearing in randomly generated worlds
