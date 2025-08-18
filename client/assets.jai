@@ -289,7 +289,7 @@ bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
     result: [Sound_Index.Count]Sound_Data = ---;
 
     for i := 0; i < Sound_Index.Count; ++i {
-        filepath := print_into_allocator(Default_Allocator, "%/%", directory, SOUND_FILEPATH_MAP[i]);
+        filepath := print_into_allocator(Default_Allocator, "%/%.wav", directory, SOUND_FILEPATH_MAP[i]);
 
         status: Sound_File_Status = ---;
         result[i], status = create_sound_data_from_file(Default_Allocator, filepath);
