@@ -905,7 +905,7 @@ place_flag :: (server: *Server, position: v2i) -> *Entity {
     server.flag_pid = flag_entity.pid;
 
     if position.x > server.game_score {
-        server.game_score = position.x;
+        server.game_score = position.x + 1;
         msg := make_message(Game_Score_Message);
         msg.game_score.score = server.game_score;
         array_add(*server.outgoing_messages, msg);

@@ -1022,7 +1022,7 @@ do_game_tick :: (server: *Server) {
             game_result = .Flag_Was_Destroyed;
         }
 
-        if !use_random_world_generation(server) && activated_emitter && server.current_section_index + 1 == count_sections_in_predefined_world(server.game_mode) {
+        if server.game_mode == .Tutorial && server.current_section_index + 1 == count_sections_in_predefined_world(server.game_mode) && server.game_score == server.world_size.x {
             game_result = .Completed_Tutorial;
         }
 
