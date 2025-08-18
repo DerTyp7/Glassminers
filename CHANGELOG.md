@@ -3,12 +3,14 @@
 - Sounds are now spatialized relative to the screen-center instead of the player position
 - The tutorial can now span more than one section, so that this part of the game mechanics is also explained
 - Added a ghost mode cheat that enables players to walk through walls, monsters, etc
+- Added a simple debug sound hud for developers
 - Improved the probability of traders appearing in randomly generated worlds
+- Flags can now only be placed on tiles where no move-blocking entity is (previously an exception was made for living entities)
 - Fixed a bug where the camera would start interpolating between areas late
 - Fixed a bug where new entities might be generated in previous sections when resizing the world
 - Fixed a bug where emitters wouldn't be considered complete if they weren't the ones powering the latest emitter
-- Flags can now only be placed on tiles where no move-blocking entity is (previously an exception was made for living entities)
-- Added a simple debug sound hud for developers
+- Fixed a bug where tabbing out the window wouldn't stop the current input action (such as digging)
+- Fixed a crash on certain linux distributions that have a weird ALSA configuration
 
 ## 0.3.0 (27.07.2025)
 
