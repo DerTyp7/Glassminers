@@ -752,8 +752,12 @@ update_slime :: (server: *Server, slime: *Slime) {
             }
 
           case .Hiding;
+            // Make sure that the slime hole isn't blocked by some moveable entity, otherwise the slime can't
+            // physically get out of the hole
+            hole_is_blocked := find_entity_with_flags_at_position(server, .Blocks_Movement, slime.physical_position);
             nearest_guy, distance_to_nearest_guy := find_nearest_entity_of_kind(server, .Guy, slime.physical_position);
-            if slime.time_in_hiding > SLIME_MIN_TIME_IN_HIDING && distance_to_nearest_guy > SLIME_SCARING_DISTANCE + 1 {
+
+            if !hole_is_blocked && slime.time_in_hiding > SLIME_MIN_TIME_IN_HIDING && distance_to_nearest_guy > SLIME_SCARING_DISTANCE + 1 {
                 switch_state(server, slime, .Idle);
             }
 

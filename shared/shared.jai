@@ -275,10 +275,10 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
 
     // Environment
     0, // Lava
-    2, // Bedrock
-    2, // Rock
-    2, // Coal
-    2, // Crystal
+    3, // Bedrock
+    3, // Rock
+    3, // Coal
+    3, // Crystal
     2, // Slime Hole
 
     // Creations
@@ -288,14 +288,14 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     2, // Chest
     
     // Beings
-    3, // Guy
-    3, // Frog
-    3, // Goblin
-    3, // Slime
-    3, // Trader
+    4, // Guy
+    4, // Frog
+    4, // Goblin
+    4, // Slime
+    4, // Trader
     
     // Misc
-    3, // Flag
+    4, // Flag
 ];
 
 Item_Kind :: enum {

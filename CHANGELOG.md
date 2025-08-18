@@ -2,6 +2,7 @@
 
 - Sounds are now spatialized relative to the screen-center instead of the player position
 - The tutorial was reworked to have multiple sections and explain more of the new mechanics. It can now be completed by placing the flag on the rightmost tile of the tutorial world
+- The slime hole can now be blocked by pushing an object on top of it, making it unusable for slimes
 - Added a ghost mode cheat that enables players to walk through walls, monsters, etc
 - Added a simple debug sound hud for developers
 - Improved the probability of traders appearing in randomly generated worlds
