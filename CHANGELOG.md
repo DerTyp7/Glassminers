@@ -1,4 +1,4 @@
-## 0.3.1 (unreleased)
+## 0.3.1 (18.08.2025)
 
 - Sounds are now spatialized relative to the screen-center instead of the player position
 - The tutorial was reworked to have multiple sections and explain more of the new mechanics. It can now be completed by placing the flag on the rightmost tile of the tutorial world
