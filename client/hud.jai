@@ -528,6 +528,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
 
     if local_player.input_binder.active_input_device == .Keyboard {
         set_cursor_position(*client.window, xx hud.screen_center.x, xx hud.screen_center.y);
+        hud.cursor_enabled = false;
     }
 }
 

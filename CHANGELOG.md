@@ -1,7 +1,7 @@
 ## 0.3.1 (unreleased)
 
 - Sounds are now spatialized relative to the screen-center instead of the player position
-- The tutorial was reworked to have multiple sections and explain more of the new mechanics
+- The tutorial was reworked to have multiple sections and explain more of the new mechanics. It can now be completed by placing the flag on the rightmost tile of the tutorial world
 - Added a ghost mode cheat that enables players to walk through walls, monsters, etc
 - Added a simple debug sound hud for developers
 - Improved the probability of traders appearing in randomly generated worlds
@@ -10,6 +10,7 @@
 - Fixed a bug where new entities might be generated in previous sections when resizing the world
 - Fixed a bug where emitters wouldn't be considered complete if they weren't the ones powering the latest emitter
 - Fixed a bug where tabbing out the window wouldn't stop the current input action (such as digging)
+- Fixed a bug where the hud would always select an option on opening on linux
 - Fixed a crash on certain linux distributions that have a weird ALSA configuration
 
 ## 0.3.0 (27.07.2025)
