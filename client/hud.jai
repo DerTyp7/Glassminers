@@ -356,7 +356,6 @@ draw_sound_hud :: (client: *Client) {
     // Draw all active sound streams
     //
     {
-        // @Cleanup: Always make these centered on the screen
         x_category:   f32 = 0;
         x_identifier: f32 = x_category + 200;
         x_volume:     f32 = x_identifier + 200;

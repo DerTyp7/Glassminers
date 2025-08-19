@@ -648,6 +648,8 @@ create_the_game :: (server: *Server) {
 }
 
 generate_next_world_section :: (server: *Server) {
+    ++server.current_section_index;
+
     if use_random_world_generation(server) {
         previous_width := server.world_size.x;
         server.world_size.x += SECTION_WIDTH;
@@ -1022,7 +1024,7 @@ do_game_tick :: (server: *Server) {
             game_result = .Flag_Was_Destroyed;
         }
 
-        if server.game_mode == .Tutorial && server.current_section_index + 1 == count_sections_in_predefined_world(server.game_mode) && server.game_score == server.world_size.x {
+        if server.game_mode == .Tutorial && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) && server.game_score == server.world_size.x {
             game_result = .Completed_Tutorial;
         }
 
@@ -1037,7 +1039,6 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if activated_emitter {
-            ++server.current_section_index;
             generate_next_world_section(server);
         }
     } else if server.clients.count == 0 {

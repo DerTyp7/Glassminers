@@ -1749,15 +1749,15 @@ main :: (args: []string) -> s32 {
                 draw_viewport_information(*client);
                 draw_global_hud(*client);
 
-#if DEVELOPER {
-                if client.sound_hud_enabled then draw_sound_hud(*client);
-}
-
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
                 if client.server_paused_game {
                     draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2 + 2, xx client.window.h * 0.33 + 2 }, .Center | .Median, ORANGE_COLOR, .Shadow);
                 }
+
+#if DEVELOPER {
+                if client.sound_hud_enabled then draw_sound_hud(*client);
+}
                 
                 ge_imm2d_flush(*client.graphics);
             }
