@@ -104,7 +104,6 @@ Entity_Manager :: struct {
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
-    flag_pid:     Pid;
 }
 
 
@@ -527,9 +526,7 @@ update_powered_emitter :: (server: *Server, emitter: *Emitter) {
     }
 }
 
-update_off_emitter :: (server: *Server, emitter: *Emitter) -> bool {
-    resize_world_on_emitter := false;
-
+update_off_emitter :: (server: *Server, emitter: *Emitter) {
     is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
     if is_beam && incoming_direction == emitter.physical_rotation {
         emitter.current_charge = clamp(emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
@@ -542,13 +539,10 @@ update_off_emitter :: (server: *Server, emitter: *Emitter) -> bool {
             }
 
             set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
-            resize_world_on_emitter = true;
         }
     } else {
         emitter.current_charge = clamp(emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
     }
-
-    return resize_world_on_emitter;
 }
 
 update_slab :: (server: *Server, slab: *Slab) {

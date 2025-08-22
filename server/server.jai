@@ -94,6 +94,8 @@ Server :: struct {
     tick_time: f32;
     world_size: v2i;
     current_section_index: u64; // keeps track of how often the world was expanded & next section generation
+    flag_pid: Pid;
+    latest_emitter: Pid;
     #using em: Entity_Manager;
 }
 
@@ -407,8 +409,11 @@ fill_world_section_randomly :: (server: *Server, low, high: s32) {
     
     width := high - low;
 
-    create_entity(server, .Emitter, .{ high - 1, random_u64_in(*server.random, 0, SECTION_HEIGHT) }, .East);
-
+    {
+        latest_emitter := create_entity(server, .Emitter, .{ high - 1, random_u64_in(*server.random, 0, SECTION_HEIGHT) }, .East);
+        server.latest_emitter = latest_emitter.pid;
+    }
+        
     generate_n_random_entities(server, low, high, width / 2, .Lava);
     generate_n_random_entities(server, low, high, width, .Bedrock);
     generate_n_random_entities(server, low, high, width / 4, .Rock);
@@ -558,6 +563,7 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
+                    server.latest_emitter = emitter.pid;
                     
                     // Cannot use section_index for this, because the first
                     // section index consists of two emitters.
@@ -640,7 +646,7 @@ create_the_game :: (server: *Server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
-
+        
         fill_world_section_randomly(server, 0, server.world_size.x);
     } else {
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
@@ -902,8 +908,8 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Complete_Emitters;
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
-            if occupied && emitter.state != .Complete {
-                set_emitter_state(server, emitter, .Complete, EMITTER_MAX_CHARGE);
+            if occupied && emitter.state == .Off {
+                set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
             }
         }
     }
@@ -917,7 +923,7 @@ do_game_tick :: (server: *Server) {
     if !server.game_paused {
         game_result: Game_Result = .Unfinished_Game;
         
-        activated_emitter: bool = false;
+        generate_next_section: bool = false;
 
         //
         // Update all emitters. The emitters that are off need to access the beams of the emitters
@@ -930,15 +936,15 @@ do_game_tick :: (server: *Server) {
             if !occupied continue;
 
             update_powered_emitter(server, emitter);
+
+            if emitter.pid == server.latest_emitter && emitter.state == .Active then generate_next_section = true;
         }
 
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
             if !occupied || emitter.state != .Off continue;
 
-            if update_off_emitter(server, emitter) {
-                activated_emitter = true;
-            }
+            update_off_emitter(server, emitter);
         }
         
         //
@@ -1043,7 +1049,7 @@ do_game_tick :: (server: *Server) {
             
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
-        } else if activated_emitter {
+        } else if generate_next_section {
             generate_next_world_section(server);
         }
     } else if server.clients.count == 0 {
