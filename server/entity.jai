@@ -446,6 +446,12 @@ move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
 // Derived Types
 //
 
+put_item_in_hand :: (guy: *Guy, kind: Item_Kind) {
+    assert(guy.state != .Carrying, "You shouldn't call put_item_in_hand if a player already holds an item.");
+    guy.state = .Carrying;
+    guy.carrying_item = kind;
+}
+
 update_guy :: (server: *Server, guy: *Guy) {
     look_vector := vector_from_direction(guy.physical_rotation);
     guy.target_position = .{ guy.physical_position.x + look_vector.x, guy.physical_position.y + look_vector.y };
@@ -838,7 +844,9 @@ try_to_place_flag :: (server: *Server, target_position: v2i) -> bool {
 }
 
 // This will first try to put the item on the ground, and if that doesn't work it'll try to
-// place the item inside the guy's hand.
+// place the item inside the guy's hand. The target_guy might be standing away from the target
+// position. This could be interesting for cases where they destruct a mirror, and under the
+// mirror is already a coin item
 try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
     if !position_in_bounds(server, target_position) return false;
 
@@ -848,8 +856,16 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
     stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
     chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
     hole_entity  := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
-    
-    if chest_entity {
+    guy_entity   := find_entity_of_kind_at_position(server, .Guy, target_position);
+
+    if guy_entity {
+        guy := down(guy_entity, Guy);
+
+        if guy.state != .Carrying {
+            put_item_in_hand(guy, kind);
+            success = true;
+        }
+    } else if chest_entity {
         chest := down(chest_entity, Chest);
 
         if chest.item_count < CHEST_CAPACITY {
@@ -865,7 +881,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
             success = true;
         }
     } else if collision || hole_entity {
-        success = false;
+        // Can't put an item here...
     } else if stack_entity {
         stack := down(stack_entity, Item_Stack);
 
@@ -896,8 +912,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
     }
 
     if !success && target_guy && target_guy.state == .Idle {
-        target_guy.state = .Carrying;
-        target_guy.carrying_item = kind;
+        put_item_in_hand(target_guy, kind);
         success = true;
     }
     
@@ -922,8 +937,7 @@ place_flag :: (server: *Server, position: v2i) -> *Entity {
 // place the item on the ground
 try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
     if guy.state == .Idle {
-        guy.state = .Carrying;
-        guy.carrying_item = kind;
+        put_item_in_hand(guy, kind);
     } else {
         try_to_place_item(server, guy.physical_position, kind, null);
     }

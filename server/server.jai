@@ -792,17 +792,14 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 }
 
               case .Item_Stack;                
-                guy.state = .Carrying;
-                guy.carrying_item = take_item_from_stack(server, down(target_entity, Item_Stack));
+                put_item_in_hand(guy, take_item_from_stack(server, down(target_entity, Item_Stack)));
 
               case .Torch;
-                guy.state = .Carrying;
-                guy.carrying_item = .Torch;
+                put_item_in_hand(guy, .Torch);
                 remove_entity(server, target_entity);
 
               case .Flag;
-                guy.state = .Carrying;
-                guy.carrying_item = .Flag;
+                put_item_in_hand(guy, .Flag);
                 remove_entity(server, target_entity);
                 server.flag_pid = INVALID_PID;
                 
@@ -858,7 +855,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         if try_to_fulfill_recipe(server, guy, guy.received_input.crafting_recipe) {
             if #complete guy.received_input.crafting_recipe == {
               case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
-              case .Torch;  guy.state = .Carrying; guy.carrying_item = .Torch;
+              case .Torch;  put_item_in_hand(guy, .Torch);
               case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
               case .Health_Potion; set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
               case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
@@ -874,8 +871,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         if target_entity {
             chest := down(target_entity, Chest);
             if try_to_take_item_from_chest(server, chest, guy.received_input.chest_item) {
-                guy.state = .Carrying;
-                guy.carrying_item = guy.received_input.chest_item;
+                put_item_in_hand(guy, guy.received_input.chest_item);
             }
         }
     }

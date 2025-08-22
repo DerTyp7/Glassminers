@@ -1,5 +1,6 @@
 ## 0.3.2 (unreleased)
 
+- Added giving items from one guy to another guy directly
 - Fixed spatialization not working as intended for local multiplayer
 - Fixed the tutorial not completing when putting the flag onto the final column *after* charging up the third emitter
 - Decreased the maximum charge time of an emitter to 120s
