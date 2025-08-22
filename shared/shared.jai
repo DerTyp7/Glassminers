@@ -436,6 +436,7 @@ Cheat :: enum {
     Spawn_Trader;
     Toggle_Invincibility;
     Toggle_GhostMode;
+    Complete_Emitters;
 }
 
 direction_from_vector :: (vector: v2i) -> Direction {

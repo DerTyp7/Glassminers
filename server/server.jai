@@ -899,6 +899,13 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Spawn_Trader; spawn_creature_with_cheat(server, guy, .Trader);
       case .Toggle_Invincibility; guy.invincible = !guy.invincible;
 	  case .Toggle_GhostMode; guy.ghost_mode = !guy.ghost_mode;
+      case .Complete_Emitters;
+        for i := 0; i < server.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*server.emitters, i);
+            if occupied && emitter.state != .Complete {
+                set_emitter_state(server, emitter, .Complete, EMITTER_MAX_CHARGE);
+            }
+        }
     }
 }
 }
@@ -915,6 +922,8 @@ do_game_tick :: (server: *Server) {
         //
         // Update all emitters. The emitters that are off need to access the beams of the emitters
         // that have power, so we need to update the powered emitters first to build up the beams.
+        // Otherwise we'd attempt to access the beams of the previous frames, which would cause
+        // segfaults.
         //
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);

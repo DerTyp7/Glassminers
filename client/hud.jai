@@ -424,6 +424,7 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Trader_Idle_Front_0,   // Spawn Trader
     .Hud_Heart_Full,        // Toggle Invincibility
     .Ghost_Mode,            // Toggle Ghost Mode
+    .Emitter,               // Complete Emitters
 ];
 
 close_hud :: (client: *Client, hud: *Hud) {
