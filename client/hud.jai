@@ -404,11 +404,16 @@ Hud_State :: enum {
 }
 
 CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
+    /* Crafting hud */
     .Mirror,
     .Torch_0,
     .Chest_Closed,
+
+    /* Trader hud */
     .Health_Potion,
     .Strength_Potion,
+    .Shard,
+    .Coal_Item,
 ];
 
 CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[

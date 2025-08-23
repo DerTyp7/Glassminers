@@ -1,6 +1,7 @@
 ## 0.3.2 (unreleased)
 
 - Added giving items from one guy to another guy directly
+- Added a coal and a shard item to the trader shop
 - Added a cheat to activate the next emitter for quicker testing
 - Fixed spatialization not working as intended for local multiplayer
 - Fixed the tutorial not completing when putting the flag onto the final column *after* charging up the third emitter

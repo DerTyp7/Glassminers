@@ -28,6 +28,8 @@ DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
         return file_content;
     }
 
+    // @Cleanup: In release builds, this is actually put into the data section, not the read-only section
+    // of the executable? Also, it seems like the strings land in there twice?
     GAME_MODE_WORLD_STRINGS :: [Game_Mode.Count]string.[
         #run bake_file("run_tree/data/developer-world.txt"),
         #run bake_file("run_tree/data/tutorial-world.txt"),
@@ -860,11 +862,16 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     if guy.received_input.crafting_recipe != .Count {
         if try_to_fulfill_recipe(server, guy, guy.received_input.crafting_recipe) {
             if #complete guy.received_input.crafting_recipe == {
+              /* Crafting Hud */
               case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
               case .Torch;  put_item_in_hand(guy, .Torch);
               case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
-              case .Health_Potion; set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
+              
+              /* Trader Hud */              
+              case .Health_Potion;   set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
               case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
+              case .Shard;           put_item_in_hand(guy, .Shard);
+              case .Coal;            put_item_in_hand(guy, .Coal);
             }
         }
     }

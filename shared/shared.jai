@@ -384,35 +384,55 @@ Interaction_Kind :: enum {
 }
 
 Crafting_Recipe :: enum {
+    // Crafting hud
     Mirror;
     Torch;
     Chest;
+
+    // Trader hud
     Health_Potion;
     Strength_Potion;
+    Shard;
+    Coal;
 }
 
 CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
+    // Crafting hud
     .[ .Shard ], // Mirror
     .[ .Coal ],  // Torch
     .[ .Stone ], // Chest
-    .[ .Coin ],  // Health Potion
-    .[ .Coin ],  // Strength Potion
+
+    // Trader hud
+    .[ .Coin ], // Health Potion
+    .[ .Coin ], // Strength Potion
+    .[ .Coin ], // Shard
+    .[ .Coin ], // Coal
 ];
 
 CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
+    // Crafting hud
     .Count,  // Mirror
     .Count,  // Torch
     .Count,  // Chest
+    
+    // Trader hud    
     .Trader, // Health Potion
     .Trader, // Strength Potion
+    .Trader, // Shard
+    .Trader, // Coal
 ];
 
 CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
+    // Crafting hud
     true,  // Mirror
     false, // Torch
     true,  // Chest
+
+    // Trader hud
     false, // Health Potion
     false, // Strength Potion
+    false, // Shard
+    false, // Coal
 ];
 
 Game_Result :: enum {
