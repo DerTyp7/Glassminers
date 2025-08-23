@@ -1,0 +1,13 @@
+services:
+  glassminers_server:
+    image: surrealtm/glassminers-server:latest
+    restart: unless-stopped
+    container_name: glassminers_server
+    # environment:
+    # - MAX_LOGS=20
+    # - LOG_DIR="/var/log/glassminers"
+    # - LOG_DATE_FORMAT="%Y-%m-%d-%H-%M-%S" # No spaces
+    volumes:
+      - ./logs:/var/log/glassminers
+    ports:
+      - 9876:9876/tcp
