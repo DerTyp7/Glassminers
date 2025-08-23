@@ -566,9 +566,33 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);
         emitter := down(entity, Emitter);
+
+        previous_state := emitter.state;
+
         emitter.state = msg.emitter_state.state;
-        emitter.current_charge = msg.emitter_state.current_charge;
         
+        if abs(msg.emitter_state.current_charge - emitter.current_charge) > (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP) * 0.2 {
+            // Only modify the client side prediction if it actually seems off, to not mess with
+            // visuals and audio if not necessary
+            emitter.current_charge = msg.emitter_state.current_charge;
+        }
+
+        if emitter.state == {
+          case .Active; 
+            if previous_state != .Active {
+                stop_sound(client, *emitter.sound);
+                emitter.sound = play_sound_on_entity(client, .Hud_Success_0, emitter, .Default);
+            }
+          case .Off;
+            should_play_sound := emitter.currently_charging_up && emitter.current_charge < EMITTER_MAX_CHARGE - 10; // Avoid glitching at the end due to client side prediction
+            if should_play_sound && !sound_active(client, emitter.sound) {
+                emitter.sound = play_sound_on_entity(client, .Emitter_Charging, emitter, .Default);
+                set_sound_playback_position(client, emitter.sound, emitter.current_charge / EMITTER_MAX_CHARGE);
+            } else if !should_play_sound {
+                stop_sound(client, *emitter.sound);
+            }
+        }
+
       case .Item_Stack_State;
         entity := get_entity(client, msg.item_stack_state.entity_pid);
         item_stack := down(entity, Item_Stack);

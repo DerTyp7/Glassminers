@@ -506,14 +506,20 @@ update_guy :: (server: *Server, guy: *Guy) {
 }
 
 set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, charge: f32) {
+    clamped_charge := clamp(charge, 0, EMITTER_MAX_CHARGE);
+    
+    something_changed := emitter.state != state || emitter.current_charge != clamped_charge;
+    
     emitter.state = state;
-    emitter.current_charge = charge;
+    emitter.current_charge = clamped_charge;
 
-    msg := make_message(Emitter_State_Message);
-    msg.emitter_state.entity_pid = emitter.pid;
-    msg.emitter_state.state      = emitter.state;
-    msg.emitter_state.current_charge = emitter.current_charge;
-    array_add(*server.outgoing_messages, msg);
+    if something_changed {
+        msg := make_message(Emitter_State_Message);
+        msg.emitter_state.entity_pid = emitter.pid;
+        msg.emitter_state.state      = emitter.state;
+        msg.emitter_state.current_charge = emitter.current_charge;
+        array_add(*server.outgoing_messages, msg);
+    }
 }
 
 update_powered_emitter :: (server: *Server, emitter: *Emitter) {
@@ -530,13 +536,11 @@ update_off_emitter :: (server: *Server, emitter: *Emitter) {
     if emitter.state == .Off {
         is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
         if is_beam && incoming_direction == emitter.physical_rotation {
-            emitter.current_charge = clamp(emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
-            
-            if emitter.current_charge >= EMITTER_MAX_CHARGE {
-                set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
-            }
+            new_charge := emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP);
+           
+            set_emitter_state(server, emitter, ifx new_charge >= EMITTER_MAX_CHARGE then .Active else .Off, new_charge);
         } else {
-            emitter.current_charge = clamp(emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
+            set_emitter_state(server, emitter, .Off, emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP));
         }
     }
 }

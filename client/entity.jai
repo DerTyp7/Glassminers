@@ -62,6 +62,7 @@ Emitter :: struct {
     #using entity : *Entity = ---;
     state: Emitter_State;
     current_charge: f32 = 0;
+    currently_charging_up: bool;
     particles: Pid = INVALID_PID;
     beam_data: Beam_Data = ---;
     beam_intensity: f32 = ---;
@@ -688,11 +689,15 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
 
 update_off_emitter :: (client: *Client, emitter: *Emitter) {
     is_beam, other_emitter, incoming_direction := is_emitter_beam_at(client, emitter.physical_position);
-    if is_beam && incoming_direction == emitter.physical_rotation {
+    is_lit := is_beam && incoming_direction == emitter.physical_rotation;
+
+    if is_lit {
         emitter.current_charge = clamp(emitter.current_charge + client.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
     } else {
         emitter.current_charge = clamp(emitter.current_charge - client.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
     }
+
+    emitter.currently_charging_up = is_lit && emitter.current_charge < EMITTER_MAX_CHARGE;
 }
 
 update_slab :: (client: *Client, slab: *Slab) {
