@@ -1,4 +1,4 @@
-TORCH_BRIGHTNESS: f32 : 0.75;
+TORCH_BRIGHTNESS: f32 : 1.0;
 LAVA_BRIGHTNESS: f32 : 0.5;
 
 Lightmap :: struct {
