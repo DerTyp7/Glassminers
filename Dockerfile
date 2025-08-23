@@ -21,7 +21,7 @@ RUN mkdir -p jai && mkdir -p glassminers
 RUN svn checkout svn://tealfire.de/svn/Jai/ -rHEAD jai
 COPY . glassminers
 
-RUN cd glassminers && ../jai/bin/jai first.jai -- server-release
+RUN cd glassminers && ../jai/bin/jai first.jai -- server-release && cd ../
 RUN mv glassminers/run_tree/server.out ./
 RUN rm -rf jai/ && rm -rf glassminers/
 
