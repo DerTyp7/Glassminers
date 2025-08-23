@@ -1,0 +1,6 @@
+.gitignore
+CHANGELOG.md
+docker*
+!docker/server_script.sh
+run_tree/
+!run_tree/data/
