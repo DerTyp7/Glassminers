@@ -4,6 +4,7 @@
 - Added a coal and a shard item to the trader shop
 - Added a cheat to activate the next emitter for quicker testing
 - Added closing huds via escape on keyboards or the "B" button on gamepads
+- Added a gamma slider so that the game is also playable on low-brightness screens
 - Emitters no longer enter a "completion" stage, they keep losing power
 - Decreased the maximum charge time of an emitter to 120s
 - Decreased the charge-up time of a coal item to 50s

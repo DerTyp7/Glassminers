@@ -9,6 +9,7 @@ Lightmap :: struct {
 
     intermediate: []f32;
 
+    gamma: f32 = 1;
 #if DEVELOPER {
     disabled: bool;
 }
@@ -93,7 +94,8 @@ query_lightmap :: (map: *Lightmap, tile: v2i) -> f32 {
     assert(tile.x >= 0 && tile.x < map.size.x && tile.y >= 0 && tile.y < map.size.y, "Tried to query the lightmap out of bounds.");
 
     index := tile.y * map.size.x + tile.x;
-    return max(map.tiles[index], LIGHTMAP_AMBIENCE);
+    t := max(map.tiles[index], LIGHTMAP_AMBIENCE);
+    return powf(t, 1 / map.gamma);
 }
 
 query_lightmap_at_fractional :: (map: *Lightmap, position: v2f) -> f32 {

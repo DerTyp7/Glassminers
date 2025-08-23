@@ -1485,6 +1485,7 @@ do_game_tick :: (client: *Client) {
 
             ui_label(ui, true, "Seed: %", client.game_seed);
             ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
+            ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
 
             ui_divider(ui, true);
             if ui_button(ui, "Continue!") {
