@@ -614,9 +614,7 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
         fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
     }
         
-    if emitter.state == .Active {
-        emitter.current_charge -= client.tick_time;
-    }
+    emitter.current_charge = clamp(emitter.current_charge - client.tick_time, 0, EMITTER_MAX_CHARGE);
 
     if particle_system_exists(client, emitter.particles) {
         particles := get_particle_system(client, emitter.particles);

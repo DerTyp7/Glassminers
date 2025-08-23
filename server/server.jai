@@ -949,7 +949,7 @@ do_game_tick :: (server: *Server) {
 
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
-            if !occupied || emitter.state != .Off continue;
+            if !occupied continue;
 
             update_off_emitter(server, emitter);
         }

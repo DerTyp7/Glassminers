@@ -353,9 +353,8 @@ Guy_State :: enum {
 }
 
 Emitter_State :: enum {
-    Off; // Hasn't yet been powered on by another emitter
+    Off;    // Hasn't yet been powered on by another emitter
     Active; // Is the currently active emitter - Losing charge over time
-    Complete; // Has powered another emitter - Always on for better playing experience
 }
 
 Frog_State :: enum {

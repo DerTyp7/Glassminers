@@ -518,30 +518,25 @@ set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, 
 
 update_powered_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
-    recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
 
-    if emitter.state == {
-      case .Active;
+    if emitter.state != .Off {
+        recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
         emitter.current_charge = clamp(emitter.current_charge - server.tick_time, 0, EMITTER_MAX_CHARGE);
     }
 }
 
 update_off_emitter :: (server: *Server, emitter: *Emitter) {
-    is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
-    if is_beam && incoming_direction == emitter.physical_rotation {
-        emitter.current_charge = clamp(emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
-        
-        if emitter.current_charge >= EMITTER_MAX_CHARGE {
-            // Mark all other emitters as complete, even if they weren't the ones who powered this emitter up.
-            for i := 0; i < server.emitters.slot_count; ++i {
-                third_emitter, occupied := index_bucket_array(*server.emitters, i);
-                if third_emitter.physical_position.x < emitter.physical_position.x then set_emitter_state(server, third_emitter, .Complete, EMITTER_MAX_CHARGE);
+    if emitter.state == .Off {
+        is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
+        if is_beam && incoming_direction == emitter.physical_rotation {
+            emitter.current_charge = clamp(emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
+            
+            if emitter.current_charge >= EMITTER_MAX_CHARGE {
+                set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
             }
-
-            set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+        } else {
+            emitter.current_charge = clamp(emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
         }
-    } else {
-        emitter.current_charge = clamp(emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
     }
 }
 
