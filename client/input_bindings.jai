@@ -4,6 +4,12 @@ Input_Binding_Check :: enum bitfield {
     Released;
 }
 
+Input_Binding_Kind :: enum {
+    Keyboard;
+    Gamepad_Button;
+    Gamepad_Gesture;
+}
+
 Input_Device :: enum {
     Keyboard :: 0x1;
     Gamepad  :: 0x2;
@@ -28,6 +34,7 @@ Input_Action :: enum {
     Interact_Secondary;
 
     Hud_Toggle;
+    Hud_Close;
     Hud_Confirm;
     Hud_Left;
     Hud_Right;
@@ -51,10 +58,20 @@ Input_Binder :: struct {
     active_input_device: Input_Device = 0;
     allowed_input_devices: Input_Device = 0;
     gamepad_index := 0;
-    input_bindings_fired_this_frame: [..]Input_Binding; // We don't want the same input binding to fire two separate actions, e.g. rotating a mirror and opening the crafting menu with the same button press
     input_action_held: [Input_Action.Count]bool = .[ false ];
     input_action_hold_time: [Input_Action.Count]f32 = .[ 0 ]; // If an input action is currently being held for this binder, this value will count up the frame time. This is then used to determine repeating input actions
 }
+
+Input_Binding_Tracker :: struct {
+    Gamepad_Tracker :: struct {
+        buttons_fired_this_frame: [..]Window_Gamepad_Button_Code;
+        gestures_fired_this_frame: [..]Window_Gamepad_Gesture_Code;
+    }
+    
+    keys_fired_this_frame: [..]Key_Code; // If a key already triggered any input action this frame, it is added to this list
+    gamepads: [WINDOW_MAX_GAMEPADS]Gamepad_Tracker;
+}
+
 
 
 register_all_input_bindings :: (client: *Client) {
@@ -101,6 +118,7 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Interact_Primary]   = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
     ib[.Interact_Secondary] = .[ keycode(.E), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
     ib[.Hud_Toggle]         = .[ keycode(.E), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
+    ib[.Hud_Close]          = .[ keycode(.Escape), gamepad_button(.PS_Circle), gamepad_button(.XBox_B) ];
     ib[.Hud_Confirm]        = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
     ib[.Hud_Left]           = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_button(.Left_Bumper) ];
     ib[.Hud_Right]          = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper) ];
@@ -140,25 +158,20 @@ update_input_binders :: (client: *Client) {
     }
 }
 
-prepare_input_binders :: (client: *Client) {
-    prepare_input_binder(*client.global_input_binder);
+reset_input_binding_tracker :: (client: *Client) {
+    array_clear(*client.input_binding_tracker.keys_fired_this_frame);
+    client.input_binding_tracker.keys_fired_this_frame.allocator = *temp;
 
-    if client.current_state == .Ingame {
-        for i := 0; i < client.local_player_count; ++i {
-            prepare_input_binder(*client.local_players[i].input_binder);
-        }
+    for i := 0; i < client.input_binding_tracker.gamepads.Capacity; ++i {
+        gamepad := *client.input_binding_tracker.gamepads[i];
+        array_clear(*gamepad.buttons_fired_this_frame);
+        array_clear(*gamepad.gestures_fired_this_frame);
     }
 }
 
 
 
 #file_scope
-
-Input_Binding_Kind :: enum {
-    Keyboard;
-    Gamepad_Button;
-    Gamepad_Gesture;
-}
 
 INPUT_BINDING_KIND_DEVICE: [Input_Binding_Kind.Count]Input_Device : .[
         .Keyboard,
@@ -175,26 +188,42 @@ check_input_binding_held :: (client: *Client, binder: *Input_Binder, binding: *I
     }
 }
 
+input_binding_already_fired_this_frame :: (client: *Client, binding: *Input_Binding, gamepad_index: s64) -> bool {
+    already_fired: bool = ---;
+    
+    if #complete binding.kind == {
+      case .Keyboard; already_fired = array_contains(*client.input_binding_tracker.keys_fired_this_frame, binding.keycode);
+      case .Gamepad_Button;
+        gamepad := *client.input_binding_tracker.gamepads[gamepad_index];
+        already_fired = array_contains(*gamepad.buttons_fired_this_frame, binding.gamepad_button);
+      case .Gamepad_Gesture;
+        gamepad := *client.input_binding_tracker.gamepads[gamepad_index];
+        already_fired = array_contains(*gamepad.gestures_fired_this_frame, binding.gamepad_gesture);
+    }
+
+    return already_fired;
+}
+
+register_input_binding_fired_this_frame :: (client: *Client, binding: *Input_Binding, gamepad_index: s64) {
+    if #complete binding.kind == {
+      case .Keyboard; array_add(*client.input_binding_tracker.keys_fired_this_frame, binding.keycode);
+      case .Gamepad_Button; 
+        gamepad := *client.input_binding_tracker.gamepads[gamepad_index];
+        array_add(*gamepad.buttons_fired_this_frame, binding.gamepad_button);
+      case .Gamepad_Gesture;
+        gamepad := *client.input_binding_tracker.gamepads[gamepad_index];
+        array_add(*gamepad.gestures_fired_this_frame, binding.gamepad_gesture);
+    }
+}
+
 check_input_binder_for_action :: (client: *Client, binder: *Input_Binder, action: Input_Action, check: Input_Binding_Check) -> bool {
     fired_binding: *Input_Binding = null;
 
     for i := 0; i < client.input_bindings[action].count; ++i {
         binding := *client.input_bindings[action][i];
         if !bitfield_contains(*binder.allowed_input_devices, INPUT_BINDING_KIND_DEVICE[binding.kind]) continue;
-        
-        // Make sure this binding hasn't been fired in this frame already
-        {
-            fired_already := false;
-            
-            for j := 0; j < binder.input_bindings_fired_this_frame.count; ++j {
-                if compare_input_bindings(binding, array_get_pointer(*binder.input_bindings_fired_this_frame, j)) {
-                    fired_already = true;
-                    break;
-                }
-            }
 
-            if fired_already break;
-        }
+        if input_binding_already_fired_this_frame(client, binding, binder.gamepad_index) continue;
         
         // Check if this binding has actually been fired this frame
         if #complete binding.kind == {
@@ -248,9 +277,9 @@ check_input_binder_for_action :: (client: *Client, binder: *Input_Binder, action
     // Register the potentially fired binding in the binder, so that it won't fire anything else
     // this frame
     if fired_binding {
-        array_add(*binder.input_bindings_fired_this_frame, ~fired_binding);
+        register_input_binding_fired_this_frame(client, fired_binding, binder.gamepad_index);
         binder.active_input_device = INPUT_BINDING_KIND_DEVICE[fired_binding.kind];
-
+        
         if #complete check == {
           case .Pressed;
             binder.input_action_held[action] = true;
@@ -293,9 +322,4 @@ update_input_binder :: (client: *Client, binder: *Input_Binder) {
             binder.input_action_hold_time[action] = 0;
         }
     }
-}
-
-prepare_input_binder :: (input_binder: *Input_Binder) {
-    array_clear_without_deallocation(*input_binder.input_bindings_fired_this_frame);
-    input_binder.input_bindings_fired_this_frame.allocator = *temp;
 }

@@ -14,6 +14,8 @@ Build_Target :: enum {
 }
 
 apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Target, release_subsystem: Subsystem) {
+    options.type_information  = true;
+
     if #complete mode == {
       case .Debug;
         options.target_backend    = .X64;
@@ -52,7 +54,6 @@ build_server :: (mode: Build_Mode, target: Build_Target) -> bool {
     options.workspace_name    = "Server";
     options.output_file_path  = "run_tree/server";
     options.source_files      = .[ "server/server.jai" ];
-    options.type_information  = true;
     apply_flags(*options, mode, target, .Console);
     return compiler_create_and_compile_workspace(*options);    
 }
@@ -71,7 +72,6 @@ build_client :: (mode: Build_Mode) {
         options.linker_options = .[ .{ .Library, "run_tree/server" } ];
     }
         
-    options.type_information  = true;
     apply_flags(*options, mode, .Executable, .Windows);
     compiler_create_and_compile_workspace(*options);
 }

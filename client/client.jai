@@ -120,8 +120,9 @@ Client :: struct {
     //
     input_bindings: [Input_Action.Count][]Input_Binding;
     input_action_repetition_intervals: [Input_Action.Count]f32 = .[ MAX_F32 ]; // For every action, we can define the interval in which the action is considered "repeated". Repeated means: When the player keeps pressing the button (or holding the gesture, etc) for this interval, the action shall be triggered again
-    global_input_binder: Input_Binder;
-    
+    input_binding_tracker: Input_Binding_Tracker;
+    global_input_binder: Input_Binder;    
+
     //
     // Networking
     //
@@ -1326,45 +1327,6 @@ do_game_tick :: (client: *Client) {
     }
 }
 
-
-    // Do the pause menu
-    {
-        if input_action_fired_globally(client, .Toggle_Pause_Menu, .Pressed) {
-            client.pause_menu_open = !client.pause_menu_open;
-
-            msg := make_message(Game_Pause_Message);
-            msg.game_pause.client_pid = client.my_client_pid;
-            msg.game_pause.should_pause = client.pause_menu_open;
-            array_add(*outgoing_messages, msg);
-        }
-
-        if client.pause_menu_open {
-            ui :: *client.ui;
-            ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.5 });
-            ui_push_width(ui, .Pixels, 256, 1);
-            ui_push_height(ui, .Pixels, 32, 1);
-
-            ui_label(ui, true, "Seed: %", client.game_seed);
-            ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
-
-            ui_divider(ui, true);
-            if ui_button(ui, "Continue!") {
-                client.pause_menu_open = false;
-                msg := make_message(Game_Pause_Message);
-                msg.game_pause.client_pid = client.my_client_pid;
-                msg.game_pause.should_pause = client.pause_menu_open;
-                array_add(*outgoing_messages, msg);
-            }
-            
-            ui_divider(ui, false);
-            if ui_button(ui, "Back to Main Menu!") then client.next_state = .Main_Menu;
-
-            ui_pop_height(ui);
-            ui_pop_width(ui);
-            ui_pop_window(ui);
-        }
-    }
-
     // Forward any input for the guys to the server
     if !(client.pause_menu_open || client.server_paused_game) {
         for i := 0; i < client.local_player_count; ++i {
@@ -1502,7 +1464,46 @@ do_game_tick :: (client: *Client) {
             }
         }
     }
-        
+
+    // Do the pause menu. The escape key can close the hud and open the pause menu, but we want to give
+    // input priorization to the hud.
+    {
+        if input_action_fired_globally(client, .Toggle_Pause_Menu, .Pressed) {
+            client.pause_menu_open = !client.pause_menu_open;
+
+            msg := make_message(Game_Pause_Message);
+            msg.game_pause.client_pid = client.my_client_pid;
+            msg.game_pause.should_pause = client.pause_menu_open;
+            array_add(*outgoing_messages, msg);
+        }
+
+        if client.pause_menu_open {
+            ui :: *client.ui;
+            ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.5 });
+            ui_push_width(ui, .Pixels, 256, 1);
+            ui_push_height(ui, .Pixels, 32, 1);
+
+            ui_label(ui, true, "Seed: %", client.game_seed);
+            ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
+
+            ui_divider(ui, true);
+            if ui_button(ui, "Continue!") {
+                client.pause_menu_open = false;
+                msg := make_message(Game_Pause_Message);
+                msg.game_pause.client_pid = client.my_client_pid;
+                msg.game_pause.should_pause = client.pause_menu_open;
+                array_add(*outgoing_messages, msg);
+            }
+            
+            ui_divider(ui, false);
+            if ui_button(ui, "Back to Main Menu!") then client.next_state = .Main_Menu;
+
+            ui_pop_height(ui);
+            ui_pop_width(ui);
+            ui_pop_window(ui);
+        }
+    }
+    
     // Send all outgoing messages
     {
         for i := 0; i < outgoing_messages.count; ++i {
@@ -1672,7 +1673,7 @@ main :: (args: []string) -> s32 {
             begin_ui_frame(*client.ui, .{ 128, 24 });
             recalculate_local_player_viewports(*client);
             reassign_gamepad_indices(*client);
-            prepare_input_binders(*client);
+            reset_input_binding_tracker(*client);
 
             if input_action_fired_globally(*client, .Toggle_Fullscreen, .Pressed) {
                 if client.window.fullscreen {
