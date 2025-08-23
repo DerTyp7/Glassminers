@@ -519,10 +519,11 @@ set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, 
 update_powered_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
 
-    if emitter.state != .Off {
+    if emitter.state != .Off && emitter.current_charge > 0 {
         recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
-        emitter.current_charge = clamp(emitter.current_charge - server.tick_time, 0, EMITTER_MAX_CHARGE);
     }
+
+    emitter.current_charge = clamp(emitter.current_charge - server.tick_time, 0, EMITTER_MAX_CHARGE);
 }
 
 update_off_emitter :: (server: *Server, emitter: *Emitter) {

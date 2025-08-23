@@ -12,6 +12,7 @@
 - Increased the intensity of the torch to be brighter
 - Fixed spatialization not working as intended for local multiplayer
 - Fixed the tutorial not completing when putting the flag onto the final column *after* charging up the third emitter
+- Fixed emitters still having an invisible beam even when being completely out of charge
 
 ## 0.3.1 (18.08.2025)
 
