@@ -6,6 +6,7 @@ run_tree/*.obj
 run_tree/*.o
 run_tree/*.c
 run_tree/memory.log
+docker/logs/
 
 # Debugger files
 
