@@ -581,10 +581,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
           case .Active; 
             if previous_state != .Active {
                 stop_sound(client, *emitter.sound);
-                emitter.sound = play_sound_on_entity(client, .Hud_Success_0, emitter, .Default);
+                emitter.sound = play_sound(client, .Hud_Success_0, .Default); // Don't spatialize this sound so that everyone can hear it
             }
           case .Off;
-            should_play_sound := emitter.currently_charging_up && emitter.current_charge < EMITTER_MAX_CHARGE - 10; // Avoid glitching at the end due to client side prediction
+            should_play_sound := emitter.currently_charging_up && emitter.current_charge < EMITTER_MAX_CHARGE; // Avoid glitching at the end due to client side prediction
             if should_play_sound && !sound_active(client, emitter.sound) {
                 emitter.sound = play_sound_on_entity(client, .Emitter_Charging, emitter, .Default);
                 set_sound_playback_position(client, emitter.sound, emitter.current_charge / EMITTER_MAX_CHARGE);
