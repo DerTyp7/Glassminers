@@ -6,8 +6,9 @@
 - Added closing huds via escape on keyboards or the "B" button on gamepads
 - Added a gamma slider so that the game is also playable on low-brightness screens
 - Emitters no longer enter a "completion" stage, they keep losing power
-- Decreased the maximum charge time of an emitter to 120s
-- Decreased the charge-up time of a coal item to 50s
+- Slightly changed the location of the trader in the tutorial level
+- Decreased the maximum charge time of an emitter to 90s
+- Decreased the charge-up time of a coal item to 45s
 - Increased the intensity of the torch to be brighter
 - Fixed spatialization not working as intended for local multiplayer
 - Fixed the tutorial not completing when putting the flag onto the final column *after* charging up the third emitter
