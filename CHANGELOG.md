@@ -11,6 +11,7 @@
 - Decreased the maximum charge time of an emitter to 90s
 - Decreased the charge-up time of a coal item to 45s
 - Increased the intensity of the torch to be brighter
+- Improved the user experience of working with text inputs in the main menu
 - Fixed spatialization not working as intended for local multiplayer
 - Fixed the tutorial not completing when putting the flag onto the final column *after* charging up the third emitter
 - Fixed emitters still having an invisible beam even when being completely out of charge

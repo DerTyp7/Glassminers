@@ -942,6 +942,20 @@ do_connecting_screen :: (client: *Client) {
     }    
 }
 
+maybe_add_local_player :: (client: *Client) {
+    if client.local_player_count >= MAX_LOCAL_PLAYERS || client.ui_state.local_player_name.count == 0 return;
+
+    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, client.ui_state.local_player_name);
+    client.local_players[client.local_player_count].input_binder.allowed_input_devices = .Gamepad;
+    ++client.local_player_count;
+
+    if client.local_players[0].input_binder.allowed_input_devices == .ALL then client.local_players[0].input_binder.allowed_input_devices = .Keyboard;
+
+    send_player_information_message(client, client.local_player_count - 1);
+
+    deallocate_string(*client.engine_allocator, *client.ui_state.local_player_name);
+}
+
 do_lobby_screen :: (client: *Client) {
     input_device_widget :: (client: *Client, label: string, allowed_devices: *Input_Device) {
         Custom_State :: struct {
@@ -1034,18 +1048,10 @@ do_lobby_screen :: (client: *Client) {
                 ui_push_container(ui, .Horizontal);
                 ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
 
-                ui_text_input_with_string(ui, "Name", *client.ui_state.local_player_name, *client.engine_allocator);
+                entered_name := ui_text_input_with_string(ui, "Name", *client.ui_state.local_player_name, *client.engine_allocator);
 
-                if ui_button(ui, "Add!") && client.ui_state.local_player_name {
-                    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, client.ui_state.local_player_name);
-                    client.local_players[client.local_player_count].input_binder.allowed_input_devices = .Gamepad;
-                    ++client.local_player_count;
-
-                    if client.local_players[0].input_binder.allowed_input_devices == .ALL then client.local_players[0].input_binder.allowed_input_devices = .Keyboard;
-
-                    send_player_information_message(client, client.local_player_count - 1);
-
-                    deallocate_string(*client.engine_allocator, *client.ui_state.local_player_name);
+                if ui_button(ui, "Add!") || entered_name {
+                    maybe_add_local_player(client);
                 }
 
                 ui_pop_width(ui);
@@ -1066,6 +1072,7 @@ do_lobby_screen :: (client: *Client) {
         do_game_mode_selector(client);
         
         if ui_button(ui, "Start!") {
+            maybe_add_local_player(client); // Add a new local player when somebody typed in the name but forgot to press "Add!"
             start_lobby(client);
         }
         
