@@ -355,20 +355,9 @@ use_random_world_generation :: (server: *Server) -> bool {
 
 
 
-Spawn_Probability :: enum { // Roughly sorted by specific to generic
-    Slime_Hole;
-    Trader;
-    Lava;
-    Bedrock;
-
-    Resource;
-    Frog;
-    Goblin;
-}
-
 SPAWN_PROBABILITY_TABLE :: #run setup_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
 
-setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32 {
+setup_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count]f32 {
     desired_per_section :: (x: f32) -> f32 { // On average I expect X entities in one section
         return cast(f32) x / cast(f32) (SECTION_WIDTH * SECTION_HEIGHT);
     }
@@ -377,11 +366,11 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32
         return p;
     }
 
-    modify_default :: (target: Game_Mode, probability: Spawn_Probability, modifier: f32) #macro {
-        result[target][probability] = result[.Medium][probability] * modifier;
+    modify_default :: (target: Game_Mode, kind: Entity_Kind, modifier: f32) #macro {
+        result[target][kind] = result[.Medium][kind] * modifier;
     }
 
-    result: [Game_Mode.Count][Spawn_Probability.Count]f32 = ---;
+    result: [Game_Mode.Count][Entity_Kind.Count]f32;
 
     // Set up the default difficulty
     {
@@ -389,7 +378,9 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32
         result[.Medium][.Trader]     = desired_per_section(0.75);
         result[.Medium][.Lava]       = desired_coverage(0.085);
         result[.Medium][.Bedrock]    = desired_coverage(0.17);
-        result[.Medium][.Resource]   = desired_per_section(4);
+        result[.Medium][.Coal]       = desired_per_section(4);
+        result[.Medium][.Rock]       = desired_per_section(4);
+        result[.Medium][.Crystal]    = desired_per_section(3);
         result[.Medium][.Frog]       = desired_per_section(3);
         result[.Medium][.Goblin]     = desired_per_section(4);
     }
@@ -400,7 +391,9 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32
         modify_default(.Easy, .Trader,      2.0);
         modify_default(.Easy, .Lava,        1.0);
         modify_default(.Easy, .Bedrock,     1.0);
-        modify_default(.Easy, .Resource,    1.1);
+        modify_default(.Easy, .Coal,        1.1);
+        modify_default(.Easy, .Rock,        1.1);
+        modify_default(.Easy, .Crystal,     1.1);
         modify_default(.Easy, .Frog,       0.75);
         modify_default(.Easy, .Goblin,     0.75);
     }    
@@ -409,9 +402,11 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32
     {
         modify_default(.Hard, .Slime_Hole, 1.2);
         modify_default(.Hard, .Trader,     1.1);
-        modify_default(.Hard, .Lava,       1.1);
+        modify_default(.Hard, .Lava,       1.2);
         modify_default(.Hard, .Bedrock,    1.0);
-        modify_default(.Hard, .Resource,   0.8);
+        modify_default(.Hard, .Coal,       0.75);
+        modify_default(.Hard, .Rock,       0.75);
+        modify_default(.Hard, .Crystal,    0.75);
         modify_default(.Hard, .Frog,       1.2);
         modify_default(.Hard, .Goblin,     1.2);
     }
@@ -458,19 +453,19 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
         return position, success;
     }
 
-    generate_random_count :: (server: *Server, section: [2]s32, probability: Spawn_Probability) -> s32 {
-        t := SPAWN_PROBABILITY_TABLE[server.game_mode][probability];
+    generate_random_count :: (server: *Server, section: [2]s32, kind: Entity_Kind) -> s32 {
+        t := SPAWN_PROBABILITY_TABLE[server.game_mode][kind];
         area := (section[1] - section[0] + 1) * SECTION_HEIGHT;
         mean := t * cast(f32) area;
         stddev: f32 : 0.25;
         return cast(s32) round(random_f32_normal_distribution(*server.random, mean, stddev * mean));
     }
 
-    generate_randomly :: (server: *Server, section: [2]s32, probability: Spawn_Probability, kind: Entity_Kind) -> [..]*Entity {
+    generate_randomly :: (server: *Server, section: [2]s32, kind: Entity_Kind) -> [..]*Entity {
         result: [..]*Entity;
         result.allocator = *temp;
         
-        count := generate_random_count(server, section, probability);
+        count := generate_random_count(server, section, kind);
 
         for i := 0; i < count; ++i {
             position, success := random_position(server, section);
@@ -488,20 +483,20 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
         server.latest_emitter = latest_emitter.pid;
     }
     
-    generate_randomly(server, section, .Lava,     .Lava);
-    generate_randomly(server, section, .Bedrock,  .Bedrock);
-    generate_randomly(server, section, .Resource, .Rock);
-    generate_randomly(server, section, .Resource, .Crystal);
-    generate_randomly(server, section, .Resource, .Coal);
-    generate_randomly(server, section, .Frog,     .Frog);
-    generate_randomly(server, section, .Goblin,   .Goblin);
-    generate_randomly(server, section, .Trader,   .Trader);
-    holes := generate_randomly(server, section, .Slime_Hole, .Slime_Hole);
+    generate_randomly(server, section, .Lava);
+    generate_randomly(server, section, .Bedrock);
+    generate_randomly(server, section, .Rock);
+    generate_randomly(server, section, .Crystal);
+    generate_randomly(server, section, .Coal);
+    generate_randomly(server, section, .Frog);
+    generate_randomly(server, section, .Goblin);
+    generate_randomly(server, section, .Trader);
+    holes := generate_randomly(server, section, .Slime_Hole);
     
     for i := 0; i < holes.count; ++i {
         hole := array_get(*holes, i);
         create_entity(server, .Slime, hole.physical_position, ENTITY_DEFAULT_DIRECTION[.Slime]);
-    }   
+    }
 }
 
 count_sections_in_predefined_world :: (game_mode: Game_Mode) -> u32 {
