@@ -362,7 +362,8 @@ Spawn_Probability :: enum { // Roughly sorted by specific to generic
     Bedrock;
 
     Resource;
-    Monster;
+    Frog;
+    Goblin;
 }
 
 SPAWN_PROBABILITY_TABLE :: #run setup_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
@@ -385,11 +386,12 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32
     // Set up the default difficulty
     {
         result[.Medium][.Slime_Hole] = desired_per_section(1);
-        result[.Medium][.Trader]     = desired_per_section(0.5);
-        result[.Medium][.Lava]       = desired_coverage(0.1);
-        result[.Medium][.Bedrock]    = desired_coverage(0.2);
-        result[.Medium][.Resource]   = desired_per_section(3);
-        result[.Medium][.Monster]    = desired_per_section(4);
+        result[.Medium][.Trader]     = desired_per_section(0.75);
+        result[.Medium][.Lava]       = desired_coverage(0.085);
+        result[.Medium][.Bedrock]    = desired_coverage(0.17);
+        result[.Medium][.Resource]   = desired_per_section(4);
+        result[.Medium][.Frog]       = desired_per_section(3);
+        result[.Medium][.Goblin]     = desired_per_section(4);
     }
 
     // Set up the easy difficulty
@@ -399,7 +401,8 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32
         modify_default(.Easy, .Lava,        1.0);
         modify_default(.Easy, .Bedrock,     1.0);
         modify_default(.Easy, .Resource,    1.1);
-        modify_default(.Easy, .Monster,    0.75);
+        modify_default(.Easy, .Frog,       0.75);
+        modify_default(.Easy, .Goblin,     0.75);
     }    
 
     // Set up the hard difficulty
@@ -409,7 +412,8 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32
         modify_default(.Hard, .Lava,       1.1);
         modify_default(.Hard, .Bedrock,    1.0);
         modify_default(.Hard, .Resource,   0.8);
-        modify_default(.Hard, .Monster,    1.2);
+        modify_default(.Hard, .Frog,       1.2);
+        modify_default(.Hard, .Goblin,     1.2);
     }
 
     return result;
@@ -470,7 +474,10 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
 
         for i := 0; i < count; ++i {
             position, success := random_position(server, section);
-            if success create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
+            if success {
+                entity := create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
+                array_add(*result, entity);
+            }
         }
 
         return result;
@@ -481,14 +488,14 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
         server.latest_emitter = latest_emitter.pid;
     }
     
-    generate_randomly(server, section, .Lava, .Lava);
-    generate_randomly(server, section, .Bedrock, .Bedrock);
+    generate_randomly(server, section, .Lava,     .Lava);
+    generate_randomly(server, section, .Bedrock,  .Bedrock);
     generate_randomly(server, section, .Resource, .Rock);
     generate_randomly(server, section, .Resource, .Crystal);
     generate_randomly(server, section, .Resource, .Coal);
-    generate_randomly(server, section, .Monster, .Frog);
-    generate_randomly(server, section, .Monster, .Goblin);
-    generate_randomly(server, section, .Trader, .Trader);
+    generate_randomly(server, section, .Frog,     .Frog);
+    generate_randomly(server, section, .Goblin,   .Goblin);
+    generate_randomly(server, section, .Trader,   .Trader);
     holes := generate_randomly(server, section, .Slime_Hole, .Slime_Hole);
     
     for i := 0; i < holes.count; ++i {

@@ -6,6 +6,7 @@
 - Added closing huds via escape on keyboards or the "B" button on gamepads
 - Added a gamma slider so that the game is also playable on low-brightness screens
 - Added back sound effects to the emitter (during charging + when complete)
+- Changed the probabilities of all entity kinds for the world generation of infinite game modes. The different game modes (difficulties) affect these probabilities
 - Emitters no longer enter a "completion" stage, they keep losing power
 - Slightly changed the location of the trader in the tutorial level
 - Decreased the maximum charge time of an emitter to 90s
