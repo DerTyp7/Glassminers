@@ -11,9 +11,7 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'release' && github.event.action == 'published') ||
-      github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'release'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,6 +48,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
