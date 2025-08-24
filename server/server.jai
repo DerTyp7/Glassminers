@@ -353,25 +353,87 @@ use_random_world_generation :: (server: *Server) -> bool {
     return !(server.game_mode == .Tutorial || server.game_mode == .Developer);
 }
 
-fill_world_section_randomly :: (server: *Server, low, high: s32) {
-    is_blocked_position :: (server: *Server, position: v2i) -> bool {
-        if position.y >= 1 && position.y <= 3 &&
-            position.x >= 0 && position.x <= 2 + server.clients.count + 1 return true;
 
-        if find_any_entity_at_position(server, position) != null return true;
 
-        return false;
+Spawn_Probability :: enum { // Roughly sorted by specific to generic
+    Slime_Hole;
+    Trader;
+    Lava;
+    Bedrock;
+
+    Resource;
+    Monster;
+}
+
+SPAWN_PROBABILITY_TABLE :: #run setup_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
+
+setup_probabilities_table :: () -> [Game_Mode.Count][Spawn_Probability.Count]f32 {
+    desired_per_section :: (x: f32) -> f32 { // On average I expect X entities in one section
+        return cast(f32) x / cast(f32) (SECTION_WIDTH * SECTION_HEIGHT);
     }
 
-    random_position :: (server: *Server, low, high: s32) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.random, low, high),
+    desired_coverage :: (p: f32) -> f32 { // On average I expect p % of the tiles to be this entity
+        return p;
+    }
+
+    modify_default :: (target: Game_Mode, probability: Spawn_Probability, modifier: f32) #macro {
+        result[target][probability] = result[.Medium][probability] * modifier;
+    }
+
+    result: [Game_Mode.Count][Spawn_Probability.Count]f32 = ---;
+
+    // Set up the default difficulty
+    {
+        result[.Medium][.Slime_Hole] = desired_per_section(1);
+        result[.Medium][.Trader]     = desired_per_section(0.5);
+        result[.Medium][.Lava]       = desired_coverage(0.1);
+        result[.Medium][.Bedrock]    = desired_coverage(0.2);
+        result[.Medium][.Resource]   = desired_per_section(3);
+        result[.Medium][.Monster]    = desired_per_section(4);
+    }
+
+    // Set up the easy difficulty
+    {
+        modify_default(.Easy, .Slime_Hole, 0.75);
+        modify_default(.Easy, .Trader,      2.0);
+        modify_default(.Easy, .Lava,        1.0);
+        modify_default(.Easy, .Bedrock,     1.0);
+        modify_default(.Easy, .Resource,    1.1);
+        modify_default(.Easy, .Monster,    0.75);
+    }    
+
+    // Set up the hard difficulty
+    {
+        modify_default(.Hard, .Slime_Hole, 1.2);
+        modify_default(.Hard, .Trader,     1.1);
+        modify_default(.Hard, .Lava,       1.1);
+        modify_default(.Hard, .Bedrock,    1.0);
+        modify_default(.Hard, .Resource,   0.8);
+        modify_default(.Hard, .Monster,    1.2);
+    }
+
+    return result;
+}
+
+fill_world_section_randomly :: (server: *Server, section: [2]s32) {
+    is_reserved_position :: (server: *Server, position: v2i) -> bool {
+        // We want to free up space around the spawn positions of the player (so that players don't spawn on
+        // top of monsters, etc).
+        // However, we *don't* want this to mess with our probability distributions - so if an entity would've
+        // been spawned here, we don't want to move it somewhere else in the section, we just want to drop it.
+        // Otherwise, we make the right side of the first section really dense...
+        return (position.y >= 1 && position.y <= 3 && position.x >= 0 && position.x <= 2 + server.clients.count + 1);
+    }
+
+    random_position :: (server: *Server, section: [2]s32) -> v2i, bool {
+        position := v2i.{ random_u64_in(*server.random, section[0], section[1] + 1),
                           random_u64_in(*server.random, 0, SECTION_HEIGHT) };
 
         success := true;
         
         iteration := 0;
-        while is_blocked_position(server, position) {
-            position = v2i.{ random_u64_in(*server.random, low, high),
+        while find_any_entity_at_position(server, position) {
+            position = v2i.{ random_u64_in(*server.random, section[0], section[1] + 1),
                              random_u64_in(*server.random, 0, SECTION_HEIGHT) };
 
             if iteration > 10 {
@@ -383,50 +445,56 @@ fill_world_section_randomly :: (server: *Server, low, high: s32) {
             ++iteration;
         }
 
+        if success {
+            success = !is_reserved_position(server, position);
+        }
+
         assert(!success || position_in_bounds(server, position), "Somehow generated a position out-of-bounds...");
         
         return position, success;
     }
 
-    generate_n_random_entities :: (server: *Server, low, high: s32, n: s64, kind: Entity_Kind) {
-        for i := 0; i < n; ++i {
-            position, success := random_position(server, low, high);
+    generate_random_count :: (server: *Server, section: [2]s32, probability: Spawn_Probability) -> s32 {
+        t := SPAWN_PROBABILITY_TABLE[server.game_mode][probability];
+        area := (section[1] - section[0] + 1) * SECTION_HEIGHT;
+        mean := t * cast(f32) area;
+        stddev: f32 : 0.25;
+        return cast(s32) round(random_f32_normal_distribution(*server.random, mean, stddev * mean));
+    }
+
+    generate_randomly :: (server: *Server, section: [2]s32, probability: Spawn_Probability, kind: Entity_Kind) -> [..]*Entity {
+        result: [..]*Entity;
+        result.allocator = *temp;
+        
+        count := generate_random_count(server, section, probability);
+
+        for i := 0; i < count; ++i {
+            position, success := random_position(server, section);
             if success create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
         }
-    }
 
-    generate_n_random_slime_holes :: (server: *Server, low, high: s32, n: s64) {
-        for i := 0; i < n; ++i {
-            position, success := random_position(server, low, high);
-            if success {
-                create_entity(server, .Slime_Hole, position, ENTITY_DEFAULT_DIRECTION[.Slime_Hole]);
-                create_entity(server, .Slime, position, ENTITY_DEFAULT_DIRECTION[.Slime]);
-            }
-        }
+        return result;
     }
-
-    generate_random_count :: (server: *Server, base_probability: f32, width: s32) -> s32 {
-        return cast(s32) round(random_f32_zero_to_one(*server.random) * base_probability * cast(f32) width);
-    }
-    
-    width := high - low;
 
     {
-        latest_emitter := create_entity(server, .Emitter, .{ high - 1, random_u64_in(*server.random, 0, SECTION_HEIGHT) }, .East);
+        latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.random, 0, SECTION_HEIGHT) }, .East);
         server.latest_emitter = latest_emitter.pid;
     }
-        
-    generate_n_random_entities(server, low, high, width / 2, .Lava);
-    generate_n_random_entities(server, low, high, width, .Bedrock);
-    generate_n_random_entities(server, low, high, width / 4, .Rock);
-    generate_n_random_entities(server, low, high, width / 4, .Crystal);
-    generate_n_random_entities(server, low, high, width / 4, .Coal);
-    generate_n_random_entities(server, low, high, width / 9, .Frog);
-    generate_n_random_entities(server, low, high, width / 9, .Goblin);
-    generate_n_random_slime_holes(server, low, high, width / 18);
-
-    trader_count := generate_random_count(server, 1 / cast(f32) SECTION_WIDTH, width);    
-    generate_n_random_entities(server, low, high, trader_count, .Trader);
+    
+    generate_randomly(server, section, .Lava, .Lava);
+    generate_randomly(server, section, .Bedrock, .Bedrock);
+    generate_randomly(server, section, .Resource, .Rock);
+    generate_randomly(server, section, .Resource, .Crystal);
+    generate_randomly(server, section, .Resource, .Coal);
+    generate_randomly(server, section, .Monster, .Frog);
+    generate_randomly(server, section, .Monster, .Goblin);
+    generate_randomly(server, section, .Trader, .Trader);
+    holes := generate_randomly(server, section, .Slime_Hole, .Slime_Hole);
+    
+    for i := 0; i < holes.count; ++i {
+        hole := array_get(*holes, i);
+        create_entity(server, .Slime, hole.physical_position, ENTITY_DEFAULT_DIRECTION[.Slime]);
+    }   
 }
 
 count_sections_in_predefined_world :: (game_mode: Game_Mode) -> u32 {
@@ -649,7 +717,7 @@ create_the_game :: (server: *Server) {
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
         
-        fill_world_section_randomly(server, 0, server.world_size.x);
+        fill_world_section_randomly(server, .[ 0, server.world_size.x - 1]);
     } else {
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
     }
@@ -666,7 +734,7 @@ generate_next_world_section :: (server: *Server) {
         msg.world_resize.new_world_size = server.world_size;
         array_add(*server.outgoing_messages, msg);
 
-        fill_world_section_randomly(server, previous_width, server.world_size.x);
+        fill_world_section_randomly(server, .[ previous_width, server.world_size.x - 1 ]);
     } else {
         server.world_size = get_predefined_world_size(server.game_mode, server.current_section_index);
 
