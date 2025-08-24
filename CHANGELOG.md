@@ -1,4 +1,4 @@
-## 0.3.2 (unreleased)
+## 0.3.2 (24.08.2025)
 
 - Added giving items from one guy to another guy directly
 - Added a coal and a shard item to the trader shop
