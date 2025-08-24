@@ -132,10 +132,16 @@ CAMERA_AREA_OFFSET: f32 : CAMERA_AREA_WIDTH / 2 - 0.5;
 VISUAL_ITEM_STACK_CAPACITY :: 5;
 VISUAL_ITEM_STACK_OFFSETS: [VISUAL_ITEM_STACK_CAPACITY]v2f : .[ .{ 0, 0 }, .{ -0.1, 0.2 }, .{ 0.2, 0.1 }, .{ -0.2, -0.1 }, .{ 0.2, -0.2 } ];
 
-EMITTER_TIME_TO_POWER_UP: f32 : 5;
-EMITTER_MAX_CHARGE:  f32 : 90;
 COAL_EMITTER_CHARGE: f32 : 45;
 SLAB_TIME_TO_LIVE:   f32 : 10;
+EMITTER_TIME_TO_POWER_UP: f32 : 5;
+EMITTER_MAX_CHARGE:  [Game_Mode.Count]f32 : .[
+    180, // Developer
+    110, // Tutorial
+    110, // Easy
+    90,  // Medium
+    70,  // Hard
+];
 
 RESURRECTION_TIME: f32 : 5;
 STRENGTH_POTION_TIME: f32 : 30;

@@ -506,7 +506,7 @@ update_guy :: (server: *Server, guy: *Guy) {
 }
 
 set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, charge: f32) {
-    clamped_charge := clamp(charge, 0, EMITTER_MAX_CHARGE);
+    clamped_charge := clamp(charge, 0, EMITTER_MAX_CHARGE[server.game_mode]);
     
     something_changed := emitter.state != state || emitter.current_charge != clamped_charge;
     
@@ -529,18 +529,18 @@ update_powered_emitter :: (server: *Server, emitter: *Emitter) {
         recalculate_beam(server, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
     }
 
-    emitter.current_charge = clamp(emitter.current_charge - server.tick_time, 0, EMITTER_MAX_CHARGE);
+    emitter.current_charge = clamp(emitter.current_charge - server.tick_time, 0, EMITTER_MAX_CHARGE[server.game_mode]);
 }
 
 update_off_emitter :: (server: *Server, emitter: *Emitter) {
     if emitter.state == .Off {
         is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
         if is_beam && incoming_direction == emitter.physical_rotation {
-            new_charge := emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP);
+            new_charge := emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE[server.game_mode] / EMITTER_TIME_TO_POWER_UP);
            
-            set_emitter_state(server, emitter, ifx new_charge >= EMITTER_MAX_CHARGE then .Active else .Off, new_charge);
+            set_emitter_state(server, emitter, ifx new_charge >= EMITTER_MAX_CHARGE[server.game_mode] then .Active else .Off, new_charge);
         } else {
-            set_emitter_state(server, emitter, .Off, emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP));
+            set_emitter_state(server, emitter, .Off, emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE[server.game_mode] / EMITTER_TIME_TO_POWER_UP));
         }
     }
 }

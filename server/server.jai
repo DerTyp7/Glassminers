@@ -644,7 +644,7 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
                     is_first_emitter := (x == 0);
                     
                     if is_first_emitter {
-                        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+                        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE[server.game_mode]);
                     }
                 } else if kind == .Slime_Hole {
                     slime := create_entity(server, .Slime, .{ xPos, y }, direction);
@@ -680,6 +680,7 @@ create_the_game :: (server: *Server) {
     game_start := make_message(Game_Start_Message);
     game_start.game_start.seed = server.game_seed;
     game_start.game_start.size = server.world_size;
+    game_start.game_start.game_mode = server.game_mode;
     array_add(*server.outgoing_messages, game_start);
 
     //
@@ -717,7 +718,7 @@ create_the_game :: (server: *Server) {
     if use_random_world_generation(server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
-        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE[server.game_mode]);
         
         fill_world_section_randomly(server, .[ 0, server.world_size.x - 1]);
     } else {
@@ -986,7 +987,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
             if occupied && emitter.state == .Off {
-                set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE);
+                set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE[server.game_mode]);
             }
         }
     }

@@ -615,7 +615,7 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
         fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
     }
         
-    emitter.current_charge = clamp(emitter.current_charge - client.tick_time, 0, EMITTER_MAX_CHARGE);
+    emitter.current_charge = clamp(emitter.current_charge - client.tick_time, 0, EMITTER_MAX_CHARGE[client.game_mode]);
 
     if particle_system_exists(client, emitter.particles) {
         particles := get_particle_system(client, emitter.particles);
@@ -630,7 +630,7 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
             emitter.beam_ends_in_other_emitter = false;
         }
         
-        x := 1 - emitter.current_charge / EMITTER_MAX_CHARGE;
+        x := 1 - emitter.current_charge / EMITTER_MAX_CHARGE[client.game_mode];
         t := cosf(powf(x * 2, 8)) * 0.5 + 0.5;
         emitter.beam_intensity = smoothstep(t, 0, powf(x, 4) / 3);
 
@@ -692,12 +692,12 @@ update_off_emitter :: (client: *Client, emitter: *Emitter) {
     is_lit := is_beam && incoming_direction == emitter.physical_rotation;
 
     if is_lit {
-        emitter.current_charge = clamp(emitter.current_charge + client.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
+        emitter.current_charge = clamp(emitter.current_charge + client.tick_time * (EMITTER_MAX_CHARGE[client.game_mode] / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE[client.game_mode]);
     } else {
-        emitter.current_charge = clamp(emitter.current_charge - client.tick_time * (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE);
+        emitter.current_charge = clamp(emitter.current_charge - client.tick_time * (EMITTER_MAX_CHARGE[client.game_mode] / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_CHARGE[client.game_mode]);
     }
 
-    emitter.currently_charging_up = is_lit && emitter.current_charge < EMITTER_MAX_CHARGE;
+    emitter.currently_charging_up = is_lit && emitter.current_charge < EMITTER_MAX_CHARGE[client.game_mode];
 }
 
 update_slab :: (client: *Client, slab: *Slab) {

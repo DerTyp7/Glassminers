@@ -9,7 +9,7 @@
 - Changed the probabilities of all entity kinds for the world generation of infinite game modes. The different game modes (difficulties) affect these probabilities
 - Emitters no longer enter a "completion" stage, they keep losing power
 - Slightly changed the location of the trader in the tutorial level
-- Decreased the maximum charge time of an emitter to 90s
+- Decreased the maximum charge time of an emitter to 110s for easy, 90s for medium and 70s for hard mode
 - Decreased the charge-up time of a coal item to 45s
 - Increased the intensity of the torch to be brighter
 - Improved the user experience of working with text inputs in the main menu

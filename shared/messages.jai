@@ -56,6 +56,7 @@ Game_Start_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Start;
     seed: s64;
     size: v2i;
+    game_mode: Game_Mode;
 }
 
 Game_Over_Message :: struct {

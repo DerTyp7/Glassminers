@@ -776,7 +776,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         }
             
         if emitter.current_charge > 0 {
-            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.current_charge / EMITTER_MAX_CHARGE);
+            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.current_charge / EMITTER_MAX_CHARGE[client.game_mode]);
         }
     }
 

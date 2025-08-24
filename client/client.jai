@@ -153,6 +153,7 @@ Client :: struct {
 
     game_seed: s64;
     game_score: u64;
+    game_mode: Game_Mode;
     world_size: v2i;
 
     tick_time: f32;
@@ -377,6 +378,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.server_paused_game = false;
         client.game_seed  = msg.game_start.seed;
         client.world_size = msg.game_start.size;
+        client.game_mode  = msg.game_start.game_mode;
         client.next_state = .Ingame;
 
         create_entity_manager(client);
@@ -571,7 +573,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         emitter.state = msg.emitter_state.state;
         
-        if abs(msg.emitter_state.current_charge - emitter.current_charge) > (EMITTER_MAX_CHARGE / EMITTER_TIME_TO_POWER_UP) * 0.2 {
+        if abs(msg.emitter_state.current_charge - emitter.current_charge) > (EMITTER_MAX_CHARGE[client.game_mode] / EMITTER_TIME_TO_POWER_UP) * 0.2 {
             // Only modify the client side prediction if it actually seems off, to not mess with
             // visuals and audio if not necessary
             emitter.current_charge = msg.emitter_state.current_charge;
@@ -584,10 +586,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
                 emitter.sound = play_sound(client, .Hud_Success_0, .Default); // Don't spatialize this sound so that everyone can hear it
             }
           case .Off;
-            should_play_sound := emitter.currently_charging_up && emitter.current_charge < EMITTER_MAX_CHARGE; // Avoid glitching at the end due to client side prediction
+            should_play_sound := emitter.currently_charging_up && emitter.current_charge < EMITTER_MAX_CHARGE[client.game_mode]; // Avoid glitching at the end due to client side prediction
             if should_play_sound && !sound_active(client, emitter.sound) {
                 emitter.sound = play_sound_on_entity(client, .Emitter_Charging, emitter, .Default);
-                set_sound_playback_position(client, emitter.sound, emitter.current_charge / EMITTER_MAX_CHARGE);
+                set_sound_playback_position(client, emitter.sound, emitter.current_charge / EMITTER_MAX_CHARGE[client.game_mode]);
             } else if !should_play_sound {
                 stop_sound(client, *emitter.sound);
             }
