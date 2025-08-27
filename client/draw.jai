@@ -1095,7 +1095,7 @@ draw_input_hints_for_guy :: (client: *Client, local_player: *Local_Player, guy: 
                 input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
             }
         }
-      case .Item_Stack, .Torch;
+      case .Item_Stack, .Torch, .Flag;
         if guy.state == .Idle {
             input_sprites = .[ get_sprite_index_for_input_action(client, local_player, .Interact_Primary) ];
             vertical_icon_offset = 0.25;

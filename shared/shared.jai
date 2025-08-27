@@ -276,8 +276,8 @@ ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
 
 ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
     // Beams
-    2, // Emitter
-    2, // Mirror
+    3, // Emitter
+    3, // Mirror
 
     // Environment
     0, // Lava

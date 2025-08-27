@@ -1,3 +1,8 @@
+## 0.3.3 (unreleased)
+
+- Added a missing input hint to pick up the flag
+- Fixed a visual glitch when pushing a mirror onto a slime hole
+
 ## 0.3.2 (24.08.2025)
 
 - Added giving items from one guy to another guy directly
