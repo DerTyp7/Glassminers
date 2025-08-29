@@ -96,7 +96,8 @@ Client :: struct {
     previous_game_result: Game_Result;
     info_text: string;
     info_text_t: f32;
-    
+    vibration_enabled := true;
+
     //
     // Assets
     //
@@ -1519,6 +1520,7 @@ do_game_tick :: (client: *Client) {
             ui_label(ui, true, "Seed: %", client.game_seed);
             ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
             ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
+            ui_check_box(ui, "Vibration", *client.vibration_enabled);
 
             ui_divider(ui, true);
             if ui_button(ui, "Continue!") {
@@ -1816,12 +1818,13 @@ main :: (args: []string) -> s32 {
                     guy := down(entity, Guy);
                     
                     digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
-                    vibration := max(entity.health_bar_damage_animation_t, digging_vibration);
+                    desired_vibration := max(entity.health_bar_damage_animation_t, digging_vibration);
+                    applied_vibration := ifx client.vibration_enabled then desired_vibration else 0;
 
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
 
-                    set_window_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, vibration, vibration, color.r, color.g, color.b);
+                    set_window_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, applied_vibration, applied_vibration, color.r, color.g, color.b);
                 }
             }
         }

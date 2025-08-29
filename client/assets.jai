@@ -8,6 +8,10 @@ SPRITE_ATLAS_COUNT     :: 3;
 SPRITE_WIDTH           :: SPRITE_ATLAS_WIDTH / SPRITE_ATLAS_COLUMNS;
 SPRITE_HEIGHT          :: SPRITE_ATLAS_HEIGHT / SPRITE_ATLAS_ROWS;
 
+UI_FONT_SIZE:    s16 : 13;
+TITLE_FONT_SIZE: s16 : 45;
+HUD_FONT_SIZE:   s16 : 25;
+
 Texture_Data :: struct {
     width:    u32;
     height:   u32;

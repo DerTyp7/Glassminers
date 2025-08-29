@@ -236,18 +236,18 @@ create_draw_data :: (client: *Client) -> bool {
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
 
 #if BAKE_ASSETS {
-    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, 13, .Ascii);
-    ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, 45, .Ascii);
-    ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, 25, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, UI_FONT_SIZE, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, TITLE_FONT_SIZE, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, HUD_FONT_SIZE, .Ascii);
 
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         client.sprite_atlases[i] = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLASES[i].width, BAKED_SPRITE_ATLASES[i].height, BAKED_SPRITE_ATLASES[i].channels, BAKED_SPRITE_ATLASES[i].pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
     }
     return true;
 } #else {
-    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", 13, .Ascii);
-    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", 45, .Ascii);
-    ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", 25, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", UI_FONT_SIZE, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", TITLE_FONT_SIZE, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", HUD_FONT_SIZE, .Ascii);
     return reload_sprite_atlases_from_disk(client);
 }
 }
