@@ -705,7 +705,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     // visibility checks on these entities
     //
     {
-        compare_entities_by_depth :: (lhs, rhs: **Entity) -> s32 {
+        compare_entities_by_depth :: (lhs, rhs: **Entity) -> Sort_Comparison_Result {
             return ENTITY_VISUAL_DEPTHS[(~lhs).entity_kind] - ENTITY_VISUAL_DEPTHS[(~rhs).entity_kind];
         }
 

@@ -288,6 +288,8 @@ bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Da
 bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
     result: [Sound_Index.Count]Sound_Data = ---;
 
+    start := os_get_hardware_time();
+
     for i := 0; i < Sound_Index.Count; ++i {
         filepath := print_into_allocator(Default_Allocator, "%/%.wav", directory, SOUND_FILEPATH_MAP[i]);
 
@@ -299,7 +301,10 @@ bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
             compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));            
         }
     }
-    
+
+    end := os_get_hardware_time();
+    logprint(.Debug, "Sound baking took %ms.", os_convert_hardware_time(end - start, .Milliseconds));
+
     return result;
 }
 
