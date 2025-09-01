@@ -1813,7 +1813,7 @@ main :: (args: []string) -> s32 {
                     
                     digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
                     desired_vibration := max(entity.health_bar_damage_animation_t, digging_vibration);
-                    applied_vibration := ifx client.vibration_enabled then desired_vibration else 0;
+                    applied_vibration := ifx !client.server_paused_game && client.vibration_enabled then desired_vibration else 0;
 
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
