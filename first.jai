@@ -40,13 +40,16 @@ apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Tar
 build_version_string_file :: () {
     system :: (line: cstring) -> s32 #foreign;
 
+    build_directory := compiler_get_current_source_directory();
+
 #if OS == .Windows {
-    SYSTEM_CALL: cstring : "@echo off && for /f \"delims=\" %a in ('git rev-parse --short HEAD') do ECHO=VERSION_STRING :: \"%a\"; > shared\\VERSION_STRING.jai";
+    SYSTEM_CALL_TEMPLATE :: "@echo off && for /f \"delims=\" \\%a in ('git -C % rev-parse --short HEAD') do ECHO=VERSION_STRING :: \"\\%a\"; > %\\shared\\VERSION_STRING.jai";
 } #else #if OS == .Linux {
-    SYSTEM_CALL: cstring : "echo VERSION_STRING :: \\\"$(git rev-parse --short HEAD)\\\"';' > shared/VERSION_STRING.jai";
+    SYSTEM_CALL_TEMPLATE :: "echo VERSION_STRING :: \\\"$(git -C % rev-parse --short HEAD)\\\"';' > %/shared/VERSION_STRING.jai";
 }
 
-    system(SYSTEM_CALL);
+    system_call_string := print_into_allocator(Default_Allocator, SYSTEM_CALL_TEMPLATE, build_directory, build_directory);
+    system(to_cstring(Default_Allocator, system_call_string));
 }
 
 build_server :: (mode: Build_Mode, target: Build_Target) -> bool {
@@ -67,7 +70,10 @@ build_client :: (mode: Build_Mode) {
     options.source_files      = .[ "client/client.jai" ];
 
     #if OS == .Windows {
-        options.linker_options = .[ .{ .Library, "run_tree/server" }, .{ .String, "run_tree/data/icon/icon.res" } ];
+        build_directory := compiler_get_current_source_directory();
+        icon_resource := print_into_allocator(Default_Allocator, "%/run_tree/data/icon/icon.res", build_directory); // The compiler automatically adjusts these paths for source and library options, but not for these custom strings...
+
+        options.linker_options = .[ .{ .Library, "run_tree/server" }, .{ .String, icon_resource } ];
     } #else {
         options.linker_options = .[ .{ .Library, "run_tree/server" } ];
     }
