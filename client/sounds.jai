@@ -17,6 +17,8 @@ Sound_Index :: enum {
     Hud_Failure_0;
     
     Emitter_Charging;
+    Emitter_Humming;
+    Emitter_Dying;
     Guy_Digging_0;
     Guy_Walk_0;
     Guy_Walk_1;
@@ -41,6 +43,8 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "hud-failure-0",
 
     "emitter-charging",
+    "emitter-humming",
+    "emitter-dying",
     "guy-digging-0",
     "guy-walk-0",
     "guy-walk-1",

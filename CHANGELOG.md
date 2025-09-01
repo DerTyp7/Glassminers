@@ -2,6 +2,7 @@
 
 - Added a missing input hint to pick up the flag
 - Added the option to disable gamepad vibration in the pause menu
+- Added a sound effect to the emitter dying down
 - Fixed a visual glitch when pushing a mirror onto a slime hole
 - Fixed gamepad vibration not stopping when pausing the game
 

@@ -610,13 +610,24 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
 update_powered_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(client, *emitter.beam_data);
 
+    previous_charge := emitter.current_charge;
+    emitter.current_charge = clamp(emitter.current_charge - client.tick_time, 0, EMITTER_MAX_CHARGE[client.game_mode]);
+
     if emitter.current_charge > 0 {
         recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
         fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
+    
+        /*
+        // This humming sound is honestly too annoying, so we're not doing it for now...
+        if !sound_active(client, emitter.sound) {
+            emitter.sound = play_sound_on_entity(client, .Emitter_Humming, emitter, .Looping);
+        }
+        */
+    } else if previous_charge > 0 && emitter.current_charge <= 0 {
+        stop_sound(client, *emitter.sound);
+        emitter.sound = play_sound(client, .Emitter_Dying, .Default); // Don't spatialize this sound so that everyone can hear it
     }
         
-    emitter.current_charge = clamp(emitter.current_charge - client.tick_time, 0, EMITTER_MAX_CHARGE[client.game_mode]);
-
     if particle_system_exists(client, emitter.particles) {
         particles := get_particle_system(client, emitter.particles);
         particle_emitter := *particles.emitters[0];
