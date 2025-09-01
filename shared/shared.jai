@@ -1,6 +1,20 @@
 #load "math/Vector.jai";
 
 
+
+/* ---------------------------------------------- Build Helpers ---------------------------------------------- */
+
+// This turns a file path relative to the project root into an absolute file path on the current file system.
+// This makes the build robust against when building in a different directory than the project root.
+ASSET_FILE_PATH :: (root_path: string) -> string {
+    current_directory := compiler_get_current_source_directory(); // This includes the 'shared' directory
+    end_of_shared, found_directory := search_file_path_for_directory_delimiter_reverse(current_directory);
+    assert(found_directory, "Whoops, can't make an absolute asset file path...");
+    return print_into_allocator(Default_Allocator, "%/%", substring_view(current_directory, 0, end_of_shared), root_path);
+}
+
+
+
 /* ------------------------------------------------- Typedefs ------------------------------------------------- */
 
 v2i :: Vector2_Base(s32);

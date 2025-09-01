@@ -24,15 +24,15 @@ DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 #if BAKE_ASSETS {
     bake_file :: (filepath: string) -> string {
         file_content, success := read_entire_file(Default_Allocator, filepath);
-        if !success compiler_report_error(print_into_allocator(Default_Allocator, "Failed to bake the file '%': The file does not exist.", filepath));
+        if !success || file_content.count == 0 compiler_report_error(print_into_allocator(Default_Allocator, "Failed to bake the file '%': The file does not exist.", filepath));
         return file_content;
     }
 
     // @Cleanup: In release builds, this is actually put into the data section, not the read-only section
     // of the executable? Also, it seems like the strings land in there twice?
     GAME_MODE_WORLD_STRINGS :: [Game_Mode.Count]string.[
-        #run bake_file("run_tree/data/developer-world.txt"),
-        #run bake_file("run_tree/data/tutorial-world.txt"),
+        #run bake_file(ASSET_FILE_PATH("run_tree/data/developer-world.txt")),
+        #run bake_file(ASSET_FILE_PATH("run_tree/data/tutorial-world.txt")),
         "", // Easy
         "", // Medium
         "" // Hard

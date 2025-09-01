@@ -20,10 +20,10 @@ Texture_Data :: struct {
 }
 
 #if BAKE_ASSETS {
-    BAKED_SPRITE_ATLASES :: #run bake_all_sprite_atlases("run_tree/data");
-    BAKED_ANIMATIONS, BAKED_ANIMATION_GROUPS :: #run bake_all_animations("run_tree/data/animation-pack.txt");
-    BAKED_SOUNDS :: #run bake_all_sounds("run_tree/data/sounds");
-    BAKED_FONT :: #run bake_raw_file("run_tree/data/font.ttf");
+    BAKED_SPRITE_ATLASES :: #run bake_all_sprite_atlases(ASSET_FILE_PATH("run_tree/data"));
+    BAKED_ANIMATIONS, BAKED_ANIMATION_GROUPS :: #run bake_all_animations(ASSET_FILE_PATH("run_tree/data/animation-pack.txt"));
+    BAKED_SOUNDS :: #run bake_all_sounds(ASSET_FILE_PATH("run_tree/data/sounds"));
+    BAKED_FONT :: #run bake_raw_file(ASSET_FILE_PATH("run_tree/data/font.ttf"));
 }
 
 #if DEVELOPER {
@@ -266,7 +266,7 @@ free_texture_data :: (data: *Texture_Data) {
 }
 
 bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Data {
-    sprites: [SPRITE_ATLAS_COUNT]Texture_Data = ---;
+    sprites: [SPRITE_ATLAS_COUNT]Texture_Data;
 
     packing_result := pack_sprite_atlases(directory, null);
     if packing_result != .Success {
