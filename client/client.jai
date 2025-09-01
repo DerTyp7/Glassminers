@@ -13,7 +13,8 @@
 
 #load "stb/stb_image_write.jai";
 #load "file_watcher.jai";
-    
+#load "profiler.jai";
+
 // Shared
 #load "../shared/messages.jai";
 #load "../shared/shared.jai";
@@ -93,6 +94,9 @@ Client :: struct {
     
     current_state: Game_State;
     next_state: Game_State;
+    state_transition_t: f32; // We will only transition from the current state to the next state once this value reaches 0. Before that, we will just fade out the current state
+    state_transition_duration: f32;
+
     previous_game_result: Game_Result;
     info_text: string;
     info_text_t: f32;
@@ -240,7 +244,7 @@ host_server :: (client: *Client, port: u16) -> bool {
 
     if client.server_data.state != .Running {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be started: %.", client.server_data.startup_error);
-        client.next_state = .Main_Menu;
+        initiate_state_transition(client, .Main_Menu, 0);
     }
 
     return client.server_data.state == .Running;
@@ -264,7 +268,7 @@ join_server :: (client: *Client, name: string, host: string, port: u16) {
     if result == .Success {
         client.local_players[0].name = copy_string(*client.engine_allocator, name);
         if client.local_players[0].input_binder.allowed_input_devices == 0 then client.local_players[0].input_binder.allowed_input_devices = .Keyboard | .Gamepad;
-        client.next_state = .Connecting;
+        initiate_state_transition(client, .Connecting, 0);
     } else {
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, "The server could not be reached: %.", result);
         disconnect_from_server(client);
@@ -380,7 +384,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.game_seed  = msg.game_start.seed;
         client.world_size = msg.game_start.size;
         client.game_mode  = msg.game_start.game_mode;
-        client.next_state = .Ingame;
+        initiate_state_transition(client, .Ingame, 0);
 
         create_entity_manager(client);
         create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
@@ -420,7 +424,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Over;
         client.game_score = msg.game_over.score;
         client.previous_game_result = msg.game_over.result;
-        client.next_state = .Game_Over;
+        initiate_state_transition(client, .Game_Over, 5);
 
       case .Game_Score;
         client.game_score = msg.game_score.score;
@@ -701,7 +705,6 @@ read_incoming_packets :: (client: *Client) {
           case Packet_Type.Connection_Established;
             if client.next_state == .Connecting {
                 server_version: string = string.{ packet.body_size, packet.body };
-
                 valid_connection: bool = server_version == VERSION_STRING;
                 
                 if !valid_connection {
@@ -723,7 +726,7 @@ read_incoming_packets :: (client: *Client) {
           
           case Packet_Type.Connection_Closed;
             client.previous_game_result = .Connection_Lost;
-            client.next_state = .Game_Over;
+            initiate_state_transition(client, .Game_Over, 0);
             
           case Packet_Type.Message;
             msg: Message = ---;
@@ -737,8 +740,7 @@ read_incoming_packets :: (client: *Client) {
 handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: string) {
     if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
         client.previous_game_result = .Connection_Lost;
-        client.next_state = next_screen;
-
+        initiate_state_transition(client, next_screen, 0);
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
     } else if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
         send_ping_packet(*client.connection);
@@ -747,7 +749,20 @@ handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: s
 
 
 
-switch_to_next_state :: (client: *Client) {
+initiate_state_transition :: (client: *Client, next_state: Game_State, t: f32) {
+    client.next_state = next_state;
+    client.state_transition_t = t;
+    client.state_transition_duration = t;
+}
+
+maybe_transition_to_next_state :: (client: *Client) {
+    if client.current_state == client.next_state return;
+
+    if client.state_transition_t > 0 {
+        client.state_transition_t -= client.tick_time;
+        return;
+    }
+
     // logprint(.Debug, "Switching from '%' to '%'...", client.current_state, client.next_state);
 
     if #complete client.current_state == {
@@ -938,9 +953,7 @@ do_connecting_screen :: (client: *Client) {
         ui_push_window(ui, "Connecting...", .Default, .{ .5, .5 });
         ui_label(ui, false, "...");
         ui_divider(ui, true);
-        if ui_button(ui, "Cancel!") {
-            client.next_state = .Main_Menu;
-        }
+        if ui_button(ui, "Cancel!") then initiate_state_transition(client, .Main_Menu, 0);
         ui_pop_window(ui);
         ui_pop_width(ui);
     }    
@@ -1081,9 +1094,7 @@ do_lobby_screen :: (client: *Client) {
         }
         
         ui_divider(ui, true);
-        if ui_button(ui, "Disconnect!") {
-            client.next_state = .Main_Menu;
-        }
+        if ui_button(ui, "Disconnect!") then initiate_state_transition(client, .Main_Menu, 0);
         ui_pop_window(ui);
         ui_pop_width(ui);
     }
@@ -1153,9 +1164,7 @@ do_game_over_screen :: (client: *Client) {
     }
     
     ui_divider(ui, true);
-    if ui_button(ui, "Back to Main Menu!") {
-        client.next_state = .Main_Menu;
-    }
+    if ui_button(ui, "Back to Main Menu!") then initiate_state_transition(client, .Main_Menu, 0);
 
     ui_pop_window(ui);
     ui_pop_width(ui);
@@ -1533,7 +1542,7 @@ do_game_tick :: (client: *Client) {
             }
             
             ui_divider(ui, false);
-            if ui_button(ui, "Back to Main Menu!") then client.next_state = .Main_Menu;
+            if ui_button(ui, "Back to Main Menu!") then initiate_state_transition(client, .Main_Menu, 0);
 
             ui_pop_height(ui);
             ui_pop_width(ui);
@@ -1635,8 +1644,8 @@ main :: (args: []string) -> s32 {
     client.remote_players.allocator = *client.engine_allocator;
     client.test_inputs.allocator    = *client.engine_allocator;
     client.current_state = .Count;
-    client.next_state    = .Main_Menu;
-    switch_to_next_state(*client);
+    initiate_state_transition(*client, .Main_Menu, 0);
+    maybe_transition_to_next_state(*client);
 
 #if DEVELOPER {
     client.mixer.volumes[.Master] = 0.0;
@@ -1691,8 +1700,8 @@ main :: (args: []string) -> s32 {
         //
         // Handle transitions
         //
-        if client.current_state != client.next_state switch_to_next_state(*client);
         client.tick_time = client.window.frame_time;
+        maybe_transition_to_next_state(*client);
         
         //
         // Do one frame
@@ -1794,6 +1803,14 @@ main :: (args: []string) -> s32 {
                 ge_imm2d_flush(*client.graphics);
             }
 
+            // Fade out a state transition if applicable
+            if client.current_state != client.next_state {
+                alpha := cast(u8) (clamp(1 - client.state_transition_t / client.state_transition_duration, 0, 1) * 255);
+
+                FADE_COLOR: GE_Color : .{ 0, 0, 0, 255 };
+                draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ FADE_COLOR.r, FADE_COLOR.g, FADE_COLOR.b, alpha });
+            }
+
             draw_ui_frame(*client.ui);
 
             draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
@@ -1842,8 +1859,8 @@ main :: (args: []string) -> s32 {
     }
     
     // Shut down all resources that might currently be in use
-    client.next_state = .Count;
-    switch_to_next_state(*client);
+    initiate_state_transition(*client, .Count, 0);
+    maybe_transition_to_next_state(*client);
     
     //
     // Destroy the engine
