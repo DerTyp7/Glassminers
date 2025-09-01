@@ -293,7 +293,10 @@ read_incoming_packets :: (server: *Server) {
                 
               case Packet_Type.Ping;
                 client := find_client_by_pid(server, packet.header.sender_client_id);
-                if client then update_virtual_connection_information_for_packet(*client.connection, *packet.header);
+                if client {
+                    update_virtual_connection_information_for_packet(*client.connection, *packet.header);
+                    send_ping_packet(*client.connection, .{ packet.body_size, packet.body });
+                }
                 
               case Packet_Type.Message;
                 client := find_client_by_pid(server, packet.header.sender_client_id);
@@ -318,9 +321,6 @@ handle_client_timeouts :: (server: *Server) {
 
         if os_convert_cpu_time(now - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
             handle_client_disconnect(server, client);
-        } else if os_convert_cpu_time(now - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
-            send_ping_packet(*client.connection);
-            ++i;
         } else {
             ++i;
         }

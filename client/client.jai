@@ -137,6 +137,7 @@ Client :: struct {
     sent_connection_request: bool;
     remote_players: [..]Remote_Player;
     my_client_pid: Pid;
+    latest_rtt: f32;
     
     //
     // Lobby Screen
@@ -728,6 +729,10 @@ read_incoming_packets :: (client: *Client) {
             client.previous_game_result = .Connection_Lost;
             initiate_state_transition(client, .Game_Over, 0);
             
+          case Packet_Type.Ping;
+            timestamp: CPU_Time = ~(cast(*CPU_Time) *packet.body[0]);
+            client.latest_rtt = os_convert_cpu_time(os_get_cpu_time() - timestamp, .Milliseconds);
+
           case Packet_Type.Message;
             msg: Message = ---;
             while read_message(packet, *msg) {
@@ -743,7 +748,8 @@ handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: s
         initiate_state_transition(client, next_screen, 0);
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
     } else if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
-        send_ping_packet(*client.connection);
+        timestamp := os_get_cpu_time();
+        send_ping_packet(*client.connection, .{ size_of(timestamp), xx *timestamp });
     }
 }
 
@@ -1235,6 +1241,7 @@ do_developer_panel :: (client: *Client) {
             
         {
             ui_label(ui, true, "Misc.");
+            ui_label(ui, false, "Round Trip Time: %", client.latest_rtt);
             ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
             ui_label(ui, false, "World Size: %x%", client.world_size.x, client.world_size.y);
             ui_label(ui, false, "Entities: %", client.all_entities.alive_count);
