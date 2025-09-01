@@ -59,7 +59,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
         texture: Texture_Data;
     }
     
-    start := os_get_hardware_time();
+    start := os_get_cpu_time();
     arena: Memory_Arena;
     create_memory_arena(*arena, 1 * Memory_Unit.Megabytes, 1 * Memory_Unit.Megabytes, false);
     allocator: Allocator = allocator_from_memory_arena(*arena);
@@ -238,9 +238,9 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     }
     
     if result == .Success {
-        end := os_get_hardware_time();
+        end := os_get_cpu_time();
         #if ALLOCATOR_STATISTICS {
-            logprint(.Debug, "Sprite packing took %ms, %mb.", os_convert_hardware_time(end - start, .Milliseconds), cast(f64) allocator.stats.working_set / 1_000_000.0);
+            logprint(.Debug, "Sprite packing took %ms, %mb.", os_convert_cpu_time(end - start, .Milliseconds), cast(f64) allocator.stats.working_set / 1_000_000.0);
         }
     }
     
@@ -292,7 +292,7 @@ bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Da
 bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
     result: [Sound_Index.Count]Sound_Data = ---;
 
-    start := os_get_hardware_time();
+    start := os_get_cpu_time();
 
     for i := 0; i < Sound_Index.Count; ++i {
         filepath := print_into_allocator(Default_Allocator, "%/%.wav", directory, SOUND_FILEPATH_MAP[i]);
@@ -306,8 +306,8 @@ bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
         }
     }
 
-    end := os_get_hardware_time();
-    logprint(.Debug, "Sound baking took %ms.", os_convert_hardware_time(end - start, .Milliseconds));
+    end := os_get_cpu_time();
+    logprint(.Debug, "Sound baking took %ms.", os_convert_cpu_time(end - start, .Milliseconds));
 
     return result;
 }

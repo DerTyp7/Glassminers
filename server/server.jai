@@ -311,14 +311,14 @@ read_incoming_packets :: (server: *Server) {
 }
     
 handle_client_timeouts :: (server: *Server) {
-    now := os_get_hardware_time();
+    now := os_get_cpu_time();
 
     for i := 0; i < server.clients.count; {
         client := array_get_pointer(*server.clients, i);
 
-        if os_convert_hardware_time(now - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
+        if os_convert_cpu_time(now - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
             handle_client_disconnect(server, client);
-        } else if os_convert_hardware_time(now - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
+        } else if os_convert_cpu_time(now - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
             send_ping_packet(*client.connection);
             ++i;
         } else {
@@ -665,7 +665,7 @@ create_the_game :: (server: *Server) {
 
     server.world_size = .{ 0, 0 };
     server.current_section_index = 0;
-    server.game_seed = cast(s64) os_get_hardware_time();
+    server.game_seed = os_get_cpu_time();
     seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
     if use_random_world_generation(server) {
@@ -1182,7 +1182,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
     switch_to_next_state(*server);
     
     while atomic_load(*data.state) == Server_State.Running {
-        tick_start := os_get_hardware_time();
+        tick_start := os_get_cpu_time();
 
         server.tick_time = 1 / TICK_RATE;
 
@@ -1201,7 +1201,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
 
         release_temp_allocator(0);
         
-        tick_end := os_get_hardware_time();
+        tick_end := os_get_cpu_time();
         os_sleep_to_tick_rate(tick_start, tick_end, TICK_RATE);
     }
     

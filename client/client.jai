@@ -65,7 +65,7 @@ Local_Player :: struct {
 }
 
 Test_Input :: struct {
-    hwtime: Hardware_Time;
+    cpu_time: CPU_Time;
     local_player_index: s64;
     sprite_index: Sprite_Index;
 }
@@ -734,12 +734,12 @@ read_incoming_packets :: (client: *Client) {
 }
 
 handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: string) {
-    if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
+    if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
         client.previous_game_result = .Connection_Lost;
         client.next_state = next_screen;
 
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
-    } else if os_convert_hardware_time(os_get_hardware_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
+    } else if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
         send_ping_packet(*client.connection);
     }
 }
@@ -1092,15 +1092,15 @@ do_lobby_screen :: (client: *Client) {
     {
         register_test_input :: (client: *Client, local_player_index: s64, sprite_index: Sprite_Index) {
             input := array_push(*client.test_inputs);
-            input.hwtime = os_get_hardware_time();
+            input.cpu_time = os_get_cpu_time();
             input.local_player_index = local_player_index;
             input.sprite_index = sprite_index;
         }
 
-        now := os_get_hardware_time();
+        now := os_get_cpu_time();
         for i := 0; i < client.test_inputs.count; {
             input := array_get_pointer(*client.test_inputs, i);
-            if os_convert_hardware_time(now - input.hwtime, .Seconds) > 2 {
+            if os_convert_cpu_time(now - input.cpu_time, .Seconds) > 2 {
                 array_remove_index(*client.test_inputs, i);
             } else {
                 ++i;
@@ -1646,7 +1646,7 @@ main :: (args: []string) -> s32 {
     // Main loop
     //
     while !client.window.should_close {
-        frame_start := os_get_hardware_time();
+        frame_start := os_get_cpu_time();
             
         //
         // Check for hot-reloading
@@ -1698,11 +1698,8 @@ main :: (args: []string) -> s32 {
         //
         {
 #if DEVELOPER {
-           begin := os_get_hardware_time();
-           defer { 
-               end := os_get_hardware_time();
-               client.timing_update = os_convert_hardware_time(end - begin, .Milliseconds);
-           }
+           begin := os_get_cpu_time();
+           defer client.timing_update = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
 }
             
             update_window(*client.window);
@@ -1735,11 +1732,8 @@ main :: (args: []string) -> s32 {
         //
         {
 #if DEVELOPER {
-           begin := os_get_hardware_time();
-           defer { 
-               end := os_get_hardware_time();
-               client.timing_draw = os_convert_hardware_time(end - begin, .Milliseconds);
-           }
+           begin := os_get_cpu_time();
+           defer client.timing_draw = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
 }
 
             ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
@@ -1749,13 +1743,13 @@ main :: (args: []string) -> s32 {
                 y: f32 = xx client.window.h - 34;
                 x: f32 = xx client.window.w * 0.8;
                 
-                now := os_get_hardware_time();
+                now := os_get_cpu_time();
 
                 for i := client.test_inputs.count - 1; i >= 0; --i {
                     input := array_get_pointer(*client.test_inputs, i);
                     if input.local_player_index >= client.local_player_count continue;
 
-                    time := os_convert_hardware_time(now - input.hwtime, .Seconds);
+                    time := os_convert_cpu_time(now - input.cpu_time, .Seconds);
                     alpha := 1 - smoothstep(time, 1, 2);
                     color := GE_Color.{ 200, 200, 200, cast(u8) (alpha * 255) };
 
@@ -1841,8 +1835,8 @@ main :: (args: []string) -> s32 {
         
         release_temp_allocator(0);
         
-        frame_end := os_get_hardware_time();
-        #if DEVELOPER { client.timing_total_no_sleep = os_convert_hardware_time(frame_end - frame_start, .Milliseconds); }
+        frame_end := os_get_cpu_time();
+        #if DEVELOPER { client.timing_total_no_sleep = os_convert_cpu_time(frame_end - frame_start, .Milliseconds); }
         os_sleep_to_tick_rate(frame_start, frame_end, TARGET_FRAMES_PER_SECOND);
     }
     

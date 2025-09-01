@@ -252,7 +252,7 @@ create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitt
     system.global_alpha   = 1;
     system.emitters       = allocate_array(system.allocator, Particle_Emitter, emitter_count);
 
-    seed_random_generator(*system.random, os_get_hardware_time(), system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
+    seed_random_generator(*system.random, os_get_cpu_time(), system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
 
     if cast(f32) client.particle_pid_lookup.count / cast(f32) client.particle_pid_lookup.buckets.count >= 0.7 {
         probed_hash_table_resize(*client.particle_pid_lookup, client.particle_pid_lookup.buckets.count * 2);
