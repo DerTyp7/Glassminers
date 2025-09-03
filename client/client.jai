@@ -78,6 +78,15 @@ UI_State :: struct {
     network_port := 9876;
 }
 
+UI_Scale :: enum {
+    Small;
+    Normal;
+    Big;
+    Extra_Large;
+}
+
+UI_SCALING_VALUES: [UI_Scale.Count]f32 : .[ 0.75, 1, 2, 4 ];
+
 Client :: struct {
     //
     // Engine structure
@@ -91,6 +100,8 @@ Client :: struct {
     engine_allocator: Allocator;
 
     ui_state: UI_State;
+    desired_ui_scale: UI_Scale = .Normal; // We can't really provide a slider for a floating point value here as the actual slider would glitch around too hard...
+    current_ui_scale: UI_Scale = .Normal;
     
     current_state: Game_State;
     next_state: Game_State;
@@ -841,6 +852,15 @@ reassign_gamepad_indices :: (client: *Client) {
     }
 }
 
+maybe_update_ui_scale :: (client: *Client) {
+    if client.current_ui_scale == client.desired_ui_scale then return;
+
+    client.current_ui_scale = client.desired_ui_scale;
+    client.ui.pixel_scaling = UI_SCALING_VALUES[client.current_ui_scale];
+    create_ui_scaled_draw_data(client);
+    change_ui_font(*client.ui, *client.ui_font); // Force-update all cached label sizes
+}
+
 do_game_mode_selector :: (client: *Client) {
     ui :: *client.ui;
 
@@ -1537,6 +1557,7 @@ do_game_tick :: (client: *Client) {
             ui_label(ui, true, "Seed: %", client.game_seed);
             ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
             ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
+            ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.desired_ui_scale);
             ui_check_box(ui, "Vibration", *client.vibration_enabled);
 
             ui_divider(ui, true);
@@ -1709,6 +1730,7 @@ main :: (args: []string) -> s32 {
         //
         client.tick_time = client.window.frame_time;
         maybe_transition_to_next_state(*client);
+        maybe_update_ui_scale(*client);
         
         //
         // Do one frame

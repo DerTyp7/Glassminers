@@ -1,10 +1,11 @@
-## 0.3.3 (unreleased)
+## 0.3.3 (03.09.2025)
 
 - Added a missing input hint to pick up the flag
 - Added the option to disable gamepad vibration in the pause menu
 - Added a sound effect to the emitter dying down
 - Added a fade out when the game is over so that players can understand why the game ended
 - Added the round trip time to the developer panel
+- Added a runtime UI scaling option to the pause menu
 - Fixed a visual glitch when pushing a mirror onto a slime hole
 - Fixed gamepad vibration not stopping when pausing the game
 

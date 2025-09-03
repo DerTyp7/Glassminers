@@ -234,9 +234,9 @@ create_draw_data :: (client: *Client) -> bool {
     ge_create(*client.graphics, *client.window, *client.engine_allocator);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
+    create_ui_scaled_draw_data(client);
 
 #if BAKE_ASSETS {
-    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, UI_FONT_SIZE, .Ascii);
     ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, TITLE_FONT_SIZE, .Ascii);
     ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, HUD_FONT_SIZE, .Ascii);
 
@@ -245,10 +245,20 @@ create_draw_data :: (client: *Client) -> bool {
     }
     return true;
 } #else {
-    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", UI_FONT_SIZE, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", TITLE_FONT_SIZE, .Ascii);
     ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", HUD_FONT_SIZE, .Ascii);
     return reload_sprite_atlases_from_disk(client);
+}
+}
+
+create_ui_scaled_draw_data :: (client: *Client) {
+    ge_destroy_font(*client.graphics, *client.ui_font);
+    desired_scale: s16 = cast(s16) ceil(cast(f32) UI_FONT_SIZE * UI_SCALING_VALUES[client.current_ui_scale]);
+
+#if BAKE_ASSETS {
+    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, desired_scale, .Ascii);
+} #else {
+    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", desired_scale, .Ascii);
 }
 }
 
