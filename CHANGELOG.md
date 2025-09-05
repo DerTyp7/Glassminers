@@ -1,3 +1,5 @@
+## 0.4.0 (unreleased)
+
 ## 0.3.3 (03.09.2025)
 
 - Added a missing input hint to pick up the flag

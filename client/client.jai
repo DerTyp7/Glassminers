@@ -71,6 +71,11 @@ Test_Input :: struct {
     sprite_index: Sprite_Index;
 }
 
+Tutorial_Panel :: enum {
+    About_Tutorial_Panels;
+    Goal_Of_The_Game;
+}
+
 UI_State :: struct {
     account_name: string;
     local_player_name: string = ""; // So that we can clear the text input when a player was added
@@ -156,6 +161,18 @@ Client :: struct {
     requested_game_mode: Game_Mode = .Tutorial; // Lobby screen
     immediately_start_game: bool = false; // Lobby screen, after pressing "single player" in the main menu
     test_inputs: [..]Test_Input;
+
+    //
+    // Tutorial panels
+    // We track a permanent list of panels that have been requested by the game code ever. A panel
+    // is requested when a certain action happens in the game world, which makes this panel necessary
+    // for the user. A panel isn't added to this list twice though, since we only want to show each
+    // panel once.
+    // The game will only ever show one panel at a time, so if there's multiple requested we will
+    // progress through the list at a later time.    
+    //
+    requested_tutorial_panels: [..]Tutorial_Panel;
+    current_tutorial_panel := 0;
     
     //
     // Game Data
@@ -426,6 +443,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
             client.global_particle_system = system.pid;
         }
+
+        request_tutorial_panel(client, .About_Tutorial_Panels);
         
         // Reset debug settings
         #if DEVELOPER {
@@ -806,7 +825,8 @@ maybe_transition_to_next_state :: (client: *Client) {
         disconnect_from_server(client);
         maybe_shutdown_server(client);
         reset_allocator(*client.world_allocator);
-
+        array_clear(*client.requested_tutorial_panels);
+        
         // Stop any active rumbling effect
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
@@ -1298,6 +1318,64 @@ do_developer_panel :: (client: *Client) {
 }
 }
 
+request_tutorial_panel :: (client: *Client, kind: Tutorial_Panel) {
+    if client.game_mode != .Tutorial return;
+
+    already_requested := false;
+    
+    for i := 0; i < client.requested_tutorial_panels.count; ++i {
+        requested_kind := array_get(*client.requested_tutorial_panels, i);
+        if requested_kind == kind {
+            already_requested = true;
+            break;
+        }
+    }
+    
+    if already_requested return;
+    
+    array_add(*client.requested_tutorial_panels, kind);
+}
+
+maybe_do_tutorial_panel :: (client: *Client) {
+    // @Incomplete: You probably want to be able to disable these...
+
+    if client.game_mode != .Tutorial || client.current_tutorial_panel >= client.requested_tutorial_panels.count {
+        // No more requested panel to show...
+        return;    
+    }
+
+    ui := *client.ui;
+    panel_kind := array_get(*client.requested_tutorial_panels, client.current_tutorial_panel);
+
+    ui_push_width(ui, .Sum_Of_Children, 10, 1);
+    ui_push_window(ui, "Tutorial", .Default, .{ .5, .5 });
+    ui_push_width(ui, .Label_Size, 5, 1);
+
+    if #complete panel_kind == {
+      case .About_Tutorial_Panels;
+        ui_label(ui, true, "Welcome to the tutorial.");
+        ui_label(ui, false, "We will try to guide you through the game with as little popups as possible.");
+        ui_label(ui, false, "Unfortunately, there'a few things we need to tell you.");
+        ui_label(ui, true, "Press Space (Keyboard) / X (PlayStation) / A (X-Box) to close these panels.");
+
+      case .Goal_Of_The_Game;
+        ui_label(ui, true, "The goal of the game is to get a high score.");
+        ui_label(ui, false, "You increase the score by placing the flag further to the right.");
+        ui_label(ui, false, "Unlock the next section of the world by activating the next emitter.");
+        ui_label(ui, false, "An emitter is activated by interacting on it with the flag while it is powered.");
+    }
+
+    if input_action_fired_globally(client, .Interact_Primary, .Pressed) {
+        if panel_kind == .About_Tutorial_Panels then request_tutorial_panel(client, .Goal_Of_The_Game);
+
+        ++client.current_tutorial_panel;        
+    }
+
+    ui_pop_width(ui);    
+    ui_pop_window(ui);
+    ui_pop_width(ui);
+}
+
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
@@ -1382,8 +1460,7 @@ do_game_tick :: (client: *Client) {
    
     outgoing_messages: [..]Message;
     outgoing_messages.allocator = *temp;
-    
-    
+        
     // Developer UI
 #if DEVELOPER { 
     if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
@@ -1397,6 +1474,9 @@ do_game_tick :: (client: *Client) {
         enable_mixer_history(*client.mixer, 128, 2);
     }
 }
+
+    // Tutorial UI
+    maybe_do_tutorial_panel(client);
 
     // Forward any input for the guys to the server
     if !(client.pause_menu_open || client.server_paused_game) {
@@ -1671,6 +1751,7 @@ main :: (args: []string) -> s32 {
         
     client.remote_players.allocator = *client.engine_allocator;
     client.test_inputs.allocator    = *client.engine_allocator;
+    client.requested_tutorial_panels.allocator = *client.engine_allocator;
     client.current_state = .Count;
     initiate_state_transition(*client, .Main_Menu, 0);
     maybe_transition_to_next_state(*client);
