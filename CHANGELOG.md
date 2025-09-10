@@ -1,6 +1,7 @@
 ## 0.3.4 (unreleased)
 
 - Added little helper panels to the tutorial game mode to explain the basic game
+- Disabled VSync for rendering the game
 
 ## 0.3.3 (03.09.2025)
 

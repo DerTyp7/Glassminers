@@ -232,6 +232,7 @@ find_sprite_index_from_name :: (name: string) -> s64, bool {
 
 create_draw_data :: (client: *Client) -> bool {
     ge_create(*client.graphics, *client.window, *client.engine_allocator);
+    ge_set_vsync(*client.graphics, false);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     create_ui_scaled_draw_data(client);
