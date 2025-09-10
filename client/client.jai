@@ -830,7 +830,7 @@ maybe_transition_to_next_state :: (client: *Client) {
         // Stop any active rumbling effect
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
-            set_window_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, 0, 0, 255, 255, 255);
+            set_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, 0, 0, 255, 255, 255);
         }
     }
 
@@ -1353,13 +1353,13 @@ maybe_do_tutorial_panel :: (client: *Client) {
 
     if #complete panel_kind == {
       case .About_Tutorial_Panels;
-        ui_label(ui, true, "Welcome to the tutorial.");
+        ui_label(ui, true,  "Welcome to the tutorial.");
         ui_label(ui, false, "We will try to guide you through the game with as little popups as possible.");
         ui_label(ui, false, "Unfortunately, there'a few things we need to tell you.");
-        ui_label(ui, true, "Press Space (Keyboard) / X (PlayStation) / A (X-Box) to close these panels.");
+        ui_label(ui, true,  "Press % to close these panels.", input_bindings_string(client, .Interact_Primary));
 
       case .Goal_Of_The_Game;
-        ui_label(ui, true, "The goal of the game is to get a high score.");
+        ui_label(ui, true,  "The goal of the game is to get a high score.");
         ui_label(ui, false, "You increase the score by placing the flag further to the right.");
         ui_label(ui, false, "Unlock the next section of the world by activating the next emitter.");
         ui_label(ui, false, "An emitter is activated by interacting on it with the flag while it is powered.");
@@ -1946,7 +1946,7 @@ main :: (args: []string) -> s32 {
                     health := (entity.health - HEALTH_PER_HEART) / (ENTITY_DEFAULT_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
 
-                    set_window_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, applied_vibration, applied_vibration, color.r, color.g, color.b);
+                    set_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, applied_vibration, applied_vibration, color.r, color.g, color.b);
                 }
             }
         }

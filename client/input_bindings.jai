@@ -49,8 +49,8 @@ Input_Binding :: struct {
 
     #using data: union {
         keycode: Key_Code;
-        gamepad_button: Window_Gamepad_Button_Code;
-        gamepad_gesture: Window_Gamepad_Gesture_Code;
+        gamepad_button: Gamepad_Button_Code;
+        gamepad_gesture: Gamepad_Gesture_Code;
     };
 }
 
@@ -64,8 +64,8 @@ Input_Binder :: struct {
 
 Input_Binding_Tracker :: struct {
     Gamepad_Tracker :: struct {
-        buttons_fired_this_frame: [..]Window_Gamepad_Button_Code;
-        gestures_fired_this_frame: [..]Window_Gamepad_Gesture_Code;
+        buttons_fired_this_frame: [..]Gamepad_Button_Code;
+        gestures_fired_this_frame: [..]Gamepad_Gesture_Code;
     }
     
     keys_fired_this_frame: [..]Key_Code; // If a key already triggered any input action this frame, it is added to this list
@@ -82,14 +82,14 @@ register_all_input_bindings :: (client: *Client) {
         return binding;
     }
 
-    gamepad_button :: (button: Window_Gamepad_Button_Code) -> Input_Binding {
+    gamepad_button :: (button: Gamepad_Button_Code) -> Input_Binding {
         binding: Input_Binding = ---;
         binding.kind = .Gamepad_Button;
         binding.gamepad_button = button;
         return binding;
     }
 
-    gamepad_gesture :: (gesture: Window_Gamepad_Gesture_Code) -> Input_Binding {
+    gamepad_gesture :: (gesture: Gamepad_Gesture_Code) -> Input_Binding {
         binding: Input_Binding = ---;
         binding.kind = .Gamepad_Gesture;
         binding.gamepad_gesture = gesture;
@@ -106,14 +106,14 @@ register_all_input_bindings :: (client: *Client) {
     ib: [Input_Action.Count][]Input_Binding = .[];
     ib[.Toggle_Pause_Menu]  = .[ keycode(.Escape), gamepad_button(.PS_Options), gamepad_button(.XBox_Menu) ];
     ib[.Toggle_Fullscreen]  = .[ keycode(.F11) ];
-    ib[.Move_North]         = .[ keycode(.W), gamepad_gesture(.Left_Swipe_Up) ];
-    ib[.Move_East]          = .[ keycode(.D), gamepad_gesture(.Left_Swipe_Right) ];
-    ib[.Move_South]         = .[ keycode(.S), gamepad_gesture(.Left_Swipe_Down) ];
-    ib[.Move_West]          = .[ keycode(.A), gamepad_gesture(.Left_Swipe_Left) ];
-    ib[.Look_North]         = .[ keycode(.Arrow_Up),    gamepad_gesture(.Right_Swipe_Up) ];
-    ib[.Look_East]          = .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Swipe_Right) ];
-    ib[.Look_South]         = .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Swipe_Down) ];
-    ib[.Look_West]          = .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Swipe_Left) ];
+    ib[.Move_North]         = .[ keycode(.W), gamepad_gesture(.Left_Stick_Swipe_Up) ];
+    ib[.Move_East]          = .[ keycode(.D), gamepad_gesture(.Left_Stick_Swipe_Right) ];
+    ib[.Move_South]         = .[ keycode(.S), gamepad_gesture(.Left_Stick_Swipe_Down) ];
+    ib[.Move_West]          = .[ keycode(.A), gamepad_gesture(.Left_Stick_Swipe_Left) ];
+    ib[.Look_North]         = .[ keycode(.Arrow_Up),    gamepad_gesture(.Right_Stick_Swipe_Up) ];
+    ib[.Look_East]          = .[ keycode(.Arrow_Right), gamepad_gesture(.Right_Stick_Swipe_Right) ];
+    ib[.Look_South]         = .[ keycode(.Arrow_Down),  gamepad_gesture(.Right_Stick_Swipe_Down) ];
+    ib[.Look_West]          = .[ keycode(.Arrow_Left),  gamepad_gesture(.Right_Stick_Swipe_Left) ];
     ib[.Turn_Modifier]      = .[ keycode(.Shift), gamepad_button(.PS_Circle), gamepad_button(.XBox_B) ];
     ib[.Interact_Primary]   = .[ keycode(.Space), gamepad_button(.PS_Cross), gamepad_button(.XBox_A) ];
     ib[.Interact_Secondary] = .[ keycode(.E), gamepad_button(.PS_Square), gamepad_button(.XBox_X) ];
@@ -167,6 +167,31 @@ reset_input_binding_tracker :: (client: *Client) {
         array_clear(*gamepad.buttons_fired_this_frame);
         array_clear(*gamepad.gestures_fired_this_frame);
     }
+}
+
+input_bindings_string :: (client: *Client, action: Input_Action) -> string {
+    builder: String_Builder = ---;
+    create_string_builder(*builder, *temp);
+    sprint(*builder, "`");
+
+    // @Incomplete: Only append input bindings for input devices that are actually active...?
+
+    for i := 0; i < client.input_bindings[action].count; ++i {
+        if i > 0 {
+            sprint(*builder, " // ");
+        }
+
+        binding := *client.input_bindings[action][i];
+        if #complete binding.kind == {
+          case .Keyboard;        sprint(*builder, "%", string_from_key_code(binding.keycode));
+          case .Gamepad_Button;  sprint(*builder, "%", string_from_gamepad_button_code(binding.gamepad_button));
+          case .Gamepad_Gesture; sprint(*builder, "%", string_from_gamepad_gesture_code(binding.gamepad_gesture));
+        }
+    }
+
+    sprint(*builder, "`");
+
+    return finish_string_builder(*builder);
 }
 
 

@@ -310,7 +310,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
 }
 
 get_sprite_index_for_input_action :: (client: *Client, local_player: *Local_Player, action: Input_Action) -> Sprite_Index {
-    is_vendor_appropriate_gamepad_binding :: (gamepad: *Window_Gamepad, button: Window_Gamepad_Button_Code) -> bool {
+    is_vendor_appropriate_gamepad_binding :: (gamepad: *Gamepad, button: Gamepad_Button_Code) -> bool {
         result: bool = ---;
 
         if button == {
@@ -1002,7 +1002,7 @@ get_sprite_index_for_key_code :: (keycode: Key_Code) -> Sprite_Index {
     return sprite;
 }
 
-get_sprite_index_for_gamepad_button :: (button: Window_Gamepad_Button_Code) -> Sprite_Index {
+get_sprite_index_for_gamepad_button :: (button: Gamepad_Button_Code) -> Sprite_Index {
     sprite: Sprite_Index = .Count;
 
     if button == {
@@ -1019,7 +1019,7 @@ get_sprite_index_for_gamepad_button :: (button: Window_Gamepad_Button_Code) -> S
     return sprite;
 }
 
-get_sprite_index_for_gamepad_gesture :: (gesture: Window_Gamepad_Gesture_Code) -> Sprite_Index {
+get_sprite_index_for_gamepad_gesture :: (gesture: Gamepad_Gesture_Code) -> Sprite_Index {
     return .Count;
 }
 
