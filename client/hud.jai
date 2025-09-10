@@ -152,6 +152,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
 
             if crafting_recipe_looks_doable(client, guy, hud.crafting_recipe_confirmed_this_frame) {
                 play_sound(client, .Hud_Success_0, .Default);
+                if hud.crafting_recipe_confirmed_this_frame == .Mirror then request_tutorial_panel(client, .Using_Mirrors_To_Kill);
             } else {
                 play_sound(client, .Hud_Failure_0, .Default);
             }

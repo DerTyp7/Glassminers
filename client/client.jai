@@ -74,6 +74,8 @@ Test_Input :: struct {
 Tutorial_Panel :: enum {
     About_Tutorial_Panels;
     Goal_Of_The_Game;
+    Using_The_Crafting_Menu;
+    Using_Mirrors_To_Kill;
 }
 
 UI_State :: struct {
@@ -352,6 +354,14 @@ find_player_name_from_guy_pid :: (client: *Client, pid: Pid) -> string {
     return "?UNKNOWN?";
 }
 
+is_local_guy_pid :: (client: *Client, pid: Pid) -> bool {
+    for i := 0; i < client.local_player_count; ++i {
+        if client.local_players[i].guy_pid == pid then return true;
+    }
+
+    return false;
+}
+
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
       case .Request_Game_Start, .Guy_Input; // Ignore
@@ -601,6 +611,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         guy.carrying_item   = msg.guy_state.carrying_item;
         guy.strength_t      = msg.guy_state.strength_t;
         
+        if is_local_guy_pid(client, guy.pid) && guy.state == .Carrying && guy.carrying_item == .Shard {
+            request_tutorial_panel(client, .Using_The_Crafting_Menu);
+        }
+
       case .Emitter_State;
         entity := get_entity(client, msg.emitter_state.entity_pid);
         emitter := down(entity, Emitter);
@@ -1347,8 +1361,17 @@ maybe_do_tutorial_panel :: (client: *Client) {
     ui := *client.ui;
     panel_kind := array_get(*client.requested_tutorial_panels, client.current_tutorial_panel);
 
+    panel_name: string = ---;
+
+    if #complete panel_kind == {
+      case .About_Tutorial_Panels;      panel_name = "Tutorial - Introduction";
+      case .Goal_Of_The_Game;           panel_name = "Tutorial - Goal of the Game";
+      case .Using_The_Crafting_Menu;    panel_name = "Tutorial - Crafting Menu";
+      case .Using_Mirrors_To_Kill;      panel_name = "Tutorial - Killing Monsters";
+    }
+
     ui_push_width(ui, .Sum_Of_Children, 10, 1);
-    ui_push_window(ui, "Tutorial", .Default, .{ .5, .5 });
+    ui_push_window(ui, panel_name, .Default, .{ .5, .5 });
     ui_push_width(ui, .Label_Size, 5, 1);
 
     if #complete panel_kind == {
@@ -1363,6 +1386,17 @@ maybe_do_tutorial_panel :: (client: *Client) {
         ui_label(ui, false, "You increase the score by placing the flag further to the right.");
         ui_label(ui, false, "Unlock the next section of the world by activating the next emitter.");
         ui_label(ui, false, "An emitter is activated by interacting on it with the flag while it is powered.");
+    
+      case .Using_The_Crafting_Menu;
+        ui_label(ui, true,  "Press % to open the crafting menu.", input_bindings_string(client, .Hud_Toggle));
+        ui_label(ui, false, "There you can convert items that you are carrying into useful creations.");
+        ui_label(ui, false, "Different options will appear depending on your surroundings.");
+        ui_label(ui, false, "May we suggest you try crafting a mirror?");
+
+      case .Using_Mirrors_To_Kill;
+        ui_label(ui, true,  "You can use the light beam to kill monsters.");
+        ui_label(ui, false, "Try reflecting the beam onto a monster using mirrors.");
+        ui_label(ui, false, "Different monsters have different properties and must be approached differently.");
     }
 
     if input_action_fired_globally(client, .Interact_Primary, .Pressed) {
