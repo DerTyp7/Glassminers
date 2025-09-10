@@ -175,7 +175,8 @@ Client :: struct {
     //
     requested_tutorial_panels: [..]Tutorial_Panel;
     current_tutorial_panel := 0;
-    
+    enable_tutorial_panels := true;
+
     //
     // Game Data
     //
@@ -1351,9 +1352,7 @@ request_tutorial_panel :: (client: *Client, kind: Tutorial_Panel) {
 }
 
 maybe_do_tutorial_panel :: (client: *Client) {
-    // @Incomplete: You probably want to be able to disable these...
-
-    if client.game_mode != .Tutorial || client.current_tutorial_panel >= client.requested_tutorial_panels.count {
+    if client.game_mode != .Tutorial || !client.enable_tutorial_panels || client.server_paused_game || client.current_tutorial_panel >= client.requested_tutorial_panels.count {
         // No more requested panel to show...
         return;    
     }
@@ -1664,7 +1663,7 @@ do_game_tick :: (client: *Client) {
 
         if client.pause_menu_open {
             ui :: *client.ui;
-            ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.5 });
+            ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.35 });
             ui_push_width(ui, .Pixels, 256, 1);
             ui_push_height(ui, .Pixels, 32, 1);
 
@@ -1672,7 +1671,11 @@ do_game_tick :: (client: *Client) {
             ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
             ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
             ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.desired_ui_scale);
-            ui_check_box(ui, "Vibration", *client.vibration_enabled);
+            ui_check_box(ui, "Gamepad Vibration", *client.vibration_enabled);
+            
+            if client.game_mode == .Tutorial {
+                ui_check_box(ui, "Tutorial Panels", *client.enable_tutorial_panels);
+            }
 
             ui_divider(ui, true);
             if ui_button(ui, "Continue!") {
@@ -1937,7 +1940,7 @@ main :: (args: []string) -> s32 {
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
                 if client.server_paused_game {
-                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2 + 2, xx client.window.h * 0.33 + 2 }, .Center | .Median, ORANGE_COLOR, .Shadow);
+                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2, xx client.window.h * 0.25 }, .Center | .Median, ORANGE_COLOR, .Shadow);
                 }
 
 #if DEVELOPER {
