@@ -143,7 +143,8 @@ SECTION_HEIGHT: s32 : 5; // The height of the world for randomly generated world
 CAMERA_AREA_WIDTH: f32 : 5; // The camera position snaps to multiples of this area width, to decrease the number of camera movements.
 CAMERA_AREA_OFFSET: f32 : CAMERA_AREA_WIDTH / 2 - 0.5;
 
-VISUAL_ITEM_STACK_CAPACITY :: 5;
+MAX_ITEM_STACK_SIZE_ON_GROUND :: 1;
+VISUAL_ITEM_STACK_CAPACITY :: 5; // Obviously only actually useful if this value is smaller than the MAX_ITEM_STACK_SIZE_ON_GROUND value
 VISUAL_ITEM_STACK_OFFSETS: [VISUAL_ITEM_STACK_CAPACITY]v2f : .[ .{ 0, 0 }, .{ -0.1, 0.2 }, .{ 0.2, 0.1 }, .{ -0.2, -0.1 }, .{ 0.2, -0.2 } ];
 
 COAL_EMITTER_CHARGE: f32 : 45;

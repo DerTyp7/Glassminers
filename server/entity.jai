@@ -879,7 +879,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
     } else if stack_entity {
         stack := down(stack_entity, Item_Stack);
 
-        if stack.item_kind == kind {
+        if stack.item_kind == kind && stack.count < MAX_ITEM_STACK_SIZE_ON_GROUND {
             ++stack.count;
 
             msg := make_message(Item_Stack_State_Message);

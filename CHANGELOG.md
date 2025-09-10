@@ -1,6 +1,7 @@
 ## 0.3.4 (unreleased)
 
 - Added little helper panels to the tutorial game mode to explain the basic game
+- Items can no longer be stacked on the ground
 - Disabled VSync for rendering the game
 
 ## 0.3.3 (03.09.2025)
