@@ -905,7 +905,12 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
             } else if guy.carrying_item == .Flag {
-                if try_to_place_flag(server, guy.target_position) {
+                if target_entity && target_entity.entity_kind == .Emitter {
+                    target_emitter := down(target_entity, Emitter);
+                    if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_CHARGE[server.game_mode] {
+                        set_emitter_state(server, target_emitter, .Active, target_emitter.current_charge);
+                    }
+                } else if try_to_place_flag(server, guy.target_position) {
                     guy.state = .Idle;
                 }
             } else if try_to_place_item(server, guy.target_position, guy.carrying_item, null) {

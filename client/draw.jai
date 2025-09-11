@@ -784,6 +784,9 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
             flags: Draw_Beam_Flags = .First_As_V;
             if emitter.beam_ends_in_other_emitter then flags |= .Last_As_V;
             draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, flags);
+        } else if emitter.current_charge >= EMITTER_MAX_CHARGE[client.game_mode] {
+            world_size := calculate_pulsating_icon_size(client);
+            draw_sprite_world_space(client, local_player, .Flag_0, .{ emitter.visual_position.x, emitter.visual_position.y + 0.25 }, world_size, 0, .{ 255, 255, 255, 255 }, .None);
         }
             
         if emitter.current_charge > 0 {
@@ -1066,6 +1069,11 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
     return index, flags;
 }
 
+calculate_pulsating_icon_size :: (client: *Client) -> v2f {
+    icon_size := 0.25 + sinf(client.game_epoch_time * FTAU * 2) * 0.05;
+    return .{ icon_size, icon_size };
+}
+
 draw_input_hints_for_guy :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
     if local_player.hud.was_open_this_frame return;
 
@@ -1073,7 +1081,7 @@ draw_input_hints_for_guy :: (client: *Client, local_player: *Local_Player, guy: 
     if !target_entity return;
 
     vertical_icon_offset: f32 = 0;
-    icon_size: f32 = 0.25 + sinf(client.game_epoch_time * FTAU * 2) * 0.05;
+    icon_size := calculate_pulsating_icon_size(client);
     input_sprites: []Sprite_Index;
 
     if target_entity.entity_kind == {
@@ -1124,7 +1132,7 @@ draw_input_hints_for_guy :: (client: *Client, local_player: *Local_Player, guy: 
 
     for i := 0; i < input_sprites.count; ++i {
         offset: f32 = (cast(f32) (i - input_sprites.count / 2) + cast(f32) (1 - input_sprites.count % 2) * 0.5) * 0.4;
-        draw_sprite_world_space(client, local_player, input_sprites[i], .{ target_entity.visual_position.x + offset, target_entity.visual_position.y + vertical_icon_offset }, .{ icon_size, icon_size }, 0, .{ 255, 255, 255, 255 }, .None);
+        draw_sprite_world_space(client, local_player, input_sprites[i], .{ target_entity.visual_position.x + offset, target_entity.visual_position.y + vertical_icon_offset }, icon_size, 0, .{ 255, 255, 255, 255 }, .None);
     }
 }
 

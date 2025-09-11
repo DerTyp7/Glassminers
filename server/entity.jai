@@ -535,13 +535,10 @@ update_powered_emitter :: (server: *Server, emitter: *Emitter) {
 update_off_emitter :: (server: *Server, emitter: *Emitter) {
     if emitter.state == .Off {
         is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
-        if is_beam && incoming_direction == emitter.physical_rotation {
-            new_charge := emitter.current_charge + server.tick_time * (EMITTER_MAX_CHARGE[server.game_mode] / EMITTER_TIME_TO_POWER_UP);
-           
-            set_emitter_state(server, emitter, ifx new_charge >= EMITTER_MAX_CHARGE[server.game_mode] then .Active else .Off, new_charge);
-        } else {
-            set_emitter_state(server, emitter, .Off, emitter.current_charge - server.tick_time * (EMITTER_MAX_CHARGE[server.game_mode] / EMITTER_TIME_TO_POWER_UP));
-        }
+
+        delta_charge := server.tick_time * (EMITTER_MAX_CHARGE[server.game_mode] / EMITTER_TIME_TO_POWER_UP);
+        sign: f32 = ifx (is_beam && incoming_direction == emitter.physical_rotation) then 1 else -1;
+        set_emitter_state(server, emitter, .Off, emitter.current_charge + delta_charge * sign);
     }
 }
 

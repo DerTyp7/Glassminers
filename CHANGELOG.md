@@ -1,6 +1,7 @@
 ## 0.3.4 (unreleased)
 
 - Added little helper panels to the tutorial game mode to explain the basic game
+- Changed an emitter to only actually unlock the next section when it is powered *and* a guy interacts with the flag on it
 - Items can no longer be stacked on the ground
 - Disabled VSync for rendering the game
 
