@@ -296,12 +296,10 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
 
       case .Guy;
         guy := down(entity, Guy);
+        was_carrying := guy.state == .Carrying;
         guy.state = .Dead;
-        if guy.carrying_item == .Flag {
-            // Forcefully spawn Flag. Lava checks will be done later.
-            place_flag(server, guy.physical_position);
-            guy.carrying_item = .Count;
-        }
+
+        if was_carrying then try_to_place_item(server, guy.physical_position, guy.carrying_item, null);
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
@@ -824,16 +822,6 @@ try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind)
     return false;
 }
 
-try_to_place_flag :: (server: *Server, target_position: v2i) -> bool {
-    if !position_in_bounds(server, target_position) return false;
-    
-    collision_entity := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
-    if collision_entity return false;
-    
-    place_flag(server, target_position);
-    return true;
-}
-
 // This will first try to put the item on the ground, and if that doesn't work it'll try to
 // place the item inside the guy's hand. The target_guy might be standing away from the target
 // position. This could be interesting for cases where they destruct a mirror, and under the
@@ -841,25 +829,65 @@ try_to_place_flag :: (server: *Server, target_position: v2i) -> bool {
 try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
     if !position_in_bounds(server, target_position) return false;
 
-    success := false;
+    place_stack_on_ground :: () #macro {
+        stack_entity := create_entity(server, .Item_Stack, target_position, .North);
+        stack := down(stack_entity, Item_Stack);
+        stack.item_kind = kind;
+        stack.count = 1;
 
-    collision    := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
+        msg := make_message(Item_Stack_State_Message);
+        msg.item_stack_state.entity_pid = stack.pid;
+        msg.item_stack_state.item_kind  = stack.item_kind;
+        msg.item_stack_state.count      = stack.count;
+        array_add(*server.outgoing_messages, msg);
+    }
+
+    place_flag_on_ground :: () #macro {
+        flag_entity := create_entity(server, .Flag, target_position, .North);
+        server.flag_pid = flag_entity.pid;
+
+        new_score := target_position.x + 1;
+
+        if new_score > server.game_score {
+            server.game_score = new_score;
+            msg := make_message(Game_Score_Message);
+            msg.game_score.score = server.game_score;
+            array_add(*server.outgoing_messages, msg);
+        }
+    }
+
+    success: bool = false;
+
     stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
     chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
-    hole_entity  := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
-    guy_entity   := find_entity_of_kind_at_position(server, .Guy, target_position);
+    guy_entity := find_entity_of_kind_at_position(server, .Guy, target_position);
+    hole_entity := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
+    move_blocking_entity := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
 
-    if guy_entity {
-        guy := down(guy_entity, Guy);
+    if stack_entity {
+        stack := down(stack_entity, Item_Stack);
+        
+        if kind == .Flag {
+            place_flag_on_ground();
+            success = true;
+        } else if stack.item_kind == kind && stack.count < MAX_ITEM_STACK_SIZE_ON_GROUND {
+            ++stack.count;
 
-        if guy.state != .Carrying {
-            put_item_in_hand(guy, kind);
+            msg := make_message(Item_Stack_State_Message);
+            msg.item_stack_state.entity_pid = stack.pid;
+            msg.item_stack_state.item_kind  = stack.item_kind;
+            msg.item_stack_state.count      = stack.count;
+            array_add(*server.outgoing_messages, msg);
+
             success = true;
         }
     } else if chest_entity {
         chest := down(chest_entity, Chest);
 
-        if chest.item_count < CHEST_CAPACITY {
+        if kind == .Flag {
+            place_flag_on_ground();
+            success = true;
+        } else if kind != .Flag && chest.item_count < CHEST_CAPACITY {
             chest.items[chest.item_count] = kind;
             ++chest.item_count;
 
@@ -871,59 +899,48 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
             
             success = true;
         }
-    } else if collision || hole_entity {
-        // Can't put an item here...
-    } else if stack_entity {
-        stack := down(stack_entity, Item_Stack);
+    } else if guy_entity {
+        guy := down(guy_entity, Guy);
 
-        if stack.item_kind == kind && stack.count < MAX_ITEM_STACK_SIZE_ON_GROUND {
-            ++stack.count;
-
-            msg := make_message(Item_Stack_State_Message);
-            msg.item_stack_state.entity_pid = stack.pid;
-            msg.item_stack_state.item_kind  = stack.item_kind;
-            msg.item_stack_state.count      = stack.count;
-            array_add(*server.outgoing_messages, msg);
-
+        if guy.state == .Idle {
+            put_item_in_hand(guy, kind);
+            success = true;
+        } else {
+            place_flag_on_ground();
             success = true;
         }
+    } else if move_blocking_entity {
+        // Can't place any item here. Also, the player couldn't have died here (as we explicitly checked
+        // if a player was it this position before...), therefore we don't need any special handling
+        // of keeping the flag alive
+    } else if hole_entity {
+        // Only flags may be placed on slime holes, so that the flag is kept alive when a player dies
+        // on top of one (and also for convenience).
+        // Any other items may *not* be placed on slime holes...
+        if kind == .Flag {
+            place_flag_on_ground();
+            success = true;
+        }
+    } else if kind == .Flag {
+        place_flag_on_ground();
+        success = true;
     } else {
-        stack_entity = create_entity(server, .Item_Stack, target_position, .North);
-        stack := down(stack_entity, Item_Stack);
-        stack.item_kind = kind;
-        stack.count = 1;
-
-        msg := make_message(Item_Stack_State_Message);
-        msg.item_stack_state.entity_pid = stack.pid;
-        msg.item_stack_state.item_kind  = stack.item_kind;
-        msg.item_stack_state.count      = stack.count;
-        array_add(*server.outgoing_messages, msg);
-
+        place_stack_on_ground();
         success = true;
     }
 
     if !success && target_guy && target_guy.state == .Idle {
+        //
+        // If we couldn't place the item onto the target position, try putting it directly
+        // into the target guy's hand (if there is a target guy...)
+        // This can for example happen when mining a mirror, but there's already an item stack on
+        // that tile.
+        //
         put_item_in_hand(target_guy, kind);
         success = true;
     }
     
     return success;
-}
-
-place_flag :: (server: *Server, position: v2i) -> *Entity {
-    flag_entity := create_entity(server, .Flag, position, .North);
-    server.flag_pid = flag_entity.pid;
-
-    new_score := position.x + 1;
-
-    if new_score > server.game_score {
-        server.game_score = new_score;
-        msg := make_message(Game_Score_Message);
-        msg.game_score.score = server.game_score;
-        array_add(*server.outgoing_messages, msg);
-    }
-    
-    return flag_entity;
 }
 
 // This will first try to put the item inside the guy's hand, and if that doesn't work it'll try to

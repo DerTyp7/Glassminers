@@ -142,9 +142,7 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
             
             // Drop items carried by player
             guy := down(entity, Guy);
-            if guy.carrying_item == .Flag {
-                place_flag(server, guy.physical_position);
-            } else if guy.carrying_item != .Count {
+            if guy.carrying_item != .Count {
                 try_to_place_item(server, guy.physical_position, guy.carrying_item, null);
             }
             
@@ -659,6 +657,20 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
     return true;
 }
 
+is_any_guy_carrying_the_flag :: (server: *Server) -> bool {
+    found_the_flag := false;
+
+    for i := 0; i < server.guys.slot_count; ++i {
+        guy, occupied := index_bucket_array(*server.guys, i);
+        if occupied && guy.state == .Carrying && guy.carrying_item == .Flag {
+            found_the_flag = true;
+            break;
+        }
+    }
+
+    return found_the_flag;
+}
+
 create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
     create_entity_manager(server);
@@ -686,7 +698,7 @@ create_the_game :: (server: *Server) {
     //
     // Generate the required entities
     //
-    place_flag(server, .{ 1, 2 });
+    try_to_place_item(server, .{ 1, 2 }, .Flag, null);
 
     //
     // Generate one entity for each player and attach it to the player
@@ -904,14 +916,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     guy.state = .Idle;
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
-            } else if guy.carrying_item == .Flag {
-                if target_entity && target_entity.entity_kind == .Emitter {
-                    target_emitter := down(target_entity, Emitter);
-                    if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_CHARGE[server.game_mode] {
-                        set_emitter_state(server, target_emitter, .Active, target_emitter.current_charge);
-                    }
-                } else if try_to_place_flag(server, guy.target_position) {
-                    guy.state = .Idle;
+            } else if guy.carrying_item == .Flag && target_entity && target_entity.entity_kind == .Emitter{
+                target_emitter := down(target_entity, Emitter);
+                if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_CHARGE[server.game_mode] {
+                    set_emitter_state(server, target_emitter, .Active, target_emitter.current_charge);
                 }
             } else if try_to_place_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
@@ -1112,7 +1120,7 @@ do_game_tick :: (server: *Server) {
             }
         }
             
-        if server.flag_pid != INVALID_PID && !entity_exists(server, server.flag_pid) {
+        if !entity_exists(server, server.flag_pid) && !is_any_guy_carrying_the_flag(server) {
             // This means that the flag is not currently carried by any player, but it no longer
             // physically exists, which can only mean it got killed (e.g. by lava or whatever).
             game_result = .Flag_Was_Destroyed;

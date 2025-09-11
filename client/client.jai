@@ -175,7 +175,7 @@ Client :: struct {
     //
     requested_tutorial_panels: [..]Tutorial_Panel;
     current_tutorial_panel := 0;
-    enable_tutorial_panels := true;
+    enable_tutorial_panels := !DEVELOPER;
 
     //
     // Game Data
