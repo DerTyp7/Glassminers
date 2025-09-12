@@ -305,6 +305,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
       case .Coin;  index = .Coin;
       case .Torch; index = .Torch_0;
       case .Flag;  index = .Flag_0;
+      case .Chest; index = .Chest_Closed;
     }
     
     return index;

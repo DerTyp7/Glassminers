@@ -216,7 +216,7 @@ ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     0, // Item Stack
     0, // Slab
     .Blocks_Crafting, // Torch
-    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Crafting | .Auto_Heal, // Chest
+    .Pushable | .Blocks_Movement | .Blocks_Beam | .Blocks_Crafting, // Chest
     
     // Beings
     .Living | .Pushable | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
@@ -326,6 +326,7 @@ Item_Kind :: enum {
     Coin;
     Torch;
     Flag;
+    Chest;
 }
 
 Entity_Kind :: enum {

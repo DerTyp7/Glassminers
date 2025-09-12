@@ -865,10 +865,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         target_entity := find_any_entity_at_position(server, guy.target_position);
 
         if #complete guy.state == {
-          case .Dead, .Resurrecting;
-
-          case .Digging;
-            guy.state = .Idle; // Pressing primary again should stop the current again, in case that was a mistake
+          case .Dead, .Resurrecting, .Digging;
             
           case .Idle;
             if !target_entity break;
@@ -893,7 +890,11 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 put_item_in_hand(guy, .Flag);
                 remove_entity(server, target_entity);
                 server.flag_pid = INVALID_PID;
-                
+
+              case .Chest;
+                put_item_in_hand(guy, .Chest);
+                remove_entity(server, target_entity);
+
               case;
                 if target_entity.entity_flags & .Diggable {
                     guy.state = .Digging;
@@ -907,6 +908,11 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     set_emitter_state(server, emitter, .Active, emitter.current_charge + COAL_EMITTER_CHARGE);
                     guy.state = .Idle;
                 }
+            } else if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Flag {
+                target_emitter := down(target_entity, Emitter);
+                if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_CHARGE[server.game_mode] {
+                    set_emitter_state(server, target_emitter, .Active, target_emitter.current_charge);
+                }
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
                 create_entity(server, .Slab, guy.target_position, .North);
@@ -916,10 +922,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     guy.state = .Idle;
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
-            } else if guy.carrying_item == .Flag && target_entity && target_entity.entity_kind == .Emitter{
-                target_emitter := down(target_entity, Emitter);
-                if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_CHARGE[server.game_mode] {
-                    set_emitter_state(server, target_emitter, .Active, target_emitter.current_charge);
+            } else if !target_entity && guy.carrying_item == .Chest {
+                if position_in_bounds(server, guy.target_position) {
+                    guy.state = .Idle;
+                    create_entity(server, .Chest, guy.target_position, .North);
                 }
             } else if try_to_place_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;
