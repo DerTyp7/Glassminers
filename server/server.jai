@@ -671,6 +671,17 @@ is_any_guy_carrying_the_flag :: (server: *Server) -> bool {
     return found_the_flag;
 }
 
+were_all_emitters_activated :: (server: *Server) -> bool {
+    all_active := true;
+
+    for i := 0; i < server.emitters.slot_count; ++i {
+        emitter, occupied := index_bucket_array(*server.emitters, i);
+        if occupied then all_active &= emitter.state == .Active;
+    }
+
+    return all_active;
+}
+
 create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
     create_entity_manager(server);
@@ -1137,7 +1148,7 @@ do_game_tick :: (server: *Server) {
             game_result = .Flag_Was_Destroyed;
         }
 
-        if server.game_mode == .Tutorial && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) && server.game_score == server.world_size.x {
+        if server.game_mode == .Tutorial && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) && were_all_emitters_activated(server) {
             game_result = .Completed_Tutorial;
         }
 
