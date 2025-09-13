@@ -856,7 +856,7 @@ update_slime_hole :: (client: *Client, hole: *Entity) {
 
     for i := 0; i < client.slimes.slot_count; ++i {
         slime, occupied := index_bucket_array(*client.slimes, i);
-        if occupied && slime.state == .Hiding && slime.physical_position.x == hole.physical_position.x && slime.physical_position.y == hole.physical_position.y {
+        if occupied && !slime.marked_for_removal && slime.state == .Hiding && slime.physical_position.x == hole.physical_position.x && slime.physical_position.y == hole.physical_position.y {
             found_any_slime = true;
             break;
         }

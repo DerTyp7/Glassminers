@@ -504,6 +504,15 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
 
         maybe_remove_blocker(*client.lightmap, entity);
+
+        // edge-case: Update hole entity in case slime got killed in hole
+        // (currently only possible with cheat)
+        if entity.entity_kind == .Slime {
+            hole_entity := find_entity_of_kind_at_position(client, .Slime_Hole, entity.physical_position);
+            if hole_entity != null {
+                update_slime_hole(client, hole_entity);
+            }
+        }
         
       case .Move_Entity;
         entity := get_entity(client, msg.move_entity.entity_pid);

@@ -1009,7 +1009,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             create_entity(server, kind, guy.target_position, ENTITY_DEFAULT_DIRECTION[kind]);
         }
     }
-
+    
     if #complete guy.received_input.cheat == {
       case .Give_Coin; try_to_give_item(server, guy, .Coin);
       case .Give_Coal; try_to_give_item(server, guy, .Coal);
@@ -1023,6 +1023,32 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Spawn_Trader; spawn_creature_with_cheat(server, guy, .Trader);
       case .Toggle_Invincibility; guy.invincible = !guy.invincible;
 	  case .Toggle_GhostMode; guy.ghost_mode = !guy.ghost_mode;
+	  case .Kill_Creature; 
+        entity_to_kill := find_entity_with_flags_at_position(server, .Living, guy.target_position);
+        
+        if entity_to_kill == null {
+            // Special case: 
+            // Slimes hiding in holes have ".Disabled_Temporarily" flags, 
+            // which causes the helper querying functions to skip over them.
+            // Therefore we have to do a manual walk over the entities:
+            for i := 0; i < server.slimes.slot_count; ++i {
+                entity, occupied := index_bucket_array(*server.slimes, i);
+                if !occupied || entity.marked_for_removal ||
+                   entity.physical_position.x != guy.target_position.x || 
+                   entity.physical_position.y != guy.target_position.y {
+                    continue;
+                }
+                
+                entity_to_kill = entity.entity;
+                break;
+            }
+        }
+        
+        if entity_to_kill != null {
+            damage_and_maybe_kill_entity(server, entity_to_kill, entity_to_kill.health);
+        }
+        
+        
       case .Complete_Emitters;
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
