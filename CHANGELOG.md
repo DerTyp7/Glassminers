@@ -1,6 +1,7 @@
 ## 0.3.4 (unreleased)
 
 - Added little helper panels to the tutorial game mode to explain the basic game
+- Added a panel that displays all the input bindings for the game, openable from the pause menu
 - Added picking up chests and putting them down, including their inventory
 - Added some ambient sounds playing at random that make the soundscape more lively
 - Added killing the trader with light beams
