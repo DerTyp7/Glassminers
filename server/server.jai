@@ -1028,16 +1028,15 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         
         if entity_to_kill == null {
             // Special case: 
-            // Slimes hiding in holes have the disabled flags, 
-            // and are not returned in these helper functions.
+            // Slimes hiding in holes have ".Disabled_Temporarily" flags, 
+            // which causes the helper querying functions to skip over them.
+            // Therefore we have to do a manual walk over the entities:
             for i := 0; i < server.slimes.slot_count; ++i {
                 entity, occupied := index_bucket_array(*server.slimes, i);
                 if !occupied || entity.marked_for_removal ||
                    entity.physical_position.x != guy.target_position.x || 
                    entity.physical_position.y != guy.target_position.y {
                     continue;
-                    entity_to_kill = entity.entity;
-                    break;
                 }
                 
                 entity_to_kill = entity.entity;
