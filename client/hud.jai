@@ -510,7 +510,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
         
         base_item_array: [Item_Kind.Count]s64 = .[ 0 ];
         for i := 0; i < chest.item_count; ++i {
-            base_item_array[chest.items[i]] += 1;
+            base_item_array[chest.item_kinds[i]] += 1;
         }
 
         separate_item_count := 0;

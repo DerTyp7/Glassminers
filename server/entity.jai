@@ -32,7 +32,8 @@ Guy :: struct {
     target_position: v2i    = .{ 0, 0 };
 
     carrying_item: Item_Kind = .Count;
-    
+    carrying_chest_inventory: Item_Inventory = ---; // Only used to remember the inventory when this guy is carrying a chest item
+
     resurrection_pid: Pid = INVALID_PID;
     resurrection_t: f32   = 0; // Between 0 and 1
 
@@ -67,8 +68,7 @@ Item_Stack :: struct {
 
 Chest :: struct {
     #using entity : *Entity = ---;
-    items: [8]Item_Kind = ---;
-    item_count: s64;
+    #using inventory: Item_Inventory;
 }
 
 Frog :: struct {
@@ -520,6 +520,13 @@ set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, 
     }
 }
 
+broadcast_chest_inventory :: (server: *Server, chest: *Chest) {
+    msg := make_message(Chest_State_Message);
+    msg.chest_state.entity_pid = chest.pid;
+    msg.chest_state.inventory = chest.inventory;
+    array_add(*server.outgoing_messages, msg);
+}
+
 update_powered_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
 
@@ -805,16 +812,10 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
 
 try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind) -> bool {
     for i := 0; i < chest.item_count; ++i {
-        if chest.items[i] == kind {
-            if i + 1 < chest.item_count copy_memory(*chest.items[i], *chest.items[i + 1], (chest.item_count - i - 1) * size_of(Item_Kind));
+        if chest.item_kinds[i] == kind {
+            if i + 1 < chest.item_count copy_memory(*chest.item_kinds[i], *chest.item_kinds[i + 1], (chest.item_count - i - 1) * size_of(Item_Kind));
             --chest.item_count;
-
-            msg := make_message(Chest_State_Message);
-            msg.chest_state.entity_pid = chest.pid;
-            msg.chest_state.items = chest.items;
-            msg.chest_state.item_count = chest.item_count;
-            array_add(*server.outgoing_messages, msg);
-            
+            broadcast_chest_inventory(server, chest);            
             return true;
         }
     }
@@ -870,7 +871,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
         if kind == .Flag {
             place_flag_on_ground();
             success = true;
-        } else if stack.item_kind == kind && stack.count < MAX_ITEM_STACK_SIZE_ON_GROUND {
+        } else if stack.item_kind == kind && stack.count < PHYSICAL_ITEM_STACK_CAPACITY {
             ++stack.count;
 
             msg := make_message(Item_Stack_State_Message);
@@ -887,16 +888,10 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
         if kind == .Flag {
             place_flag_on_ground();
             success = true;
-        } else if kind != .Flag && chest.item_count < CHEST_CAPACITY {
-            chest.items[chest.item_count] = kind;
+        } else if kind != .Flag && chest.item_count < chest.item_kinds.Capacity {
+            chest.item_kinds[chest.item_count] = kind;
             ++chest.item_count;
-
-            msg := make_message(Chest_State_Message);
-            msg.chest_state.entity_pid = chest.pid;
-            msg.chest_state.items = chest.items;
-            msg.chest_state.item_count = chest.item_count;
-            array_add(*server.outgoing_messages, msg);
-            
+            broadcast_chest_inventory(server, chest);
             success = true;
         }
     } else if guy_entity {

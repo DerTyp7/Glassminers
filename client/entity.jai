@@ -82,8 +82,7 @@ Item_Stack :: struct {
 
 Chest :: struct {
     #using entity : *Entity = ---;
-    items: [CHEST_CAPACITY]Item_Kind = ---;
-    item_count: s64;
+    #using inventory: Item_Inventory;
 }
 
 Frog :: struct {

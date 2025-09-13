@@ -892,6 +892,8 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 server.flag_pid = INVALID_PID;
 
               case .Chest;
+                chest := down(target_entity, Chest);
+                guy.carrying_chest_inventory = chest.inventory;
                 put_item_in_hand(guy, .Chest);
                 remove_entity(server, target_entity);
 
@@ -925,7 +927,10 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             } else if !target_entity && guy.carrying_item == .Chest {
                 if position_in_bounds(server, guy.target_position) {
                     guy.state = .Idle;
-                    create_entity(server, .Chest, guy.target_position, .North);
+                    chest_entity := create_entity(server, .Chest, guy.target_position, .North);
+                    chest := down(chest_entity, Chest);
+                    chest.inventory = guy.carrying_chest_inventory;
+                    broadcast_chest_inventory(server, chest);
                 }
             } else if try_to_place_item(server, guy.target_position, guy.carrying_item, null) {
                 guy.state = .Idle;

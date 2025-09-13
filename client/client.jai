@@ -656,8 +656,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Chest_State;
         entity := get_entity(client, msg.chest_state.entity_pid);
         chest := down(entity, Chest);
-        chest.items      = msg.chest_state.items;
-        chest.item_count = msg.chest_state.item_count;
+        chest.inventory = msg.chest_state.inventory;
         
       case .Frog_State;
         entity := get_entity(client, msg.frog_state.entity_pid);

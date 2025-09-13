@@ -139,8 +139,7 @@ Item_Stack_State_Message :: struct {
 Chest_State_Message :: struct {
     MSG_TYPE :: Message_Type.Chest_State;
     entity_pid: Pid;
-    items: [CHEST_CAPACITY]Item_Kind = ---;
-    item_count: s64;
+    inventory: Item_Inventory;
 }
 
 Frog_State_Message :: struct {

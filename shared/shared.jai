@@ -143,8 +143,9 @@ SECTION_HEIGHT: s32 : 5; // The height of the world for randomly generated world
 CAMERA_AREA_WIDTH: f32 : 5; // The camera position snaps to multiples of this area width, to decrease the number of camera movements.
 CAMERA_AREA_OFFSET: f32 : CAMERA_AREA_WIDTH / 2 - 0.5;
 
-MAX_ITEM_STACK_SIZE_ON_GROUND :: 1;
-VISUAL_ITEM_STACK_CAPACITY :: 5; // Obviously only actually useful if this value is smaller than the MAX_ITEM_STACK_SIZE_ON_GROUND value
+ITEM_INVENTORY_CAPACITY :: 8;
+PHYSICAL_ITEM_STACK_CAPACITY :: 1; // How many items of the same kind can be stacked upon each other
+VISUAL_ITEM_STACK_CAPACITY :: 5; // Obviously only actually useful if this value is smaller than the PHYSICAL_ITEM_STACK_CAPACITY value
 VISUAL_ITEM_STACK_OFFSETS: [VISUAL_ITEM_STACK_CAPACITY]v2f : .[ .{ 0, 0 }, .{ -0.1, 0.2 }, .{ 0.2, 0.1 }, .{ -0.2, -0.1 }, .{ 0.2, -0.2 } ];
 
 COAL_EMITTER_CHARGE: f32 : 45;
@@ -163,8 +164,6 @@ STRENGTH_POTION_TIME: f32 : 30;
 STRENGTH_POTION_FACTOR: f32 : 2;
 
 GUY_PUSH_STRENGTH: s64 : 2;
-
-CHEST_CAPACITY :: 8;
 
 FROG_BEAM_LENGTH :: 3;
 FROG_ATTACK_TIME:  f32 : 1;
@@ -415,6 +414,11 @@ Crafting_Recipe :: enum {
     Strength_Potion;
     Shard;
     Coal;
+}
+
+Item_Inventory :: struct {
+    item_count: s64;
+    item_kinds: [ITEM_INVENTORY_CAPACITY]Item_Kind = ---;
 }
 
 CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
