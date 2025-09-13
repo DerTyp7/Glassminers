@@ -5,6 +5,7 @@
 - Added picking up chests and putting them down, including their inventory
 - Added some ambient sounds playing at random that make the soundscape more lively
 - Added killing the trader with light beams
+- Decreased the chances of rocks and crystals spawning, increased the chances of monsters spawning the further the right in the world
 - Changed an emitter to only actually unlock the next section when it is powered *and* a guy interacts with the flag on it
 - Items can no longer be stacked on the ground
 - Made the slime walk sound more quiet, added a different pitch version for more variety
