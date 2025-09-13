@@ -585,7 +585,7 @@ update_frog :: (server: *Server, frog: *Frog) {
 
     if #complete frog.state == {
       case .Idle;
-        target_guy, target_distance := find_target_guy_for_monster(server, frog.physical_position);
+        target_guy, target_distance := find_target_guy_for_npc(server, frog.physical_position);
         
         if target_guy {
             delta := v2i.{ target_guy.physical_position.x - frog.physical_position.x, target_guy.physical_position.y - frog.physical_position.y };
@@ -663,7 +663,7 @@ update_goblin :: (server: *Server, goblin: *Goblin) {
 
     if #complete goblin.state == {
       case .Idle;
-        target_guy, target_distance := find_target_guy_for_monster(server, goblin.physical_position);
+        target_guy, target_distance := find_target_guy_for_npc(server, goblin.physical_position);
 
         if target_guy {
             delta := v2i.{ target_guy.physical_position.x - goblin.physical_position.x, target_guy.physical_position.y - goblin.physical_position.y };
@@ -794,7 +794,9 @@ update_slime :: (server: *Server, slime: *Slime) {
 }
 
 update_trader :: (server: *Server, entity: *Entity) {
-    target_guy, target_distance := find_target_guy_for_monster(server, entity.physical_position);
+    target_guy, target_distance := find_target_guy_for_npc(server, entity.physical_position);
+
+    damage_and_maybe_kill_if_in_light(server, entity);
 
     if target_guy {
         delta := v2i.{ target_guy.physical_position.x - entity.physical_position.x, target_guy.physical_position.y - entity.physical_position.y };
@@ -1031,7 +1033,7 @@ clear_beam_data :: (data: *Beam_Data) {
     data.fields.allocator = *temp;
 }
 
-find_target_guy_for_monster :: (server: *Server, monster_position: v2i) -> *Guy, s32 {
+find_target_guy_for_npc :: (server: *Server, npc_position: v2i) -> *Guy, s32 {
     target_guy: *Guy = null;
     target_distance: s32 = MAX_S32;
 
@@ -1039,9 +1041,9 @@ find_target_guy_for_monster :: (server: *Server, monster_position: v2i) -> *Guy,
         guy, occupied := index_bucket_array(*server.guys, i);
         if !occupied continue;
         
-        if !has_line_of_sight(server, monster_position, guy.physical_position) continue;
+        if !has_line_of_sight(server, npc_position, guy.physical_position) continue;
         
-        distance := abs(guy.physical_position.x - monster_position.x) + abs(guy.physical_position.y - monster_position.y);
+        distance := abs(guy.physical_position.x - npc_position.x) + abs(guy.physical_position.y - npc_position.y);
         if distance < target_distance {
             target_guy = guy;
             target_distance = distance;

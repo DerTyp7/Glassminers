@@ -1141,7 +1141,7 @@ do_game_tick :: (server: *Server) {
                 game_result = .All_Players_Died;
             }
         }
-            
+        
         if !entity_exists(server, server.flag_pid) && !is_any_guy_carrying_the_flag(server) {
             // This means that the flag is not currently carried by any player, but it no longer
             // physically exists, which can only mean it got killed (e.g. by lava or whatever).
