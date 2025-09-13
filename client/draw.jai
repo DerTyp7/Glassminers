@@ -209,6 +209,7 @@ Sprite_Index :: enum {
     
     // Debug/Cheat only
     Ghost_Mode;
+    Kill_Creature;
 }
 
 find_sprite_index_from_name :: (name: string) -> s64, bool {

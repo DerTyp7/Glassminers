@@ -169,6 +169,51 @@ reset_input_binding_tracker :: (client: *Client) {
     }
 }
 
+input_action_string :: (action: Input_Action) -> string {
+    name: string = ---;
+
+    if #complete action == {
+      case .Toggle_Pause_Menu;      name = "Pause Game";
+      case .Toggle_Fullscreen;      name = "Toggle Fullscreen";
+      case .Move_North;             name = "Move Up";
+      case .Move_East;              name = "Move Right";
+      case .Move_South;             name = "Move Down";
+      case .Move_West;              name = "Move Left";
+      case .Look_North;             name = "Turn Up";
+      case .Look_East;              name = "Turn Right";
+      case .Look_South;             name = "Turn Down";
+      case .Look_West;              name = "Turn Left";
+      case .Turn_Modifier;          name = "Hold to turn";
+      case .Interact_Primary;       name = "Primary Interaction";
+      case .Interact_Secondary;     name = "Secondary Interaction";
+      case .Hud_Toggle;             name = "Toggle Interaction Wheel";
+      case .Hud_Close;              name = "Close Interaction Wheel";
+      case .Hud_Confirm;            name = "Confirm in Wheel";
+      case .Hud_Left;               name = "Left in Wheel";
+      case .Hud_Right;              name = "Right in Wheel";
+      case .Cheat_Menu_Toggle;      name = "Toggle Cheat Wheel";
+      case .Developer_Panel_Toggle; name = "Toggle Dev Panel";
+      case .Sound_Hud_Toggle;       name = "Toggle Sound Hud";
+    }
+
+    return name;
+}
+
+input_action_available :: (action: Input_Action) -> bool {
+    #if !DEVELOPER {
+        available: bool = ---;
+
+        if action == {
+          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Sound_Hud_Toggle; available = false;
+          case; available = true;
+        }
+
+        return available;
+    } #else {
+        return true;
+    }
+}
+
 input_bindings_string :: (client: *Client, action: Input_Action) -> string {
     builder: String_Builder = ---;
     create_string_builder(*builder, *temp);

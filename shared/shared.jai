@@ -481,7 +481,7 @@ Cheat :: enum {
     Spawn_Trader;
     Toggle_Invincibility;
     Toggle_GhostMode;
-    Kill_Monster;
+    Kill_Creature;
     Complete_Emitters;
 }
 

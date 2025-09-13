@@ -434,7 +434,7 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Trader_Idle_Front_0,   // Spawn Trader
     .Hud_Heart_Full,        // Toggle Invincibility
     .Ghost_Mode,            // Toggle Ghost Mode
-    .Ghost_Mode,            // Kill Monster // TODO(Felix)
+    .Kill_Creature,         // Kill Creature
     .Emitter,               // Complete Emitters
 ];
 

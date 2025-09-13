@@ -147,6 +147,9 @@ Client :: struct {
     input_binding_tracker: Input_Binding_Tracker;
     global_input_binder: Input_Binder;    
 
+    input_bindings_panel_state: UI_Window_State = .Closed;
+    input_bindings_panel_position: UI_Vector2 = .{ 1.0, 0.0 };
+
     //
     // Networking
     //
@@ -1284,8 +1287,65 @@ find_next_entity_to_spectate :: (client: *Client, current_pid: Pid, forwards: bo
     return array_get(*candidates, next_index);
 }
 
+maybe_do_pause_menu_panel :: (client: *Client) -> bool {
+    if !client.pause_menu_open then return false;
+
+    ui :: *client.ui;
+    ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.35 });
+    ui_push_width(ui, .Pixels, 256, 1);
+    ui_push_height(ui, .Pixels, 32, 1);
+
+    ui_label(ui, true, "Seed: %", client.game_seed);
+    ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
+    ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
+    ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.desired_ui_scale);
+    ui_check_box(ui, "Gamepad Vibration", *client.vibration_enabled);
+    
+    if client.game_mode == .Tutorial {
+        ui_check_box(ui, "Tutorial Panels", *client.enable_tutorial_panels);
+    }
+
+    ui_toggle_button_with_pointer(ui, "Input Bindings", cast(*bool) *client.input_bindings_panel_state);
+
+    ui_divider(ui, true);
+    continue_game := ui_button(ui, "Continue!");
+    ui_divider(ui, false);
+    if ui_button(ui, "Back to Main Menu!") then initiate_state_transition(client, .Main_Menu, 0);
+
+    ui_pop_height(ui);
+    ui_pop_width(ui);
+    ui_pop_window(ui);
+
+    return continue_game;
+}
+
+maybe_do_input_bindings_panel :: (client: *Client) {
+    if !client.pause_menu_open || client.input_bindings_panel_state == .Closed then return;
+
+    ui := *client.ui;
+
+    client.input_bindings_panel_state, client.input_bindings_panel_position = ui_push_window(ui, "Input Bindings", .Draggable | .Closeable, client.input_bindings_panel_position);
+
+    if client.input_bindings_panel_state == .Open {
+        for i: Input_Action = 0; i < Input_Action.Count; ++i {
+            if !input_action_available(i) continue;
+
+            ui_push_width(ui, .Pixels, 800, 1);
+            ui_push_container(ui, .Horizontal);
+            ui_set_width(ui, .Percentage_Of_Parent, 0.4, 1);
+            ui_label(ui, false, "%", input_action_string(i));
+            ui_set_width(ui, .Percentage_Of_Parent, 1.0, 0);
+            ui_label(ui, false, input_bindings_string(client, i));
+            ui_pop_container(ui);
+            ui_pop_width(ui);
+        }
+    }
+
+    ui_pop_window(ui);
+}
+
 #if DEVELOPER {
-do_developer_panel :: (client: *Client) {
+maybe_do_developer_panel :: (client: *Client) {
     if client.developer_panel_state == .Closed then return;
 
     ui :: *client.ui;
@@ -1510,7 +1570,7 @@ do_game_tick :: (client: *Client) {
         client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
     }
 
-    do_developer_panel(client);
+    maybe_do_developer_panel(client);
 
     if input_action_fired_globally(client, .Sound_Hud_Toggle, .Pressed) {
         client.sound_hud_enabled = !client.sound_hud_enabled;
@@ -1671,37 +1731,14 @@ do_game_tick :: (client: *Client) {
             array_add(*outgoing_messages, msg);
         }
 
-        if client.pause_menu_open {
-            ui :: *client.ui;
-            ui_push_window(ui, "Glassminers", .Default, .{ 0.5, 0.35 });
-            ui_push_width(ui, .Pixels, 256, 1);
-            ui_push_height(ui, .Pixels, 32, 1);
+        maybe_do_input_bindings_panel(client);
 
-            ui_label(ui, true, "Seed: %", client.game_seed);
-            ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
-            ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
-            ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.desired_ui_scale);
-            ui_check_box(ui, "Gamepad Vibration", *client.vibration_enabled);
-            
-            if client.game_mode == .Tutorial {
-                ui_check_box(ui, "Tutorial Panels", *client.enable_tutorial_panels);
-            }
-
-            ui_divider(ui, true);
-            if ui_button(ui, "Continue!") {
-                client.pause_menu_open = false;
-                msg := make_message(Game_Pause_Message);
-                msg.game_pause.client_pid = client.my_client_pid;
-                msg.game_pause.should_pause = client.pause_menu_open;
-                array_add(*outgoing_messages, msg);
-            }
-            
-            ui_divider(ui, false);
-            if ui_button(ui, "Back to Main Menu!") then initiate_state_transition(client, .Main_Menu, 0);
-
-            ui_pop_height(ui);
-            ui_pop_width(ui);
-            ui_pop_window(ui);
+        if maybe_do_pause_menu_panel(client) {
+            client.pause_menu_open = false;
+            msg := make_message(Game_Pause_Message);
+            msg.game_pause.client_pid = client.my_client_pid;
+            msg.game_pause.should_pause = client.pause_menu_open;
+            array_add(*outgoing_messages, msg);
         }
     }
     

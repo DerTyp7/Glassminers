@@ -451,19 +451,19 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
         return position, success;
     }
 
-    generate_random_count :: (server: *Server, section: [2]s32, kind: Entity_Kind) -> s32 {
-        t := SPAWN_PROBABILITY_TABLE[server.game_mode][kind];
+    generate_random_count :: (server: *Server, section: [2]s32, kind: Entity_Kind, modifier: f32) -> s32 {
+        t := SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
         area := (section[1] - section[0] + 1) * SECTION_HEIGHT;
         mean := t * cast(f32) area;
         stddev: f32 : 0.25;
         return cast(s32) round(random_f32_normal_distribution(*server.random, mean, stddev * mean));
     }
 
-    generate_randomly :: (server: *Server, section: [2]s32, kind: Entity_Kind) -> [..]*Entity {
+    generate_randomly :: (server: *Server, section: [2]s32, kind: Entity_Kind, modifier: f32) -> [..]*Entity {
         result: [..]*Entity;
         result.allocator = *temp;
         
-        count := generate_random_count(server, section, kind);
+        count := generate_random_count(server, section, kind, modifier);
 
         for i := 0; i < count; ++i {
             position, success := random_position(server, section);
@@ -481,15 +481,20 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
         server.latest_emitter = latest_emitter.pid;
     }
     
-    generate_randomly(server, section, .Lava);
-    generate_randomly(server, section, .Bedrock);
-    generate_randomly(server, section, .Rock);
-    generate_randomly(server, section, .Crystal);
-    generate_randomly(server, section, .Coal);
-    generate_randomly(server, section, .Frog);
-    generate_randomly(server, section, .Goblin);
-    generate_randomly(server, section, .Trader);
-    holes := generate_randomly(server, section, .Slime_Hole);
+    x: f32 = xx (server.current_section_index + 1);
+    friendly_modifier:   f32 = 1 / powf(x, 0.5); // The longer a game goes, the less friendly things we want to happen...
+    neutral_modifier:    f32 = 1.0; // These things shouldn't really change with the duration of the game...
+    unfriendly_modifier: f32 = -1 / powf(x, 0.5) + 2; // The longer a game goes, the more unfriendly things we want to happen
+
+    generate_randomly(server, section, .Lava,    neutral_modifier);
+    generate_randomly(server, section, .Bedrock, neutral_modifier);
+    generate_randomly(server, section, .Rock,    friendly_modifier);
+    generate_randomly(server, section, .Crystal, friendly_modifier);
+    generate_randomly(server, section, .Coal,    neutral_modifier);
+    generate_randomly(server, section, .Frog,    unfriendly_modifier);
+    generate_randomly(server, section, .Goblin,  unfriendly_modifier);
+    generate_randomly(server, section, .Trader,  neutral_modifier);
+    holes := generate_randomly(server, section, .Slime_Hole, neutral_modifier);
     
     for i := 0; i < holes.count; ++i {
         hole := array_get(*holes, i);
@@ -1018,7 +1023,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Spawn_Trader; spawn_creature_with_cheat(server, guy, .Trader);
       case .Toggle_Invincibility; guy.invincible = !guy.invincible;
 	  case .Toggle_GhostMode; guy.ghost_mode = !guy.ghost_mode;
-	  case .Kill_Monster; 
+	  case .Kill_Creature; 
         entity_to_kill := find_entity_with_flags_at_position(server, .Living, guy.target_position);
         
         if entity_to_kill == null {
