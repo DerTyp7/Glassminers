@@ -2,8 +2,10 @@
 
 - Added little helper panels to the tutorial game mode to explain the basic game
 - Added picking up chests and putting them down, including their inventory
+- Added some ambient sounds playing at random that make the soundscape more lively
 - Changed an emitter to only actually unlock the next section when it is powered *and* a guy interacts with the flag on it
 - Items can no longer be stacked on the ground
+- Made the slime walk sound more quiet, added a different pitch version for more variety
 - Disabled VSync for rendering the game
 
 ## 0.3.3 (03.09.2025)

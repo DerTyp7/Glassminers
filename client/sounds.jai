@@ -8,6 +8,8 @@ Play_Sound_Flags :: enum bitfield {
     Default;
     Looping;
     Once_Per_Frame;
+    Fade_In;
+    Fade_Out;
 }
 
 Sound_Index :: enum {
@@ -15,25 +17,34 @@ Sound_Index :: enum {
     Hud_Placedown_0;
     Hud_Success_0;
     Hud_Failure_0;
-    
+
+    Ambient_Lava_0;
+    Ambient_Scare_0;
+    Ambient_Scare_1;
+
     Emitter_Charging;
-    Emitter_Humming;
+    //Emitter_Humming;
     Emitter_Dying;
+    Rock_Sliding_0;
+
     Guy_Digging_0;
     Guy_Walk_0;
     Guy_Walk_1;
-    Rock_Sliding_0;
     Guy_Death_0;
+        
     Frog_Attack_0;
     Frog_Hurt_0;
     Frog_Death_0;
+    Frog_Idle_0;
     Goblin_Attack_0;
     Goblin_Hurt_0;
     Goblin_Death_0;
+    Goblin_Idle_0;
     Slime_Hurt_0;
     Slime_Death_0;
     Slime_Scared_0;
     Slime_Walk_0;
+    Slime_Walk_1;
 }
 
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
@@ -42,24 +53,33 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "hud-success-0",
     "hud-failure-0",
 
+    "ambient-lava-0",
+    "ambient-scare-0",
+    "ambient-scare-1",
+
     "emitter-charging",
-    "emitter-humming",
+    //"emitter-humming",
     "emitter-dying",
+    "rock-sliding-0",
+
     "guy-digging-0",
     "guy-walk-0",
     "guy-walk-1",
-    "rock-sliding-0",
     "guy-death-0",
+
     "frog-attack-0",
     "frog-hurt-0",
     "frog-death-0",
+    "frog-idle-0",
     "goblin-attack-0",
     "goblin-hurt-0",
     "goblin-death-0",
+    "goblin-idle-0",
     "slime-hurt-0",
     "slime-death-0",
     "slime-scared-0",
     "slime-walk-0",
+    "slime-walk-1",
 ];
 
 create_sound_data :: (client: *Client) -> bool {
@@ -113,6 +133,9 @@ play_sound :: (client: *Client, sound_index: Sound_Index, flags: Play_Sound_Flag
 
     mixer_sound_flags: Sound_Stream_Flags = .Default;
     if flags & .Looping then mixer_sound_flags |= .Looping;
+    if flags & .Fade_In then mixer_sound_flags |= .Fade_In;
+    if flags & .Fade_Out then mixer_sound_flags |= .Fade_Out;
+
     play_sound_on_stream(stream, sound, SOUND_CATEGORY_MAP[sound_index], mixer_sound_flags);
     client.sounds_played_this_frame[sound_index] = true;
 
@@ -218,6 +241,36 @@ toggle_all_game_sounds :: (client: *Client, pause: bool) {
     }
 }
 
+initialize_random_sounds :: (client: *Client) {
+    for i := 0; i < random_sounds.Capacity; ++i {
+        sound := *random_sounds[i];
+        sound.seconds_till_next_play = random_f32_normal_distribution(*client.random, sound.average_seconds_between_plays, sound.standard_deviation_between_plays);
+    }
+}
+
+play_random_sounds :: (client: *Client) {
+    for i := 0; i < random_sounds.Capacity; ++i {
+        sound := *random_sounds[i];
+        sound.seconds_till_next_play -= client.tick_time;
+
+        if sound.seconds_till_next_play < 0 {
+            //
+            // Actually try to play the sound
+            //
+            if sound.play_on_entity_kind != .Count {
+                entity := find_entity_to_play_random_sound(client, sound);
+                if entity {
+                    play_sound_on_entity(client, sound.index, entity, sound.flags);
+                } 
+            } else {
+                play_sound(client, sound.index, sound.flags);
+            }
+
+            sound.seconds_till_next_play = random_f32_normal_distribution(*client.random, sound.average_seconds_between_plays, sound.standard_deviation_between_plays);
+        }
+    }
+}
+
 
 #if DEVELOPER {
     find_sound_index_from_filepath :: (filepath: string) -> Sound_Index {
@@ -235,5 +288,40 @@ toggle_all_game_sounds :: (client: *Client, pause: bool) {
 #file_scope
 
 SOUND_CATEGORY_MAP: [Sound_Index.Count]Sound_Category : .[
-    .Sound_Effect,
+    .Sound_Effect, // Currently all sounds are considered a sound effect...
 ];
+
+
+
+/* 
+  Random sounds are played, well, at random sometimes during the game.
+  They're supposed to make the game feel more alive and dynamic.
+  Therefore, while the game is running, it tries to find random sounds to play,
+  depending on some conditions if desired.
+*/
+
+Random_Sound :: struct {
+    index: Sound_Index;
+    average_seconds_between_plays: f32;
+    standard_deviation_between_plays: f32;
+
+    play_on_entity_kind: Entity_Kind; // If this is .Count, then we play without spatialization.
+    flags: Play_Sound_Flags;
+
+    seconds_till_next_play: f32;
+}
+
+random_sounds: [5]Random_Sound = .[
+    .{ .Ambient_Lava_0,  11,  1, .Count,  .Fade_In | .Fade_Out, --- },
+    .{ .Ambient_Scare_0, 45,  7, .Count,  .Default, --- },
+    .{ .Ambient_Scare_1, 45,  7, .Count,  .Default, --- },
+    .{ .Frog_Idle_0,      7,  2, .Frog,   .Default, --- },
+    .{ .Goblin_Idle_0,    7,  2, .Goblin, .Default, --- },
+];
+
+find_entity_to_play_random_sound :: (client: *Client, sound: *Random_Sound) -> *Entity {
+    random_player_index := rdtsc() % client.local_player_count;
+    target_guy := get_entity(client, client.local_players[random_player_index].guy_pid);
+    entity, distance := find_nearest_entity_of_kind(client, sound.play_on_entity_kind, target_guy.physical_position);
+    return entity;
+}

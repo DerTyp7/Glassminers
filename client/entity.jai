@@ -477,7 +477,7 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
         if entity.entity_kind == {
           case .Guy; sound_index = pick_random_sound(.[ .Guy_Walk_0, .Guy_Walk_1 ]);
           case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
-          case .Slime; sound_index = .Slime_Walk_0;
+          case .Slime; sound_index = pick_random_sound(.[ .Slime_Walk_0, .Slime_Walk_1 ]);
         }
 
         if sound_index != .Count {
@@ -530,9 +530,15 @@ maybe_play_animation_from_group_after :: (client: *Client, entity: *Entity, new_
 }
 
 find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
+    found_entity: *Entity = null;
+
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if !occupied || entity.marked_for_removal || (entity.entity_flags & .Disabled_Temporarily) continue;
+        if entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
+        if found_entity && ENTITY_VISUAL_DEPTHS[entity.entity_kind] <= ENTITY_VISUAL_DEPTHS[found_entity.entity_kind] continue;
+        
+        return entity;
     }
     
     return null;
@@ -541,7 +547,10 @@ find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
 find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && entity.entity_kind == kind && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if !occupied || entity.marked_for_removal || (entity.entity_flags & .Disabled_Temporarily) continue;
+        if entity.entity_kind != kind || entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
+
+        return entity;
     }
     
     return null;
@@ -550,10 +559,32 @@ find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position
 find_entity_with_flags_at_position :: (client: *Client, flags: Entity_Flags, position: v2i) -> *Entity {
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && !entity.marked_for_removal && (entity.entity_flags & flags) == flags && !(entity.entity_flags & .Disabled_Temporarily) && entity.physical_position.x == position.x && entity.physical_position.y == position.y return entity;
+        if !occupied || entity.marked_for_removal || (entity.entity_flags & .Disabled_Temporarily) continue;
+        if (entity.entity_flags & flags) != flags || entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
+
+        return entity;
     }
     
     return null;
+}
+
+find_nearest_entity_of_kind :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity, s32 {
+    nearest_distance := MAX_S32;
+    nearest_entity: *Entity = null;
+
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if !occupied || entity.marked_for_removal || (entity.entity_flags & .Disabled_Temporarily) continue;
+        if entity.entity_kind != kind continue;
+
+        distance := abs(position.x - entity.physical_position.x) + abs(position.y - entity.physical_position.y);
+        if distance < nearest_distance {
+            nearest_entity   = entity;
+            nearest_distance = distance;
+        }
+    }
+    
+    return nearest_entity, nearest_distance;
 }
 
 physically_remove_dead_entities :: (client: *Client) {
@@ -615,9 +646,9 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
     if emitter.current_charge > 0 {
         recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
         fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
-    
-        /*
-        // This humming sound is honestly too annoying, so we're not doing it for now...
+
+        /*    
+        // :EmitterSound, currently don't have a good sound to use that isn't annoying...
         if !sound_active(client, emitter.sound) {
             emitter.sound = play_sound_on_entity(client, .Emitter_Humming, emitter, .Looping);
         }

@@ -114,6 +114,7 @@ Client :: struct {
     next_state: Game_State;
     state_transition_t: f32; // We will only transition from the current state to the next state once this value reaches 0. Before that, we will just fade out the current state
     state_transition_duration: f32;
+    random: Random_Generator;
 
     previous_game_result: Game_Result;
     info_text: string;
@@ -426,9 +427,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.game_mode  = msg.game_start.game_mode;
         initiate_state_transition(client, .Ingame, 0);
 
+        seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
+        initialize_random_sounds(client);
         create_entity_manager(client);
         create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
-        
+
         for i := 0; i < client.local_player_count; ++i {
             create_hud(client, i);
             client.local_players[i].guy_pid = INVALID_PID;
@@ -1486,6 +1489,7 @@ do_game_tick :: (client: *Client) {
         }
 
         update_lightmap(*client.lightmap, client.tick_time);
+        play_random_sounds(client);
 
         client.game_epoch_time += client.tick_time;
     }

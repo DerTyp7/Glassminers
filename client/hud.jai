@@ -341,8 +341,8 @@ draw_sound_hud :: (client: *Client) {
 
             x0 := top_left.x + cast(f32) x;
             x1 := x0;
-            y0 := ceil(median + sample.low * waveform_height);
-            y1 := floor(median + sample.high * waveform_height);
+            y0 := ceil(median + sample.low * waveform_height * 0.5);
+            y1 := floor(median + sample.high * waveform_height * 0.5);
 
             draw_rect_screen_space(client, .{ x0, y0 }, .{ x1, y1 }, color);
         }
