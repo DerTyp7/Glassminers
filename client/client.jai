@@ -509,7 +509,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         // (currently only possible with cheat)
         if entity.entity_kind == .Slime {
             hole_entity := find_entity_of_kind_at_position(client, .Slime_Hole, entity.physical_position);
-            update_slime_hole(client, hole_entity);
+            if hole_entity != null {
+                update_slime_hole(client, hole_entity);
+            }
         }
         
       case .Move_Entity;
