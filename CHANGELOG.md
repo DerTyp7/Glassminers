@@ -1,4 +1,4 @@
-## 0.3.4 (unreleased)
+## 0.3.4 (14.09.2025)
 
 - Added little helper panels to the tutorial game mode to explain the basic game
 - Added a panel that displays all the input bindings for the game, openable from the pause menu
