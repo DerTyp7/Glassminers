@@ -812,6 +812,7 @@ read_incoming_packets :: (client: *Client) {
           case Packet_Type.Message;
             msg: Message = ---;
             while read_message(packet, *msg) {
+#if DEVELOPER   register_message_history(*client.incoming_message_history, msg);
                 handle_incoming_message(client, *msg);
             }
         }
@@ -1436,10 +1437,13 @@ maybe_do_developer_panel :: (client: *Client) {
     ui_pop_width(ui);
 }
 
-new_message_history_entry :: (history: *Message_History) -> *Message_History_Entry {
+register_message_history :: (history: *Message_History, message: Message) {
     copy_memory(*history.entries[1], *history.entries[0], min(history.entries.Capacity - 1, history.active) * size_of(Message_History_Entry));
     history.active = min(history.entries.Capacity, history.active + 1);
-    return *history.entries[0];
+    
+    entry := *history.entries[0];
+    entry.message = message;
+    entry.timestamp = os_get_cpu_time();
 }
 
 maybe_do_message_history_panel :: (client: *Client) {
@@ -1861,11 +1865,7 @@ do_game_tick :: (client: *Client) {
             message := array_get_pointer(*client.outgoing_messages, i);
             send_reliable_message(*client.connection, message);
 
-#if DEVELOPER {
-            entry := new_message_history_entry(*client.outgoing_message_history);
-            entry.message = ~message;
-            entry.timestamp = now;
-}
+#if DEVELOPER   register_message_history(*client.outgoing_message_history, ~message);
         }
 
         array_clear(*client.outgoing_messages);
