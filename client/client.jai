@@ -78,14 +78,15 @@ Tutorial_Panel :: enum {
 
 #if DEVELOPER {
     Message_History_Entry :: struct {
-        timestamp: CPU_Time;
         message: Message;
         size_in_bytes: s64;
+        age: f32;
     }
 
     Message_History :: struct {
         entries: [16]Message_History_Entry;
         active: s64;
+        total_bytes_received: s64;
     }
 }
 
@@ -237,6 +238,7 @@ Client :: struct {
     outgoing_message_history: Message_History;
     message_history_panel_state: UI_Window_State;
     message_history_panel_position: UI_Vector2;
+    message_history_paused := false;
 }
 
 #if MEMORY_DEBUGGING {
@@ -813,7 +815,7 @@ read_incoming_packets :: (client: *Client) {
           case Packet_Type.Message;
             msg: Message = ---;
             while read_message(packet, *msg) {
-#if DEVELOPER   register_message_history(*client.incoming_message_history, msg);
+#if DEVELOPER   register_message_history(client, *client.incoming_message_history, *msg);
                 handle_incoming_message(client, *msg);
             }
         }
@@ -1438,14 +1440,19 @@ maybe_do_developer_panel :: (client: *Client) {
     ui_pop_width(ui);
 }
 
-register_message_history :: (history: *Message_History, message: Message) {
-    copy_memory(*history.entries[1], *history.entries[0], min(history.entries.Capacity - 1, history.active) * size_of(Message_History_Entry));
-    history.active = min(history.entries.Capacity, history.active + 1);
-    
-    entry := *history.entries[0];
-    entry.message       = message;
-    entry.timestamp     = os_get_cpu_time();
-    entry.size_in_bytes = message_size_in_bytes(*message);
+register_message_history :: (client: *Client, history: *Message_History, message: *Message) {
+    size_in_bytes := message_size_in_bytes(message);
+    history.total_bytes_received += size_in_bytes;
+
+    if !client.message_history_paused {
+        copy_memory(*history.entries[1], *history.entries[0], min(history.entries.Capacity - 1, history.active) * size_of(Message_History_Entry));
+        history.active = min(history.entries.Capacity, history.active + 1);
+        
+        entry := *history.entries[0];
+        entry.message       = ~message;
+        entry.age           = 0;
+        entry.size_in_bytes = size_in_bytes;
+    }
 }
 
 maybe_do_message_history_panel :: (client: *Client) {
@@ -1455,7 +1462,7 @@ maybe_do_message_history_panel :: (client: *Client) {
         if history.active == 0 return 0;
 
         bytes: s64;
-        timespan: f32 = os_convert_cpu_time(os_get_cpu_time() - history.entries[history.active - 1].timestamp, .Seconds);
+        timespan: f32 = history.entries[history.active - 1].age;
 
         for i := 0; i < history.active; ++i   bytes += history.entries[i].size_in_bytes;
 
@@ -1466,37 +1473,42 @@ maybe_do_message_history_panel :: (client: *Client) {
         ui_push_growing_container(ui, .Vertical);
         ui_push_width(ui, .Pixels, WIDTH * 0.5, 0.9);
 
-        ui_label(ui, true, "% - % kb/s", name, format_float(xx calculate_bandwidth(history) / 1000, 0, 2));
+        unit_value, unit := convert_to_biggest_memory_unit(history.total_bytes_received);
+        ui_label(ui, true, "% - % kb/s - %% total", name, 
+                 format_float(xx calculate_bandwidth(history) / 1000, 0, 2),
+                 format_float(unit_value, 0, 2),
+                 suffix_string_from_memory_unit(unit)
+                 );
         ui_divider(ui, true);
 
         now := os_get_cpu_time();
 
         for i := 0; i < history.active; ++i {
             entry := *history.entries[i]; // Unfortunately, the dynamically allocated data on this message is no longer valid, as it lived on *temp. Therefore, we can't really print the content of this message safely, we can only print the kind of message...
-            seconds_passed := os_convert_cpu_time(now - entry.timestamp, .Seconds);
-            ui_label(ui, false, "% (%b) (%s)", type_info(entry.message.local_type_id).display_name, entry.size_in_bytes, format_float(xx seconds_passed, 0, 2));
+            ui_label(ui, false, "% (%b) (%s)", type_info(entry.message.local_type_id).display_name, entry.size_in_bytes, entry.age);
         }
 
         ui_pop_width(ui);
         ui_pop_container(ui);
     }
 
-    cleanup_history :: (history: *Message_History) { // Delete old entries that no longer seem interesting...
+    update_history :: (client: *Client, history: *Message_History) { // Delete old entries that no longer seem interesting...
         now := os_get_cpu_time();
 
-        for i := history.active - 1; i >= 0; --i {
+        for i := 0; i < history.active; ++i {
             entry := *history.entries[i];
-            seconds_passed := os_convert_cpu_time(now - entry.timestamp, .Seconds);
-            if seconds_passed >= 9.5 {
+            if entry.age >= 9.5 {
                 --history.active;
             } else {
-                break;
+                entry.age += client.tick_time;
             }
         }
     }
 
-    cleanup_history(*client.incoming_message_history);
-    cleanup_history(*client.outgoing_message_history);
+    if !client.message_history_paused {
+        update_history(client, *client.incoming_message_history);
+        update_history(client, *client.outgoing_message_history);
+    }
 
     if client.message_history_panel_state == .Closed then return;
 
@@ -1513,6 +1525,9 @@ maybe_do_message_history_panel :: (client: *Client) {
         do_history(ui, *client.outgoing_message_history, "Outgoing");
         ui_pop_container(ui);        
     }
+
+    ui_divider(ui, true);
+    ui_check_box(ui, "Pause", *client.message_history_paused);
 
     ui_pop_window(ui);
     ui_pop_width(ui);
@@ -1878,7 +1893,7 @@ do_game_tick :: (client: *Client) {
             message := array_get_pointer(*client.outgoing_messages, i);
             send_reliable_message(*client.connection, message);
 
-#if DEVELOPER   register_message_history(*client.outgoing_message_history, ~message);
+#if DEVELOPER   register_message_history(client, *client.outgoing_message_history, message);
         }
 
         array_clear(*client.outgoing_messages);
