@@ -176,7 +176,8 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
 
-    probed_hash_table_add(*server.pid_lookup, pid, entity);
+    entity_was_added := probed_hash_table_add(*server.pid_lookup, pid, entity);
+    assert(entity_was_added, "Entity couldn't be added to the hash table.");
     
     if #complete entity.entity_kind == {
       case .Guy;        make_derived(entity, *server.guys);
