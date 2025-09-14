@@ -2,6 +2,7 @@
 
 - Added a sprite to indicate the chest is currently opened by a player
 - Added sounds when opening or closing a chest
+- Fixed chests being drawn under slime holes when they're pushed on top of one
 
 ## 0.3.4 (14.09.2025)
 

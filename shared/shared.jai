@@ -299,7 +299,7 @@ ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rend
     3, // Rock
     3, // Coal
     3, // Crystal
-    2, // Slime Hole
+    0, // Slime Hole
 
     // Creations
     1, // Item Stack
