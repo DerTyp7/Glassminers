@@ -954,7 +954,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         }
 
       case .Primary_End;
-        if guy.state == .Digging {
+        if guy.state == .Digging || guy.state == .Resurrecting {
             guy.state = .Idle;
         }
         

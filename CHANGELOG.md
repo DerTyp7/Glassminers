@@ -11,6 +11,7 @@
 - Items can no longer be stacked on the ground
 - Made the slime walk sound more quiet, added a different pitch version for more variety
 - Disabled VSync for rendering the game
+- Fixed resurrecting not being a "hold" input action
 
 ## 0.3.3 (03.09.2025)
 
