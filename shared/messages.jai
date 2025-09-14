@@ -256,6 +256,40 @@ read_message :: (packet: *Packet, message: *Message) -> bool {
     return true;
 }
 
+message_size_in_bytes :: (message: *Message) -> s64 { // This is only really relevant for messages that have dynamic content, like strings...
+    result: s64 = ---;
+
+    if #complete message.msg_type == {
+      case .Client_Disconnect,
+           .Remove_Local_Player,
+           .Request_Game_Start,
+           .Game_Pause,
+           .Game_Start,
+           .Game_Over,
+           .Game_Score,
+           .World_Resize,
+           .Create_Entity,
+           .Destroy_Entity,
+           .Move_Entity,
+           .Entity_Health,
+           .Guy_State,
+           .Guy_Input,
+           .Emitter_State,
+           .Item_Stack_State,
+           .Chest_State,
+           .Frog_State,
+           .Goblin_State,
+           .Slime_State;
+        result = type_info(message.local_type_id).size_in_bytes;
+
+      case .Player_Information;
+        result = type_info(message.local_type_id).size_in_bytes + message.player_information.name.count;
+    }
+
+    return result;
+}
+
+
 
 #file_scope
 

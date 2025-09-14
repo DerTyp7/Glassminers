@@ -80,6 +80,7 @@ Tutorial_Panel :: enum {
     Message_History_Entry :: struct {
         timestamp: CPU_Time;
         message: Message;
+        size_in_bytes: s64;
     }
 
     Message_History :: struct {
@@ -1442,18 +1443,30 @@ register_message_history :: (history: *Message_History, message: Message) {
     history.active = min(history.entries.Capacity, history.active + 1);
     
     entry := *history.entries[0];
-    entry.message = message;
-    entry.timestamp = os_get_cpu_time();
+    entry.message       = message;
+    entry.timestamp     = os_get_cpu_time();
+    entry.size_in_bytes = message_size_in_bytes(*message);
 }
 
 maybe_do_message_history_panel :: (client: *Client) {
-    WIDTH: f32 : 720;
+    WIDTH: f32 : 960;
+
+    calculate_bandwidth :: (history: *Message_History) -> f32 {
+        if history.active == 0 return 0;
+
+        bytes: s64;
+        timespan: f32 = os_convert_cpu_time(os_get_cpu_time() - history.entries[history.active - 1].timestamp, .Seconds);
+
+        for i := 0; i < history.active; ++i   bytes += history.entries[i].size_in_bytes;
+
+        return cast(f32) bytes / timespan;
+    }
 
     do_history :: (ui: *UI, history: *Message_History, name: string) {
         ui_push_growing_container(ui, .Vertical);
         ui_push_width(ui, .Pixels, WIDTH * 0.5, 0.9);
 
-        ui_label(ui, true, name);
+        ui_label(ui, true, "% - % kb/s", name, format_float(xx calculate_bandwidth(history) / 1000, 0, 2));
         ui_divider(ui, true);
 
         now := os_get_cpu_time();
@@ -1461,7 +1474,7 @@ maybe_do_message_history_panel :: (client: *Client) {
         for i := 0; i < history.active; ++i {
             entry := *history.entries[i]; // Unfortunately, the dynamically allocated data on this message is no longer valid, as it lived on *temp. Therefore, we can't really print the content of this message safely, we can only print the kind of message...
             seconds_passed := os_convert_cpu_time(now - entry.timestamp, .Seconds);
-            ui_label(ui, false, "% (%s)", type_info(entry.message.local_type_id).display_name, format_float(xx seconds_passed, 0, 2));
+            ui_label(ui, false, "% (%b) (%s)", type_info(entry.message.local_type_id).display_name, entry.size_in_bytes, format_float(xx seconds_passed, 0, 2));
         }
 
         ui_pop_width(ui);
