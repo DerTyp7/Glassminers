@@ -140,6 +140,7 @@ Chest_State_Message :: struct {
     MSG_TYPE :: Message_Type.Chest_State;
     entity_pid: Pid;
     inventory: Item_Inventory;
+    visually_open: bool;
 }
 
 Frog_State_Message :: struct {

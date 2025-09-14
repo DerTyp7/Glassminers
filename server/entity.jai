@@ -69,6 +69,7 @@ Item_Stack :: struct {
 Chest :: struct {
     #using entity : *Entity = ---;
     #using inventory: Item_Inventory;
+    visually_open_counter := 0; // This chest may be opened by multiple players at the same time...
 }
 
 Frog :: struct {
@@ -533,6 +534,7 @@ broadcast_chest_inventory :: (server: *Server, chest: *Chest) {
     msg := make_message(Chest_State_Message);
     msg.chest_state.entity_pid = chest.pid;
     msg.chest_state.inventory = chest.inventory;
+    msg.chest_state.visually_open = chest.visually_open_counter > 0;
     array_add(*server.outgoing_messages, msg);
 }
 

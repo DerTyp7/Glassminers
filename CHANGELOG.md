@@ -1,3 +1,8 @@
+## 0.4.0 (unreleased)
+
+- Added a sprite to indicate the chest is currently opened by a player
+- Added sounds when opening or closing a chest
+
 ## 0.3.4 (14.09.2025)
 
 - Added little helper panels to the tutorial game mode to explain the basic game

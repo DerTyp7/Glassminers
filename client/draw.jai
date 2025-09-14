@@ -44,7 +44,8 @@ Sprite_Index :: enum {
     Emitter;
     Mirror;
     Chest_Closed;
-    
+    Chest_Open;
+
     // Animates
     Lava_0;
     Lava_1;
@@ -1050,7 +1051,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
           case .Slab;       index = .Slab_0;
           case .Torch;      index = .Torch_0;
           case .Flag;       index = .Flag_0;
-          case .Chest;      index = .Chest_Closed;
+          case .Chest;      index = ifx down(entity, Chest).visually_open then .Chest_Open else .Chest_Closed;
           case .Guy;        index = .Guy_Idle_Front_0;
           case .Frog;       index = .Frog_Idle_Front_0;
           case .Goblin;     index = .Goblin_Idle_Front_0;

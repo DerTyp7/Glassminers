@@ -160,7 +160,8 @@ Client :: struct {
     remote_players: [..]Remote_Player;
     my_client_pid: Pid;
     latest_rtt: f32;
-    
+    outgoing_messages: [..]Message;
+
     //
     // Lobby Screen
     //
@@ -672,7 +673,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         entity := get_entity(client, msg.chest_state.entity_pid);
         chest := down(entity, Chest);
         chest.inventory = msg.chest_state.inventory;
-        
+        chest.visually_open = msg.chest_state.visually_open;
+
       case .Frog_State;
         entity := get_entity(client, msg.frog_state.entity_pid);
         frog := down(entity, Frog);
@@ -1378,8 +1380,7 @@ maybe_do_developer_panel :: (client: *Client) {
         {
             allocator_string :: (allocator: *Allocator) -> string {
                 size_in_units, units := convert_to_biggest_memory_unit(allocator.stats.working_set);
-                text := print_into_allocator(*temp, "% %", size_in_units, suffix_string_from_memory_unit(units));
-                return text;
+                return print_into_allocator(*temp, "% %", size_in_units, suffix_string_from_memory_unit(units));
             }
 
             ui_label(ui, true, "Allocators:");
@@ -1392,6 +1393,23 @@ maybe_do_developer_panel :: (client: *Client) {
             ui_divider(ui, true);
         }
     
+        {
+            size_string :: (size_in_bytes: s64) -> string {
+                size_in_units, units := convert_to_biggest_memory_unit(size_in_bytes);
+                return print_into_allocator(*temp, "% %", size_in_units, suffix_string_from_memory_unit(units));
+            }
+
+            ui_label(ui, true, "Asset Data:");
+
+            {
+                sound_data_bytes := 0;
+                for i := 0; i < client.sounds.Capacity; ++i    sound_data_bytes += client.sounds[i].bytes.count;
+                ui_label(ui, false, "Sounds: %", size_string(sound_data_bytes));
+            }
+
+            ui_divider(ui, true);
+        }
+
         {
             ui_label(ui, true, "Options");
             ui_check_box(ui, "Disable Lightmap", *client.lightmap.disabled);
@@ -1562,10 +1580,7 @@ do_game_tick :: (client: *Client) {
 
         client.game_epoch_time += client.tick_time;
     }
-   
-    outgoing_messages: [..]Message;
-    outgoing_messages.allocator = *temp;
-        
+    
     // Developer UI
 #if DEVELOPER { 
     if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
@@ -1694,7 +1709,7 @@ do_game_tick :: (client: *Client) {
                     // If nothing interesting happened, we can safe us the network traffic and just
                     // not send anything
                     msg := make_message_from(input);
-                    array_add(*outgoing_messages, msg);
+                    array_add(*client.outgoing_messages, msg);
                 }
 
                 local_player.entity_tracked_by_camera = local_player.guy_pid; // If we're alive, we always want to track ourselves
@@ -1730,7 +1745,7 @@ do_game_tick :: (client: *Client) {
             msg := make_message(Game_Pause_Message);
             msg.game_pause.client_pid = client.my_client_pid;
             msg.game_pause.should_pause = client.pause_menu_open;
-            array_add(*outgoing_messages, msg);
+            array_add(*client.outgoing_messages, msg);
         }
 
         maybe_do_input_bindings_panel(client);
@@ -1740,15 +1755,17 @@ do_game_tick :: (client: *Client) {
             msg := make_message(Game_Pause_Message);
             msg.game_pause.client_pid = client.my_client_pid;
             msg.game_pause.should_pause = client.pause_menu_open;
-            array_add(*outgoing_messages, msg);
+            array_add(*client.outgoing_messages, msg);
         }
     }
     
     // Send all outgoing messages
     {
-        for i := 0; i < outgoing_messages.count; ++i {
-            send_reliable_message(*client.connection, array_get_pointer(*outgoing_messages, i));
+        for i := 0; i < client.outgoing_messages.count; ++i {
+            send_reliable_message(*client.connection, array_get_pointer(*client.outgoing_messages, i));
         }
+
+        array_clear(*client.outgoing_messages);
     }
 
     physically_remove_dead_particle_systems(client);
@@ -1838,6 +1855,7 @@ main :: (args: []string) -> s32 {
     client.remote_players.allocator = *client.engine_allocator;
     client.test_inputs.allocator    = *client.engine_allocator;
     client.requested_tutorial_panels.allocator = *client.engine_allocator;
+    client.outgoing_messages.allocator = *temp;
     client.current_state = .Count;
     initiate_state_transition(*client, .Main_Menu, 0);
     maybe_transition_to_next_state(*client);

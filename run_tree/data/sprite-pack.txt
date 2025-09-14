@@ -41,15 +41,16 @@ Kill_Creature   sprites/items/skull.png
 #
 # Inanimates
 #
-Background  sprites/inanimates/background.png
-World_Edge  sprites/inanimates/world-edge.png
-Bedrock     sprites/inanimates/bedrock.png
-Crystal     sprites/inanimates/crystal.png
-Rock        sprites/inanimates/rock.png
-Coal_Block  sprites/inanimates/coal.png
-Emitter     sprites/inanimates/emitter.png
-Mirror      sprites/inanimates/mirror.png
+Background   sprites/inanimates/background.png
+World_Edge   sprites/inanimates/world-edge.png
+Bedrock      sprites/inanimates/bedrock.png
+Crystal      sprites/inanimates/crystal.png
+Rock         sprites/inanimates/rock.png
+Coal_Block   sprites/inanimates/coal.png
+Emitter      sprites/inanimates/emitter.png
+Mirror       sprites/inanimates/mirror.png
 Chest_Closed sprites/inanimates/chest-closed.png
+Chest_Open   sprites/inanimates/chest-open.png
 
 #
 # Animates

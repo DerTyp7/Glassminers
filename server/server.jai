@@ -172,7 +172,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Chest_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Frog_State, .Goblin_State, .Slime_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -254,6 +254,20 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         // so just remember the player input for later.
         guy.received_input = msg.guy_input;
         guy.received_input_this_tick = true;
+
+      case .Chest_State;
+        entity := get_entity(server, msg.chest_state.entity_pid);
+        chest := down(entity, Chest);
+
+        visually_open_before := chest.visually_open_counter > 0;
+
+        if msg.chest_state.visually_open {
+            ++chest.visually_open_counter;
+        } else {
+            --chest.visually_open_counter;
+        }
+
+        if chest.visually_open_counter > 0 != visually_open_before then broadcast_chest_inventory(server, chest); // Notify the clients that the visual openess of the chest has changed...
     }
 }    
 

@@ -4,7 +4,7 @@ Hud :: struct {
     previously_opened_state: Hud_State;
     was_open_this_frame: bool;
     was_confirmed_this_frame: bool;
-    
+
     crafting_recipe_confirmed_this_frame: Crafting_Recipe;
     cheat_confirmed_this_frame: Cheat;
     chest_item_confirmed_this_frame: Item_Kind;
@@ -62,7 +62,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     hud.chest_item_confirmed_this_frame      = .Count;
 
     if client.pause_menu_open {
-        close_hud(client, hud);
+        close_hud(client, local_player, guy);
         return;
     }
     
@@ -89,7 +89,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     }
 
     if hud.state != .Disabled && input_action_fired_for_local_player(client, local_player, .Hud_Close, .Pressed) {
-        close_hud(client, hud);
+        close_hud(client, local_player, guy);
     }
 
 #if DEVELOPER {
@@ -157,17 +157,17 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
                 play_sound(client, .Hud_Failure_0, .Default);
             }
 
-            close_hud(client, hud);
+            close_hud(client, local_player, guy);
 
           case .Cheat_Menu;
             hud.cheat_confirmed_this_frame = hud.selected_option;
             play_sound(client, .Hud_Success_0, .Default);
-            close_hud(client, hud);
+            close_hud(client, local_player, guy);
 
           case .Chest_Menu;
             hud.chest_item_confirmed_this_frame = hud.chest_menu.item_kinds[hud.selected_option];
             play_sound(client, .Hud_Success_0, .Default);
-            close_hud(client, hud);
+            close_hud(client, local_player, guy);
         }
     }
         
@@ -438,12 +438,17 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Emitter,               // Complete Emitters
 ];
 
-close_hud :: (client: *Client, hud: *Hud) {
+close_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
+    hud := *local_player.hud;
+
     if #complete hud.state == {
       case .Disabled, .Cheat_Menu;
       case .Crafting_Menu;
         deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
       case .Chest_Menu;
+        chest_entity := find_entity_of_kind_at_position(client, .Chest, guy.target_position);
+        if chest_entity then visually_close_chest(client, down(chest_entity, Chest));
+
         deallocate_array(*client.world_allocator, *hud.chest_menu.item_kinds);
         deallocate_array(*client.world_allocator, *hud.chest_menu.item_count);
     }
@@ -471,7 +476,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
     hud := *local_player.hud;
 
     if hud.state == state {
-        close_hud(client, hud);
+        close_hud(client, local_player, guy);
         return;
     }
     
@@ -535,6 +540,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
         }
         
         switch_to_hud_state(client, hud, .Chest_Menu, separate_item_count);
+        visually_open_chest(client, chest);
     }
 
     if local_player.input_binder.active_input_device == .Keyboard {

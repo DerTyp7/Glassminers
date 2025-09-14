@@ -83,6 +83,7 @@ Item_Stack :: struct {
 Chest :: struct {
     #using entity : *Entity = ---;
     #using inventory: Item_Inventory;
+    visually_open := false;
 }
 
 Frog :: struct {
@@ -748,6 +749,24 @@ update_slab :: (client: *Client, slab: *Slab) {
 update_torch :: (client: *Client, torch: *Torch) {
     system := get_particle_system(client, torch.particles);
     system.time_to_live += client.tick_time;
+}
+
+visually_open_chest :: (client: *Client, chest: *Chest) {
+    play_sound(client, .Hud_Pickup_0, .Default);
+    
+    msg := make_message(Chest_State_Message);
+    msg.chest_state.entity_pid    = chest.pid;
+    msg.chest_state.visually_open = true;
+    array_add(*client.outgoing_messages, msg);
+}
+
+visually_close_chest :: (client: *Client, chest: *Chest) {
+    play_sound(client, .Hud_Placedown_0, .Default);
+
+    msg := make_message(Chest_State_Message);
+    msg.chest_state.entity_pid    = chest.pid;
+    msg.chest_state.visually_open = false;
+    array_add(*client.outgoing_messages, msg);
 }
 
 update_guy :: (client: *Client, guy: *Guy) {
