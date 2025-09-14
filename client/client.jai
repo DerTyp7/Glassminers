@@ -53,8 +53,6 @@ Remote_Player :: struct {
     name: string = "";
 }
 
-
-
 Local_Player :: struct {
     name := "";
     guy_pid: Pid = INVALID_PID;
@@ -76,6 +74,13 @@ Tutorial_Panel :: enum {
     Goal_Of_The_Game;
     Using_The_Crafting_Menu;
     Using_Mirrors_To_Kill;
+}
+
+#if DEVELOPER {
+    Message_History :: struct {
+        FRAME_COUNT :: 3;
+        frames: [FRAME_COUNT][..]Message;
+    }
 }
 
 UI_State :: struct {
@@ -221,6 +226,11 @@ Client :: struct {
     timing_update: f32;
     timing_draw: f32;
     timing_total_no_sleep: f32;
+
+    incoming_message_history: Message_History;
+    outgoing_message_history: Message_History;
+    message_history_panel_state: UI_Window_State;
+    message_history_panel_position: UI_Vector2;
 }
 
 #if MEMORY_DEBUGGING {
@@ -1355,7 +1365,7 @@ maybe_do_developer_panel :: (client: *Client) {
     ui :: *client.ui;
     
     ui_push_width(ui, .Pixels, 360, 0.8);
-    client.developer_panel_state, client.developer_panel_position = ui_push_window(ui, "Developer Window", .Draggable | .Closeable | .Collapsable, client.developer_panel_position);
+    client.developer_panel_state, client.developer_panel_position = ui_push_window(ui, "Developer", .Draggable | .Closeable | .Collapsable, client.developer_panel_position);
 
     if client.developer_panel_state == .Open {
         {
@@ -1411,12 +1421,53 @@ maybe_do_developer_panel :: (client: *Client) {
         }
 
         {
-            ui_label(ui, true, "Options");
+            ui_label(ui, true, "Cheats");
             ui_check_box(ui, "Disable Lightmap", *client.lightmap.disabled);
             ui_check_box(ui, "Free Camera", *client.free_camera_enabled);
         }
     }
         
+    ui_pop_window(ui);
+    ui_pop_width(ui);
+}
+
+maybe_do_message_history_panel :: (client: *Client) {
+    WIDTH: f32 : 720;
+
+    do_history :: (ui: *UI, history: *Message_History) {
+        ui_push_growing_container(ui, .Vertical);
+        ui_push_width(ui, .Pixels, WIDTH * 0.45, 1);
+
+        for i := 0; i < history.FRAME_COUNT; ++i {
+            frame := history.frames[i];
+
+            ui_divider(ui, true);
+            ui_label(ui, false, "Frame %", i);
+
+            for j := 0; j < frame.count; ++j {
+                ui_label(ui, false, "%", array_get(*frame, j));
+            }
+        }
+
+        ui_pop_width(ui);
+        ui_pop_container(ui);
+    }
+
+    if client.message_history_panel_state == .Closed then return;
+
+    ui := *client.ui;
+
+    ui_push_width(ui, .Pixels, WIDTH, 1);
+    client.message_history_panel_state, client.message_history_panel_position = ui_push_window(ui, "Message History", .Draggable | .Collapsable | .Closeable, client.message_history_panel_position);
+
+    if client.message_history_panel_state == .Open {
+        ui_push_growing_container(ui, .Horizontal);
+        do_history(ui, *client.incoming_message_history);
+        ui_divider(ui, false);
+        do_history(ui, *client.outgoing_message_history);
+        ui_pop_container(ui);        
+    }
+
     ui_pop_window(ui);
     ui_pop_width(ui);
 }
@@ -1580,8 +1631,10 @@ do_game_tick :: (client: *Client) {
 
         client.game_epoch_time += client.tick_time;
     }
-    
+
+    //    
     // Developer UI
+    //
 #if DEVELOPER { 
     if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
         client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
@@ -1589,16 +1642,26 @@ do_game_tick :: (client: *Client) {
 
     maybe_do_developer_panel(client);
 
+    if input_action_fired_globally(client, .Message_History_Panel_Toggle, .Pressed) {
+        client.message_history_panel_state = ifx client.message_history_panel_state == .Closed then .Open else .Closed;
+    }
+
+    maybe_do_message_history_panel(client);
+
     if input_action_fired_globally(client, .Sound_Hud_Toggle, .Pressed) {
         client.sound_hud_enabled = !client.sound_hud_enabled;
         enable_mixer_history(*client.mixer, 128, 2);
     }
 }
 
+    //
     // Tutorial UI
+    //
     maybe_do_tutorial_panel(client);
 
+    //
     // Forward any input for the guys to the server
+    //
     if !(client.pause_menu_open || client.server_paused_game) {
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];

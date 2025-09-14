@@ -41,6 +41,7 @@ Input_Action :: enum {
 
     Cheat_Menu_Toggle;
     Developer_Panel_Toggle;
+    Message_History_Panel_Toggle;
     Sound_Hud_Toggle;
 }
 
@@ -124,7 +125,8 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Hud_Right]          = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper) ];
     ib[.Cheat_Menu_Toggle]  = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
     ib[.Developer_Panel_Toggle] = .[ keycode(.F5) ];
-    ib[.Sound_Hud_Toggle]   = .[ keycode(.F6) ];
+    ib[.Message_History_Panel_Toggle] = .[ keycode(.F6) ];
+    ib[.Sound_Hud_Toggle]   = .[ keycode(.F7) ];
     
     for i := 0; i < ib.Capacity; ++i {
         client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);
@@ -193,6 +195,7 @@ input_action_string :: (action: Input_Action) -> string {
       case .Hud_Right;              name = "Right in Wheel";
       case .Cheat_Menu_Toggle;      name = "Toggle Cheat Wheel";
       case .Developer_Panel_Toggle; name = "Toggle Dev Panel";
+      case .Message_History_Panel_Toggle; name = "Toggle Message History";
       case .Sound_Hud_Toggle;       name = "Toggle Sound Hud";
     }
 
@@ -204,7 +207,7 @@ input_action_available :: (action: Input_Action) -> bool {
         available: bool = ---;
 
         if action == {
-          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Sound_Hud_Toggle; available = false;
+          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Toggle_Message_History, .Sound_Hud_Toggle; available = false;
           case; available = true;
         }
 
