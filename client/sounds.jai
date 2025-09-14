@@ -84,6 +84,7 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
 
 create_sound_data :: (client: *Client) -> bool {
 #if BAKE_ASSETS {
+    // nocheckin: This won't work for OGG files, we need to bake the file content probably...
     for i := 0; i < client.sounds.Capacity; ++i {
         client.sounds[i] = BAKED_SOUNDS[i];
     }
@@ -92,7 +93,7 @@ create_sound_data :: (client: *Client) -> bool {
     create_file_watcher(*client.sound_watchdog, *client.engine_allocator);
 
     for i := 0; i < client.sounds.Capacity; ++i {
-        filepath := print_into_allocator(*temp, "data/sounds/%.wav", SOUND_FILEPATH_MAP[i]);
+        filepath := print_into_allocator(*temp, "data/sounds/%.ogg", SOUND_FILEPATH_MAP[i]);
         add_file_to_watch(*client.sound_watchdog, filepath);
 
         status: Sound_File_Status = ---;
