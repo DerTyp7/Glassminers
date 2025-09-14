@@ -246,7 +246,7 @@ read_message :: (packet: *Packet, message: *Message) -> bool {
     if packet.body_read_offset >= packet.body_size return false;
 
     deserialize(packet, *message.msg_type, type_info(Message_Type));
-    message.local_type_id = message_type_to_type_id(message.msg_type);
+    message.local_type_id = type_id_from_message_type(message.msg_type);
     deserialize(packet, *message.underlying, type_info(message.local_type_id));
 
 #if LOG_MESSAGES {
@@ -257,11 +257,9 @@ read_message :: (packet: *Packet, message: *Message) -> bool {
 }
 
 
-
 #file_scope
 
-
-message_type_to_type_id :: (type: Message_Type) -> Type {
+type_id_from_message_type :: (type: Message_Type) -> Type {
     result: Type = type_id(void);
 
     if #complete type == {

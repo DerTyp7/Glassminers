@@ -77,9 +77,14 @@ Tutorial_Panel :: enum {
 }
 
 #if DEVELOPER {
+    Message_History_Entry :: struct {
+        timestamp: CPU_Time;
+        message: Message;
+    }
+
     Message_History :: struct {
-        FRAME_COUNT :: 3;
-        frames: [FRAME_COUNT][..]Message;
+        entries: [16]Message_History_Entry;
+        active: s64;
     }
 }
 
@@ -1431,27 +1436,50 @@ maybe_do_developer_panel :: (client: *Client) {
     ui_pop_width(ui);
 }
 
+new_message_history_entry :: (history: *Message_History) -> *Message_History_Entry {
+    copy_memory(*history.entries[1], *history.entries[0], min(history.entries.Capacity - 1, history.active) * size_of(Message_History_Entry));
+    history.active = min(history.entries.Capacity, history.active + 1);
+    return *history.entries[0];
+}
+
 maybe_do_message_history_panel :: (client: *Client) {
     WIDTH: f32 : 720;
 
-    do_history :: (ui: *UI, history: *Message_History) {
+    do_history :: (ui: *UI, history: *Message_History, name: string) {
         ui_push_growing_container(ui, .Vertical);
-        ui_push_width(ui, .Pixels, WIDTH * 0.45, 1);
+        ui_push_width(ui, .Pixels, WIDTH * 0.5, 0.9);
 
-        for i := 0; i < history.FRAME_COUNT; ++i {
-            frame := history.frames[i];
+        ui_label(ui, true, name);
+        ui_divider(ui, true);
 
-            ui_divider(ui, true);
-            ui_label(ui, false, "Frame %", i);
+        now := os_get_cpu_time();
 
-            for j := 0; j < frame.count; ++j {
-                ui_label(ui, false, "%", array_get(*frame, j));
-            }
+        for i := 0; i < history.active; ++i {
+            entry := *history.entries[i]; // Unfortunately, the dynamically allocated data on this message is no longer valid, as it lived on *temp. Therefore, we can't really print the content of this message safely, we can only print the kind of message...
+            seconds_passed := os_convert_cpu_time(now - entry.timestamp, .Seconds);
+            ui_label(ui, false, "% (%s)", type_info(entry.message.local_type_id).display_name, format_float(xx seconds_passed, 0, 2));
         }
 
         ui_pop_width(ui);
         ui_pop_container(ui);
     }
+
+    cleanup_history :: (history: *Message_History) { // Delete old entries that no longer seem interesting...
+        now := os_get_cpu_time();
+
+        for i := history.active - 1; i >= 0; --i {
+            entry := *history.entries[i];
+            seconds_passed := os_convert_cpu_time(now - entry.timestamp, .Seconds);
+            if seconds_passed >= 9.5 {
+                --history.active;
+            } else {
+                break;
+            }
+        }
+    }
+
+    cleanup_history(*client.incoming_message_history);
+    cleanup_history(*client.outgoing_message_history);
 
     if client.message_history_panel_state == .Closed then return;
 
@@ -1461,10 +1489,11 @@ maybe_do_message_history_panel :: (client: *Client) {
     client.message_history_panel_state, client.message_history_panel_position = ui_push_window(ui, "Message History", .Draggable | .Collapsable | .Closeable, client.message_history_panel_position);
 
     if client.message_history_panel_state == .Open {
-        ui_push_growing_container(ui, .Horizontal);
-        do_history(ui, *client.incoming_message_history);
+        ui_set_height(ui, .Sum_Of_Children, 0, 1);
+        ui_push_container(ui, .Horizontal);
+        do_history(ui, *client.incoming_message_history, "Incoming");
         ui_divider(ui, false);
-        do_history(ui, *client.outgoing_message_history);
+        do_history(ui, *client.outgoing_message_history, "Outgoing");
         ui_pop_container(ui);        
     }
 
@@ -1824,8 +1853,19 @@ do_game_tick :: (client: *Client) {
     
     // Send all outgoing messages
     {
+#if DEVELOPER {
+        now := os_get_cpu_time();
+}
+
         for i := 0; i < client.outgoing_messages.count; ++i {
-            send_reliable_message(*client.connection, array_get_pointer(*client.outgoing_messages, i));
+            message := array_get_pointer(*client.outgoing_messages, i);
+            send_reliable_message(*client.connection, message);
+
+#if DEVELOPER {
+            entry := new_message_history_entry(*client.outgoing_message_history);
+            entry.message = ~message;
+            entry.timestamp = now;
+}
         }
 
         array_clear(*client.outgoing_messages);
