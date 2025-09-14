@@ -299,7 +299,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
       case .Guy;
         guy := down(entity, Guy);
         was_carrying := guy.state == .Carrying;
-        guy.state = .Dead;
+        switch_guy_state(server, guy, .Dead);
 
         if was_carrying then try_to_place_item(server, guy.physical_position, guy.carrying_item, null);
 
@@ -332,11 +332,15 @@ damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
 }
 
 set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
+    previous := entity.health;
     entity.health = clamp(health, 0, ENTITY_DEFAULT_HEALTH[entity.entity_kind]);
-    msg := make_message(Entity_Health_Message);
-    msg.entity_health.entity_pid = entity.pid;
-    msg.entity_health.new_health = entity.health;
-    array_add(*server.outgoing_messages, msg);
+
+    if previous != entity.health {
+        msg := make_message(Entity_Health_Message);
+        msg.entity_health.entity_pid = entity.pid;
+        msg.entity_health.new_health = entity.health;
+        array_add(*server.outgoing_messages, msg);
+    }
 }
 
 remove_entity :: (server: *Server, entity: *Entity) {
@@ -454,22 +458,46 @@ move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
 // Derived Types
 //
 
-put_item_in_hand :: (guy: *Guy, kind: Item_Kind) {
+broadcast_guy_state :: (server: *Server, guy: *Guy) {
+    msg := make_message(Guy_State_Message);
+    msg.guy_state.entity_pid      = guy.pid;
+    msg.guy_state.state           = guy.state;
+    msg.guy_state.target_position = guy.target_position;
+    msg.guy_state.carrying_item   = guy.carrying_item;
+    msg.guy_state.strength_t      = guy.strength_t;
+    array_add(*server.outgoing_messages, msg);
+}
+
+switch_guy_state :: (server: *Server, guy: *Guy, state: Guy_State) {
+    if guy.state != state {
+        guy.state = state;
+        broadcast_guy_state(server, guy);
+    }
+}
+
+put_item_in_hand :: (server: *Server, guy: *Guy, kind: Item_Kind) {
     assert(guy.state != .Carrying, "You shouldn't call put_item_in_hand if a player already holds an item.");
     guy.state = .Carrying;
     guy.carrying_item = kind;
+    broadcast_guy_state(server, guy);    
 }
 
 update_guy :: (server: *Server, guy: *Guy) {
+    previous_target_position := guy.target_position;
     look_vector := vector_from_direction(guy.physical_rotation);
     guy.target_position = .{ guy.physical_position.x + look_vector.x, guy.physical_position.y + look_vector.y };
+    if previous_target_position.x != guy.target_position.x || previous_target_position.y != guy.target_position.y {
+        broadcast_guy_state(server, guy);
+    }
+
+    if guy.strength_t > 0 guy.strength_t -= server.tick_time;
     
     if guy.state == {
       case .Digging;
         target_entity := find_entity_with_flags_at_position(server, .Diggable, guy.target_position); // This target entity might change (or become null) when the guy rotates because of player input, or the entity is destructed by someone else...
 
         if !target_entity {
-            guy.state = .Idle;
+            switch_guy_state(server, guy, .Idle);
             break;
         }
         
@@ -478,7 +506,7 @@ update_guy :: (server: *Server, guy: *Guy) {
         if guy.strength_t > 0 damage *= STRENGTH_POTION_FACTOR;
 
         if damage_entity(server, target_entity, damage * server.tick_time) {
-            guy.state = .Idle;
+            switch_guy_state(server, guy, .Idle);
             kill_entity(server, target_entity, guy);
         }
 
@@ -489,29 +517,17 @@ update_guy :: (server: *Server, guy: *Guy) {
             other_entity := get_entity(server, guy.resurrection_pid);
             if other_entity {
                 other_guy := down(other_entity, Guy);
-                other_guy.state = .Idle; // This might be one frame late, depending on which order 'guy' and 'other_guy' are in the guy list... But I'd say that's fine for now.
+                switch_guy_state(server, other_guy, .Idle);
                 set_entity_health(server, other_guy, HEALTH_PER_HEART);
             }
 
-            guy.state = .Idle;
+            switch_guy_state(server, guy, .Idle);
+        } else {
+            broadcast_guy_state(server, guy); // Update the resurrection time
         }
     }
 
-    if guy.strength_t > 0 guy.strength_t -= server.tick_time;
-
     damage_and_maybe_kill_if_in_lava(server, guy);
-    
-    //
-    // Send out the new guy state
-    // @NetworkTraffic: Only send this message if anything changed about the guy
-    //
-    msg := make_message(Guy_State_Message);
-    msg.guy_state.entity_pid      = guy.pid;
-    msg.guy_state.state           = guy.state;
-    msg.guy_state.target_position = guy.target_position;
-    msg.guy_state.carrying_item   = guy.carrying_item;
-    msg.guy_state.strength_t      = guy.strength_t;
-    array_add(*server.outgoing_messages, msg);
 }
 
 set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, charge: f32) {
@@ -912,7 +928,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
         guy := down(guy_entity, Guy);
 
         if guy.state == .Idle {
-            put_item_in_hand(guy, kind);
+            put_item_in_hand(server, guy, kind);
             success = true;
         } else {
             place_flag_on_ground();
@@ -945,7 +961,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
         // This can for example happen when mining a mirror, but there's already an item stack on
         // that tile.
         //
-        put_item_in_hand(target_guy, kind);
+        put_item_in_hand(server, target_guy, kind);
         success = true;
     }
     
@@ -956,7 +972,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
 // place the item on the ground
 try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
     if guy.state == .Idle {
-        put_item_in_hand(guy, kind);
+        put_item_in_hand(server, guy, kind);
     } else {
         try_to_place_item(server, guy.physical_position, kind, null);
     }

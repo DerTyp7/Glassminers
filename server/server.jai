@@ -825,8 +825,7 @@ consume_resources_from_guy :: (server: *Server, guy: *Guy, resources: []Item_Kin
         resource := resources[i];
 
         if guy.state == .Carrying && guy.carrying_item == resource {
-            guy.carrying_item = .Count;
-            guy.state = .Idle;
+            switch_guy_state(server, guy, .Idle);
         } else if item_stack && item_stack.item_kind == resource && item_stack.count {
             take_item_from_stack(server, item_stack);            
         } else {
@@ -900,32 +899,32 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
               case .Guy;
                 other_guy := down(target_entity, Guy);
                 if other_guy.state == .Dead {
-                    guy.state = .Resurrecting;
                     guy.resurrection_pid = other_guy.pid;
                     guy.resurrection_t = 0;
+                    switch_guy_state(server, guy, .Resurrecting);
                 }
 
               case .Item_Stack;                
-                put_item_in_hand(guy, take_item_from_stack(server, down(target_entity, Item_Stack)));
+                put_item_in_hand(server, guy, take_item_from_stack(server, down(target_entity, Item_Stack)));
 
               case .Torch;
-                put_item_in_hand(guy, .Torch);
+                put_item_in_hand(server, guy, .Torch);
                 remove_entity(server, target_entity);
 
               case .Flag;
-                put_item_in_hand(guy, .Flag);
+                put_item_in_hand(server, guy, .Flag);
                 remove_entity(server, target_entity);
                 server.flag_pid = INVALID_PID;
 
               case .Chest;
                 chest := down(target_entity, Chest);
                 guy.carrying_chest_inventory = chest.inventory;
-                put_item_in_hand(guy, .Chest);
+                put_item_in_hand(server, guy, .Chest);
                 remove_entity(server, target_entity);
 
               case;
                 if target_entity.entity_flags & .Diggable {
-                    guy.state = .Digging;
+                    switch_guy_state(server, guy, .Digging);
                 }
             }
             
@@ -934,7 +933,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                 emitter := down(target_entity, Emitter);
                 if emitter.state == .Active {
                     set_emitter_state(server, emitter, .Active, emitter.current_charge + COAL_EMITTER_CHARGE);
-                    guy.state = .Idle;
+                    switch_guy_state(server, guy, .Idle);
                 }
             } else if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Flag {
                 target_emitter := down(target_entity, Emitter);
@@ -944,28 +943,28 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
                 remove_entity(server, target_entity);
                 create_entity(server, .Slab, guy.target_position, .North);
-                guy.state = .Idle;
+                switch_guy_state(server, guy, .Idle);
             } else if !target_entity && guy.carrying_item == .Torch {
                 if position_in_bounds(server, guy.target_position) {
-                    guy.state = .Idle;
+                    switch_guy_state(server, guy, .Idle);
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
             } else if !target_entity && guy.carrying_item == .Chest {
                 if position_in_bounds(server, guy.target_position) {
-                    guy.state = .Idle;
+                    switch_guy_state(server, guy, .Idle);
                     chest_entity := create_entity(server, .Chest, guy.target_position, .North);
                     chest := down(chest_entity, Chest);
                     chest.inventory = guy.carrying_chest_inventory;
                     broadcast_chest_inventory(server, chest);
                 }
             } else if try_to_place_item(server, guy.target_position, guy.carrying_item, null) {
-                guy.state = .Idle;
+                switch_guy_state(server, guy, .Idle);
             }
         }
 
       case .Primary_End;
         if guy.state == .Digging || guy.state == .Resurrecting {
-            guy.state = .Idle;
+            switch_guy_state(server, guy, .Idle);
         }
         
       case .Secondary_Start;
@@ -985,14 +984,14 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             if #complete guy.received_input.crafting_recipe == {
               /* Crafting Hud */
               case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
-              case .Torch;  put_item_in_hand(guy, .Torch);
+              case .Torch;  put_item_in_hand(server, guy, .Torch);
               case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
               
               /* Trader Hud */              
               case .Health_Potion;   set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
               case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
-              case .Shard;           put_item_in_hand(guy, .Shard);
-              case .Coal;            put_item_in_hand(guy, .Coal);
+              case .Shard;           put_item_in_hand(server, guy, .Shard);
+              case .Coal;            put_item_in_hand(server, guy, .Coal);
             }
         }
     }
@@ -1005,7 +1004,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         if target_entity {
             chest := down(target_entity, Chest);
             if try_to_take_item_from_chest(server, chest, guy.received_input.chest_item) {
-                put_item_in_hand(guy, guy.received_input.chest_item);
+                put_item_in_hand(server, guy, guy.received_input.chest_item);
             }
         }
     }
