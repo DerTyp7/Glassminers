@@ -97,7 +97,7 @@ Server :: struct {
     world_size: v2i;
     current_section_index: u64; // keeps track of how often the world was expanded & next section generation
     flag_pid: Pid;
-    latest_emitter: Pid;
+    latest_emitter: Pid = INVALID_PID;
     #using em: Entity_Manager;
 }
 
@@ -516,25 +516,6 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
     }
 }
 
-count_sections_in_predefined_world :: (game_mode: Game_Mode) -> u32 {
-    lines, success := load_predefined_world_data(game_mode);
-    if !success return 0;
-
-    max_section_count := 1;
-    for y := 0; y < lines.count; ++y {
-        line := array_get(*lines, y);
-        line_section_count := 1;
-
-        for x := 0; x < line.count; ++x {
-            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR then ++line_section_count;
-        }
-
-        max_section_count = max(max_section_count, line_section_count);
-    }
-
-    return max_section_count;
-}
-
 load_predefined_world_data :: (game_mode: Game_Mode) -> [..]string, bool {
 #if !BAKE_ASSETS {
     data, success := read_entire_file(*temp, GAME_MODE_WORLD_FILE_PATHS[game_mode]);
@@ -563,7 +544,7 @@ load_predefined_world_data :: (game_mode: Game_Mode) -> [..]string, bool {
     return lines, true;
 }
 
-get_predefined_world_size :: (game_mode: Game_Mode, current_section_index: s64) -> v2i {
+get_current_predefined_world_size :: (game_mode: Game_Mode, current_section_index: s64) -> v2i {
     lines, success := load_predefined_world_data(game_mode);
     if !success return .{};
     
@@ -584,6 +565,26 @@ get_predefined_world_size :: (game_mode: Game_Mode, current_section_index: s64) 
     }
 
     return .{ max_width, lines.count };
+}
+
+count_sections_in_predefined_world :: (game_mode: Game_Mode) -> s64 {
+    lines, success := load_predefined_world_data(game_mode);
+    if !success return 0;
+    
+    max_section_count: s64 = 0;
+
+    for y := 0; y < lines.count; ++y {
+        line := array_get(*lines, y);
+        line_section_count := 0;
+
+        for x := 0; x < line.count; ++x {
+            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR then ++line_section_count;
+        }
+        
+        max_section_count = max(max_section_count, line_section_count);
+    }
+
+    return max_section_count;
 }
 
 fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section_index_to_fill: u32) -> bool {
@@ -652,17 +653,10 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
 
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
-                    server.latest_emitter = emitter.pid;
-                    
-                    // Cannot use section_index for this, because the first
-                    // section index consists of two emitters.
-                    // (Every following section index should contain 
-                    //  exactly one emitter)
-                    is_first_emitter := (x == 0);
-                    
-                    if is_first_emitter {
-                        set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE[server.game_mode]);
-                    }
+
+                    if x == 0 set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE[server.game_mode]);
+
+                    if server.latest_emitter == INVALID_PID || get_entity(server, server.latest_emitter).physical_position.x < entity.physical_position.x then server.latest_emitter = emitter.pid;
                 } else if kind == .Slime_Hole {
                     slime := create_entity(server, .Slime, .{ xPos, y }, direction);
                 }
@@ -713,7 +707,7 @@ create_the_game :: (server: *Server) {
     if use_random_world_generation(server) {
         server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
     } else {
-        server.world_size = get_predefined_world_size(server.game_mode, server.current_section_index);
+        server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
     }
     
     //
@@ -769,6 +763,8 @@ create_the_game :: (server: *Server) {
 }
 
 generate_next_world_section :: (server: *Server) {
+    if server.game_mode == .Developer && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) return;
+    
     ++server.current_section_index;
 
     if use_random_world_generation(server) {
@@ -781,7 +777,7 @@ generate_next_world_section :: (server: *Server) {
 
         fill_world_section_randomly(server, .[ previous_width, server.world_size.x - 1 ]);
     } else {
-        server.world_size = get_predefined_world_size(server.game_mode, server.current_section_index);
+        server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
 
         msg := make_message(World_Resize_Message);
         msg.world_resize.new_world_size = server.world_size;

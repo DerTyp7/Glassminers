@@ -2,6 +2,7 @@
 
 - Added a sprite to indicate the chest is currently opened by a player
 - Added sounds when opening or closing a chest
+- Added a developer panel to debug incoming and outgoing messages
 - Fixed chests being drawn under slime holes when they're pushed on top of one
 - Fixed a server crash and an unwanted game-over caused by a bug in the compiler modules
 
