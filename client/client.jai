@@ -448,6 +448,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.world_size = msg.game_start.size;
         client.game_mode  = msg.game_start.game_mode;
         initiate_state_transition(client, .Ingame, 0);
+        clear_message_histories(client);
 
         seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
         initialize_random_sounds(client);
@@ -1453,6 +1454,13 @@ register_message_history :: (client: *Client, history: *Message_History, message
         entry.age           = 0;
         entry.size_in_bytes = size_in_bytes;
     }
+}
+
+clear_message_histories :: (client: *Client) {
+    client.incoming_message_history.active = 0;
+    client.outgoing_message_history.active = 0;
+    client.incoming_message_history.total_bytes_received = 0;
+    client.outgoing_message_history.total_bytes_received = 0;
 }
 
 maybe_do_message_history_panel :: (client: *Client) {
