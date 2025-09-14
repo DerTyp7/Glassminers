@@ -207,7 +207,7 @@ input_action_available :: (action: Input_Action) -> bool {
         available: bool = ---;
 
         if action == {
-          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Toggle_Message_History, .Sound_Hud_Toggle; available = false;
+          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Message_History_Panel_Toggle, .Sound_Hud_Toggle; available = false;
           case; available = true;
         }
 

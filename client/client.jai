@@ -448,7 +448,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.world_size = msg.game_start.size;
         client.game_mode  = msg.game_start.game_mode;
         initiate_state_transition(client, .Ingame, 0);
-        clear_message_histories(client);
+
+#if DEVELOPER  clear_message_histories(client);
 
         seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
         initialize_random_sounds(client);

@@ -289,21 +289,14 @@ bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Da
     return sprites;
 }
 
-bake_all_sounds :: (directory: string) -> [Sound_Index.Count]Sound_Data {
-    result: [Sound_Index.Count]Sound_Data = ---;
+bake_all_sounds :: (directory: string) -> [Sound_Index.Count]string {
+    result: [Sound_Index.Count]string = ---;
 
     start := os_get_cpu_time();
 
     for i := 0; i < Sound_Index.Count; ++i {
-        filepath := print_into_allocator(Default_Allocator, "%/%.wav", directory, SOUND_FILEPATH_MAP[i]);
-
-        status: Sound_File_Status = ---;
-        result[i], status = create_sound_data_from_file(Default_Allocator, filepath);
-        
-        if status != .Success {
-            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the sound '%': %.\n", filepath, status));
-            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));            
-        }
+        filepath := print_into_allocator(Default_Allocator, "%/%.ogg", directory, SOUND_FILEPATH_MAP[i]);
+        result[i] = bake_raw_file(filepath);
     }
 
     end := os_get_cpu_time();

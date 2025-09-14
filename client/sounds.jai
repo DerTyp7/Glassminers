@@ -84,9 +84,10 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
 
 create_sound_data :: (client: *Client) -> bool {
 #if BAKE_ASSETS {
-    // nocheckin: This won't work for OGG files, we need to bake the file content probably...
     for i := 0; i < client.sounds.Capacity; ++i {
-        client.sounds[i] = BAKED_SOUNDS[i];
+        status: Sound_File_Status = ---;
+        client.sounds[i], status = create_sound_data_from_memory(*client.engine_allocator, BAKED_SOUNDS[i], .OGG);
+        assert(status == .Success, "Failed to load a sound from the baked data.");
     }
     return true;
 } #else {
