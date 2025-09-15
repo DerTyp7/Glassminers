@@ -949,8 +949,9 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
                     switch_guy_state(server, guy, .Idle);
                     create_entity(server, .Torch, guy.target_position, .North);
                 }
-            } else if !target_entity && guy.carrying_item == .Chest {
-                if position_in_bounds(server, guy.target_position) {
+            } else if guy.carrying_item == .Chest {
+                chest_is_placeable := (!target_entity || target_entity.entity_kind == .Slab);
+                if position_in_bounds(server, guy.target_position) && chest_is_placeable {
                     switch_guy_state(server, guy, .Idle);
                     chest_entity := create_entity(server, .Chest, guy.target_position, .North);
                     chest := down(chest_entity, Chest);

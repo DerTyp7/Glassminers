@@ -584,8 +584,10 @@ update_slab :: (server: *Server, slab: *Slab) {
     slab.time_left_in_seconds -= server.tick_time;
 
     if slab.time_left_in_seconds <= 0 {
+        lava_position := slab.physical_position;
+        
         remove_entity(server, slab);
-        create_entity(server, .Lava, slab.physical_position, .North);
+        create_entity(server, .Lava, lava_position, .North);
     }
 }
 
@@ -933,7 +935,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
         if guy.state == .Idle {
             put_item_in_hand(server, guy, kind);
             success = true;
-        } else {
+        } else if kind == .Flag {
             place_flag_on_ground();
             success = true;
         }
