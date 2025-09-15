@@ -318,6 +318,11 @@ damage_and_maybe_kill_entity :: (server: *Server, entity: *Entity, immediate_dam
     }
 }
 
+remove_if_in_lava :: (server: *Server, entity: *Entity) {
+    is_on_lava := find_entity_of_kind_at_position(server, .Lava, entity.physical_position) != null;
+    if is_on_lava remove_entity(server, entity);
+}
+
 damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
     is_on_lava := find_entity_of_kind_at_position(server, .Lava, entity.physical_position) != null;
 
@@ -812,15 +817,16 @@ update_slime :: (server: *Server, slime: *Slime) {
     slime.time_since_last_move += server.tick_time;
 }
 
-update_trader :: (server: *Server, entity: *Entity) {
-    target_guy, target_distance := find_target_guy_for_npc(server, entity.physical_position);
+update_trader :: (server: *Server, trader: *Entity) {
+    target_guy, target_distance := find_target_guy_for_npc(server, trader.physical_position);
 
-    damage_and_maybe_kill_if_in_light(server, entity);
+    damage_and_maybe_kill_if_in_light(server, trader);
+    damage_and_maybe_kill_if_in_lava(server, trader);
 
     if target_guy {
-        delta := v2i.{ target_guy.physical_position.x - entity.physical_position.x, target_guy.physical_position.y - entity.physical_position.y };
+        delta := v2i.{ target_guy.physical_position.x - trader.physical_position.x, target_guy.physical_position.y - trader.physical_position.y };
         rotation := direction_from_vector(delta);
-        update_physical_location(server, entity, entity.physical_position, rotation);
+        update_physical_location(server, trader, trader.physical_position, rotation);
     }    
 }
 

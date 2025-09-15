@@ -6,6 +6,7 @@
 - Fixed chests being drawn under slime holes when they're pushed on top of one
 - Fixed a server crash and an unwanted game-over caused by a bug in the compiler modules
 - Fixed some visual ordering of entities in certain conditions
+- Fixed items not being removed from the game when landing in lava
 - Changed the sound file format to OGG, which massively reduces the file size of the game
 - Reduced the network traffic by (x7) by not sending some unnecessary messages
 

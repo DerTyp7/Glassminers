@@ -1158,7 +1158,7 @@ do_game_tick :: (server: *Server) {
 
             if entity.entity_kind == {
               case .Trader; update_trader(server, entity);
-              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Flag; damage_and_maybe_kill_if_in_lava(server, entity);
+              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Torch, .Chest, .Flag; remove_if_in_lava(server, entity);
             }
 
             if entity.entity_flags & .Auto_Heal && !entity.damaged_this_frame {
