@@ -11,6 +11,8 @@
 - Fixed items not being removed from the game when landing in lava
 - Fixed / changed the logic what items can be placed on which tiles (depending on what is already there)
 - Fixed sometimes not drawing the correct input hints
+- Fixed not being able to craft mirrors / chests on top of slime holes
+- Changed all crafting options now always showing even when they're not doable. Not doable crafting options are grayed out now.
 - Changed the sound file format to OGG, which massively reduces the file size of the game
 - Reduced the network traffic by (x7) by not sending some unnecessary messages
 

@@ -150,7 +150,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
           case .Crafting_Menu;
             hud.crafting_recipe_confirmed_this_frame = hud.crafting_menu.recipes[hud.selected_option];
 
-            if crafting_recipe_looks_doable(client, guy, hud.crafting_recipe_confirmed_this_frame) {
+            if crafting_recipe_should_succeed(client, guy, hud.crafting_recipe_confirmed_this_frame) {
                 play_sound(client, .Hud_Success_0, .Default);
                 if hud.crafting_recipe_confirmed_this_frame == .Mirror then request_tutorial_panel(client, .Using_Mirrors_To_Kill);
             } else {
@@ -202,7 +202,17 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     if hud.state != .Disabled {
         // Draw the circle background for each option
         for i := 0; i < hud.available_options; ++i {
-            draw_circle_segment(client, hud, hud.animation_t[i], i);
+            success := hud_option_should_succeed(client, local_player, i);
+
+            color0, color1: GE_Color = ---;
+
+            if success {
+                color0, color1 = .{ 40, 50, 60, 250 }, .{ 50, 89, 128, 230 };
+            } else {
+                color0, color1 = .{ 50, 40, 40, 250 }, .{ 90, 80, 80, 230 };
+            }
+
+            draw_circle_segment(client, hud, hud.animation_t[i], color0, color1, i);
         }
 
         // Draw the cursor if used
@@ -220,19 +230,20 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
           case .Crafting_Menu;
             for i := 0; i < hud.available_options; ++i {
                 recipe := hud.crafting_menu.recipes[i];
+                should_succeed := hud_option_should_succeed(client, local_player, i);
+                tint := ifx should_succeed then WHITE_COLOR else GRAY_COLOR;
 
                 for j := 0; j < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++j {
-                    draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, xx j + 1);
+                    draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, xx j + 1, tint);
                 }
 
-                draw_divider(client, hud, i);
-
-                draw_icon(client, hud, CRAFTING_RECIPE_ICONS[recipe], 1, i, -1);
+                draw_divider(client, hud, i, tint);
+                draw_icon(client, hud, CRAFTING_RECIPE_ICONS[recipe], 1, i, -1, tint);
             }
 
           case .Cheat_Menu;
             for i := 0; i < hud.available_options; ++i {
-                draw_icon(client, hud, CHEAT_ICONS[i], 1, i, 0);
+                draw_icon(client, hud, CHEAT_ICONS[i], 1, i, 0, WHITE_COLOR);
             }
 
           case .Chest_Menu;
@@ -241,14 +252,14 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
 
                 midpoint: f32 = xx hud.chest_menu.item_count[i] / 2;
                 for j := 0; j < hud.chest_menu.item_count[i]; ++j {
-                    draw_icon(client, hud, sprite_index, 1, i, xx j + 0.5 - midpoint);
+                    draw_icon(client, hud, sprite_index, 1, i, xx j + 0.5 - midpoint, WHITE_COLOR);
                 }
             }
         }
 
         // Draw the confirmation input binding hint
         confirm_sprite := get_sprite_index_for_input_action(client, local_player, .Hud_Confirm);
-        draw_icon(client, hud, confirm_sprite, 0.6, hud.selected_option, 0);
+        draw_icon(client, hud, confirm_sprite, 0.6, hud.selected_option, 0, WHITE_COLOR);
     }
 
 
@@ -549,10 +560,21 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
     }
 }
 
-crafting_recipe_looks_doable :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool {
-    // Check that the recipe is even enabled
-    if !crafting_recipe_is_enabled(client, guy, recipe) return false;
-    
+hud_option_should_succeed :: (client: *Client, local_player: *Local_Player, option: s64) -> bool {
+    success := true;
+
+    if local_player.hud.state == .Crafting_Menu {
+        guy_entity := get_entity(client, local_player.guy_pid);
+        success = crafting_recipe_should_succeed(client, down(guy_entity, Guy), local_player.hud.crafting_menu.recipes[option]);
+    }
+
+    return success;
+}
+
+crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool { // The server is in charge here, but we'll do a heuristic for player feedback
+    // Check that the target position is free if required
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Crafting, guy.target_position) return false;
+
     // Check that the guy has the required resources available
     available_resources := get_available_resources_for_guy(client, guy);
     if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
@@ -561,9 +583,6 @@ crafting_recipe_looks_doable :: (client: *Client, guy: *Guy, recipe: Crafting_Re
 }
 
 crafting_recipe_is_enabled :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool {
-    // Check that the target position is actually empty, if required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Crafting, guy.target_position) return false;
-
     if CRAFTING_RECIPE_ENABLER[recipe] != .Count {
         // Check that the required enabler is present
         if find_entity_of_kind_at_position(client, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) == null return false;
@@ -586,16 +605,16 @@ get_icon_size_for_option :: (client: *Client, hud: *Hud, scale: f32, option_inde
     return v2f.{ base_size * icon_scale_factor, base_size * icon_scale_factor };
 }
 
-draw_icon :: (client: *Client, hud: *Hud, sprite_index: Sprite_Index, inner_offset: f32, option_index: s64, index_in_option: f32) {
+draw_icon :: (client: *Client, hud: *Hud, sprite_index: Sprite_Index, inner_offset: f32, option_index: s64, index_in_option: f32, tint: GE_Color) {
     icon_size := get_icon_size_for_option(client, hud, inner_offset, option_index);
 
     radians := ((cast(f32) option_index + 0.5) * hud.angle_per_option + index_in_option * hud.angle_per_icon) * FTAU;
     icon_center := v2f.{ round(hud.screen_center.x + sinf(radians) * hud.icon_radius * inner_offset),
                          round(hud.screen_center.y - cosf(radians) * hud.icon_radius * inner_offset) };
-    draw_sprite_screen_space(client, sprite_index, icon_center, icon_size, 0, .{ 255, 255, 255, 255 }, false);
+    draw_sprite_screen_space(client, sprite_index, icon_center, icon_size, 0, tint, false);
 }
     
-draw_divider :: (client: *Client, hud: *Hud, option_index: s64) {
+draw_divider :: (client: *Client, hud: *Hud, option_index: s64, tint: GE_Color) {
     base_size := (hud.outer_wheel_radius - hud.inner_wheel_radius) * 0.5;
     icon_size := v2f.{ base_size, base_size };
 
@@ -603,11 +622,11 @@ draw_divider :: (client: *Client, hud: *Hud, option_index: s64) {
     radians := theta * FTAU;
     icon_center := v2f.{ hud.screen_center.x + sinf(radians) * hud.icon_radius,
                          hud.screen_center.y - cosf(radians) * hud.icon_radius };
-    draw_sprite_screen_space(client, .Hud_Arrow, icon_center, icon_size, theta - 0.25, .{ 255, 255, 255, 255 }, false);
+    draw_sprite_screen_space(client, .Hud_Arrow, icon_center, icon_size, theta - 0.25, tint, false);
 }
 
-draw_circle_segment :: (client: *Client, hud: *Hud, animation_t: f32, option_index: s64) {
-    background_color := ge_mix_colors(.{ 40, 50, 60, 250 }, .{ 50, 89, 128, 230 }, animation_t);
+draw_circle_segment :: (client: *Client, hud: *Hud, animation_t: f32, color0, color1: GE_Color, option_index: s64) {
+    background_color := ge_mix_colors(color0, color1, animation_t);
     theta0 := cast(f32) option_index * hud.angle_per_option + hud.padding_per_option * 0.5;
     theta1 := cast(f32) (option_index + 1) * hud.angle_per_option - hud.padding_per_option * 0.5;
 

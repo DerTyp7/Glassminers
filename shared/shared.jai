@@ -345,7 +345,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Rock
     .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Coal
     .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Crystal
-    .Blocks_Crafting, // Slime Hole
+    .Inanimate, // Slime Hole
     
     // Creations
     .Inanimate, // Item Stack
