@@ -435,7 +435,7 @@ Visual_Layer :: enum (s32) { // Useful for grouping kinds of entities together. 
 DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]Visual_Layer : .[ // A higher depth will be rendered on top of a lower depth
     // Beams
     .Creations_Immoveable, // Emitter
-    .Creations_Immoveable, // Mirror
+    .Creations_Moveable, // Mirror
 
     // Environment
     .Background, // Lava

@@ -915,10 +915,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
     } else if chest_entity {
         chest := down(chest_entity, Chest);
 
-        if kind == .Flag {
-            place_flag_on_ground();
-            success = true;
-        } else if kind != .Flag && chest.item_count < chest.item_kinds.Capacity {
+        if kind != .Flag && chest.item_count < chest.item_kinds.Capacity {
             chest.item_kinds[chest.item_count] = kind;
             ++chest.item_count;
             broadcast_chest_inventory(server, chest);
