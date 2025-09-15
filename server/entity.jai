@@ -583,16 +583,6 @@ update_slab :: (server: *Server, slab: *Slab) {
         
         remove_entity(server, slab);
         create_entity(server, .Lava, lava_position, .North);
-        
-        // Remove non-living entities which have fallen in lava
-        for i := 0; i < server.all_entities.slot_count; ++i {
-            entity, occupied := index_bucket_array(*server.all_entities, i);
-            if !occupied || entity.marked_for_removal || (entity.entity_flags & .Disabled_Temporarily) continue;
-            if entity.physical_position.x != lava_position.x || entity.physical_position.y != lava_position.y continue;
-            if entity.entity_kind == .Lava || entity.entity_kind == .Flag || (entity.entity_flags & .Living) continue;
-            
-            remove_entity(server, entity);
-        }
     }
 }
 
