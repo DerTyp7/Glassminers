@@ -358,7 +358,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
-    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation | .Auto_Heal, // Trader
     
     // Misc
     .Blocks_Non_Living_Movement | .Blocks_Crafting, // Flag
@@ -387,7 +387,7 @@ DEFAULT_ENTITY_HEALTH: [Entity_Kind.Count]f32 : .[
     30, // Guy
     50, // Frog
     20, // Goblin
-    20, // Slime
+    10, // Slime
     30, // Trader
     
     // Misc

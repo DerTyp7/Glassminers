@@ -3,6 +3,7 @@
 - Added a sprite to indicate the chest is currently opened by a player
 - Added sounds when opening or closing a chest
 - Added a developer panel to debug incoming and outgoing messages
+- Added the slime moving slower when in a light beam
 - Fixed chests being drawn under slime holes when they're pushed on top of one
 - Fixed a server crash and an unwanted game-over caused by a bug in the compiler modules
 - Fixed flag duplication bug
@@ -12,6 +13,7 @@
 - Fixed / changed the logic what items can be placed on which tiles (depending on what is already there)
 - Fixed sometimes not drawing the correct input hints
 - Fixed not being able to craft mirrors / chests on top of slime holes
+- Changed the health of the slime entity to just a single heart
 - Changed all crafting options now always showing even when they're not doable. Not doable crafting options are grayed out now.
 - Changed the sound file format to OGG, which massively reduces the file size of the game
 - Reduced the network traffic by (x7) by not sending some unnecessary messages

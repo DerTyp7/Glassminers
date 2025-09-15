@@ -329,11 +329,12 @@ damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
     if is_on_lava damage_and_maybe_kill_entity(server, entity, server.tick_time * LAVA_DPS);
 }
 
-damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
+damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) -> bool {
     lit_up, emitter, direction := is_emitter_beam_at(server, entity.physical_position);
     if lit_up {
         damage_and_maybe_kill_entity(server, entity, BEAM_DPS * server.tick_time);
     }
+    return lit_up;
 }
 
 set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
@@ -733,13 +734,17 @@ update_slime :: (server: *Server, slime: *Slime) {
         msg.slime_state.state = slime.state;
         array_add(*server.outgoing_messages, msg);
     }
-    
+
+    lit_up := false;
+
     if slime.state != .Hiding {
-        damage_and_maybe_kill_if_in_light(server, slime);
+        lit_up = damage_and_maybe_kill_if_in_light(server, slime);
         damage_and_maybe_kill_if_in_lava(server, slime);
     }
         
     move_interval := ifx slime.state == .Fleeing then SLIME_FLEEING_MOVE_INTERVAL else SLIME_IDLE_MOVE_INTERVAL;
+
+    if lit_up move_interval *= 2; // Move slower when currently in the light for easier killing...    
 
     if slime.time_since_last_move >= move_interval {
         //
