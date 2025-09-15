@@ -4,6 +4,7 @@
 - Added sounds when opening or closing a chest
 - Added a developer panel to debug incoming and outgoing messages
 - Added the slime moving slower when in a light beam
+- Added a randomness to whether a monster dying will actually drop a coin or not
 - Fixed chests being drawn under slime holes when they're pushed on top of one
 - Fixed a server crash and an unwanted game-over caused by a bug in the compiler modules
 - Fixed flag duplication bug

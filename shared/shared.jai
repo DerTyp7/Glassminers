@@ -159,6 +159,14 @@ EMITTER_MAX_CHARGE:  [Game_Mode.Count]f32 : .[
     70,  // Hard
 ];
 
+MONSTER_DROPS_COIN_CHANCE: [Game_Mode.Count]f32 : .[
+    1,    // Developer
+    1,    // Tutorial
+    0.9,  // Easy
+    0.75, // Medium
+    0.5,  // Hard
+];
+
 RESURRECTION_TIME: f32 : 5;
 STRENGTH_POTION_TIME: f32 : 30;
 STRENGTH_POTION_FACTOR: f32 : 2;

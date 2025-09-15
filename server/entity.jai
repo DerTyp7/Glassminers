@@ -303,7 +303,11 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
-        item_drop = .Coin;
+        
+        chance := random_f32_zero_to_one(*server.random);
+        if chance < MONSTER_DROPS_COIN_CHANCE[server.game_mode] {
+            item_drop = .Coin;
+        }
         
       case;
         remove_entity(server, entity);
