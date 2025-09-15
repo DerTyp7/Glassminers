@@ -539,10 +539,10 @@ find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
         if entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
         if found_entity && DEFAULT_ENTITY_VISUAL_DEPTH[entity.entity_kind] <= DEFAULT_ENTITY_VISUAL_DEPTH[found_entity.entity_kind] continue;
         
-        return entity;
+        found_entity = entity;
     }
     
-    return null;
+    return found_entity;
 }
 
 find_entity_of_kind_at_position :: (client: *Client, kind: Entity_Kind, position: v2i) -> *Entity {
