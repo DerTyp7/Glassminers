@@ -942,7 +942,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
         if guy.state == .Idle {
             put_item_in_hand(server, guy, kind);
             success = true;
-        } else {
+        } else if kind == .Flag {
             place_flag_on_ground();
             success = true;
         }
