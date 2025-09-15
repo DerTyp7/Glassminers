@@ -275,41 +275,41 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
 }
 
 kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
+    item_drop: Item_Kind = .Count;
+
     if entity.entity_kind == {
       case .Mirror;
         remove_entity(server, entity);
-        try_to_place_item(server, entity.physical_position, .Shard, killer);
+        item_drop = .Shard;
 
       case .Rock;
         remove_entity(server, entity);
-        try_to_place_item(server, entity.physical_position, .Stone, killer);
+        item_drop = .Stone;
 
       case .Coal;
         remove_entity(server, entity);
-        try_to_place_item(server, entity.physical_position, .Coal, killer);
+        item_drop = .Coal;
 
       case .Crystal;
         remove_entity(server, entity);
-        try_to_place_item(server, entity.physical_position, .Shard, killer);
-
-      case .Chest;
-        remove_entity(server, entity);
-        try_to_place_item(server, entity.physical_position, .Stone, killer);
+        item_drop = .Shard;
 
       case .Guy;
         guy := down(entity, Guy);
         was_carrying := guy.state == .Carrying;
         switch_guy_state(server, guy, .Dead);
 
-        if was_carrying then try_to_place_item(server, guy.physical_position, guy.carrying_item, null);
+        if was_carrying then try_to_place_item(server, guy.physical_position, guy.carrying_item, guy, null);
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
-        try_to_place_item(server, entity.physical_position, .Coin, killer);
+        item_drop = .Coin;
         
       case;
         remove_entity(server, entity);
     }
+
+    if item_drop != .Count then try_to_place_item(server, entity.physical_position, item_drop, null, killer);
 }
 
 damage_and_maybe_kill_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) {
@@ -865,7 +865,7 @@ try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind)
 // place the item inside the guy's hand. The target_guy might be standing away from the target
 // position. This could be interesting for cases where they destruct a mirror, and under the
 // mirror is already a coin item
-try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, target_guy: *Guy) -> bool {
+try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy, target_guy: *Guy) -> bool {
     if !position_in_bounds(server, target_position) return false;
 
     place_stack_on_ground :: () #macro {
@@ -895,69 +895,127 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
         }
     }
 
-    success: bool = false;
-
-    stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
-    chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
-    guy_entity := find_entity_of_kind_at_position(server, .Guy, target_position);
-    hole_entity := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
-    move_blocking_entity := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
-
-    if stack_entity {
-        stack := down(stack_entity, Item_Stack);
+    place_chest_on_ground :: () #macro {
+        chest_entity := create_entity(server, .Chest, target_position, .North);
         
-        if kind == .Flag {
-            place_flag_on_ground();
-            success = true;
-        } else if stack.item_kind == kind && stack.count < PHYSICAL_ITEM_STACK_CAPACITY {
-            ++stack.count;
-
-            msg := make_message(Item_Stack_State_Message);
-            msg.item_stack_state.entity_pid = stack.pid;
-            msg.item_stack_state.item_kind  = stack.item_kind;
-            msg.item_stack_state.count      = stack.count;
-            array_add(*server.outgoing_messages, msg);
-
-            success = true;
-        }
-    } else if chest_entity {
-        chest := down(chest_entity, Chest);
-
-        if kind != .Flag && chest.item_count < chest.item_kinds.Capacity {
-            chest.item_kinds[chest.item_count] = kind;
-            ++chest.item_count;
+        if source_guy && source_guy.state == .Carrying && source_guy.carrying_item == .Chest {
+            chest := down(chest_entity, Chest);
+            chest.inventory = source_guy.carrying_chest_inventory;
             broadcast_chest_inventory(server, chest);
-            success = true;
         }
-    } else if guy_entity {
-        guy := down(guy_entity, Guy);
-
-        if guy.state == .Idle {
-            put_item_in_hand(server, guy, kind);
-            success = true;
-        } else if kind == .Flag {
-            place_flag_on_ground();
-            success = true;
-        }
-    } else if move_blocking_entity {
-        // Can't place any item here. Also, the player couldn't have died here (as we explicitly checked
-        // if a player was it this position before...), therefore we don't need any special handling
-        // of keeping the flag alive
-    } else if hole_entity {
-        // Only flags may be placed on slime holes, so that the flag is kept alive when a player dies
-        // on top of one (and also for convenience).
-        // Any other items may *not* be placed on slime holes...
-        if kind == .Flag {
-            place_flag_on_ground();
-            success = true;
-        }
-    } else if kind == .Flag {
-        place_flag_on_ground();
-        success = true;
-    } else {
-        place_stack_on_ground();
-        success = true;
     }
+
+    place_torch_on_ground :: () #macro {
+        create_entity(server, .Torch, target_position, .North);
+    }
+
+    internal_placing_logic :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy) -> bool {
+        //
+        // Turns out the placement logic for items is actually pretty complex (or to be fair I wanted it to be this
+        // complex). Here's a little diagram of the logic:
+        //
+        // vv ON GROUND || IN HAND >>	Resource	                Torch	                Flag	                Chest
+        // Stack                    	If Same (Not On Ground)	    No	                    Yes	                    Yes
+        // Chest	                    Inside (Not On Ground)	    Inside (Not On Ground)	No	                    No
+        // Guy	                        In Hand (Not On Ground)	    In Hand (On Ground)	    In Hand (On Ground)	    In Hand (Not On Ground)
+        // Hole	                        No	                        No	                    Yes	                    Yes
+        // Torch	                    No	                        No	                    Yes	                    Yes
+        // Flag	                        Yes	                        Yes	                    No	                    No
+        // Blocking (Non Guy / Chest)	No	                        No	                    No	                    No
+        // Empty	                    Yes	                        Yes	                    Yes	                    Yes
+        //
+        // As it is so "arbitrary", we unfortunately need this monster of a function.
+        //
+     
+        stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
+        chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
+        guy_entity   := find_entity_of_kind_at_position(server, .Guy, target_position);
+        hole_entity  := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
+        torch_entity := find_entity_of_kind_at_position(server, .Torch, target_position);
+        flag_entity  := find_entity_of_kind_at_position(server, .Flag, target_position);
+        move_blocking_entity := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
+        
+        if move_blocking_entity && (move_blocking_entity.entity_kind == .Guy || move_blocking_entity.entity_kind == .Chest) {
+            // These kinds of move-blocking entities are handled as a special case here, so ignore them.
+            // We only care about move blocking entities that should block *items* from being put on them,
+            // which is kind-of a different thing, but I don't want to create *another* entity flag just for
+            // that...
+            move_blocking_entity = null;
+        }
+
+        if move_blocking_entity {
+            // Any move blocking entity for which there's no special handling completely blocks placing
+            // down an item.    
+            return false;
+        }
+        
+        if guy_entity {
+            guy := down(guy_entity, Guy);
+            if guy.state == .Idle {
+                put_item_in_hand(server, guy, kind);
+                if source_guy {
+                    guy.carrying_chest_inventory = source_guy.carrying_chest_inventory;
+                } else {
+                    guy.carrying_chest_inventory.item_count = 0;
+                }
+                return true;
+            }
+        }
+        
+        if chest_entity {
+            chest := down(chest_entity, Chest);
+            if kind != .Flag && kind != .Chest && chest.item_count < chest.item_kinds.Capacity {
+                chest.item_kinds[chest.item_count] = kind;
+                ++chest.item_count;
+                broadcast_chest_inventory(server, chest);
+                return true;
+            }
+        }
+
+        if stack_entity {
+            stack := down(stack_entity, Item_Stack);
+            if stack.item_kind == kind && stack.count < PHYSICAL_ITEM_STACK_CAPACITY {
+                ++stack.count;
+
+                msg := make_message(Item_Stack_State_Message);
+                msg.item_stack_state.entity_pid = stack.pid;
+                msg.item_stack_state.item_kind  = stack.item_kind;
+                msg.item_stack_state.count      = stack.count;
+                array_add(*server.outgoing_messages, msg);
+                return true;
+            }
+        }
+
+        if kind == {
+          case .Torch;
+            if !stack_entity && !chest_entity && !hole_entity && !torch_entity {
+                place_torch_on_ground();
+                return true;
+            }
+
+          case .Flag;
+            if !chest_entity && !flag_entity {
+                place_flag_on_ground();
+                return true;
+            }
+        
+          case .Chest;
+            if !chest_entity && !guy_entity && !flag_entity {
+                place_chest_on_ground();
+                return true;
+            }
+
+          case;
+            if !stack_entity && !chest_entity && !guy_entity && !hole_entity && !torch_entity {
+                place_stack_on_ground();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    success := internal_placing_logic(server, target_position, kind, source_guy);
 
     if !success && target_guy && target_guy.state == .Idle {
         //
@@ -979,7 +1037,7 @@ try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
     if guy.state == .Idle {
         put_item_in_hand(server, guy, kind);
     } else {
-        try_to_place_item(server, guy.physical_position, kind, null);
+        try_to_place_item(server, guy.physical_position, kind, guy, null);
     }
 }
 

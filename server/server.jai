@@ -143,7 +143,7 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
             // Drop items carried by player
             guy := down(entity, Guy);
             if guy.carrying_item != .Count {
-                try_to_place_item(server, guy.physical_position, guy.carrying_item, null);
+                try_to_place_item(server, guy.physical_position, guy.carrying_item, guy, null);
             }
             
             remove_entity(server, entity);
@@ -722,7 +722,7 @@ create_the_game :: (server: *Server) {
     //
     // Generate the required entities
     //
-    try_to_place_item(server, .{ 1, 2 }, .Flag, null);
+    try_to_place_item(server, .{ 1, 2 }, .Flag, null, null);
 
     //
     // Generate one entity for each player and attach it to the player
@@ -930,35 +930,25 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
             
           case .Carrying;
             if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Coal {
+                // Edge-Case: Charge the emitter using the coal
                 emitter := down(target_entity, Emitter);
                 if emitter.state == .Active {
                     set_emitter_state(server, emitter, .Active, emitter.current_charge + COAL_EMITTER_CHARGE);
                     switch_guy_state(server, guy, .Idle);
                 }
             } else if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Flag {
+                // Edge-Case: Activate the emitter using the flag
                 target_emitter := down(target_entity, Emitter);
                 if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_CHARGE[server.game_mode] {
                     set_emitter_state(server, target_emitter, .Active, target_emitter.current_charge);
                 }
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
+                // Edge-Case: Create a slab on lava
                 remove_entity(server, target_entity);
                 create_entity(server, .Slab, guy.target_position, .North);
                 switch_guy_state(server, guy, .Idle);
-            } else if !target_entity && guy.carrying_item == .Torch {
-                if position_in_bounds(server, guy.target_position) {
-                    switch_guy_state(server, guy, .Idle);
-                    create_entity(server, .Torch, guy.target_position, .North);
-                }
-            } else if guy.carrying_item == .Chest {
-                chest_is_placeable := (!target_entity || target_entity.entity_kind == .Slab);
-                if position_in_bounds(server, guy.target_position) && chest_is_placeable {
-                    switch_guy_state(server, guy, .Idle);
-                    chest_entity := create_entity(server, .Chest, guy.target_position, .North);
-                    chest := down(chest_entity, Chest);
-                    chest.inventory = guy.carrying_chest_inventory;
-                    broadcast_chest_inventory(server, chest);
-                }
-            } else if try_to_place_item(server, guy.target_position, guy.carrying_item, null) {
+            } else if try_to_place_item(server, guy.target_position, guy.carrying_item, guy, null) {
+                // Try to place down the item that is currently being held.
                 switch_guy_state(server, guy, .Idle);
             }
         }

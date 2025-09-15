@@ -9,6 +9,7 @@
 - Fixed chest not being usable when placed on a slab
 - Fixed some visual ordering of entities in certain conditions
 - Fixed items not being removed from the game when landing in lava
+- Fixed / changed the logic what items can be placed on which tiles (depending on what is already there)
 - Changed the sound file format to OGG, which massively reduces the file size of the game
 - Reduced the network traffic by (x7) by not sending some unnecessary messages
 
