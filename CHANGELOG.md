@@ -5,6 +5,9 @@
 - Added a developer panel to debug incoming and outgoing messages
 - Fixed chests being drawn under slime holes when they're pushed on top of one
 - Fixed a server crash and an unwanted game-over caused by a bug in the compiler modules
+- Fixed flag duplication bug
+- Fixed chest not being usable when placed on a slab
+- Items, which are submerged in lava after the slab they are resting on has sunken, are now destroyed
 - Changed the sound file format to OGG, which massively reduces the file size of the game
 - Reduced the network traffic by (x7) by not sending some unnecessary messages
 
