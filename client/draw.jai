@@ -593,7 +593,7 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
     screen_center := screen_from_world_position(*local_player.camera, .{ entity.visual_position.x, entity.visual_position.y + 0.35 });
     screen_size   := screen_from_world_height(*local_player.camera, world_size);
 
-    heart_count: s64 = cast(s64) ceil(ENTITY_DEFAULT_HEALTH[entity.entity_kind] / HEALTH_PER_HEART);
+    heart_count: s64 = cast(s64) ceil(DEFAULT_ENTITY_HEALTH[entity.entity_kind] / HEALTH_PER_HEART);
 
     gap_size := round(cast(f32) screen_size * 0.1);
     leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
@@ -601,8 +601,8 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
     brightness := query_lightmap(*client.lightmap, entity.physical_position);
     
     for i := 0; i < heart_count; ++i {
-        heart_0 := (cast(f32) i) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
-        heart_1 := (cast(f32) i + 1) * ENTITY_DEFAULT_HEALTH[entity.entity_kind] / cast(f32) heart_count;
+        heart_0 := (cast(f32) i) * DEFAULT_ENTITY_HEALTH[entity.entity_kind] / cast(f32) heart_count;
+        heart_1 := (cast(f32) i + 1) * DEFAULT_ENTITY_HEALTH[entity.entity_kind] / cast(f32) heart_count;
         sprite_center := v2f.{ leftmost_center + xx i * (screen_size + gap_size), screen_center.y };
 
         sprite_index: Sprite_Index = ---;
@@ -720,7 +720,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     //
     {
         compare_entities_by_depth :: (lhs, rhs: **Entity) -> Sort_Comparison_Result {
-            return ENTITY_VISUAL_DEPTHS[(~lhs).entity_kind] - ENTITY_VISUAL_DEPTHS[(~rhs).entity_kind];
+            return DEFAULT_ENTITY_VISUAL_DEPTH[(~lhs).entity_kind] - DEFAULT_ENTITY_VISUAL_DEPTH[(~rhs).entity_kind];
         }
 
         entities_to_draw: [..]*Entity;
@@ -843,7 +843,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
           case .Digging;
             target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
             if target_entity {
-                draw_progress_bar_world_space(client, local_player, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / ENTITY_DEFAULT_HEALTH[target_entity.entity_kind]);
+                draw_progress_bar_world_space(client, local_player, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / DEFAULT_ENTITY_HEALTH[target_entity.entity_kind]);
             }
 
           case .Carrying;
@@ -870,8 +870,8 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         if entity.entity_kind == {
           case .Guy;
             guy := down(entity, Guy);
-            draw_health = entity.health < ENTITY_DEFAULT_HEALTH[entity.entity_kind] && guy.state != .Dead;
-          case; draw_health = bitfield_contains(*entity.entity_flags, Entity_Flags.Living) && entity.health < ENTITY_DEFAULT_HEALTH[entity.entity_kind];
+            draw_health = entity.health < DEFAULT_ENTITY_HEALTH[entity.entity_kind] && guy.state != .Dead;
+          case; draw_health = bitfield_contains(*entity.entity_flags, Entity_Flags.Living) && entity.health < DEFAULT_ENTITY_HEALTH[entity.entity_kind];
         }
         
         if draw_health {

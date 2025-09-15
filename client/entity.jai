@@ -319,8 +319,8 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     entity.pid                = pid;
     entity.entity_kind        = kind;
     entity.marked_for_removal = false;
-    entity.health             = ENTITY_DEFAULT_HEALTH[kind];
-    entity.entity_flags       = ENTITY_DEFAULT_FLAGS[kind];
+    entity.health             = DEFAULT_ENTITY_HEALTH[kind];
+    entity.entity_flags       = DEFAULT_ENTITY_FLAGS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
     entity.visual_position    = .{ xx entity.physical_position.x, xx entity.physical_position.y };
@@ -537,7 +537,7 @@ find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
         entity, occupied := index_bucket_array(*client.all_entities, i);
         if !occupied || entity.marked_for_removal || (entity.entity_flags & .Disabled_Temporarily) continue;
         if entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
-        if found_entity && ENTITY_VISUAL_DEPTHS[entity.entity_kind] <= ENTITY_VISUAL_DEPTHS[found_entity.entity_kind] continue;
+        if found_entity && DEFAULT_ENTITY_VISUAL_DEPTH[entity.entity_kind] <= DEFAULT_ENTITY_VISUAL_DEPTH[found_entity.entity_kind] continue;
         
         return entity;
     }

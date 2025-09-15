@@ -135,7 +135,7 @@ NETWORK_DIE_TIME: f32 : 3;
 
 
 
-/* -------------------------------------------------- World -------------------------------------------------- */
+/* ------------------------------------------------- Constants ------------------------------------------------- */
 
 SECTION_WIDTH: s32 : 18; // The world is extended when the players have activated the latest checkpoint. The world is grown by this number of tiles.
 SECTION_HEIGHT: s32 : 5; // The height of the world for randomly generated worlds
@@ -183,7 +183,11 @@ BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
 GUY_DPS:  f32 : HEALTH_PER_HEART;
 LAVA_DPS: f32 : HEALTH_PER_HEART * 3;
 
+
+/* --------------------------------------------------- Enums --------------------------------------------------- */
+
 Entity_Flags :: enum bitfield {
+    Inanimate :: 0;
     Pushable;
     Diggable;
     Living;
@@ -197,126 +201,6 @@ Entity_Flags :: enum bitfield {
     Auto_Heal;
     Emissive;
 }
-
-ENTITY_DEFAULT_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
-    // Beams
-    .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Emitter
-    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting | .Auto_Heal, // Mirror
-
-    // Environment
-    .Blocks_Movement | .Blocks_Crafting | .Emissive, // Lava
-    .Blocks_Movement | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Line_Of_Sight, // Bedrock
-    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Rock
-    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Coal
-    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Crystal
-    .Blocks_Crafting, // Slime Hole
-    
-    // Creations
-    0, // Item Stack
-    0, // Slab
-    .Blocks_Crafting, // Torch
-    .Pushable | .Blocks_Movement | .Blocks_Beam | .Blocks_Crafting, // Chest
-    
-    // Beings
-    .Living | .Pushable | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
-    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
-    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
-    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
-    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
-    
-    // Misc
-    .Blocks_Non_Living_Movement | .Blocks_Crafting, // Flag
-];
-
-ENTITY_DEFAULT_HEALTH: [Entity_Kind.Count]f32 : .[
-    // Beams
-    0,  // Emitter
-    30, // Mirror
-
-    // Environment
-    0,   // Lava
-    120, // Bedrock
-    50,  // Rock
-    40,  // Coal
-    30,  // Crystal
-    0,   // Slime Hole
-    
-    // Creations
-    0,  // Item Stack
-    0,  // Slab
-    0,  // Torch
-    30, // Chest
-    
-    // Beings
-    30, // Guy
-    50, // Frog
-    20, // Goblin
-    20, // Slime
-    30, // Trader
-    
-    // Misc
-    1, // Flag
-];
-
-ENTITY_DEFAULT_DIRECTION: [Entity_Kind.Count]Direction : .[
-    // Beams
-    .East,  // Emitter
-    .North, // Mirror
-
-    // Environment
-    .North, // Lava
-    .North, // Bedrock
-    .North, // Rock
-    .North, // Coal
-    .North, // Crystal
-    .North, // Slime Hole
-    
-    // Creations
-    .North, // Item Stack
-    .North, // Slab
-    .North, // Torch
-    .North, // Chest
-    
-    // Beings
-    .North, // Guy
-    .South, // Frog
-    .South, // Goblin
-    .South, // Slime
-    .South, // Trader
-    
-    // Misc
-    .North, // Flag
-];
-
-ENTITY_VISUAL_DEPTHS: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
-    // Beams
-    3, // Emitter
-    3, // Mirror
-
-    // Environment
-    0, // Lava
-    3, // Bedrock
-    3, // Rock
-    3, // Coal
-    3, // Crystal
-    0, // Slime Hole
-
-    // Creations
-    1, // Item Stack
-    0, // Slab
-    1, // Torch
-    2, // Chest
-    
-    // Beings
-    4, // Guy
-    4, // Frog
-    4, // Goblin
-    4, // Slime
-    4, // Trader
-    
-    // Misc
-    4, // Flag
-];
 
 Item_Kind :: enum {
     Shard;
@@ -416,10 +300,167 @@ Crafting_Recipe :: enum {
     Coal;
 }
 
+Game_Result :: enum {
+    Unfinished_Game;
+    Completed_Tutorial;
+    All_Players_Died;
+    Flag_Was_Destroyed;
+    Connection_Lost;
+}
+
+Cheat :: enum {
+    Give_Coin;
+    Give_Coal;
+    Give_Shard;
+    Give_Stone;
+    Give_Health;
+    Give_Strength;
+    Spawn_Goblin;
+    Spawn_Frog;
+    Spawn_Slime;
+    Spawn_Trader;
+    Toggle_Invincibility;
+    Toggle_GhostMode;
+    Kill_Creature;
+    Complete_Emitters;
+}
+
 Item_Inventory :: struct {
     item_count: s64;
     item_kinds: [ITEM_INVENTORY_CAPACITY]Item_Kind = ---;
 }
+
+
+
+/* --------------------------------------------- Entity Properties --------------------------------------------- */
+
+DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
+    // Beams
+    .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Emitter
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting | .Auto_Heal, // Mirror
+
+    // Environment
+    .Blocks_Movement | .Blocks_Crafting | .Emissive, // Lava
+    .Blocks_Movement | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Line_Of_Sight, // Bedrock
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Rock
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Coal
+    .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Crystal
+    .Blocks_Crafting, // Slime Hole
+    
+    // Creations
+    .Inanimate, // Item Stack
+    .Inanimate, // Slab
+    .Blocks_Crafting, // Torch
+    .Pushable | .Blocks_Movement | .Blocks_Beam | .Blocks_Crafting, // Chest
+    
+    // Beings
+    .Living | .Pushable | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Guy
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
+    .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Trader
+    
+    // Misc
+    .Blocks_Non_Living_Movement | .Blocks_Crafting, // Flag
+];
+
+DEFAULT_ENTITY_HEALTH: [Entity_Kind.Count]f32 : .[
+    // Beams
+    0,  // Emitter
+    30, // Mirror
+
+    // Environment
+    0,   // Lava
+    120, // Bedrock
+    50,  // Rock
+    40,  // Coal
+    30,  // Crystal
+    0,   // Slime Hole
+    
+    // Creations
+    0,  // Item Stack
+    0,  // Slab
+    0,  // Torch
+    30, // Chest
+    
+    // Beings
+    30, // Guy
+    50, // Frog
+    20, // Goblin
+    20, // Slime
+    30, // Trader
+    
+    // Misc
+    1, // Flag
+];
+
+DEFAULT_ENTITY_ROTATION: [Entity_Kind.Count]Direction : .[
+    // Beams
+    .East,  // Emitter
+    .North, // Mirror
+
+    // Environment
+    .North, // Lava
+    .North, // Bedrock
+    .North, // Rock
+    .North, // Coal
+    .North, // Crystal
+    .North, // Slime Hole
+    
+    // Creations
+    .North, // Item Stack
+    .North, // Slab
+    .North, // Torch
+    .North, // Chest
+    
+    // Beings
+    .North, // Guy
+    .South, // Frog
+    .South, // Goblin
+    .South, // Slime
+    .South, // Trader
+    
+    // Misc
+    .North, // Flag
+];
+
+Visual_Layer :: enum (s32) { // Useful for grouping kinds of entities together. You can still just assign any random number of an entity kind as its visual depth.
+    Background           :: 0;
+    Resources            :: 1;
+    Creations_Immoveable :: 2;
+    Creations_Moveable   :: 3;
+    Beings               :: 4;
+}
+
+DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]Visual_Layer : .[ // A higher depth will be rendered on top of a lower depth
+    // Beams
+    .Creations_Immoveable, // Emitter
+    .Creations_Moveable, // Mirror
+
+    // Environment
+    .Background, // Lava
+    .Resources, // Bedrock
+    .Resources, // Rock
+    .Resources, // Coal
+    .Resources, // Crystal
+    .Background, // Slime Hole
+
+    // Creations
+    .Creations_Immoveable, // Item Stack
+    .Background, // Slab
+    .Creations_Immoveable, // Torch
+    .Creations_Moveable, // Chest
+    
+    // Beings
+    .Beings, // Guy
+    .Beings, // Frog
+    .Beings, // Goblin
+    .Beings, // Slime
+    .Beings, // Trader
+    
+    // Misc
+    .Creations_Moveable, // Flag
+];
 
 CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
     // Crafting hud
@@ -460,30 +501,9 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     false, // Coal
 ];
 
-Game_Result :: enum {
-    Unfinished_Game;
-    Completed_Tutorial;
-    All_Players_Died;
-    Flag_Was_Destroyed;
-    Connection_Lost;
-}
 
-Cheat :: enum {
-    Give_Coin;
-    Give_Coal;
-    Give_Shard;
-    Give_Stone;
-    Give_Health;
-    Give_Strength;
-    Spawn_Goblin;
-    Spawn_Frog;
-    Spawn_Slime;
-    Spawn_Trader;
-    Toggle_Invincibility;
-    Toggle_GhostMode;
-    Kill_Creature;
-    Complete_Emitters;
-}
+
+/* -------------------------------------------------- Helpers ------------------------------------------------- */
 
 direction_from_vector :: (vector: v2i) -> Direction {
     if vector.x == 0 && vector.y == 0 {

@@ -482,7 +482,7 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
         for i := 0; i < count; ++i {
             position, success := random_position(server, section);
             if success {
-                entity := create_entity(server, kind, position, ENTITY_DEFAULT_DIRECTION[kind]);
+                entity := create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
                 array_add(*result, entity);
             }
         }
@@ -512,7 +512,7 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
     
     for i := 0; i < holes.count; ++i {
         hole := array_get(*holes, i);
-        create_entity(server, .Slime, hole.physical_position, ENTITY_DEFAULT_DIRECTION[.Slime]);
+        create_entity(server, .Slime, hole.physical_position, DEFAULT_ENTITY_ROTATION[.Slime]);
     }
 }
 
@@ -643,7 +643,7 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
             for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
                 if ENTITY_TO_CHAR[i] == line[x] {
                     kind = i;
-                    direction = ENTITY_DEFAULT_DIRECTION[kind];
+                    direction = DEFAULT_ENTITY_ROTATION[kind];
                     break;
                 }
             }
@@ -1016,7 +1016,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
 #if DEVELOPER {
     spawn_creature_with_cheat :: (server: *Server, guy: *Guy, kind: Entity_Kind) {
         if !find_any_entity_at_position(server, guy.target_position) {
-            create_entity(server, kind, guy.target_position, ENTITY_DEFAULT_DIRECTION[kind]);
+            create_entity(server, kind, guy.target_position, DEFAULT_ENTITY_ROTATION[kind]);
         }
     }
     
@@ -1025,7 +1025,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
       case .Give_Coal; try_to_give_item(server, guy, .Coal);
       case .Give_Shard; try_to_give_item(server, guy, .Shard);
       case .Give_Stone; try_to_give_item(server, guy, .Stone);
-      case .Give_Health; set_entity_health(server, guy, ENTITY_DEFAULT_HEALTH[.Guy]);
+      case .Give_Health; set_entity_health(server, guy, DEFAULT_ENTITY_HEALTH[.Guy]);
       case .Give_Strength; guy.strength_t = STRENGTH_POTION_TIME;
       case .Spawn_Goblin; spawn_creature_with_cheat(server, guy, .Goblin);
       case .Spawn_Frog; spawn_creature_with_cheat(server, guy, .Frog);
@@ -1159,7 +1159,7 @@ do_game_tick :: (server: *Server) {
 
             if entity.entity_kind == {
               case .Trader; update_trader(server, entity);
-              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Flag; damage_and_maybe_kill_if_in_lava(server, entity);
+              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Torch, .Chest, .Flag; remove_if_in_lava(server, entity);
             }
 
             if entity.entity_flags & .Auto_Heal && !entity.damaged_this_frame {

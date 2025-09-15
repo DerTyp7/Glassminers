@@ -171,8 +171,8 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     entity.pid                = pid;
     entity.entity_kind        = kind;
     entity.marked_for_removal = false;
-    entity.health             = ENTITY_DEFAULT_HEALTH[kind];
-    entity.entity_flags       = ENTITY_DEFAULT_FLAGS[kind];
+    entity.health             = DEFAULT_ENTITY_HEALTH[kind];
+    entity.entity_flags       = DEFAULT_ENTITY_FLAGS[kind];
     entity.physical_rotation  = rotation;
     entity.physical_position  = position;
 
@@ -318,6 +318,11 @@ damage_and_maybe_kill_entity :: (server: *Server, entity: *Entity, immediate_dam
     }
 }
 
+remove_if_in_lava :: (server: *Server, entity: *Entity) {
+    is_on_lava := find_entity_of_kind_at_position(server, .Lava, entity.physical_position) != null;
+    if is_on_lava remove_entity(server, entity);
+}
+
 damage_and_maybe_kill_if_in_lava :: (server: *Server, entity: *Entity) {
     is_on_lava := find_entity_of_kind_at_position(server, .Lava, entity.physical_position) != null;
 
@@ -333,7 +338,7 @@ damage_and_maybe_kill_if_in_light :: (server: *Server, entity: *Entity) {
 
 set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
     previous := entity.health;
-    entity.health = clamp(health, 0, ENTITY_DEFAULT_HEALTH[entity.entity_kind]);
+    entity.health = clamp(health, 0, DEFAULT_ENTITY_HEALTH[entity.entity_kind]);
 
     if previous != entity.health {
         msg := make_message(Entity_Health_Message);
@@ -357,7 +362,7 @@ find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
         entity, occupied := index_bucket_array(*server.all_entities, i);
         if !occupied || entity.marked_for_removal || (entity.entity_flags & .Disabled_Temporarily) continue;
         if entity.physical_position.x != position.x || entity.physical_position.y != position.y continue;
-        if found_entity && ENTITY_VISUAL_DEPTHS[entity.entity_kind] <= ENTITY_VISUAL_DEPTHS[found_entity.entity_kind] continue;
+        if found_entity && DEFAULT_ENTITY_VISUAL_DEPTH[entity.entity_kind] <= DEFAULT_ENTITY_VISUAL_DEPTH[found_entity.entity_kind] continue;
 
         found_entity = entity;        
     }
@@ -814,15 +819,16 @@ update_slime :: (server: *Server, slime: *Slime) {
     slime.time_since_last_move += server.tick_time;
 }
 
-update_trader :: (server: *Server, entity: *Entity) {
-    target_guy, target_distance := find_target_guy_for_npc(server, entity.physical_position);
+update_trader :: (server: *Server, trader: *Entity) {
+    target_guy, target_distance := find_target_guy_for_npc(server, trader.physical_position);
 
-    damage_and_maybe_kill_if_in_light(server, entity);
+    damage_and_maybe_kill_if_in_light(server, trader);
+    damage_and_maybe_kill_if_in_lava(server, trader);
 
     if target_guy {
-        delta := v2i.{ target_guy.physical_position.x - entity.physical_position.x, target_guy.physical_position.y - entity.physical_position.y };
+        delta := v2i.{ target_guy.physical_position.x - trader.physical_position.x, target_guy.physical_position.y - trader.physical_position.y };
         rotation := direction_from_vector(delta);
-        update_physical_location(server, entity, entity.physical_position, rotation);
+        update_physical_location(server, trader, trader.physical_position, rotation);
     }    
 }
 
@@ -917,10 +923,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, ta
     } else if chest_entity {
         chest := down(chest_entity, Chest);
 
-        if kind == .Flag {
-            place_flag_on_ground();
-            success = true;
-        } else if kind != .Flag && chest.item_count < chest.item_kinds.Capacity {
+        if kind != .Flag && chest.item_count < chest.item_kinds.Capacity {
             chest.item_kinds[chest.item_count] = kind;
             ++chest.item_count;
             broadcast_chest_inventory(server, chest);
