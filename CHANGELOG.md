@@ -18,6 +18,7 @@
 - Changed all crafting options now always showing even when they're not doable. Not doable crafting options are grayed out now.
 - Changed the sound file format to OGG, which massively reduces the file size of the game
 - Reduced the network traffic by (x7) by not sending some unnecessary messages
+- Removed the "Emitter Dying" sound playing for emitters in previous sections
 
 ## 0.3.4 (14.09.2025)
 

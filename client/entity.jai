@@ -638,6 +638,17 @@ position_in_bounds :: (client: *Client, position: v2i) -> bool {
 // Derived Types
 //
 
+is_furthest_active_emitter :: (client: *Client, emitter: *Emitter) -> bool {
+    for i := 0; i < client.emitters.slot_count; ++i {
+        other_emitter, occupied := index_bucket_array(*client.emitters, i);
+        if !occupied || other_emitter == emitter || other_emitter.state == .Off || other_emitter.physical_position.x < emitter.physical_position.x continue;
+
+        return false;
+    }
+
+    return true;
+}
+
 update_powered_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(client, *emitter.beam_data);
 
@@ -654,7 +665,7 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
             emitter.sound = play_sound_on_entity(client, .Emitter_Humming, emitter, .Looping);
         }
         */
-    } else if previous_charge > 0 && emitter.current_charge <= 0 {
+    } else if previous_charge > 0 && emitter.current_charge <= 0 && is_furthest_active_emitter(client, emitter) {
         stop_sound(client, *emitter.sound);
         emitter.sound = play_sound(client, .Emitter_Dying, .Default); // Don't spatialize this sound so that everyone can hear it
     }
