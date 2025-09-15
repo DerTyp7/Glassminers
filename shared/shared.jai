@@ -424,34 +424,42 @@ DEFAULT_ENTITY_ROTATION: [Entity_Kind.Count]Direction : .[
     .North, // Flag
 ];
 
-DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]s32 : .[ // A higher depth will be rendered on top of a lower depth
+Visual_Layer :: enum (s32) { // Useful for grouping kinds of entities together. You can still just assign any random number of an entity kind as its visual depth.
+    Background           :: 0;
+    Resources            :: 1;
+    Creations_Immoveable :: 2;
+    Creations_Moveable   :: 3;
+    Beings               :: 4;
+}
+
+DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]Visual_Layer : .[ // A higher depth will be rendered on top of a lower depth
     // Beams
-    3, // Emitter
-    3, // Mirror
+    .Creations_Immoveable, // Emitter
+    .Creations_Immoveable, // Mirror
 
     // Environment
-    0, // Lava
-    3, // Bedrock
-    3, // Rock
-    3, // Coal
-    3, // Crystal
-    0, // Slime Hole
+    .Background, // Lava
+    .Resources, // Bedrock
+    .Resources, // Rock
+    .Resources, // Coal
+    .Resources, // Crystal
+    .Background, // Slime Hole
 
     // Creations
-    1, // Item Stack
-    0, // Slab
-    1, // Torch
-    2, // Chest
+    .Creations_Immoveable, // Item Stack
+    .Background, // Slab
+    .Creations_Immoveable, // Torch
+    .Creations_Moveable, // Chest
     
     // Beings
-    4, // Guy
-    4, // Frog
-    4, // Goblin
-    4, // Slime
-    4, // Trader
+    .Beings, // Guy
+    .Beings, // Frog
+    .Beings, // Goblin
+    .Beings, // Slime
+    .Beings, // Trader
     
     // Misc
-    4, // Flag
+    .Creations_Moveable, // Flag
 ];
 
 CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
