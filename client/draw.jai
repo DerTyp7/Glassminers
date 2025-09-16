@@ -199,6 +199,20 @@ Sprite_Index :: enum {
     Slime_Damaged_Side_0;
     Slime_Damaged_Side_1;
     Slime_Damaged_Side_2;
+
+    // Void Eye
+    Void_Eye_Back_0;
+    Void_Eye_Back_1;
+    Void_Eye_Back_2;
+    Void_Eye_Back_3;
+    Void_Eye_Front_0;
+    Void_Eye_Front_1;
+    Void_Eye_Front_2;
+    Void_Eye_Front_3;
+    Void_Eye_Side_0;
+    Void_Eye_Side_1;
+    Void_Eye_Side_2;
+    Void_Eye_Side_3;
     
     // Trader
     Trader_Idle_Back_0;
@@ -1056,6 +1070,7 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
           case .Frog;       index = .Frog_Idle_Front_0;
           case .Goblin;     index = .Goblin_Idle_Front_0;
           case .Slime;      index = .Slime_Idle_Front_0;
+          case .Void_Eye;   index = .Void_Eye_Front_0;
           case .Trader;     index = .Trader_Idle_Front_0;
         }
     } else {

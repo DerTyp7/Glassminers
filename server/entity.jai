@@ -93,6 +93,10 @@ Slime :: struct {
     time_since_last_move: f32;
 }
 
+Void_Eye :: struct {
+    #using entity : *Entity = ---;
+}
+
 Entity_Manager :: struct {
     pid_counter:  Pid;
     pid_lookup:   Probed_Hash_Table(Pid, *Entity);
@@ -105,6 +109,7 @@ Entity_Manager :: struct {
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
+    void_eyes:    Bucket_Array(Void_Eye);
 }
 
 
@@ -188,6 +193,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Frog;       make_derived(entity, *server.frogs);
       case .Goblin;     make_derived(entity, *server.goblins);
       case .Slime;      make_derived(entity, *server.slimes);
+      case .Void_Eye;   make_derived(entity, *server.void_eyes);
       case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Torch, .Trader, .Flag;
         entity.derived = null;
     }

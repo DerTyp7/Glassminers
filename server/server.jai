@@ -612,6 +612,7 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
         #char "F", // Frog
         #char "G", // Goblin
         #char "S", // Slime
+        #char "E", // Void Eye
         #char "T", // Trader
 
         // Misc

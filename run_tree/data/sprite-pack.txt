@@ -217,6 +217,23 @@ Slime_Damaged_Side_1    sprites/slime/slime-damaged-side-1.png
 Slime_Damaged_Side_2    sprites/slime/slime-damaged-side-2.png
 
 #
+# Void Eye
+#
+
+Void_Eye_Back_0   sprites/void_eye/void-eye-back-0.png
+Void_Eye_Back_1   sprites/void_eye/void-eye-back-1.png
+Void_Eye_Back_2   sprites/void_eye/void-eye-back-2.png
+Void_Eye_Back_3   sprites/void_eye/void-eye-back-3.png
+Void_Eye_Front_0  sprites/void_eye/void-eye-front-0.png
+Void_Eye_Front_1  sprites/void_eye/void-eye-front-1.png
+Void_Eye_Front_2  sprites/void_eye/void-eye-front-2.png
+Void_Eye_Front_3  sprites/void_eye/void-eye-front-3.png
+Void_Eye_Side_0   sprites/void_eye/void-eye-side-0.png
+Void_Eye_Side_1   sprites/void_eye/void-eye-side-1.png
+Void_Eye_Side_2   sprites/void_eye/void-eye-side-2.png
+Void_Eye_Side_3   sprites/void_eye/void-eye-side-3.png
+
+#
 # Trader
 #
 Trader_Idle_Back_0    sprites/trader/trader-idle-back-0.png

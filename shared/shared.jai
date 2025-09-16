@@ -244,6 +244,7 @@ Entity_Kind :: enum {
     Frog;
     Goblin;
     Slime;
+    Void_Eye;
     Trader;
     
     // Misc
@@ -366,6 +367,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
+    .Inanimate, // Void Eye
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation | .Auto_Heal, // Trader
     
     // Misc
@@ -396,6 +398,7 @@ DEFAULT_ENTITY_HEALTH: [Entity_Kind.Count]f32 : .[
     50, // Frog
     20, // Goblin
     10, // Slime
+    0,  // Void Eye
     30, // Trader
     
     // Misc
@@ -426,6 +429,7 @@ DEFAULT_ENTITY_ROTATION: [Entity_Kind.Count]Direction : .[
     .South, // Frog
     .South, // Goblin
     .South, // Slime
+    .South, // Void Eye
     .South, // Trader
     
     // Misc
@@ -464,6 +468,7 @@ DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]Visual_Layer : .[ // A higher de
     .Beings, // Frog
     .Beings, // Goblin
     .Beings, // Slime
+    .Beings, // Void Eye
     .Beings, // Trader
     
     // Misc

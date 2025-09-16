@@ -345,7 +345,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Void_Eye, .Trader, .Flag;
         entity.derived = null;
     }
 

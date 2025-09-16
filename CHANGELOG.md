@@ -1,5 +1,7 @@
 ## 0.4.0 (unreleased)
 
+
+
 - Added a sprite to indicate the chest is currently opened by a player
 - Added sounds when opening or closing a chest
 - Added a developer panel to debug incoming and outgoing messages
