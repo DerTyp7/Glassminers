@@ -553,6 +553,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Idle);
           case .Slime;
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Slime_Walk);
+          case .Void_Eye;
+            play_animation_from_group(client, entity, .Void_Eye);
           case .Trader;
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Trader_Idle);
         }

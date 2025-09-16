@@ -604,6 +604,16 @@ update_slab :: (server: *Server, slab: *Slab) {
     }
 }
 
+rotate_npc_towards_target_guy :: (server: *Server, npc: *Entity) {
+    target_guy, target_distance := find_target_guy_for_npc(server, npc.physical_position);
+
+    if target_guy {
+        delta := v2i.{ target_guy.physical_position.x - npc.physical_position.x, target_guy.physical_position.y - npc.physical_position.y };
+        rotation := direction_from_vector(delta);
+        update_physical_location(server, npc, npc.physical_position, rotation);
+    }
+}
+
 update_frog :: (server: *Server, frog: *Frog) {
     switch_state :: (server: *Server, frog: *Frog, new_state: Frog_State) {
         if frog.state == new_state return;
@@ -836,17 +846,14 @@ update_slime :: (server: *Server, slime: *Slime) {
     slime.time_since_last_move += server.tick_time;
 }
 
-update_trader :: (server: *Server, trader: *Entity) {
-    target_guy, target_distance := find_target_guy_for_npc(server, trader.physical_position);
+update_void_eye :: (server: *Server, eye: *Void_Eye) {
+    rotate_npc_towards_target_guy(server, eye);
+}
 
+update_trader :: (server: *Server, trader: *Entity) {
     damage_and_maybe_kill_if_in_light(server, trader);
     damage_and_maybe_kill_if_in_lava(server, trader);
-
-    if target_guy {
-        delta := v2i.{ target_guy.physical_position.x - trader.physical_position.x, target_guy.physical_position.y - trader.physical_position.y };
-        rotation := direction_from_vector(delta);
-        update_physical_location(server, trader, trader.physical_position, rotation);
-    }    
+    rotate_npc_towards_target_guy(server, trader);
 }
 
 take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
