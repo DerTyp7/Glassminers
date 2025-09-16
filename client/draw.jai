@@ -752,9 +752,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         for i := 0; i < entities_to_draw.count; ++i {
             entity := array_get(*entities_to_draw, i);
             tint :: GE_Color.{ 255, 255, 255, 255 };
-            sprite_index, flags := get_sprite_index_for_entity(client, entity);
-
-            if !(entity.entity_flags & .Emissive) then flags |= .Lit;
+            sprite_index, flags := get_sprite_for_entity(client, entity);
             
             if entity.entity_kind == .Item_Stack {
                 item_stack := down(entity, Item_Stack);
@@ -773,7 +771,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
 
                     if guy.state == .Carrying {
                         tint :: GE_Color.{ 255, 255, 255, 255 };
-                        active_guy_sprite_index, flags := get_sprite_index_for_entity(client, guy);
+                        active_guy_sprite_index, flags := get_sprite_for_entity(client, guy);
 
                         world_position := get_visual_hand_position_for_guy(client, guy);
                         world_size := visual_size_for_item_kind(guy.carrying_item);
@@ -1044,7 +1042,7 @@ get_sprite_index_for_gamepad_gesture :: (gesture: Gamepad_Gesture_Code) -> Sprit
     return .Count;
 }
 
-get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, Draw_Sprite_Flags {
+get_sprite_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, Draw_Sprite_Flags {
     index: Sprite_Index = ---;
     flags := Draw_Sprite_Flags.None;
     
@@ -1083,6 +1081,8 @@ get_sprite_index_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Inde
 
         if flipped then flags |= .Flipped;
     }
+
+    if !(DEFAULT_ENTITY_FLAGS[entity.entity_kind] & .Disable_Visual_Lighting) then flags |= .Lit;
 
     return index, flags;
 }

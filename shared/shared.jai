@@ -205,9 +205,9 @@ Entity_Flags :: enum bitfield {
     Blocks_Line_Of_Sight;
     Blocks_Crafting;
     Disable_Visual_Rotation;
+    Disable_Visual_Lighting;
     Disabled_Temporarily;
     Auto_Heal;
-    Emissive;
 }
 
 Item_Kind :: enum {
@@ -349,7 +349,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting | .Auto_Heal, // Mirror
 
     // Environment
-    .Blocks_Movement | .Blocks_Crafting | .Emissive, // Lava
+    .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Lighting, // Lava
     .Blocks_Movement | .Blocks_Crafting | .Diggable | .Blocks_Beam | .Blocks_Line_Of_Sight, // Bedrock
     .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Rock
     .Pushable | .Diggable | .Blocks_Movement | .Blocks_Beam | .Blocks_Line_Of_Sight | .Blocks_Crafting, // Coal
@@ -367,7 +367,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
-    .Disable_Visual_Rotation, // Void Eye
+    .Disable_Visual_Rotation | .Disable_Visual_Lighting, // Void Eye
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation | .Auto_Heal, // Trader
     
     // Misc
