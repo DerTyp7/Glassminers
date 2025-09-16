@@ -325,6 +325,35 @@ West  Slime_Damaged_Side
 
 
 #
+# Void Eye Animations
+#
+
+:Void_Eye_Back 0.15 loop
+Void_Eye_Back_0
+Void_Eye_Back_1
+Void_Eye_Back_2
+Void_Eye_Back_3
+
+:Void_Eye_Front 0.15 loop
+Void_Eye_Front_0
+Void_Eye_Front_1
+Void_Eye_Front_2
+Void_Eye_Front_3
+
+:Void_Eye_Side 0.15 loop flip
+Void_Eye_Side_0
+Void_Eye_Side_1
+Void_Eye_Side_2
+Void_Eye_Side_3
+
+@Void_Eye
+North Void_Eye_Back
+South Void_Eye_Front
+East  Void_Eye_Side
+West  Void_Eye_Side
+
+
+#
 # Trader Animations
 #
 

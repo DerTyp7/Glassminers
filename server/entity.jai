@@ -131,6 +131,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.frogs, *server.world_allocator);
     create_bucket_array(*server.goblins, *server.world_allocator);
     create_bucket_array(*server.slimes, *server.world_allocator);
+    create_bucket_array(*server.void_eyes, *server.world_allocator);
 }
 
 destroy_entity_manager :: (server: *Server) {
@@ -144,6 +145,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.frogs);
     destroy_bucket_array(*server.goblins);
     destroy_bucket_array(*server.slimes);
+    destroy_bucket_array(*server.void_eyes);
 }
 
 

@@ -54,6 +54,11 @@ Animation_Index :: enum {
     Slime_Damaged_Front;
     Slime_Damaged_Side;
     
+    // Void Eye Animations
+    Void_Eye_Back;
+    Void_Eye_Front;
+    Void_Eye_Side;
+
     // Trader Animations
     Trader_Idle_Back;
     Trader_Idle_Front;
@@ -106,6 +111,8 @@ Animation_Group_Index :: enum {
     Slime_Walk;
     Slime_Damaged;
     
+    Void_Eye;
+
     Trader_Idle;
 }
 

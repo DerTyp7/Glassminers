@@ -367,7 +367,7 @@ DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Frog
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Goblin
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation, // Slime
-    .Inanimate, // Void Eye
+    .Disable_Visual_Rotation, // Void Eye
     .Living | .Blocks_Movement | .Blocks_Crafting | .Disable_Visual_Rotation | .Auto_Heal, // Trader
     
     // Misc
