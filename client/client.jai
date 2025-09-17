@@ -956,13 +956,18 @@ do_main_menu :: (client: *Client) {
     DEFAULT_PORT: s64 : 9876;
     WINDOW_WIDTH: f32 : 256;
     APPROX_WINDOW_HEIGHT: f32 : 256;
+    WINDOW_SPACING: f32 : 50;
     
     ui_push_width(ui, .Pixels, WINDOW_WIDTH, 1);
 
     window_position :: (client: *Client, index: s64) -> UI_Vector2 {
-        screen := UI_Vector2.{ (xx client.window.w / 2 + (xx index - 0.5) * WINDOW_WIDTH * 1.1),
+        scaled_window_width := WINDOW_WIDTH * client.ui.pixel_scaling;
+        scaled_window_spacing := WINDOW_SPACING * client.ui.pixel_scaling;
+        
+        screen := UI_Vector2.{ (xx client.window.w / 2 + (xx index - 0.5) * scaled_window_width),
                                (xx client.window.h / 2 - APPROX_WINDOW_HEIGHT * 0.65) };
-        return .{ screen.x / (cast(f32) client.window.w - WINDOW_WIDTH), screen.y / (cast(f32) client.window.h - APPROX_WINDOW_HEIGHT) };
+        screen.x += xx index * scaled_window_spacing;
+        return .{ screen.x / (cast(f32) client.window.w - scaled_window_width), screen.y / (cast(f32) client.window.h - APPROX_WINDOW_HEIGHT) };
     }
 
     if client.server_data.state != .Closed && client.info_text_t <= 0 { // Don't override other error conditions...
