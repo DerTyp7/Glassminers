@@ -575,7 +575,7 @@ count_sections_in_predefined_world :: (game_mode: Game_Mode) -> s64 {
 
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
-        line_section_count := 0;
+        line_section_count := 1;
 
         for x := 0; x < line.count; ++x {
             if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR then ++line_section_count;
