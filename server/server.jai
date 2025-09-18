@@ -252,8 +252,12 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
         // We want to ensure a deterministic order in which entities are updated on the server.
         // Guys are just normal entities that are updated at a specific time during the tick,
         // so just remember the player input for later.
-        guy.received_input = msg.guy_input;
-        guy.received_input_this_tick = true;
+        if guy.received_inputs_count < guy.received_inputs.Capacity {
+            guy.received_inputs[guy.received_inputs_count] = msg.guy_input;
+            guy.received_inputs_count += 1;
+        } else {
+            logprint(.Warning, "Too many inputs for guy this tick, dropping input!");
+        }
 
       case .Chest_State;
         entity := get_entity(server, msg.chest_state.entity_pid);
@@ -851,12 +855,12 @@ try_to_fulfill_recipe :: (server: *Server, guy: *Guy, recipe: Crafting_Recipe) -
     return true;
 }
 
-handle_guy_movement :: (server: *Server, guy: *Guy) {
-    if !guy.received_input.wants_to_move return; 
+handle_guy_movement :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
+    if !input.wants_to_move return;
 
-    distance_to_move := abs(guy.received_input.position.x - guy.physical_position.x) + abs(guy.received_input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
+    distance_to_move := abs(input.position.x - guy.physical_position.x) + abs(input.position.y - guy.physical_position.y); // This can be violated if the guy got moved by something else during this tick...
     if distance_to_move != 1 {
-        update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
+        update_physical_location(server, guy, guy.physical_position, input.aim_direction);
         return;
     }
 
@@ -867,26 +871,26 @@ handle_guy_movement :: (server: *Server, guy: *Guy) {
 
     if is_in_ghost_mode {
         // Bypass checks and recursive move routine
-        if position_in_bounds(server, guy.received_input.position) {
-            update_physical_location(server, guy, guy.received_input.position, guy.received_input.aim_direction);
+        if position_in_bounds(server, input.position) {
+            update_physical_location(server, guy, input.position, input.aim_direction);
         }
-    } else if can_move_to_position(server, guy, guy.received_input.position, GUY_PUSH_STRENGTH) {
+    } else if can_move_to_position(server, guy, input.position, GUY_PUSH_STRENGTH) {
         // Rotate and move to the target position by recursively pushing things
-        guy.physical_rotation = guy.received_input.aim_direction;
-        move_to_position(server, guy, guy.received_input.position);
+        guy.physical_rotation = input.aim_direction;
+        move_to_position(server, guy, input.position);
     } else {
         // If we can't move to the position then at least update the rotation
-        update_physical_location(server, guy, guy.physical_position, guy.received_input.aim_direction);
+        update_physical_location(server, guy, guy.physical_position, input.aim_direction);
     }
 }
 
-handle_guy_input :: (server: *Server, guy: *Guy) {
-    handle_guy_movement(server, guy);
+handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
+    handle_guy_movement(server, guy, input);
     
     //
     // Handle interaction
     //
-    if #complete guy.received_input.interaction_kind == {            
+    if #complete input.interaction_kind == {
       case .Primary_Start;
         target_entity := find_any_entity_at_position(server, guy.target_position);
 
@@ -971,9 +975,9 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     // Handle crafting
     //
-    if guy.received_input.crafting_recipe != .Count {
-        if try_to_fulfill_recipe(server, guy, guy.received_input.crafting_recipe) {
-            if #complete guy.received_input.crafting_recipe == {
+    if input.crafting_recipe != .Count {
+        if try_to_fulfill_recipe(server, guy, input.crafting_recipe) {
+            if #complete input.crafting_recipe == {
               /* Crafting Hud */
               case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
               case .Torch;  put_item_in_hand(server, guy, .Torch);
@@ -991,12 +995,12 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
     //
     // Handle taking items from a chest
     //
-    if guy.received_input.chest_item != .Count && guy.state == .Idle {
+    if input.chest_item != .Count && guy.state == .Idle {
         target_entity := find_entity_of_kind_at_position(server, .Chest, guy.target_position);
         if target_entity {
             chest := down(target_entity, Chest);
-            if try_to_take_item_from_chest(server, chest, guy.received_input.chest_item) {
-                put_item_in_hand(server, guy, guy.received_input.chest_item);
+            if try_to_take_item_from_chest(server, chest, input.chest_item) {
+                put_item_in_hand(server, guy, input.chest_item);
             }
         }
     }
@@ -1011,7 +1015,7 @@ handle_guy_input :: (server: *Server, guy: *Guy) {
         }
     }
     
-    if #complete guy.received_input.cheat == {
+    if #complete input.cheat == {
       case .Give_Coin; try_to_give_item(server, guy, .Coin);
       case .Give_Coal; try_to_give_item(server, guy, .Coal);
       case .Give_Shard; try_to_give_item(server, guy, .Shard);
@@ -1141,14 +1145,18 @@ do_game_tick :: (server: *Server) {
             guy, occupied := index_bucket_array(*server.guys, i);
             if !occupied continue;
 
-            if guy.received_input_this_tick && guy.state != .Dead then handle_guy_input(server, guy);
-            guy.received_input_this_tick = false;
+            if guy.state != .Dead {
+                for input_index := 0; input_index < guy.received_inputs_count; ++input_index {
+                    handle_guy_input(server, guy, *guy.received_inputs[input_index]);
+                }
+            }
+            guy.received_inputs_count = 0;
 
             update_guy(server, guy);
-            
+
             if guy.state == .Dead ++number_of_dead_guys;
         }
-        
+
         //
         // Update all other kinds entities
         //

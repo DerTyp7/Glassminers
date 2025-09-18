@@ -39,8 +39,13 @@ Guy :: struct {
 
     strength_t: f32 = 0;
     
-    received_input: Guy_Input_Message = ---;
-    received_input_this_tick: bool = false;
+    // The client application will send out at most one Guy_Input_Message per frame. 
+    // However, with varying latency (such as when on WiFi), it can happen that we receive no input message in one tick, 
+    // and then multiple messages the next one. 
+    // We don't want to drop these messages, therefore we need a buffer here to process multiple in the same tick, 
+    // even though they originate from different ticks in the client.
+    received_inputs: [10]Guy_Input_Message; 
+    received_inputs_count: u8; // For a single game_tick
 
 #if DEVELOPER {
     invincible := false;
