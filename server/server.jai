@@ -1145,16 +1145,18 @@ do_game_tick :: (server: *Server) {
             guy, occupied := index_bucket_array(*server.guys, i);
             if !occupied continue;
 
-            for input_index := 0; input_index < guy.received_inputs_count && guy.state != .Dead; ++input_index {
-                handle_guy_input(server, guy, *guy.received_inputs[input_index]);
+            if guy.state != .Dead {
+                for input_index := 0; input_index < guy.received_inputs_count; ++input_index {
+                    handle_guy_input(server, guy, *guy.received_inputs[input_index]);
+                }
             }
             guy.received_inputs_count = 0;
 
             update_guy(server, guy);
-            
+
             if guy.state == .Dead ++number_of_dead_guys;
         }
-        
+
         //
         // Update all other kinds entities
         //
