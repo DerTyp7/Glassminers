@@ -315,8 +315,8 @@ Random_Sound :: struct {
 
 random_sounds: [5]Random_Sound = .[
     .{ .Ambient_Lava_0,  11,  1, .Count,  .Fade_In | .Fade_Out, --- },
-    .{ .Ambient_Scare_0, 45,  7, .Count,  .Default, --- },
-    .{ .Ambient_Scare_1, 45,  7, .Count,  .Default, --- },
+    .{ .Ambient_Scare_0, 60,  7, .Count,  .Default, --- },
+    .{ .Ambient_Scare_1, 60,  7, .Count,  .Default, --- },
     .{ .Frog_Idle_0,      7,  2, .Frog,   .Default, --- },
     .{ .Goblin_Idle_0,    7,  2, .Goblin, .Default, --- },
 ];
