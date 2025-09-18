@@ -39,8 +39,10 @@ Guy :: struct {
 
     strength_t: f32 = 0;
     
-    received_input: Guy_Input_Message = ---;
-    received_input_this_tick: bool = false;
+    // In order to not eat inputs, we needs to be able to handle multiple inputs per game_tick.
+    // Especially when the player ping is bad
+    received_inputs: [10]Guy_Input_Message; 
+    received_inputs_count: u8; // For a single game_tick
 
 #if DEVELOPER {
     invincible := false;
