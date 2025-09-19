@@ -658,8 +658,6 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
 
     if emitter.current_charge > 0 {
         recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
-        fill_lightmap_with_beam(*client.lightmap, *emitter.beam_data, emitter.beam_intensity);
-
         /*    
         // :EmitterSound, currently don't have a good sound to use that isn't annoying...
         if !sound_active(client, emitter.sound) {

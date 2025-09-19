@@ -212,6 +212,8 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     msg.create_entity.rotation   = entity.physical_rotation;
     array_add(*server.outgoing_messages, msg);
     
+    maybe_add_blocker(*server.lightmap, entity);
+
     return entity;
 }
 
@@ -371,6 +373,8 @@ remove_entity :: (server: *Server, entity: *Entity) {
     msg := make_message(Destroy_Entity_Message);
     msg.destroy_entity.entity_pid = entity.pid;
     array_add(*server.outgoing_messages, msg);
+
+    maybe_remove_blocker(*server.lightmap, entity);
 }
 
 find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
@@ -434,9 +438,6 @@ find_nearest_entity_of_kind :: (server: *Server, kind: Entity_Kind, position: v2
 update_physical_location :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
     something_changed := position.x != entity.physical_position.x || position.y != entity.physical_position.y || rotation != entity.physical_rotation;
 
-    entity.physical_position = position;
-    entity.physical_rotation = rotation;
-
     if something_changed {
         if entity.entity_kind == .Guy {
             guy := down(entity, Guy);
@@ -446,6 +447,11 @@ update_physical_location :: (server: *Server, entity: *Entity, position: v2i, ro
               case .Digging, .Resurrecting; guy.state = .Idle;
             }
         }
+
+        maybe_move_blocker(*server.lightmap, entity, position);
+
+        entity.physical_position = position;
+        entity.physical_rotation = rotation;
 
         msg := make_message(Move_Entity_Message);
         msg.move_entity.entity_pid = entity.pid;

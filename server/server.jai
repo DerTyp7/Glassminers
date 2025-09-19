@@ -29,8 +29,6 @@ DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
         return file_content;
     }
 
-    // @Cleanup: In release builds, this is actually put into the data section, not the read-only section
-    // of the executable? Also, it seems like the strings land in there twice?
     GAME_MODE_WORLD_STRINGS :: [Game_Mode.Count]string.[
         #run bake_file(ASSET_FILE_PATH("run_tree/data/developer-world.txt")),
         #run bake_file(ASSET_FILE_PATH("run_tree/data/tutorial-world.txt")),
@@ -99,6 +97,7 @@ Server :: struct {
     current_section_index: u64; // keeps track of how often the world was expanded & next section generation
     flag_pid: Pid;
     latest_emitter: Pid = INVALID_PID;
+    lightmap: Lightmap;
     #using em: Entity_Manager;
 }
 
@@ -353,6 +352,7 @@ switch_to_next_state :: (server: *Server) {
       case .Lobby, .Game_Over; // Ignore
       case .Ingame;
         destroy_entity_manager(server);
+        destroy_lightmap(*server.lightmap);
         reset_allocator(*server.world_allocator);
     }
     
@@ -715,6 +715,8 @@ create_the_game :: (server: *Server) {
     } else {
         server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
     }
+
+    create_lightmap(*server.lightmap, *server.world_allocator, server.world_size);
     
     //
     // Notify the clients about the game seed
@@ -781,6 +783,7 @@ generate_next_world_section :: (server: *Server) {
         msg.world_resize.new_world_size = server.world_size;
         array_add(*server.outgoing_messages, msg);
 
+        resize_lightmap(*server.lightmap, server.world_size);
         fill_world_section_randomly(server, .[ previous_width, server.world_size.x - 1 ]);
     } else {
         server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
@@ -789,6 +792,7 @@ generate_next_world_section :: (server: *Server) {
         msg.world_resize.new_world_size = server.world_size;
         array_add(*server.outgoing_messages, msg);
 
+        resize_lightmap(*server.lightmap, server.world_size);
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
     }
 }
@@ -1054,7 +1058,6 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
             damage_and_maybe_kill_entity(server, entity_to_kill, entity_to_kill.health);
         }
         
-        
       case .Complete_Emitters;
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
@@ -1097,6 +1100,9 @@ do_game_tick :: (server: *Server) {
             update_off_emitter(server, emitter);
         }
         
+        update_lightmap(*server.lightmap, *server.em, server.tick_time);
+        calculate_puddles(*server.lightmap, *temp);
+
         //
         // Update all slab
         //

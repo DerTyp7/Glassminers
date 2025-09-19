@@ -15,7 +15,7 @@ Lightmap :: struct {
     gamma: f32;
 
     intermediate: []f32;
-    puddle_count: Puddle;
+    puddle_sizes: [..]s64;
 
 #if DEVELOPER {
     disabled: bool;
@@ -71,7 +71,41 @@ resize_lightmap :: (map: *Lightmap, new_size: v2i) {
     map.size     = new_size;
 }
 
-update_lightmap :: (map: *Lightmap, dt: f32) {
+update_lightmap :: (map: *Lightmap, em: *Entity_Manager, dt: f32) {
+    //
+    // Firstly update the lightmap with input based on the current entities.
+    // Here we're relying on different declarations from server and client side (since both use the same
+    // procedure here), so let's hope this keeps working...
+    //
+    for i := 0; i < em.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*em.all_entities, i);
+        if occupied {
+            if entity.entity_kind == {
+              case .Guy;
+                guy := down(entity, Guy);
+                if guy.state == .Carrying && guy.carrying_item == .Torch then fill_lightmap_tile(map, guy.physical_position, TORCH_BRIGHTNESS);
+
+              case .Emitter;
+                emitter := down(entity, Emitter);
+                if emitter.current_charge > 0 then fill_lightmap_with_beam(map, *emitter.beam_data, 1);
+
+              case .Frog;
+                frog := down(entity, Frog);
+                if frog.state == .Attacking then fill_lightmap_with_beam(map, *frog.beam_data, 1);
+
+              case .Torch;
+                fill_lightmap_tile(map, entity.physical_position, TORCH_BRIGHTNESS);
+                
+              case .Lava;
+                fill_lightmap_tile(map, entity.physical_position, LAVA_BRIGHTNESS);
+            }
+        }
+    }
+
+
+    //
+    // Now propagate and fade the light values for each tile...
+    //
     map.intermediate = copy_array(*temp, map.tiles);
     
     for y := 0; y < map.size.y; ++y {
@@ -84,20 +118,6 @@ update_lightmap :: (map: *Lightmap, dt: f32) {
             updated += calculate_neighbor_effect(map, .{ x, y - 1 }, previous, dt);
             map.tiles[y * map.size.x + x] = clamp(updated, 0, 1);
         }
-    }
-}
-
-fill_lightmap_tile :: (map: *Lightmap, tile: v2i, brightness: f32) {
-    assert(tile.x >= 0 && tile.x < map.size.x && tile.y >= 0 && tile.y < map.size.y, "Tried to fill the lightmap out of bounds.");
-
-    index := tile.y * map.size.x + tile.x;
-    additive := max(brightness - map.tiles[index], 0);
-    map.tiles[index] = clamp(map.tiles[index] + additive, 0, 1);
-}
-
-fill_lightmap_with_beam :: (map: *Lightmap, beam: *Beam_Data, brightness: f32) {
-    for i := 0; i < beam.fields.count; ++i {
-        fill_lightmap_tile(map, array_get(*beam.fields, i).position, brightness);
     }
 }
 
@@ -160,6 +180,7 @@ calculate_puddles :: (map: *Lightmap, tick_allocator: *Allocator) {
         if query_lightmap(map, target_tile) > PUDDLE_THRESHOLD || map.puddles[idx] == target_puddle return;
         assert(map.puddles[idx] == NO_PUDDLE_ID, "Somehow two different puddle IDs are direct neighbors??");
         map.puddles[idx] = target_puddle;
+        array_put(*map.puddle_sizes, target_puddle, array_get(*map.puddle_sizes, target_puddle) + 1);
         visit_tile_neighbors_recursively(map, target_tile, target_puddle);
     }
 
@@ -176,7 +197,8 @@ calculate_puddles :: (map: *Lightmap, tick_allocator: *Allocator) {
     // representation.
     //
 
-    map.puddle_count = 0;
+    array_clear_without_deallocation(*map.puddle_sizes);
+    map.puddle_sizes.allocator = tick_allocator;
     for i := 0; i < map.puddles.count; ++i map.puddles[i] = NO_PUDDLE_ID;
 
     for x := 0; x < map.size.x; ++x {
@@ -184,8 +206,8 @@ calculate_puddles :: (map: *Lightmap, tick_allocator: *Allocator) {
             idx := y * map.size.x + x;
             if map.puddles[idx] != NO_PUDDLE_ID || query_lightmap(map, .{ x, y}) > PUDDLE_THRESHOLD    continue;
 
-            map.puddles[idx] = map.puddle_count;
-            ++map.puddle_count;
+            map.puddles[idx] = map.puddle_sizes.count;
+            array_add(*map.puddle_sizes, 1);
 
             visit_tile_neighbors_recursively(map, .{ x, y }, map.puddles[idx]);
         }
@@ -218,4 +240,18 @@ calculate_neighbor_effect :: (map: *Lightmap, neighbor: v2i, previous: f32, dt: 
 
     neighbor_value := query_previous_map(map, neighbor);
     return max((neighbor_value - previous) * LIGHTMAP_NEIGHBOR_EFFECT * dt, 0);
+}
+
+fill_lightmap_tile :: (map: *Lightmap, tile: v2i, brightness: f32) {
+    assert(tile.x >= 0 && tile.x < map.size.x && tile.y >= 0 && tile.y < map.size.y, "Tried to fill the lightmap out of bounds.");
+
+    index := tile.y * map.size.x + tile.x;
+    additive := max(brightness - map.tiles[index], 0);
+    map.tiles[index] = clamp(map.tiles[index] + additive, 0, 1);
+}
+
+fill_lightmap_with_beam :: (map: *Lightmap, beam: *Beam_Data, brightness: f32) {
+    for i := 0; i < beam.fields.count; ++i {
+        fill_lightmap_tile(map, array_get(*beam.fields, i).position, brightness);
+    }
 }

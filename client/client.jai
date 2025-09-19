@@ -1648,6 +1648,13 @@ do_game_tick :: (client: *Client) {
             if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
         }
 
+        update_lightmap(*client.lightmap, *client.em, client.tick_time);
+
+#if DEVELOPER {
+        if client.puddle_hud_enabled calculate_puddles(*client.lightmap, *client.tick_allocator);
+}
+
+
         for i := 0; i < client.slabs.slot_count; ++i {
             slab, occupied := index_bucket_array(*client.slabs, i);
             if occupied then update_slab(client, slab);
@@ -1657,7 +1664,6 @@ do_game_tick :: (client: *Client) {
             guy, occupied := index_bucket_array(*client.guys, i);
             if occupied {
                 update_guy(client, guy);
-                if guy.state == .Carrying && guy.carrying_item == .Torch then fill_lightmap_tile(*client.lightmap, guy.physical_position, TORCH_BRIGHTNESS);
             }
         }
         
@@ -1665,7 +1671,6 @@ do_game_tick :: (client: *Client) {
             frog, occupied := index_bucket_array(*client.frogs, i);
             if occupied {
                 update_frog(client, frog);
-                if frog.state == .Attacking then fill_lightmap_with_beam(*client.lightmap, *frog.beam_data, 1);
             }
         }
 
@@ -1682,21 +1687,13 @@ do_game_tick :: (client: *Client) {
         for i := 0; i < client.torches.slot_count; ++i {
             torch, occupied := index_bucket_array(*client.torches, i);
             if occupied {
-                update_torch(client, torch);
-                fill_lightmap_tile(*client.lightmap, torch.physical_position, TORCH_BRIGHTNESS);
+                update_torch(client, torch); // @Cleanup: Is this actually necessary? What the fuck is this doing?
             }
         }
         
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied {
-                interpolate_visuals_and_play_sounds(client, entity);
-
-                if entity.entity_kind == .Torch {
-                } else if entity.entity_kind == .Lava {
-                    fill_lightmap_tile(*client.lightmap, entity.physical_position, LAVA_BRIGHTNESS);
-                }
-            }
+            if occupied interpolate_visuals_and_play_sounds(client, entity);
         }
 
         for i := 0; i < client.particle_systems.slot_count; ++i {
@@ -1704,7 +1701,6 @@ do_game_tick :: (client: *Client) {
             if occupied then update_particle_system(system, client.tick_time);
         }
 
-        update_lightmap(*client.lightmap, client.tick_time);
         play_random_sounds(client);
 
         client.game_epoch_time += client.tick_time;
@@ -2162,8 +2158,6 @@ main :: (args: []string) -> s32 {
 
 #if DEVELOPER {
                 if client.puddle_hud_enabled {
-                    calculate_puddles(*client.lightmap, *client.tick_allocator);
-
                     for i := 0; i < client.local_player_count; ++i {
                         draw_puddle_hud(*client, *client.local_players[i]);
                     }
