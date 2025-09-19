@@ -2162,7 +2162,7 @@ main :: (args: []string) -> s32 {
 
 #if DEVELOPER {
                 if client.puddle_hud_enabled {
-                    calculate_puddles(*client.lightmap);
+                    calculate_puddles(*client.lightmap, *client.tick_allocator);
 
                     for i := 0; i < client.local_player_count; ++i {
                         draw_puddle_hud(*client, *client.local_players[i]);

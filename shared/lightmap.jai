@@ -3,7 +3,7 @@ Puddle :: u8;
 TORCH_BRIGHTNESS: f32 : 1.0;
 LAVA_BRIGHTNESS: f32 : 0.5;
 
-PUDDLE_THRESHOLD: f32 : 0.5;
+PUDDLE_THRESHOLD: f32 : 0.2;
 NO_PUDDLE_ID: Puddle : -1;
 
 Lightmap :: struct {
@@ -15,6 +15,7 @@ Lightmap :: struct {
     gamma: f32;
 
     intermediate: []f32;
+    puddle_count: Puddle;
 
 #if DEVELOPER {
     disabled: bool;
@@ -149,18 +150,44 @@ maybe_move_blocker :: (map: *Lightmap, entity: *Entity, new_position: v2i) {
 
 
 
-calculate_puddles :: (map: *Lightmap) {
-    //
-    // Clear out previous tick data
-    //
-    clear_memory(map.puddles.data, map.puddles.count * size_of(Puddle));
+calculate_puddles :: (map: *Lightmap, tick_allocator: *Allocator) {
+    put_puddle :: (tile_position: v2i, puddle: Puddle) #macro {
+        map.puddles[tile_position.y * map.size.x + tile_position.x] = puddle;
+    }
+
+    visit_tile_recursively :: (map: *Lightmap, target_tile: v2i, target_puddle: Puddle) {
+        idx := target_tile.y * map.size.x + target_tile.x;
+        if query_lightmap(map, target_tile) > PUDDLE_THRESHOLD || map.puddles[idx] == target_puddle return;
+        assert(map.puddles[idx] == NO_PUDDLE_ID, "Somehow two different puddle IDs are direct neighbors??");
+        map.puddles[idx] = target_puddle;
+        visit_tile_neighbors_recursively(map, target_tile, target_puddle);
+    }
+
+    visit_tile_neighbors_recursively :: (map: *Lightmap, my_tile: v2i, my_puddle: Puddle) {
+        if my_tile.x > 0 then visit_tile_recursively(map, .{ my_tile.x - 1, my_tile.y }, my_puddle);
+        if my_tile.x + 1 < map.size.x then visit_tile_recursively(map, .{ my_tile.x + 1, my_tile.y }, my_puddle);
+        if my_tile.y > 0 then visit_tile_recursively(map, .{ my_tile.x, my_tile.y - 1 }, my_puddle);
+        if my_tile.y + 1 < map.size.y then visit_tile_recursively(map, .{ my_tile.x, my_tile.y + 1 }, my_puddle);
+    }
 
     //
-    // Calculate the current puddles
-    //    
+    // A puddle is a set of low-brightness, connected tiles.
+    // Therefore, we need to walk through all tiles like a graph, so that each puddle fills out its entire
+    // representation.
+    //
+
+    map.puddle_count = 0;
+    for i := 0; i < map.puddles.count; ++i map.puddles[i] = NO_PUDDLE_ID;
+
     for x := 0; x < map.size.x; ++x {
         for y := 0; y < map.size.y; ++y {
-            map.puddles[y * map.size.x + x] = x;
+            idx := y * map.size.x + x;
+            if map.puddles[idx] != NO_PUDDLE_ID || query_lightmap(map, .{ x, y}) > PUDDLE_THRESHOLD    continue;
+
+            map.puddles[idx] = map.puddle_count;
+            ++map.puddle_count;
+
+            visit_tile_neighbors_recursively(map, .{ x, y }, map.puddles[idx]);
         }
     }
 }
