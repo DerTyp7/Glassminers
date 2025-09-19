@@ -218,6 +218,24 @@ query_puddle :: (map: *Lightmap, tile: v2i) -> Puddle {
     return map.puddles[tile.y * map.size.x + tile.x];
 }
 
+debug_print_puddles :: (map: *Lightmap) {
+    print("------------ PUDDLES ------------\n");
+
+    for y := 0; y < map.size.y; ++y {
+        for x := 0; x < map.size.x; ++x {
+            puddle := query_puddle(map, .{ x, y });
+            if puddle == NO_PUDDLE_ID {
+                print(" ");
+            } else {
+                print("%", cast(u64) puddle);
+            }
+        }
+
+        print("\n");
+    }
+    print("------------ PUDDLES ------------\n");
+}
+
 
 
 #file_scope
