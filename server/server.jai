@@ -10,6 +10,7 @@
 #load "../shared/messages.jai";
 #load "../shared/shared.jai";
 #load "../shared/bucket_array.jai";
+#load "../shared/lightmap.jai";
 #load "../shared/VERSION_STRING.jai";
 
 // Server

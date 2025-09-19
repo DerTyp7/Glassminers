@@ -1,7 +1,5 @@
 ## 0.4.0 (unreleased)
 
-
-
 - Added a sprite to indicate the chest is currently opened by a player
 - Added sounds when opening or closing a chest
 - Added a developer panel to debug incoming and outgoing messages
@@ -17,6 +15,7 @@
 - Fixed sometimes not drawing the correct input hints
 - Fixed not being able to craft mirrors / chests on top of slime holes
 - Fixed inputs being dropped when playing an online game with bad or varying latency
+- Fixed the main menu UI not being layed out correctly on different UI scales
 - Changed the health of the slime entity to just a single heart
 - Changed all crafting options now always showing even when they're not doable. Not doable crafting options are grayed out now.
 - Changed the sound file format to OGG, which massively reduces the file size of the game

@@ -853,6 +853,8 @@ update_slime :: (server: *Server, slime: *Slime) {
 
 update_void_eye :: (server: *Server, eye: *Void_Eye) {
     rotate_npc_towards_target_guy(server, eye);
+
+
 }
 
 update_trader :: (server: *Server, trader: *Entity) {

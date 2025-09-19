@@ -1,15 +1,21 @@
+Puddle :: u8;
+
 TORCH_BRIGHTNESS: f32 : 1.0;
 LAVA_BRIGHTNESS: f32 : 0.5;
 
+PUDDLE_THRESHOLD: f32 : 0.5;
+NO_PUDDLE_ID: Puddle : -1;
+
 Lightmap :: struct {
     allocator: *Allocator;
-    blockers: []s32;
-    tiles: []f32;
+    blockers: []u8;
+    tiles:    []f32;
+    puddles:  []Puddle;
     size: v2i;
+    gamma: f32;
 
     intermediate: []f32;
 
-    gamma: f32 = 1;
 #if DEVELOPER {
     disabled: bool;
 }
@@ -19,12 +25,17 @@ create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
     map.allocator = allocator;
     map.size      = size;
     map.tiles     = allocate_array(map.allocator, f32, map.size.x * map.size.y);
-    map.blockers  = allocate_array(map.allocator, s32, map.size.x * map.size.y);
-    for i := 0; i < map.tiles.count; ++i map.tiles[i] = 0;
-    for i := 0; i < map.blockers.count; ++i map.blockers[i] = 0;
+    map.blockers  = allocate_array(map.allocator, u8, map.size.x * map.size.y);
+    map.puddles   = allocate_array(map.allocator, Puddle, map.size.x * map.size.y);
+
+    clear_slice(map.tiles);
+    clear_slice(map.blockers);
+    clear_slice(map.puddles);    
+
+    map.gamma = 1;
 
 #if DEVELOPER {
-    map.disabled  = false;
+    map.disabled = false;
 }
 }
 
@@ -35,9 +46,10 @@ destroy_lightmap :: (map: *Lightmap) {
 
 resize_lightmap :: (map: *Lightmap, new_size: v2i) {
     new_tiles    := allocate_array(map.allocator, f32, new_size.x * new_size.y);
-    new_blockers := allocate_array(map.allocator, s32, new_size.x * new_size.y);
-    clear_memory(new_tiles.data, new_tiles.count * size_of(f32));
-    clear_memory(new_blockers.data, new_blockers.count * size_of(s32));
+    new_blockers := allocate_array(map.allocator, u8, new_size.x * new_size.y);
+
+    clear_slice(map.tiles);
+    clear_slice(map.blockers);
     
     size_to_copy := v2i.{ min(new_size.x, map.size.x), min(new_size.y, map.size.y) };
     
@@ -50,10 +62,12 @@ resize_lightmap :: (map: *Lightmap, new_size: v2i) {
 
     deallocate_array(map.allocator, *map.tiles);
     deallocate_array(map.allocator, *map.blockers);
+    deallocate_array(map.allocator, *map.puddles);
 
-    map.tiles = new_tiles;
+    map.tiles    = new_tiles;
     map.blockers = new_blockers;
-    map.size = new_size;
+    map.puddles  = allocate_array(map.allocator, Puddle, new_size.x * new_size.y);
+    map.size     = new_size;
 }
 
 update_lightmap :: (map: *Lightmap, dt: f32) {
@@ -131,6 +145,28 @@ maybe_move_blocker :: (map: *Lightmap, entity: *Entity, new_position: v2i) {
         --map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
         ++map.blockers[new_position.y * map.size.x + new_position.x];
     }
+}
+
+
+
+calculate_puddles :: (map: *Lightmap) {
+    //
+    // Clear out previous tick data
+    //
+    clear_memory(map.puddles.data, map.puddles.count * size_of(Puddle));
+
+    //
+    // Calculate the current puddles
+    //    
+    for x := 0; x < map.size.x; ++x {
+        for y := 0; y < map.size.y; ++y {
+            map.puddles[y * map.size.x + x] = x;
+        }
+    }
+}
+
+query_puddle :: (map: *Lightmap, tile: v2i) -> Puddle {
+    return map.puddles[tile.y * map.size.x + tile.x];
 }
 
 

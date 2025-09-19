@@ -19,6 +19,7 @@
 #load "../shared/messages.jai";
 #load "../shared/shared.jai";
 #load "../shared/bucket_array.jai";
+#load "../shared/lightmap.jai";
 #load "../shared/VERSION_STRING.jai";
 
 // Client
@@ -28,7 +29,6 @@
 #load "assets.jai";
 #load "sounds.jai";
 #load "animation.jai";
-#load "lightmap.jai";
 #load "hud.jai";
 #load "draw.jai";
 
@@ -229,6 +229,7 @@ Client :: struct {
 
     free_camera_enabled: bool;
     sound_hud_enabled: bool;
+    puddle_hud_enabled: bool;
 
     timing_update: f32;
     timing_draw: f32;
@@ -1729,6 +1730,8 @@ do_game_tick :: (client: *Client) {
         client.sound_hud_enabled = !client.sound_hud_enabled;
         enable_mixer_history(*client.mixer, 128, 2);
     }
+
+    if input_action_fired_globally(client, .Puddle_Hud_Toggle, .Pressed) then client.puddle_hud_enabled = !client.puddle_hud_enabled;
 }
 
     //
@@ -2158,6 +2161,14 @@ main :: (args: []string) -> s32 {
                 }
 
 #if DEVELOPER {
+                if client.puddle_hud_enabled {
+                    calculate_puddles(*client.lightmap);
+
+                    for i := 0; i < client.local_player_count; ++i {
+                        draw_puddle_hud(*client, *client.local_players[i]);
+                    }
+                }
+
                 if client.sound_hud_enabled then draw_sound_hud(*client);
 }
                 

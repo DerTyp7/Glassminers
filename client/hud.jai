@@ -408,6 +408,28 @@ draw_sound_hud :: (client: *Client) {
     }
 }
 
+draw_puddle_hud :: (client: *Client, local_player: *Local_Player) {
+    for x := 0; x < client.lightmap.size.x; ++x {
+        for y := 0; y < client.lightmap.size.y; ++y {
+            puddle := query_puddle(*client.lightmap, .{ x, y });
+            if puddle != NO_PUDDLE_ID {
+                BACKGROUND_HALF_WIDTH: f32 = 0.2 * cast(f32) ((puddle / 10) + 1);
+                BACKGROUND_HALF_HEIGHT: f32 : 0.4;
+                center: v2f = .{ xx x, xx y };
+
+                text := tprint("%", cast(u64) puddle);
+
+                draw_rect_world_space(client, local_player, 
+                    .{ center.x - BACKGROUND_HALF_WIDTH, center.y - BACKGROUND_HALF_HEIGHT },
+                    .{ center.x + BACKGROUND_HALF_WIDTH, center.y + BACKGROUND_HALF_HEIGHT },
+                    .{ 100, 100, 100, 100 });
+                
+                draw_text_world_space(client, local_player, *client.title_font, text, .{ xx x, xx y }, .Center | .Median, WHITE_COLOR, .Shadow);
+            }
+        }
+    }
+}
+
 
 
 #file_scope

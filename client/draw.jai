@@ -584,6 +584,11 @@ draw_rect_world_space :: (client: *Client, local_player: *Local_Player, world_c0
     draw_rect_screen_space(client, screen_c0, screen_c1, color);
 }
 
+draw_text_world_space :: (client: *Client, local_player: *Local_Player, font: *Font, text: string, world: v2f, alignment: Text_Alignment, foreground: GE_Color, flags: Draw_Text_Flags) {
+    screen_position := screen_from_world_position(*local_player.camera, world);
+    draw_text_screen_space(client, font, text, screen_position, alignment, foreground, flags);
+}
+
 draw_outlined_rect_world_space :: (client: *Client, local_player: *Local_Player, world_c0, world_c1: v2f, screen_thickness: f32, color: GE_Color) {
     screen_c0 := screen_from_world_position(*local_player.camera, world_c0);
     screen_c1 := screen_from_world_position(*local_player.camera, world_c1);
