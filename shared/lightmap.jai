@@ -218,6 +218,22 @@ query_puddle :: (map: *Lightmap, tile: v2i) -> Puddle {
     return map.puddles[tile.y * map.size.x + tile.x];
 }
 
+get_random_position_in_puddle :: (map: *Lightmap, puddle: Puddle) -> v2i {
+    tile_index_in_puddle := rdtsc() % array_get(*map.puddle_sizes, puddle);
+
+    for x := 0; x < map.size.x; ++x {
+        for y := 0; y < map.size.y; ++y {
+            if query_puddle(map, .{ x, y }) == puddle {
+                if tile_index_in_puddle == 0 then return .{ x, y };
+                --tile_index_in_puddle;
+            }
+        }
+    }
+
+    panic("Failed to find a random position in a puddle.");
+    return .{ 0, 0 };
+}
+
 debug_print_puddles :: (map: *Lightmap) {
     print("------------ PUDDLES ------------\n");
 

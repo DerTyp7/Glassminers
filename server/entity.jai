@@ -247,6 +247,7 @@ physically_remove_dead_entities :: (server: *Server) {
     remove_deriveds(*server.frogs);
     remove_deriveds(*server.goblins);
     remove_deriveds(*server.slimes);
+    remove_deriveds(*server.void_eyes);
 
     for i := 0; i < server.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*server.all_entities, i);
@@ -857,10 +858,37 @@ update_slime :: (server: *Server, slime: *Slime) {
     slime.time_since_last_move += server.tick_time;
 }
 
+manage_void_eye_lifetimes :: (server: *Server) {
+    //
+    // Remove all void eyes that are outside a puddle, and count how many void eyes are in each puddle
+    //
+    void_eyes_per_puddle := allocate_array(*temp, s64, server.lightmap.puddle_sizes.count);
+
+    for i := 0; i < server.void_eyes.slot_count; ++i {
+        eye, occupied := index_bucket_array(*server.void_eyes, i);
+        if !occupied then continue;
+
+        puddle := query_puddle(*server.lightmap, eye.physical_position);
+        if puddle == NO_PUDDLE_ID {
+            remove_entity(server, eye);
+        } else {
+            void_eyes_per_puddle[puddle] += 1;
+        }
+    }
+
+    //
+    // Spawn a new void eye in each puddle that doesn't have one yet
+    //
+    for i := 0; i < void_eyes_per_puddle.count; ++i {
+        if void_eyes_per_puddle[i] == 0 {
+            position := get_random_position_in_puddle(*server.lightmap, i);
+            eye := create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
+        }
+    }
+}
+
 update_void_eye :: (server: *Server, eye: *Void_Eye) {
     rotate_npc_towards_target_guy(server, eye);
-
-
 }
 
 update_trader :: (server: *Server, trader: *Entity) {

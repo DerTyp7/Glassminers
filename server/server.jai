@@ -1138,6 +1138,8 @@ do_game_tick :: (server: *Server) {
         //
         // Update all void eyes
         //
+        manage_void_eye_lifetimes(server);
+        
         for i := 0; i < server.void_eyes.slot_count; ++i {
             eye, occupied := index_bucket_array(*server.void_eyes, i);
             if occupied update_void_eye(server, eye);
