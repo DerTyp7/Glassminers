@@ -740,6 +740,8 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
 }
 
 update_off_emitter :: (client: *Client, emitter: *Emitter) {
+    clear_beam_data(client, *emitter.beam_data);
+
     is_beam, other_emitter, incoming_direction := is_emitter_beam_at(client, emitter.physical_position);
     is_lit := is_beam && incoming_direction == emitter.physical_rotation;
 

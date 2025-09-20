@@ -1675,7 +1675,6 @@ do_game_tick :: (client: *Client) {
             emitter, occupied := index_bucket_array(*client.emitters, i);
             if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
         }
-
         
         for i := 0; i < client.frogs.slot_count; ++i {
             frog, occupied := index_bucket_array(*client.frogs, i);

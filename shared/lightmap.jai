@@ -87,7 +87,7 @@ update_lightmap :: (map: *Lightmap, em: *Entity_Manager, dt: f32) {
 
               case .Emitter;
                 emitter := down(entity, Emitter);
-                if emitter.current_charge > 0 then fill_lightmap_with_beam(map, *emitter.beam_data, 1);
+                if emitter.current_charge > 0 && emitter.state != .Off then fill_lightmap_with_beam(map, *emitter.beam_data, 1);
 
               case .Frog;
                 frog := down(entity, Frog);

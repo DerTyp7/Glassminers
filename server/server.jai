@@ -710,7 +710,6 @@ create_the_game :: (server: *Server) {
     server.world_size = .{ 0, 0 };
     server.current_section_index = 0;
     server.game_seed = os_get_cpu_time();
-    server.game_seed = 8674656140568;
     seed_random_generator(*server.world_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
     seed_random_generator(*server.entity_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 

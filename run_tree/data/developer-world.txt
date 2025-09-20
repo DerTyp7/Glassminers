@@ -1,9 +1,5 @@
-bbbbb
-bbbbb
-F
-b
-#gggcccssb G
-#       eb  
-#e       b
-#        s
-#        b 
+gggcccssb G
+       eb  
+e       b
+        s
+        b 
