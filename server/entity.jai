@@ -322,7 +322,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
         
-        chance := random_f32_zero_to_one(*server.random);
+        chance := random_f32_zero_to_one(*server.entity_random);
         if chance < MONSTER_DROPS_COIN_CHANCE[server.game_mode] {
             item_drop = .Coin;
         }
@@ -811,7 +811,7 @@ update_slime :: (server: *Server, slime: *Slime) {
                 // run over the entire map to steal your items - that's just annoying.
                 target_position = target_item_stack.physical_position;
             } else {
-                direction := random_u64_in(*server.random, 0, Direction.Count);
+                direction := random_u64_in(*server.entity_random, 0, Direction.Count);
                 for i := 0; i < Direction.Count; ++i {
                     random_vector := vector_from_direction((direction + i) % Direction.Count);
                     random_position := v2i.{ slime.physical_position.x + random_vector.x, slime.physical_position.y + random_vector.y };
@@ -926,7 +926,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
         //
         // Move around randomly during idle
         //
-        direction := random_u64_in(*server.random, 0, Direction.Count);
+        direction := random_u64_in(*server.entity_random, 0, Direction.Count);
         for i := 0; i < Direction.Count; ++i {
             random_vector := vector_from_direction((direction + i) % Direction.Count);
             random_position := v2i.{ eye.physical_position.x + random_vector.x, eye.physical_position.y + random_vector.y };

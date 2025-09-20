@@ -73,8 +73,9 @@ Server :: struct {
     engine_allocator: Allocator;
     current_state: Game_State;
     next_state: Game_State;
-    random: Random_Generator;
-    
+    world_random: Random_Generator; // To ensure the world generation is completely deterministic for a game seed, we need to ensure only the world generation is using this random generator...
+    entity_random: Random_Generator;
+
     //
     // Networking
     //
@@ -443,15 +444,15 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
     }
 
     random_position :: (server: *Server, section: [2]s32) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.random, section[0], section[1] + 1),
-                          random_u64_in(*server.random, 0, SECTION_HEIGHT) };
+        position := v2i.{ random_u64_in(*server.world_random, section[0], section[1] + 1),
+                          random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
 
         success := true;
         
         iteration := 0;
         while find_any_entity_at_position(server, position) {
-            position = v2i.{ random_u64_in(*server.random, section[0], section[1] + 1),
-                             random_u64_in(*server.random, 0, SECTION_HEIGHT) };
+            position = v2i.{ random_u64_in(*server.world_random, section[0], section[1] + 1),
+                             random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
 
             if iteration > 10 {
                 logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
@@ -476,7 +477,7 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
         area := (section[1] - section[0] + 1) * SECTION_HEIGHT;
         mean := t * cast(f32) area;
         stddev: f32 : 0.25;
-        return cast(s32) round(random_f32_normal_distribution(*server.random, mean, stddev * mean));
+        return cast(s32) round(random_f32_normal_distribution(*server.world_random, mean, stddev * mean));
     }
 
     generate_randomly :: (server: *Server, section: [2]s32, kind: Entity_Kind, modifier: f32) -> [..]*Entity {
@@ -497,7 +498,7 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
     }
 
     {
-        latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.random, 0, SECTION_HEIGHT) }, .East);
+        latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
         server.latest_emitter = latest_emitter.pid;
     }
     
@@ -709,7 +710,9 @@ create_the_game :: (server: *Server) {
     server.world_size = .{ 0, 0 };
     server.current_section_index = 0;
     server.game_seed = os_get_cpu_time();
-    seed_random_generator(*server.random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
+    server.game_seed = 8674656140568;
+    seed_random_generator(*server.world_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
+    seed_random_generator(*server.entity_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
 
     if use_random_world_generation(server) {
         server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
