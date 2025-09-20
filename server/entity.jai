@@ -875,19 +875,19 @@ manage_void_eye_lifetimes :: (server: *Server) {
         if !occupied then continue;
 
         puddle := query_puddle(*server.lightmap, eye.physical_position);
-        if puddle == NO_PUDDLE_ID {
-            damage_and_maybe_kill_entity(server, eye, VOID_EYE_DPS_IN_BRIGHTNESS * server.tick_time);
-        } else {
+        if puddle != NO_PUDDLE_ID {
             set_entity_health(server, eye, eye.health + VOID_EYE_HPS_IN_DARKNESS * server.tick_time);
             void_eyes_per_puddle[puddle] += 1;
+        } else {
+            damage_and_maybe_kill_entity(server, eye, VOID_EYE_DPS_IN_BRIGHTNESS * server.tick_time);
         }
     }
 
     //
     // Spawn a new void eye in each puddle that doesn't have one yet
     //
-    server.void_eyes_spawn_accumulator  += server.tick_time * VOID_EYE_SPAWN_RATE * cast(f32) server.world_size.x;
-    void_eyes_to_spawn_this_tick := cast(s64) floor(server.void_eyes_spawn_accumulator);
+    server.void_eyes_spawn_accumulator += server.tick_time * VOID_EYE_SPAWN_RATE * cast(f32) server.world_size.x;
+    void_eyes_to_spawn_this_tick       := cast(s64) floor(server.void_eyes_spawn_accumulator);
     server.void_eyes_spawn_accumulator -= xx void_eyes_to_spawn_this_tick;
 
     for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_puddle.count; ++i {

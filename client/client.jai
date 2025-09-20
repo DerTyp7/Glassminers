@@ -1630,6 +1630,30 @@ maybe_do_tutorial_panel :: (client: *Client) {
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
+
+    //    
+    // Developer UI
+    //
+#if DEVELOPER { 
+    if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
+        client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
+    }
+
+    maybe_do_developer_panel(client);
+
+    if input_action_fired_globally(client, .Message_History_Panel_Toggle, .Pressed) {
+        client.message_history_panel_state = ifx client.message_history_panel_state == .Closed then .Open else .Closed;
+    }
+
+    maybe_do_message_history_panel(client);
+
+    if input_action_fired_globally(client, .Sound_Hud_Toggle, .Pressed) {
+        client.sound_hud_enabled = !client.sound_hud_enabled;
+        enable_mixer_history(*client.mixer, 128, 2);
+    }
+
+    if input_action_fired_globally(client, .Puddle_Hud_Toggle, .Pressed) then client.puddle_hud_enabled = !client.puddle_hud_enabled;
+}
     
     //
     // Update all local entities based on the information received by the server.
@@ -1637,7 +1661,11 @@ do_game_tick :: (client: *Client) {
     //
     if !client.server_paused_game {
         reset_allocator(*client.tick_allocator);
-        
+
+        //
+        // Update all entities that have an impact on the lightmap
+        //
+
         for i := 0; i < client.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*client.emitters, i);
             if occupied && emitter.state != .Off then update_powered_emitter(client, emitter);
@@ -1646,6 +1674,14 @@ do_game_tick :: (client: *Client) {
         for i := 0; i < client.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*client.emitters, i);
             if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
+        }
+
+        
+        for i := 0; i < client.frogs.slot_count; ++i {
+            frog, occupied := index_bucket_array(*client.frogs, i);
+            if occupied {
+                update_frog(client, frog);
+            }
         }
 
         update_lightmap(*client.lightmap, *client.em, client.tick_time);
@@ -1664,13 +1700,6 @@ do_game_tick :: (client: *Client) {
             guy, occupied := index_bucket_array(*client.guys, i);
             if occupied {
                 update_guy(client, guy);
-            }
-        }
-        
-        for i := 0; i < client.frogs.slot_count; ++i {
-            frog, occupied := index_bucket_array(*client.frogs, i);
-            if occupied {
-                update_frog(client, frog);
             }
         }
 
@@ -1705,30 +1734,6 @@ do_game_tick :: (client: *Client) {
 
         client.game_epoch_time += client.tick_time;
     }
-
-    //    
-    // Developer UI
-    //
-#if DEVELOPER { 
-    if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
-        client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
-    }
-
-    maybe_do_developer_panel(client);
-
-    if input_action_fired_globally(client, .Message_History_Panel_Toggle, .Pressed) {
-        client.message_history_panel_state = ifx client.message_history_panel_state == .Closed then .Open else .Closed;
-    }
-
-    maybe_do_message_history_panel(client);
-
-    if input_action_fired_globally(client, .Sound_Hud_Toggle, .Pressed) {
-        client.sound_hud_enabled = !client.sound_hud_enabled;
-        enable_mixer_history(*client.mixer, 128, 2);
-    }
-
-    if input_action_fired_globally(client, .Puddle_Hud_Toggle, .Pressed) then client.puddle_hud_enabled = !client.puddle_hud_enabled;
-}
 
     //
     // Tutorial UI

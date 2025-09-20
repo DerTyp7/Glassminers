@@ -617,7 +617,7 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
     gap_size := round(cast(f32) screen_size * 0.1);
     leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
 
-    brightness := query_lightmap(*client.lightmap, entity.physical_position);
+    brightness := query_lightmap_gamma_adjusted(*client.lightmap, entity.physical_position);
     
     for i := 0; i < heart_count; ++i {
         heart_0 := (cast(f32) i) * DEFAULT_ENTITY_HEALTH[entity.entity_kind] / cast(f32) heart_count;
@@ -670,7 +670,7 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
     texture := client.sprite_atlases[atlas_index];
 
     if flags & .Lit {
-        brightness := query_lightmap_at_fractional(*client.lightmap, world_center);
+        brightness := query_lightmap_at_fractional_gamma_adjusted(*client.lightmap, world_center);
         tint = darken_color(tint, brightness);
     }
     
@@ -1284,7 +1284,7 @@ draw_particle_system :: (client: *Client, local_player: *Local_Player, system: *
                 lifetime := min(particle.lifetime, system.time_to_live);
                 local_alpha := smoothstep(particle.elapsed, 0, emitter.fadein) * (1 - smoothstep(particle.elapsed, lifetime - emitter.fadeout, lifetime));
 
-                brightness := ifx !emitter.emissive then query_lightmap_at_fractional(*client.lightmap, world_position) else 1;
+                brightness := ifx !emitter.emissive then query_lightmap_at_fractional_gamma_adjusted(*client.lightmap, world_position) else 1;
                 color := GE_Color.{ particle.color.r, particle.color.g, particle.color.b, cast(u8) (cast(f32) particle.color.a * system.global_alpha * local_alpha * brightness) };
 
                 ge_imm2d_colored_rect(*client.graphics, c0.x, c0.y, c1.x, c1.y, color);

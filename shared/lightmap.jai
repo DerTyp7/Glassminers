@@ -49,8 +49,8 @@ resize_lightmap :: (map: *Lightmap, new_size: v2i) {
     new_tiles    := allocate_array(map.allocator, f32, new_size.x * new_size.y);
     new_blockers := allocate_array(map.allocator, u8, new_size.x * new_size.y);
 
-    clear_slice(map.tiles);
-    clear_slice(map.blockers);
+    clear_slice(new_tiles);
+    clear_slice(new_blockers);
     
     size_to_copy := v2i.{ min(new_size.x, map.size.x), min(new_size.y, map.size.y) };
     
@@ -129,11 +129,14 @@ query_lightmap :: (map: *Lightmap, tile: v2i) -> f32 {
     assert(tile.x >= 0 && tile.x < map.size.x && tile.y >= 0 && tile.y < map.size.y, "Tried to query the lightmap out of bounds.");
 
     index := tile.y * map.size.x + tile.x;
-    t := max(map.tiles[index], LIGHTMAP_AMBIENCE);
-    return powf(t, 1 / map.gamma);
+    return max(map.tiles[index], LIGHTMAP_AMBIENCE);
 }
 
-query_lightmap_at_fractional :: (map: *Lightmap, position: v2f) -> f32 {
+query_lightmap_gamma_adjusted :: (map: *Lightmap, tile: v2i) -> f32 {
+    return powf(query_lightmap(map, tile), 1 / map.gamma);
+}
+
+query_lightmap_at_fractional_gamma_adjusted :: (map: *Lightmap, position: v2f) -> f32 {
 #if DEVELOPER {
     if map.disabled return 1;
 }
@@ -146,7 +149,7 @@ query_lightmap_at_fractional :: (map: *Lightmap, position: v2f) -> f32 {
     tile := v2i.{ cast(s32) round(position.x), cast(s32) round(position.y) };
     tile.x = clamp(tile.x, 0, map.size.x - 1);
     tile.y = clamp(tile.y, 0, map.size.y - 1);
-    return query_lightmap(map, tile);
+    return query_lightmap_gamma_adjusted(map, tile);
 }
 
 maybe_add_blocker :: (map: *Lightmap, entity: *Entity) {

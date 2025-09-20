@@ -1101,44 +1101,32 @@ do_game_tick :: (server: *Server) {
             update_off_emitter(server, emitter);
         }
         
-        update_lightmap(*server.lightmap, *server.em, server.tick_time);
-        calculate_puddles(*server.lightmap, *temp);
-
         //
-        // Update all slab
-        //
-        for i := 0; i < server.slabs.slot_count; ++i {
-            slab, occupied := index_bucket_array(*server.slabs, i);
-            if occupied update_slab(server, slab);
-        }
-        
-        //
-        // Update all frogs
+        // Update all frogs, as their beams will be used for the lightmap calculation as well.
         //
         for i := 0; i < server.frogs.slot_count; ++i {
             frog, occupied := index_bucket_array(*server.frogs, i);
             if occupied update_frog(server, frog);
         }
+        
+        update_lightmap(*server.lightmap, *server.em, server.tick_time);
+        calculate_puddles(*server.lightmap, *temp);
 
-        //
-        // Update all goblins
-        //
+        for i := 0; i < server.slabs.slot_count; ++i {
+            slab, occupied := index_bucket_array(*server.slabs, i);
+            if occupied update_slab(server, slab);
+        }
+
         for i := 0; i < server.goblins.slot_count; ++i {
             goblin, occupied := index_bucket_array(*server.goblins, i);
             if occupied update_goblin(server, goblin);
         }
 
-        //
-        // Update all slimes
-        //
         for i := 0; i < server.slimes.slot_count; ++i {
             slime, occupied := index_bucket_array(*server.slimes, i);
             if occupied update_slime(server, slime);
         }
 
-        //
-        // Update all void eyes
-        //
         manage_void_eye_lifetimes(server);
         
         for i := 0; i < server.void_eyes.slot_count; ++i {
@@ -1146,9 +1134,6 @@ do_game_tick :: (server: *Server) {
             if occupied update_void_eye(server, eye);
         }
         
-        //
-        // Update all guys
-        //
         number_of_dead_guys := 0;
         
         for i := 0; i < server.guys.slot_count; ++i {
@@ -1167,9 +1152,6 @@ do_game_tick :: (server: *Server) {
             if guy.state == .Dead ++number_of_dead_guys;
         }
 
-        //
-        // Update all other kinds entities
-        //
         for i := 0; i < server.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*server.all_entities, i);
             if !occupied continue;
