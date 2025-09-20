@@ -1,6 +1,6 @@
 Pathfinding_Flags :: enum bitfield {
     Avoid_Collisions;
-    Avoid_Bright_Tiles;
+    Restrict_To_Puddles;
 }
 
 find_path :: (server: *Server, flags: Pathfinding_Flags, beam_tile_cost: s32, from, to: v2i) -> []v2i {
@@ -17,25 +17,35 @@ find_path :: (server: *Server, flags: Pathfinding_Flags, beam_tile_cost: s32, fr
         grid.nodes = allocate_array(*temp, Node, grid.size.x * grid.size.y);
         for i := 0; i < grid.nodes.count; ++i grid.nodes[i] = .{};
 
-        for i := 0; i < server.all_entities.slot_count; ++i {
-            entity, occupied := index_bucket_array(*server.all_entities, i);
-            if !occupied continue;
+        if flags & .Avoid_Collisions {
+            for i := 0; i < server.all_entities.slot_count; ++i {
+                entity, occupied := index_bucket_array(*server.all_entities, i);
+                if !occupied continue;
 
-            if entity.entity_kind == .Emitter {
-                emitter := down(entity, Emitter);
+                if entity.entity_kind == .Emitter {
+                    emitter := down(entity, Emitter);
 
-                for i := 0; i < emitter.beam_data.fields.count; ++i {
-                    node := grid.get(*grid, array_get(*emitter.beam_data.fields, i).position);
-                    node.cost = beam_tile_cost;
+                    for i := 0; i < emitter.beam_data.fields.count; ++i {
+                        node := grid.get(*grid, array_get(*emitter.beam_data.fields, i).position);
+                        node.cost = beam_tile_cost;
+                    }
+                }
+
+                if entity.entity_flags & .Blocks_Movement {
+                    node := grid.get(*grid, entity.physical_position);
+                    node.state = .Blocked;
                 }
             }
+        }
 
-            node_is_blocked := (flags & .Avoid_Collisions && entity.entity_flags & .Blocks_Movement) ||
-                               (flags & .Avoid_Bright_Tiles && query_lightmap(*server.lightmap, entity.physical_position) > PUDDLE_THRESHOLD);
-
-            if node_is_blocked {
-                node := grid.get(*grid, entity.physical_position);
-                node.state = .Blocked;
+        if flags & .Restrict_To_Puddles {
+            for x := 0; x < grid.size.x; ++x {
+                for y := 0; y < grid.size.y; ++y {
+                    if query_puddle(*server.lightmap, .{ x, y }) == NO_PUDDLE_ID {
+                        node := grid.get(*grid, .{ x, y });
+                        node.state = .Blocked;
+                    }
+                }
             }
         }
     }

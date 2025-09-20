@@ -876,7 +876,7 @@ manage_void_eye_lifetimes :: (server: *Server) {
 
         puddle := query_puddle(*server.lightmap, eye.physical_position);
         if puddle == NO_PUDDLE_ID {
-            remove_entity(server, eye);
+            damage_and_maybe_kill_entity(server, eye, VOID_EYE_DPS_IN_BRIGHTNESS * server.tick_time);
         } else {
             void_eyes_per_puddle[puddle] += 1;
         }
@@ -885,7 +885,7 @@ manage_void_eye_lifetimes :: (server: *Server) {
     //
     // Spawn a new void eye in each puddle that doesn't have one yet
     //
-    server.void_eyes_spawn_accumulator  += server.tick_time * VOID_EYES_SPAWN_RATE * cast(f32) server.world_size.x;
+    server.void_eyes_spawn_accumulator  += server.tick_time * VOID_EYE_SPAWN_RATE * cast(f32) server.world_size.x;
     void_eyes_to_spawn_this_tick := cast(s64) floor(server.void_eyes_spawn_accumulator);
     server.void_eyes_spawn_accumulator -= xx void_eyes_to_spawn_this_tick;
 
@@ -907,7 +907,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
     if target_guy != null && distance_to_target <= VOID_EYE_TRACKING_DISTANCE {
         if distance_to_target > 0 {
             // Try to find a path towards the player
-            move_target, is_chasing_player = find_next_step_on_path(server, .Avoid_Bright_Tiles, 0, eye.physical_position, target_guy.physical_position);
+            move_target, is_chasing_player = find_next_step_on_path(server, .Restrict_To_Puddles, 0, eye.physical_position, target_guy.physical_position);
         } else {
             // Is already on the player, damage him
             // @Incomplete: Damage!
@@ -923,7 +923,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
         for i := 0; i < Direction.Count; ++i {
             random_vector := vector_from_direction((direction + i) % Direction.Count);
             random_position := v2i.{ eye.physical_position.x + random_vector.x, eye.physical_position.y + random_vector.y };
-            if position_in_bounds(server, random_position) && query_lightmap(*server.lightmap, random_position) < PUDDLE_THRESHOLD {
+            if position_in_bounds(server, random_position) && query_puddle(*server.lightmap, random_position) != NO_PUDDLE_ID {
                 move_target = random_position;
                 break;
             }
@@ -931,7 +931,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
     }
 
     active_move_interval := ifx is_chasing_player then VOID_EYE_CHASING_MOVE_INTERVAL else VOID_EYE_IDLE_MOVE_INTERVAL;
-    if eye.time_since_last_move > active_move_interval {
+    if eye.time_since_last_move > active_move_interval && (move_target.x != eye.physical_position.x || move_target.y != eye.physical_position.y) {
         move_and_rotate_to_position(server, eye, move_target);
         eye.time_since_last_move = 0;
     }

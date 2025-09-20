@@ -192,7 +192,8 @@ GUY_DPS:  f32 : HEALTH_PER_HEART;
 LAVA_DPS: f32 : HEALTH_PER_HEART * 3;
 
 PUDDLE_SIZE_PER_VOID_EYE: s64 : 10;
-VOID_EYES_SPAWN_RATE: f32 : 1 / 20; // How many void eyes to spawn per second, assuming there's space to spawn them...
+VOID_EYE_DPS_IN_BRIGHTNESS: f32 : HEALTH_PER_HEART * 0.5;
+VOID_EYE_SPAWN_RATE: f32 : 1 / 20; // How many void eyes to spawn per second, assuming there's space to spawn them...
 VOID_EYE_IDLE_MOVE_INTERVAL: f32 : 0.5;
 VOID_EYE_CHASING_MOVE_INTERVAL: f32 : 0.1;
 VOID_EYE_TRACKING_DISTANCE: s64 : 5;
@@ -404,7 +405,7 @@ DEFAULT_ENTITY_HEALTH: [Entity_Kind.Count]f32 : .[
     50, // Frog
     20, // Goblin
     10, // Slime
-    0,  // Void Eye
+    10, // Void Eye
     30, // Trader
     
     // Misc
@@ -448,6 +449,7 @@ Visual_Layer :: enum (s32) { // Useful for grouping kinds of entities together. 
     Creations_Immoveable :: 2;
     Creations_Moveable   :: 3;
     Beings               :: 4;
+    Void_Eyes            :: 5;
 }
 
 DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]Visual_Layer : .[ // A higher depth will be rendered on top of a lower depth
@@ -474,7 +476,7 @@ DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]Visual_Layer : .[ // A higher de
     .Beings, // Frog
     .Beings, // Goblin
     .Beings, // Slime
-    .Beings, // Void Eye
+    .Void_Eyes, // Void Eye
     .Beings, // Trader
     
     // Misc
