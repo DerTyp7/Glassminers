@@ -756,9 +756,13 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         
         for i := 0; i < entities_to_draw.count; ++i {
             entity := array_get(*entities_to_draw, i);
-            tint :: GE_Color.{ 255, 255, 255, 255 };
+            tint := GE_Color.{ 255, 255, 255, 255 };
             sprite_index, flags := get_sprite_for_entity(client, entity);
             
+            if entity.entity_kind == .Void_Eye {
+                tint.a = cast(u8) (entity.health / DEFAULT_ENTITY_HEALTH[entity.entity_kind] * 255);
+            }
+
             if entity.entity_kind == .Item_Stack {
                 item_stack := down(entity, Item_Stack);
                 count := min(VISUAL_ITEM_STACK_CAPACITY, item_stack.count);
@@ -768,21 +772,21 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
                 }
             } else {
                 draw_sprite_world_space(client, local_player, sprite_index, entity.visual_position, entity.visual_size, entity.visual_rotation, tint, flags);
+            }
 
-                if entity.entity_kind == .Guy {
-                    // We want to draw the item that this guy is carrying in world space, so that
-                    // the items appear under any overlays (like UI or beams)...
-                    guy := down(entity, Guy);
+            if entity.entity_kind == .Guy {
+                // We want to draw the item that this guy is carrying in world space, so that
+                // the items appear under any overlays (like UI or beams)...
+                guy := down(entity, Guy);
 
-                    if guy.state == .Carrying {
-                        tint :: GE_Color.{ 255, 255, 255, 255 };
-                        active_guy_sprite_index, flags := get_sprite_for_entity(client, guy);
+                if guy.state == .Carrying {
+                    tint :: GE_Color.{ 255, 255, 255, 255 };
+                    active_guy_sprite_index, flags := get_sprite_for_entity(client, guy);
 
-                        world_position := get_visual_hand_position_for_guy(client, guy);
-                        world_size := visual_size_for_item_kind(guy.carrying_item);
-                        sprite_index := get_sprite_index_for_item(guy.carrying_item);
-                        draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, tint, .Lit);
-                    }
+                    world_position := get_visual_hand_position_for_guy(client, guy);
+                    world_size := visual_size_for_item_kind(guy.carrying_item);
+                    sprite_index := get_sprite_index_for_item(guy.carrying_item);
+                    draw_sprite_world_space(client, local_player, sprite_index, world_position, world_size, 0, tint, .Lit);
                 }
             }
         }

@@ -878,6 +878,7 @@ manage_void_eye_lifetimes :: (server: *Server) {
         if puddle == NO_PUDDLE_ID {
             damage_and_maybe_kill_entity(server, eye, VOID_EYE_DPS_IN_BRIGHTNESS * server.tick_time);
         } else {
+            set_entity_health(server, eye, eye.health + VOID_EYE_HPS_IN_DARKNESS * server.tick_time);
             void_eyes_per_puddle[puddle] += 1;
         }
     }
