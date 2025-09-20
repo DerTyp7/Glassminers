@@ -704,6 +704,19 @@ were_all_emitters_activated :: (server: *Server) -> bool {
     return all_active;
 }
 
+setup_initial_chest_inventory :: (server: *Server) -> Item_Inventory {
+    inventory: Item_Inventory = ---;
+
+    if server.game_mode == {
+      case .Easy;   inventory = .{ 6, .[ .Coin, .Coin, .Shard, .Shard, .Coal, .Coal, ---, --- ] };
+      case .Medium; inventory = .{ 3, .[ .Coin, .Shard, .Coal, ---, ---, ---, ---, --- ] };
+      case .Hard;   inventory = .{ 1, .[ random_one_of(*server.entity_random, .[ Item_Kind.Shard, Item_Kind.Coal, Item_Kind.Coin ]), ---, ---, ---, ---, ---, ---, --- ] };
+      case; inventory = .{ };
+    }
+
+    return inventory;
+}
+
 create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
     create_entity_manager(server);
@@ -711,6 +724,7 @@ create_the_game :: (server: *Server) {
     server.world_size = .{ 0, 0 };
     server.current_section_index = 0;
     server.void_eyes_spawn_cooldown = 5;    
+    server.flag_pid = INVALID_PID;
     server.game_seed = os_get_cpu_time();
     seed_random_generator(*server.world_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
     seed_random_generator(*server.entity_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
@@ -731,11 +745,6 @@ create_the_game :: (server: *Server) {
     game_start.game_start.size = server.world_size;
     game_start.game_start.game_mode = server.game_mode;
     array_add(*server.outgoing_messages, game_start);
-
-    //
-    // Generate the required entities
-    //
-    try_to_place_item(server, .{ 1, 2 }, .Flag, null, null);
 
     //
     // Generate one entity for each player and attach it to the player
@@ -764,11 +773,18 @@ create_the_game :: (server: *Server) {
     //
     // Generate the first section
     //
+    try_to_place_item(server, .{ 1, 2 }, .Flag, null, null);
+
     if use_random_world_generation(server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE[server.game_mode]);
-        
+
+        chest_entity := create_entity(server, .Chest, .{ 0, 3 }, .North);
+        chest := down(chest_entity, Chest);
+        chest.inventory = setup_initial_chest_inventory(server);
+        broadcast_chest_inventory(server, chest);
+
         fill_world_section_randomly(server, .[ 0, server.world_size.x - 1]);
     } else {
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
