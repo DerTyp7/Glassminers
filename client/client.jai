@@ -1715,7 +1715,7 @@ do_game_tick :: (client: *Client) {
         for i := 0; i < client.torches.slot_count; ++i {
             torch, occupied := index_bucket_array(*client.torches, i);
             if occupied {
-                update_torch(client, torch); // @Cleanup: Is this actually necessary? What the fuck is this doing?
+                update_torch(client, torch);
             }
         }
         

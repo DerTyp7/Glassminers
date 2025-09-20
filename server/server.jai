@@ -100,6 +100,7 @@ Server :: struct {
     latest_emitter: Pid = INVALID_PID;
     lightmap: Lightmap;
     void_eyes_spawn_accumulator: f32 = 0;
+    void_eyes_spawn_cooldown:    f32 = 0; // After unlocking a new section, the lightmap needs a bit of time to propagate the initial beam. Otherwise, we'll be spawning new void eyes in places were they'll be killed immediately after again
     #using em: Entity_Manager;
 }
 
@@ -709,6 +710,7 @@ create_the_game :: (server: *Server) {
 
     server.world_size = .{ 0, 0 };
     server.current_section_index = 0;
+    server.void_eyes_spawn_cooldown = 5;    
     server.game_seed = os_get_cpu_time();
     seed_random_generator(*server.world_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
     seed_random_generator(*server.entity_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
@@ -775,7 +777,8 @@ create_the_game :: (server: *Server) {
 
 generate_next_world_section :: (server: *Server) {
     if server.game_mode == .Developer && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) return;
-    
+
+    server.void_eyes_spawn_cooldown = 5;    
     ++server.current_section_index;
 
     if use_random_world_generation(server) {
