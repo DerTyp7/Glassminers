@@ -199,6 +199,7 @@ VOID_EYE_SPAWN_RATE: f32 : 1 / 20; // How many void eyes to spawn per second, as
 VOID_EYE_IDLE_MOVE_INTERVAL: f32 : 0.5;
 VOID_EYE_CHASING_MOVE_INTERVAL: f32 : 0.1;
 VOID_EYE_TRACKING_DISTANCE: s64 : 5;
+VOID_EYE_SPAWN_TIME: f32 : 1.5; // Time before the void eye actually starts behaving. Should match the duration of the spawn animation
 
 
 /* --------------------------------------------------- Enums --------------------------------------------------- */

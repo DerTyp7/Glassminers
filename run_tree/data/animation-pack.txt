@@ -352,6 +352,13 @@ South Void_Eye_Front
 East  Void_Eye_Side
 West  Void_Eye_Side
 
+:Void_Eye_Spawn 0.2
+Void_Eye_Spawn_0
+Void_Eye_Spawn_1
+Void_Eye_Spawn_2
+Void_Eye_Spawn_3
+Void_Eye_Spawn_4
+
 
 #
 # Trader Animations

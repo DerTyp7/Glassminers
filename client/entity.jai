@@ -403,7 +403,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Frog;     play_animation_from_group(client, entity, .Frog_Idle);
       case .Goblin;   play_animation_from_group(client, entity, .Goblin_Idle);
       case .Slime;    play_animation_from_group(client, entity, .Slime_Idle);
-      case .Void_Eye; play_animation_from_group(client, entity, .Void_Eye);
+      case .Void_Eye; play_animation(entity, .Void_Eye_Spawn);
       case .Trader;   play_animation_from_group(client, entity, .Trader_Idle);
     }
     

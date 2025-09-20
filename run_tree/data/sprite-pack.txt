@@ -232,6 +232,11 @@ Void_Eye_Side_0   sprites/void_eye/void-eye-side-0.png
 Void_Eye_Side_1   sprites/void_eye/void-eye-side-1.png
 Void_Eye_Side_2   sprites/void_eye/void-eye-side-2.png
 Void_Eye_Side_3   sprites/void_eye/void-eye-side-3.png
+Void_Eye_Spawn_0   sprites/void_eye/void-eye-spawn-0.png
+Void_Eye_Spawn_1   sprites/void_eye/void-eye-spawn-1.png
+Void_Eye_Spawn_2   sprites/void_eye/void-eye-spawn-2.png
+Void_Eye_Spawn_3   sprites/void_eye/void-eye-spawn-3.png
+Void_Eye_Spawn_4   sprites/void_eye/void-eye-spawn-4.png
 
 #
 # Trader

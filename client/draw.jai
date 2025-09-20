@@ -213,7 +213,13 @@ Sprite_Index :: enum {
     Void_Eye_Side_1;
     Void_Eye_Side_2;
     Void_Eye_Side_3;
-    
+
+    Void_Eye_Spawn_0;
+    Void_Eye_Spawn_1;
+    Void_Eye_Spawn_2;
+    Void_Eye_Spawn_3;
+    Void_Eye_Spawn_4;
+
     // Trader
     Trader_Idle_Back_0;
     Trader_Idle_Back_1;

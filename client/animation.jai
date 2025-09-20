@@ -58,6 +58,7 @@ Animation_Index :: enum {
     Void_Eye_Back;
     Void_Eye_Front;
     Void_Eye_Side;
+    Void_Eye_Spawn;
 
     // Trader Animations
     Trader_Idle_Back;

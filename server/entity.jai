@@ -101,6 +101,7 @@ Slime :: struct {
 Void_Eye :: struct {
     #using entity : *Entity = ---;
     time_since_last_move: f32;
+    time_since_spawn: f32;
 }
 
 Entity_Manager :: struct {
@@ -900,6 +901,11 @@ manage_void_eye_lifetimes :: (server: *Server) {
 }
 
 update_void_eye :: (server: *Server, eye: *Void_Eye) {
+    eye.time_since_spawn += server.tick_time;
+    if eye.time_since_spawn < VOID_EYE_SPAWN_TIME {
+        return;
+    }
+
     target_guy, distance_to_target := find_nearest_entity_of_kind(server, .Guy, eye.physical_position);
     move_target: v2i = eye.physical_position;
 
