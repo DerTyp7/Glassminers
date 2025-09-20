@@ -978,7 +978,7 @@ do_main_menu :: (client: *Client) {
     // Host Window
     {
         ui_push_window(ui, "Host", .Default, window_position(client, -1));
-        ui_label(ui, false, "Name:");
+        ui_label(ui, false, "Name");
         ui_text_input_with_string(ui, "Enter your name", *client.ui_state.account_name, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Port");
@@ -1013,7 +1013,7 @@ do_main_menu :: (client: *Client) {
     // Join Window
     {
         ui_push_window(ui, "Join", .Default, window_position(client, +1));
-        ui_label(ui, false, "Name:");
+        ui_label(ui, false, "Name");
         ui_text_input_with_string(ui, "Enter your name", *client.ui_state.account_name, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Host");

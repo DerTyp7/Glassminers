@@ -1,4 +1,4 @@
-## 0.4.0 (unreleased)
+## 0.4.0 (20.09.2025)
 
 Added a new monster type: The Void Eye. 
 This monster will only live in dark areas of the map and try to chase down the player to kill them.
