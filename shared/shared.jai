@@ -192,6 +192,7 @@ GUY_DPS:  f32 : HEALTH_PER_HEART;
 LAVA_DPS: f32 : HEALTH_PER_HEART * 3;
 
 PUDDLE_SIZE_PER_VOID_EYE: s64 : 10;
+VOID_EYE_DPS_ON_PLAYER:     f32 : (3 * HEALTH_PER_HEART) / 5;
 VOID_EYE_DPS_IN_BRIGHTNESS: f32 : HEALTH_PER_HEART * 0.5;
 VOID_EYE_HPS_IN_DARKNESS:   f32 : HEALTH_PER_HEART * 0.5;
 VOID_EYE_SPAWN_RATE: f32 : 1 / 20; // How many void eyes to spawn per second, assuming there's space to spawn them...

@@ -911,7 +911,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
             move_target, is_chasing_player = find_next_step_on_path(server, .Restrict_To_Puddles, 0, eye.physical_position, target_guy.physical_position);
         } else {
             // Is already on the player, damage him
-            // @Incomplete: Damage!
+            damage_and_maybe_kill_entity(server, target_guy, VOID_EYE_DPS_ON_PLAYER * server.tick_time);
             is_chasing_player = true;
         }
     }
