@@ -879,10 +879,15 @@ manage_void_eye_lifetimes :: (server: *Server) {
     //
     // Spawn a new void eye in each puddle that doesn't have one yet
     //
-    for i := 0; i < void_eyes_per_puddle.count; ++i {
-        if void_eyes_per_puddle[i] == 0 {
+    server.void_eyes_spawn_accumulator  += server.tick_time * VOID_EYES_SPAWN_RATE * cast(f32) server.world_size.x;
+    void_eyes_to_spawn_this_tick := cast(s64) floor(server.void_eyes_spawn_accumulator);
+    server.void_eyes_spawn_accumulator -= xx void_eyes_to_spawn_this_tick;
+
+    for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_puddle.count; ++i {
+        if void_eyes_per_puddle[i] < array_get(*server.lightmap.puddle_sizes, i) / PUDDLE_SIZE_PER_VOID_EYE {
             position := get_random_position_in_puddle(*server.lightmap, i);
-            eye := create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
+            create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
+            --void_eyes_to_spawn_this_tick;
         }
     }
 }

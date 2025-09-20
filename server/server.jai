@@ -98,6 +98,7 @@ Server :: struct {
     flag_pid: Pid;
     latest_emitter: Pid = INVALID_PID;
     lightmap: Lightmap;
+    void_eyes_spawn_accumulator: f32 = 0;
     #using em: Entity_Manager;
 }
 

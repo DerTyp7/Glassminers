@@ -191,6 +191,10 @@ BEAM_DPS: f32 : HEALTH_PER_HEART / 2;
 GUY_DPS:  f32 : HEALTH_PER_HEART;
 LAVA_DPS: f32 : HEALTH_PER_HEART * 3;
 
+PUDDLE_SIZE_PER_VOID_EYE: s64 : 10;
+VOID_EYES_SPAWN_RATE: f32 : 1 / 20; // How many void eyes to spawn per second, assuming there's space to spawn them...
+
+
 
 /* --------------------------------------------------- Enums --------------------------------------------------- */
 
