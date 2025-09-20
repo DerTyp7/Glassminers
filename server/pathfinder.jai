@@ -1,8 +1,16 @@
-find_path :: (server: *Server, light_tile_cost: s32, from, to: v2i) -> []v2i {
+Pathfinding_Flags :: enum bitfield {
+    Avoid_Collisions;
+    Avoid_Bright_Tiles;
+}
+
+find_path :: (server: *Server, flags: Pathfinding_Flags, beam_tile_cost: s32, from, to: v2i) -> []v2i {
     grid: Grid = ---;
 
     //
-    // Build the path grid
+    // Build the path grid.
+    // We go through all entities in the world and update the grid for them.
+    // For example, we block all nodes in the grid on which a move-blocking entity stands, and we set the
+    // right cost for all tiles that are under a beam...
     //
     {
         grid.size  = server.world_size;
@@ -13,18 +21,21 @@ find_path :: (server: *Server, light_tile_cost: s32, from, to: v2i) -> []v2i {
             entity, occupied := index_bucket_array(*server.all_entities, i);
             if !occupied continue;
 
-            if !(entity.entity_flags & .Blocks_Movement) || (entity.physical_position.x == to.x && entity.physical_position.y == to.y) continue;
-
-            node := grid.get(*grid, entity.physical_position);
-            node.state = .Blocked;
-
             if entity.entity_kind == .Emitter {
                 emitter := down(entity, Emitter);
 
                 for i := 0; i < emitter.beam_data.fields.count; ++i {
                     node := grid.get(*grid, array_get(*emitter.beam_data.fields, i).position);
-                    node.cost = light_tile_cost;
+                    node.cost = beam_tile_cost;
                 }
+            }
+
+            node_is_blocked := (flags & .Avoid_Collisions && entity.entity_flags & .Blocks_Movement) ||
+                               (flags & .Avoid_Bright_Tiles && query_lightmap(*server.lightmap, entity.physical_position) > PUDDLE_THRESHOLD);
+
+            if node_is_blocked {
+                node := grid.get(*grid, entity.physical_position);
+                node.state = .Blocked;
             }
         }
     }
@@ -35,12 +46,12 @@ find_path :: (server: *Server, light_tile_cost: s32, from, to: v2i) -> []v2i {
     return dijkstra(*grid, from, to);
 }
 
-find_next_step_on_path :: (server: *Server, light_tile_cost: s32, from, to: v2i) -> v2i {
-    path := find_path(server, light_tile_cost, from, to);
+find_next_step_on_path :: (server: *Server, flags: Pathfinding_Flags, beam_tile_cost: s32, from, to: v2i) -> v2i, bool {
+    path := find_path(server, flags, beam_tile_cost, from, to);
     if path.count < 2 {
-        return from;
+        return from, false; // Failed to find a valid path
     }
-    return path[1]; // The first index in this array is the *from* position
+    return path[1], true; // The first index in this array is the *from* position
 }
 
 

@@ -100,6 +100,7 @@ Slime :: struct {
 
 Void_Eye :: struct {
     #using entity : *Entity = ---;
+    time_since_last_move: f32;
 }
 
 Entity_Manager :: struct {
@@ -471,13 +472,21 @@ can_move_to_position :: (server: *Server, entity: *Entity, position: v2i, streng
     if move_delta.x != 0 || move_delta.y != 0 {
         return recursive_move_check(server, entity, move_delta, strength);
     } else {
-        return true;
+        return false;
     }
 }
 
 move_to_position :: (server: *Server, entity: *Entity, position: v2i) {
     move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
     if move_delta.x != 0 || move_delta.y != 0 {
+        recursive_move(server, entity, move_delta);
+    }
+}
+
+move_and_rotate_to_position :: (server: *Server, entity: *Entity, position: v2i) {
+    move_delta := v2i.{ position.x - entity.physical_position.x, position.y - entity.physical_position.y };
+    if move_delta.x != 0 || move_delta.y != 0 {
+        entity.physical_rotation = direction_from_vector(move_delta);
         recursive_move(server, entity, move_delta);
     }
 }
@@ -844,14 +853,11 @@ update_slime :: (server: *Server, slime: *Slime) {
         // Actually execute the move
         //
         light_tile_cost := ifx slime.state == .Fleeing then 1 else 10;
-        next_step := find_next_step_on_path(server, light_tile_cost, slime.physical_position, target_position);
+        next_step, found_path := find_next_step_on_path(server, .Avoid_Collisions, light_tile_cost, slime.physical_position, target_position);
 
-        move_delta := v2i.{ next_step.x - slime.physical_position.x, next_step.y - slime.physical_position.y };
-
-        if (move_delta.x != 0 || move_delta.y != 0) && can_move_to_position(server, slime, next_step, 0) {
+        if found_path && can_move_to_position(server, slime, next_step, 0) {
+            move_and_rotate_to_position(server, slime, next_step);
             slime.time_since_last_move = 0;
-            slime.physical_rotation = direction_from_vector(move_delta);
-            move_to_position(server, slime, next_step);
         }
     }
         
@@ -893,7 +899,44 @@ manage_void_eye_lifetimes :: (server: *Server) {
 }
 
 update_void_eye :: (server: *Server, eye: *Void_Eye) {
-    rotate_npc_towards_target_guy(server, eye);
+    target_guy, distance_to_target := find_nearest_entity_of_kind(server, .Guy, eye.physical_position);
+    move_target: v2i = eye.physical_position;
+
+    is_chasing_player := false;
+
+    if target_guy != null && distance_to_target <= VOID_EYE_TRACKING_DISTANCE {
+        if distance_to_target > 0 {
+            // Try to find a path towards the player
+            move_target, is_chasing_player = find_next_step_on_path(server, .Avoid_Bright_Tiles, 0, eye.physical_position, target_guy.physical_position);
+        } else {
+            // Is already on the player, damage him
+            // @Incomplete: Damage!
+            is_chasing_player = true;
+        }
+    }
+
+    if !is_chasing_player {
+        //
+        // Move around randomly during idle
+        //
+        direction := random_u64_in(*server.random, 0, Direction.Count);
+        for i := 0; i < Direction.Count; ++i {
+            random_vector := vector_from_direction((direction + i) % Direction.Count);
+            random_position := v2i.{ eye.physical_position.x + random_vector.x, eye.physical_position.y + random_vector.y };
+            if position_in_bounds(server, random_position) && query_lightmap(*server.lightmap, random_position) < PUDDLE_THRESHOLD {
+                move_target = random_position;
+                break;
+            }
+        }
+    }
+
+    active_move_interval := ifx is_chasing_player then VOID_EYE_CHASING_MOVE_INTERVAL else VOID_EYE_IDLE_MOVE_INTERVAL;
+    if eye.time_since_last_move > active_move_interval {
+        move_and_rotate_to_position(server, eye, move_target);
+        eye.time_since_last_move = 0;
+    }
+
+    eye.time_since_last_move += server.tick_time;
 }
 
 update_trader :: (server: *Server, trader: *Entity) {
@@ -1174,8 +1217,10 @@ recursive_move :: (server: *Server, entity: *Entity, move_delta: v2i) {
 
     position := v2i.{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y };
 
-    collision := find_entity_with_flags_at_position(server, .Blocks_Movement, position);
-    if collision recursive_move(server, collision, move_delta);
+    if DEFAULT_ENTITY_FLAGS[entity.entity_kind] & .Blocks_Movement {
+        collision := find_entity_with_flags_at_position(server, .Blocks_Movement, position);
+        if collision recursive_move(server, collision, move_delta);
+    }
 
     update_physical_location(server, entity, .{ entity.physical_position.x + move_delta.x, entity.physical_position.y + move_delta.y }, entity.physical_rotation);
 }

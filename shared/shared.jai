@@ -193,7 +193,9 @@ LAVA_DPS: f32 : HEALTH_PER_HEART * 3;
 
 PUDDLE_SIZE_PER_VOID_EYE: s64 : 10;
 VOID_EYES_SPAWN_RATE: f32 : 1 / 20; // How many void eyes to spawn per second, assuming there's space to spawn them...
-
+VOID_EYE_IDLE_MOVE_INTERVAL: f32 : 0.5;
+VOID_EYE_CHASING_MOVE_INTERVAL: f32 : 0.1;
+VOID_EYE_TRACKING_DISTANCE: s64 : 5;
 
 
 /* --------------------------------------------------- Enums --------------------------------------------------- */
