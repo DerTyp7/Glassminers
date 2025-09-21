@@ -2,6 +2,7 @@
 
 - Increased the damage of the void eyes to kill a guy in three seconds
 - Fixed void eyes sticking around on dead guys
+- Fixed entities spawning directly in front of an emitter
 
 ## 0.4.0 (20.09.2025)
 

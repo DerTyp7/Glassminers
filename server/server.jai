@@ -435,24 +435,25 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count]f32 {
 }
 
 fill_world_section_randomly :: (server: *Server, section: [2]s32) {
-    is_reserved_position :: (server: *Server, position: v2i) -> bool {
+    is_reserved_position :: (server: *Server, position: v2i, helper: *Helper) -> bool {
         // We want to free up space around the spawn positions of the player (so that players don't spawn on
-        // top of monsters, etc).
-        // However, we *don't* want this to mess with our probability distributions - so if an entity would've
-        // been spawned here, we don't want to move it somewhere else in the section, we just want to drop it.
-        // Otherwise, we make the right side of the first section really dense...
-        return (position.y >= 1 && position.y <= 3 && position.x >= 0 && position.x <= 2 + server.clients.count + 1);
+        // top of monsters, etc) and the emitters.
+        if (position.y >= 1 && position.y <= 3 && position.x >= 0 && position.x <= 2 + server.clients.count + 1) return true;
+        if helper.previous_emitter {
+            if position.x == helper.previous_emitter.physical_position.x + 1 && position.y == helper.previous_emitter.physical_position.y return true;
+        }
+        return false;
     }
 
-    random_position :: (server: *Server, section: [2]s32) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.world_random, section[0], section[1] + 1),
+    random_position :: (server: *Server, helper: *Helper, retry_on_reserved: bool) -> v2i, bool {
+        position := v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
                           random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
 
         success := true;
         
         iteration := 0;
-        while find_any_entity_at_position(server, position) {
-            position = v2i.{ random_u64_in(*server.world_random, section[0], section[1] + 1),
+        while find_any_entity_at_position(server, position) || (retry_on_reserved && is_reserved_position(server, position, helper)) {
+            position = v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
                              random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
 
             if iteration > 10 {
@@ -464,31 +465,39 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
             ++iteration;
         }
 
-        if success {
-            success = !is_reserved_position(server, position);
+        if !retry_on_reserved {
+            success = success && !is_reserved_position(server, position, helper);
         }
 
-        assert(!success || position_in_bounds(server, position), "Somehow generated a position out-of-bounds...");
-        
         return position, success;
     }
 
-    generate_random_count :: (server: *Server, section: [2]s32, kind: Entity_Kind, modifier: f32) -> s32 {
+    generate_random_count :: (server: *Server, helper: *Helper, kind: Entity_Kind, modifier: f32) -> s32 {
         t := SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
-        area := (section[1] - section[0] + 1) * SECTION_HEIGHT;
+        area := (helper.section[1] - helper.section[0] + 1) * SECTION_HEIGHT;
         mean := t * cast(f32) area;
         stddev: f32 : 0.25;
         return cast(s32) round(random_f32_normal_distribution(*server.world_random, mean, stddev * mean));
     }
 
-    generate_randomly :: (server: *Server, section: [2]s32, kind: Entity_Kind, modifier: f32) -> [..]*Entity {
+    //
+    // When filling the world randomly, we want to block certain tiles to ensure they remain empty. Otherwise,
+    // the game can be really annoying to play.
+    // At the same time, we want to ensure that we generate enough resources on the available space of the
+    // section, while not overcrowding the section with other entity kinds (such as bedrock or monsters).
+    // In short, the retry_on_reserved flag tries to ensure that we actually generate 'count' entities of
+    // that kind. If it is false, we accept generating fewer entities to ensure we're not overloading the
+    // section (since the SPAWN_PROBABILITIY_TABLE assumes the entire section space as available, but that's
+    // not actually true).
+    //
+    generate_randomly :: (server: *Server, helper: *Helper, kind: Entity_Kind, modifier: f32, retry_on_reserved: bool) -> [..]*Entity {
         result: [..]*Entity;
         result.allocator = *temp;
-        
-        count := generate_random_count(server, section, kind, modifier);
+
+        count := generate_random_count(server, helper, kind, modifier);
 
         for i := 0; i < count; ++i {
-            position, success := random_position(server, section);
+            position, success := random_position(server, helper, retry_on_reserved);
             if success {
                 entity := create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
                 array_add(*result, entity);
@@ -497,6 +506,15 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
 
         return result;
     }
+
+    Helper :: struct {
+        section: [2]s32;
+        previous_emitter: *Entity;
+    }
+
+    helper: Helper = ---;
+    helper.section = section;
+    helper.previous_emitter = ifx server.latest_emitter != INVALID_PID then get_entity(server, server.latest_emitter) else null;
 
     {
         latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
@@ -508,15 +526,15 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
     neutral_modifier:    f32 = 1.0; // These things shouldn't really change with the duration of the game...
     unfriendly_modifier: f32 = -1 / powf(x, 0.5) + 2; // The longer a game goes, the more unfriendly things we want to happen
 
-    generate_randomly(server, section, .Lava,    neutral_modifier);
-    generate_randomly(server, section, .Bedrock, neutral_modifier);
-    generate_randomly(server, section, .Rock,    friendly_modifier);
-    generate_randomly(server, section, .Crystal, friendly_modifier);
-    generate_randomly(server, section, .Coal,    neutral_modifier);
-    generate_randomly(server, section, .Frog,    unfriendly_modifier);
-    generate_randomly(server, section, .Goblin,  unfriendly_modifier);
-    generate_randomly(server, section, .Trader,  neutral_modifier);
-    holes := generate_randomly(server, section, .Slime_Hole, neutral_modifier);
+    generate_randomly(server, *helper, .Lava,    neutral_modifier,    false);
+    generate_randomly(server, *helper, .Bedrock, neutral_modifier,    false);
+    generate_randomly(server, *helper, .Rock,    friendly_modifier,   false);
+    generate_randomly(server, *helper, .Crystal, friendly_modifier,   true);
+    generate_randomly(server, *helper, .Coal,    neutral_modifier,    true);
+    generate_randomly(server, *helper, .Frog,    unfriendly_modifier, false);
+    generate_randomly(server, *helper, .Goblin,  unfriendly_modifier, false);
+    generate_randomly(server, *helper, .Trader,  neutral_modifier,    true);
+    holes := generate_randomly(server, *helper, .Slime_Hole, neutral_modifier, false);
     
     for i := 0; i < holes.count; ++i {
         hole := array_get(*holes, i);
