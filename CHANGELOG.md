@@ -1,6 +1,7 @@
 ## 0.4.1 (unreleased)
 
 - Increased the damage of the void eyes to kill a guy in three seconds
+- Decreased the speed at which the void eye moves around when idle
 - Improved the health bar animation when taking damage
 - Fixed not closing the hud (and the chest visually) when the chest / trader is removed
 - Fixed void eyes sticking around on dead guys

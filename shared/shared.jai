@@ -198,7 +198,8 @@ VOID_EYE_DPS_ON_PLAYER:     f32 : DEFAULT_ENTITY_HEALTH[.Guy] / 3;
 VOID_EYE_DPS_IN_BRIGHTNESS: f32 : HEALTH_PER_HEART * 0.5;
 VOID_EYE_HPS_IN_DARKNESS:   f32 : HEALTH_PER_HEART * 0.5;
 VOID_EYE_SPAWN_RATE: f32 : 1 / 20; // How many void eyes to spawn per second, assuming there's space to spawn them...
-VOID_EYE_IDLE_MOVE_INTERVAL: f32 : 0.5;
+VOID_EYE_IDLE_MOVE_INTERVAL_BASE: f32 : 2;
+VOID_EYE_IDLE_MOVE_INTERVAL_STDDEV: f32 : 0.5;
 VOID_EYE_CHASING_MOVE_INTERVAL: f32 : 0.1;
 VOID_EYE_TRACKING_DISTANCE: s64 : 5;
 VOID_EYE_SPAWN_TIME: f32 : 1.5; // Time before the void eye actually starts behaving. Should match the duration of the spawn animation

@@ -932,16 +932,19 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
     move_target: v2i = eye.physical_position;
 
     is_chasing_player := false;
+    active_move_interval: f32 = ---;
 
     if target_guy != null && distance_to_target <= VOID_EYE_TRACKING_DISTANCE {
-        if distance_to_target > 0 {
-            // Try to find a path towards the player
-            move_target, is_chasing_player = find_next_step_on_path(server, .Restrict_To_Puddles, 0, eye.physical_position, target_guy.physical_position);
-        } else {
+        if distance_to_target == 0 {
             // Is already on the player, damage him
             damage_and_maybe_kill_entity(server, target_guy, VOID_EYE_DPS_ON_PLAYER * server.tick_time);
             is_chasing_player = true;
+        } else {
+            // Try to find a path towards the player
+            move_target, is_chasing_player = find_next_step_on_path(server, .Restrict_To_Puddles, 0, eye.physical_position, target_guy.physical_position);
         }
+
+        active_move_interval = VOID_EYE_CHASING_MOVE_INTERVAL;
     }
 
     if !is_chasing_player {
@@ -957,9 +960,10 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
                 break;
             }
         }
+
+        active_move_interval = random_f32_normal_distribution(*server.entity_random, VOID_EYE_IDLE_MOVE_INTERVAL_BASE, VOID_EYE_IDLE_MOVE_INTERVAL_STDDEV);
     }
 
-    active_move_interval := ifx is_chasing_player then VOID_EYE_CHASING_MOVE_INTERVAL else VOID_EYE_IDLE_MOVE_INTERVAL;
     if eye.time_since_last_move > active_move_interval && (move_target.x != eye.physical_position.x || move_target.y != eye.physical_position.y) {
         move_and_rotate_to_position(server, eye, move_target);
         eye.time_since_last_move = 0;

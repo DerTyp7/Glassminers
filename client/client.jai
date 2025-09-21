@@ -1641,7 +1641,6 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
             if input_action_fired_globally(client, .Move_East, .Held)  local_player.camera.center_in_world.x += speed * client.tick_time;
             if input_action_fired_globally(client, .Move_North, .Held) local_player.camera.center_in_world.y -= speed * client.tick_time;
             if input_action_fired_globally(client, .Move_South, .Held) local_player.camera.center_in_world.y += speed * client.tick_time;
-            is_in_free_camera = true;
         
             update_camera(client, *local_player.camera, local_player.camera.center_in_world, local_player.viewport, 1, false);
 
