@@ -911,7 +911,9 @@ manage_void_eye_lifetimes :: (server: *Server) {
         server.void_eyes_spawn_accumulator -= xx void_eyes_to_spawn_this_tick;
 
         for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_puddle.count; ++i {
-            if void_eyes_per_puddle[i] < array_get(*server.lightmap.puddle_sizes, i) / PUDDLE_SIZE_PER_VOID_EYE {
+            puddle_size := array_get(*server.lightmap.puddle_sizes, i);
+            if void_eyes_per_puddle[i] == 0 && puddle_size >= MIN_PUDDLE_SIZE_FOR_VOID_EYE ||
+               void_eyes_per_puddle[i] < puddle_size / PUDDLE_SIZE_PER_VOID_EYE {
                 position := get_random_position_in_puddle(*server.lightmap, i);
                 create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
                 --void_eyes_to_spawn_this_tick;
