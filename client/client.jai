@@ -588,6 +588,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
               case .Frog; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Frog_Damaged);
               case .Slime; maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Slime_Damaged);
             }
+
+            entity.time_since_last_damage = 0;
         }
             
         // Play damage particles & health bar animation
@@ -2195,7 +2197,7 @@ main :: (args: []string) -> s32 {
                     guy := down(entity, Guy);
                     
                     digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
-                    damage_vibration:  f32 = 0; // @Incomplete: Vibration for taking damage!
+                    damage_vibration:  f32 = clamp(1 - guy.time_since_last_damage * 2, 0, 1); // When taking damage once, vibrate of 0.5 seconds
                     
                     applied_vibration := ifx !client.server_paused_game && client.vibration_enabled then max(damage_vibration, digging_vibration) else 0;
 

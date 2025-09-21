@@ -147,6 +147,8 @@ ITEM_INVENTORY_CAPACITY :: 8;
 PHYSICAL_ITEM_STACK_CAPACITY :: 1; // How many items of the same kind can be stacked upon each other
 VISUAL_ITEM_STACK_CAPACITY :: 5; // Obviously only actually useful if this value is smaller than the PHYSICAL_ITEM_STACK_CAPACITY value
 VISUAL_ITEM_STACK_OFFSETS: [VISUAL_ITEM_STACK_CAPACITY]v2f : .[ .{ 0, 0 }, .{ -0.1, 0.2 }, .{ 0.2, 0.1 }, .{ -0.2, -0.1 }, .{ 0.2, -0.2 } ];
+VISUAL_HEALTH_ANIMATION_FRAME_TIME: f32 : 0.2;
+
 
 COAL_EMITTER_CHARGE: f32 : 45;
 SLAB_TIME_TO_LIVE:   f32 : 10;

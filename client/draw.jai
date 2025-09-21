@@ -636,21 +636,17 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
         LOW:  GE_Color : .{ 70, 70, 70, 255 };
         HIGH: GE_Color : .{ 255, 255, 255, 255 };
 
-        if entity.health > heart_0 && entity.health < heart_1 {
-            // If this heart range represents the current health
-            t := (entity.health - heart_0) / (heart_1 - heart_0);
+        t := clamp((entity.health - heart_0) / (heart_1 - heart_0), 0, 1);
+        tint = darken_color(ge_mix_colors(LOW, HIGH, t), brightness);
+
+        if entity.health >= heart_1 {
             sprite_index = .Hud_Heart_Full;
-            tint = ge_mix_colors(LOW, HIGH, t);
-        } else if entity.health >= heart_1 {
-            sprite_index = .Hud_Heart_Full;
-            tint = HIGH;
-        } else {
+        } else if entity.taking_damage_duration > 0 && entity.health >= heart_0 {
+            sprite_index = ifx fmodf(entity.taking_damage_duration, VISUAL_HEALTH_ANIMATION_FRAME_TIME * 2) < VISUAL_HEALTH_ANIMATION_FRAME_TIME then .Hud_Heart_Damaged_1 else .Hud_Heart_Damaged_0;
+        } else if entity.health < heart_1 {
             sprite_index = .Hud_Heart_Damaged_0;
-            tint = LOW;
         }
 
-        tint = darken_color(tint, brightness);
-            
         draw_sprite_screen_space(client, sprite_index, sprite_center, .{ screen_size, screen_size }, 0, tint, .None);
     }
 }

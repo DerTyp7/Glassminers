@@ -23,8 +23,10 @@ Entity :: struct {
     marked_for_removal: bool;
 
     animation_t: f32;
-    animation: Animation_Index = .Count;
-    
+    animation: Animation_Index  = .Count;
+    taking_damage_duration: f32 = 0;
+    time_since_last_damage: f32 = 0;
+
     health: f32;
     entity_flags: Entity_Flags;
     
@@ -459,6 +461,14 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
     //
     entity.animation_t += client.tick_time;
     
+    if entity.time_since_last_damage <= VISUAL_HEALTH_ANIMATION_FRAME_TIME * 2 {
+        entity.taking_damage_duration += client.tick_time;
+    } else {
+        entity.taking_damage_duration = 0;
+    }
+
+    entity.time_since_last_damage += client.tick_time;
+
     //
     // Update the entity's sounds
     //
