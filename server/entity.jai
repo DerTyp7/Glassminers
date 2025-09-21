@@ -419,6 +419,24 @@ find_entity_with_flags_at_position :: (server: *Server, flags: Entity_Flags, pos
     return null;
 }
 
+find_nearest_alive_guy :: (server: *Server, position: v2i) -> *Guy, s32 {
+    nearest_distance := MAX_S32;
+    nearest_guy: *Guy = null;
+
+    for i := 0; i < server.guys.slot_count; ++i {
+        guy, occupied := index_bucket_array(*server.guys, i);
+        if !occupied || guy.marked_for_removal || (guy.entity_flags & .Disabled_Temporarily) || guy.state == .Dead continue;
+
+        distance := abs(position.x - guy.physical_position.x) + abs(position.y - guy.physical_position.y);
+        if distance < nearest_distance {
+            nearest_guy      = guy;
+            nearest_distance = distance;
+        }
+    }
+    
+    return nearest_guy, nearest_distance;
+}
+
 find_nearest_entity_of_kind :: (server: *Server, kind: Entity_Kind, position: v2i) -> *Entity, s32 {
     nearest_distance := MAX_S32;
     nearest_entity: *Entity = null;
@@ -910,7 +928,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
         return;
     }
 
-    target_guy, distance_to_target := find_nearest_entity_of_kind(server, .Guy, eye.physical_position);
+    target_guy, distance_to_target := find_nearest_alive_guy(server, eye.physical_position);
     move_target: v2i = eye.physical_position;
 
     is_chasing_player := false;

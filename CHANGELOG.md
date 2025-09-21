@@ -1,3 +1,8 @@
+## 0.4.1 (unreleased)
+
+- Increased the damage of the void eyes to kill a guy in three seconds
+- Fixed void eyes sticking around on dead guys
+
 ## 0.4.0 (20.09.2025)
 
 Added a new monster type: The Void Eye. 
