@@ -1,6 +1,7 @@
 ## 0.4.1 (unreleased)
 
 - Increased the damage of the void eyes to kill a guy in three seconds
+- Fixed not closing the hud (and the chest visually) when the chest / trader is removed
 - Fixed void eyes sticking around on dead guys
 - Fixed entities spawning directly in front of an emitter
 

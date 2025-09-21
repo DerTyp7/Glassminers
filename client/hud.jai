@@ -9,6 +9,8 @@ Hud :: struct {
     cheat_confirmed_this_frame: Cheat;
     chest_item_confirmed_this_frame: Item_Kind;
 
+    hud_providing_entity: Pid; // Can be a trader, a chest... If this is gone, we want to automatically close the hud...
+
     // Underlying data
     #using data: union {
         crafting_menu: struct {
@@ -79,22 +81,33 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
         guy_entity := get_entity(client, local_player.guy_pid);
         guy := down(guy_entity, Guy);
 
-        if find_entity_of_kind_at_position(client, .Chest, guy.target_position) {
-            maybe_open_hud(client, local_player, guy, .Chest_Menu);
+        chest_entity := find_entity_of_kind_at_position(client, .Chest, guy.target_position);
+        trader_entity := find_entity_of_kind_at_position(client, .Trader, guy.target_position);
+
+        if chest_entity {
+            maybe_open_hud(client, local_player, guy, .Chest_Menu, chest_entity.pid);
+        } else if trader_entity {
+            maybe_open_hud(client, local_player, guy, .Crafting_Menu, trader_entity.pid); // Actually the shop menu...
         } else {
-            maybe_open_hud(client, local_player, guy, .Crafting_Menu);
+            maybe_open_hud(client, local_player, guy, .Crafting_Menu, INVALID_PID);
         }
 
         hud_opened_this_frame = true;
     }
 
+    // Close the hud if the target entity was (re-) moved.
+    if hud.hud_providing_entity != INVALID_PID && hud_providing_entity_is_gone(client, hud, guy) {
+        close_hud(client, local_player, guy);
+    }
+
+    // Close the hud if the player exited it
     if hud.state != .Disabled && input_action_fired_for_local_player(client, local_player, .Hud_Close, .Pressed) {
         close_hud(client, local_player, guy);
     }
 
 #if DEVELOPER {
     if input_action_fired_for_local_player(client, local_player, .Cheat_Menu_Toggle, .Pressed) {
-        maybe_open_hud(client, local_player, guy, .Cheat_Menu);
+        maybe_open_hud(client, local_player, guy, .Cheat_Menu, INVALID_PID);
         hud_opened_this_frame = true;
     }
 }
@@ -479,8 +492,9 @@ close_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
       case .Crafting_Menu;
         deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
       case .Chest_Menu;
-        chest_entity := find_entity_of_kind_at_position(client, .Chest, guy.target_position);
-        if chest_entity then visually_close_chest(client, down(chest_entity, Chest));
+        if entity_exists(client, hud.hud_providing_entity) {
+            visually_close_chest(client, down(get_entity(client, hud.hud_providing_entity), Chest));  
+        }
 
         deallocate_array(*client.world_allocator, *hud.chest_menu.item_kinds);
         deallocate_array(*client.world_allocator, *hud.chest_menu.item_count);
@@ -505,13 +519,15 @@ switch_to_hud_state :: (client: *Client, hud: *Hud, state: Hud_State, options: s
     hud.previously_opened_state = state;
 }
 
-maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, state: Hud_State) {
+maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, state: Hud_State, providing_entity: Pid) {
     hud := *local_player.hud;
 
     if hud.state == state {
         close_hud(client, local_player, guy);
         return;
     }
+
+    hud.hud_providing_entity = providing_entity;
     
     if #complete state == {
       case .Disabled;
@@ -521,7 +537,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
         recipe_count := 0;
 
         for i := 0; i < Crafting_Recipe.Count; ++i {
-            if crafting_recipe_is_enabled(client, guy, i) then ++recipe_count;
+            if crafting_recipe_is_enabled(client, local_player, i) then ++recipe_count;
         }
 
         if recipe_count == 0 break;
@@ -531,7 +547,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
 
         recipe_index := 0;
         for i := 0; i < Crafting_Recipe.Count; ++i {
-            if crafting_recipe_is_enabled(client, guy, i) {
+            if crafting_recipe_is_enabled(client, local_player, i) {
                 hud.crafting_menu.recipes[recipe_index] = i;
                 ++recipe_index;
             }
@@ -544,7 +560,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
 
       case .Chest_Menu;
         // Find the number of different items
-        chest_entity := find_entity_of_kind_at_position(client, .Chest, guy.target_position);
+        chest_entity := get_entity(client, hud.hud_providing_entity);
         chest := down(chest_entity, Chest);
         
         base_item_array: [Item_Kind.Count]s64 = .[ 0 ];
@@ -604,17 +620,23 @@ crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_
     return true;
 }
 
-crafting_recipe_is_enabled :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool {
+crafting_recipe_is_enabled :: (client: *Client, local_player: *Local_Player, recipe: Crafting_Recipe) -> bool {
+    hud := *local_player.hud;
+
     if CRAFTING_RECIPE_ENABLER[recipe] != .Count {
-        // Check that the required enabler is present
-        if find_entity_of_kind_at_position(client, CRAFTING_RECIPE_ENABLER[recipe], guy.target_position) == null return false;
+        // Only show specific crafting recipes if that specific hud is open
+        return hud.hud_providing_entity != INVALID_PID && get_entity(client, hud.hud_providing_entity).entity_kind == CRAFTING_RECIPE_ENABLER[recipe];
     } else {
-        // Special case: The trader should only present recipes that are actually unique to the trader,
-        // not general recipes that don't need a trader and can be done on-hand
-        if find_entity_of_kind_at_position(client, .Trader, guy.target_position) != null return false;
+        // Only show generic crafting recipes without specific enabler if we have the generic crafting menu open
+        return hud.hud_providing_entity == INVALID_PID;
     }
-    
-    return true;
+}
+
+hud_providing_entity_is_gone :: (client: *Client, hud: *Hud, guy: *Guy) -> bool {
+    if !entity_exists(client, hud.hud_providing_entity) return true;
+
+    entity := get_entity(client, hud.hud_providing_entity);
+    return entity.physical_position.x != guy.target_position.x || entity.physical_position.y != guy.target_position.y;
 }
 
 
