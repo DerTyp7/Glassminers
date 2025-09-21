@@ -1749,7 +1749,7 @@ do_game_tick :: (client: *Client) {
             // Determine if we are in free-camera mode.
             is_in_free_camera := false;
 #if DEVELOPER {
-    is_in_free_camera = i == 0 && client.free_camera_enabled;
+            is_in_free_camera = i == 0 && client.free_camera_enabled;
 }
             
             if !is_in_free_camera && guy.state != .Dead {
@@ -1763,12 +1763,12 @@ do_game_tick :: (client: *Client) {
                 //
                 // Move the free camera
                 //
-                speed: f32 : 10.0;
+                speed: f32 = 10.0 * local_player.camera.zoom; // @Incomplete: This doesn't compile in release...
 
-                if input_action_fired_globally(client, .Move_West, .Held)  local_player.camera.world_center.x -= speed * client.tick_time;
-                if input_action_fired_globally(client, .Move_East, .Held)  local_player.camera.world_center.x += speed * client.tick_time;
-                if input_action_fired_globally(client, .Move_North, .Held) local_player.camera.world_center.y -= speed * client.tick_time;
-                if input_action_fired_globally(client, .Move_South, .Held) local_player.camera.world_center.y += speed * client.tick_time;
+                if input_action_fired_globally(client, .Move_West, .Held)  local_player.camera.center_in_world.x -= speed * client.tick_time;
+                if input_action_fired_globally(client, .Move_East, .Held)  local_player.camera.center_in_world.x += speed * client.tick_time;
+                if input_action_fired_globally(client, .Move_North, .Held) local_player.camera.center_in_world.y -= speed * client.tick_time;
+                if input_action_fired_globally(client, .Move_South, .Held) local_player.camera.center_in_world.y += speed * client.tick_time;
             } else if guy.state == .Dead {
                 //
                 // If spectating, update the tracked entity
@@ -1863,7 +1863,7 @@ do_game_tick :: (client: *Client) {
                 interpolation_speed: f32 = ---;
 
                 if is_in_free_camera {
-                    target_world_center = local_player.camera.world_center;
+                    target_world_center = local_player.camera.center_in_world;
                     interpolation_speed = 1; // Be snappy with the free camera
                 } else {
                     target_entity := get_entity(client, local_player.entity_tracked_by_camera);
@@ -1872,6 +1872,10 @@ do_game_tick :: (client: *Client) {
                 }
                 
                 update_camera(client, *local_player.camera, target_world_center, local_player.viewport, interpolation_speed, !is_in_free_camera);
+
+                #if DEVELOPER {
+                    local_player.camera.zoom_step = clamp(local_player.camera.zoom_step - client.window.mouse_wheel_turns, 0, 32);
+                }
             }
         }
     }

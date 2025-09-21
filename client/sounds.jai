@@ -185,7 +185,7 @@ update_sound_players :: (client: *Client) {
             local_player := *client.local_players[i];
 
             #if USE_CAMERA_AS_LISTENER {
-                position := local_player.camera.world_center;
+                position := local_player.camera.center_in_world;
             } #else {
                 entity := get_entity(client, local_player.guy_pid);
                 position := v2f.{ xx entity.physical_position.x, xx entity.physical_position.y };

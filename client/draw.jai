@@ -1185,8 +1185,8 @@ calculate_uv_box_for_index_in_atlas :: (index: s64, flags: Draw_Sprite_Flags) ->
 visibility_check_box :: (local_player: *Local_Player, top_left, bottom_right: v2f) -> bool {
     camera := *local_player.camera;
 
-    visible_top_left     := v2f.{ camera.world_center.x - camera.world_area.x / 2, camera.world_center.y - camera.world_area.y / 2 };
-    visible_bottom_right := v2f.{ camera.world_center.x + camera.world_area.x / 2, camera.world_center.y + camera.world_area.y / 2 };
+    visible_top_left     := v2f.{ camera.center_in_world.x - camera.zoomed_covered_world_area.x / 2, camera.center_in_world.y - camera.zoomed_covered_world_area.y / 2 };
+    visible_bottom_right := v2f.{ camera.center_in_world.x + camera.zoomed_covered_world_area.x / 2, camera.center_in_world.y + camera.zoomed_covered_world_area.y / 2 };
     
     return (bottom_right.x >= visible_top_left.x && bottom_right.y >= visible_top_left.y) &&
         (top_left.x <= visible_bottom_right.x && top_left.y <= visible_bottom_right.y);

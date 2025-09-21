@@ -200,8 +200,8 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     {
         guy := get_entity(client, local_player.guy_pid);
         hud.screen_center = screen_from_world_position(*local_player.camera, guy.visual_position);
-        hud.outer_wheel_radius = local_player.camera.world_to_screen.y * 0.85;
-        hud.inner_wheel_radius = local_player.camera.world_to_screen.y * 0.6;
+        hud.outer_wheel_radius = local_player.camera.world_to_screen_coordinates.y * 0.85;
+        hud.inner_wheel_radius = local_player.camera.world_to_screen_coordinates.y * 0.6;
         hud.icon_radius        = (hud.inner_wheel_radius + hud.outer_wheel_radius) * 0.5;
 
         hud.padding_per_option = ifx hud.available_options > 1 then 0.1 / cast(f32) hud.available_options else 0;
