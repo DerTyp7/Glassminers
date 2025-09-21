@@ -885,36 +885,36 @@ update_slime :: (server: *Server, slime: *Slime) {
 
 manage_void_eye_lifetimes :: (server: *Server) {
     //
-    // Remove all void eyes that are outside a puddle, and count how many void eyes are in each puddle
+    // Remove all void eyes that are outside a shadow, and count how many void eyes are in each shadow
     //
-    void_eyes_per_puddle := allocate_array(*temp, s64, server.lightmap.puddle_sizes.count);
+    void_eyes_per_shadow := allocate_array(*temp, s64, server.lightmap.shadow_sizes.count);
 
     for i := 0; i < server.void_eyes.slot_count; ++i {
         eye, occupied := index_bucket_array(*server.void_eyes, i);
         if !occupied then continue;
 
-        puddle := query_puddle(*server.lightmap, eye.physical_position);
-        if puddle != NO_PUDDLE_ID {
+        shadow := query_shadow(*server.lightmap, eye.physical_position);
+        if shadow != NO_SHADOW {
             set_entity_health(server, eye, eye.health + VOID_EYE_HPS_IN_DARKNESS * server.tick_time);
-            void_eyes_per_puddle[puddle] += 1;
+            void_eyes_per_shadow[shadow] += 1;
         } else {
             damage_and_maybe_kill_entity(server, eye, VOID_EYE_DPS_IN_BRIGHTNESS * server.tick_time);
         }
     }
 
     //
-    // Spawn a new void eye in each puddle that doesn't have one yet
+    // Spawn a new void eye in each shadow that doesn't have one yet
     //
     if server.void_eyes_spawn_cooldown <= 0 {
         server.void_eyes_spawn_accumulator += server.tick_time * VOID_EYE_SPAWN_RATE * cast(f32) server.world_size.x;
         void_eyes_to_spawn_this_tick       := cast(s64) floor(server.void_eyes_spawn_accumulator);
         server.void_eyes_spawn_accumulator -= xx void_eyes_to_spawn_this_tick;
 
-        for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_puddle.count; ++i {
-            puddle_size := array_get(*server.lightmap.puddle_sizes, i);
-            if void_eyes_per_puddle[i] == 0 && puddle_size >= MIN_PUDDLE_SIZE_FOR_VOID_EYE ||
-               void_eyes_per_puddle[i] < puddle_size / PUDDLE_SIZE_PER_VOID_EYE {
-                position := get_random_position_in_puddle(*server.lightmap, i);
+        for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_shadow.count; ++i {
+            shadow_size := array_get(*server.lightmap.shadow_sizes, i);
+            if void_eyes_per_shadow[i] == 0 && shadow_size >= MIN_SHADOW_SIZE_FOR_VOID_EYE ||
+               void_eyes_per_shadow[i] < shadow_size / SHADOW_SIZE_PER_VOID_EYE {
+                position := get_random_position_in_shadow(*server.lightmap, i);
                 create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
                 --void_eyes_to_spawn_this_tick;
             }
@@ -943,7 +943,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
             is_chasing_player = true;
         } else {
             // Try to find a path towards the player
-            move_target, is_chasing_player = find_next_step_on_path(server, .Restrict_To_Puddles, 0, eye.physical_position, target_guy.physical_position);
+            move_target, is_chasing_player = find_next_step_on_path(server, .Restrict_To_Shadows, 0, eye.physical_position, target_guy.physical_position);
         }
 
         active_move_interval = VOID_EYE_CHASING_MOVE_INTERVAL;
@@ -957,7 +957,7 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
         for i := 0; i < Direction.Count; ++i {
             random_vector := vector_from_direction((direction + i) % Direction.Count);
             random_position := v2i.{ eye.physical_position.x + random_vector.x, eye.physical_position.y + random_vector.y };
-            if position_in_bounds(server, random_position) && query_puddle(*server.lightmap, random_position) != NO_PUDDLE_ID {
+            if position_in_bounds(server, random_position) && query_shadow(*server.lightmap, random_position) != NO_SHADOW {
                 move_target = random_position;
                 break;
             }

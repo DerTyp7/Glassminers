@@ -229,7 +229,7 @@ Client :: struct {
 
     free_camera_enabled: bool;
     sound_hud_enabled: bool;
-    puddle_hud_enabled: bool;
+    shadow_hud_enabled: bool;
 
     timing_update: f32;
     timing_draw: f32;
@@ -1772,7 +1772,7 @@ do_game_tick :: (client: *Client) {
         enable_mixer_history(*client.mixer, 128, 2);
     }
 
-    if input_action_fired_globally(client, .Puddle_Hud_Toggle, .Pressed) then client.puddle_hud_enabled = !client.puddle_hud_enabled;
+    if input_action_fired_globally(client, .Shadow_Hud_Toggle, .Pressed) then client.shadow_hud_enabled = !client.shadow_hud_enabled;
 }
     
     //
@@ -1806,7 +1806,7 @@ do_game_tick :: (client: *Client) {
         update_lightmap(*client.lightmap, *client.em, client.tick_time);
 
 #if DEVELOPER {
-        if client.puddle_hud_enabled calculate_puddles(*client.lightmap, *client.tick_allocator);
+        if client.shadow_hud_enabled calculate_shadows(*client.lightmap, *client.tick_allocator);
 }
 
 
@@ -2151,9 +2151,9 @@ main :: (args: []string) -> s32 {
                 }
 
 #if DEVELOPER {
-                if client.puddle_hud_enabled {
+                if client.shadow_hud_enabled {
                     for i := 0; i < client.local_player_count; ++i {
-                        draw_puddle_hud(*client, *client.local_players[i]);
+                        draw_shadow_hud(*client, *client.local_players[i]);
                     }
                 }
 

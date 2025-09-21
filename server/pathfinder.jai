@@ -1,6 +1,6 @@
 Pathfinding_Flags :: enum bitfield {
     Avoid_Collisions;
-    Restrict_To_Puddles;
+    Restrict_To_Shadows;
 }
 
 find_path :: (server: *Server, flags: Pathfinding_Flags, beam_tile_cost: s32, from, to: v2i) -> []v2i {
@@ -38,10 +38,10 @@ find_path :: (server: *Server, flags: Pathfinding_Flags, beam_tile_cost: s32, fr
             }
         }
 
-        if flags & .Restrict_To_Puddles {
+        if flags & .Restrict_To_Shadows {
             for x := 0; x < grid.size.x; ++x {
                 for y := 0; y < grid.size.y; ++y {
-                    if query_puddle(*server.lightmap, .{ x, y }) == NO_PUDDLE_ID {
+                    if query_shadow(*server.lightmap, .{ x, y }) == NO_SHADOW {
                         node := grid.get(*grid, .{ x, y });
                         node.state = .Blocked;
                     }

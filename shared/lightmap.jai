@@ -1,21 +1,21 @@
-Puddle :: u8;
+Shadow :: u8;
 
 TORCH_BRIGHTNESS: f32 : 1.0;
 LAVA_BRIGHTNESS: f32 : 0.5;
 
-PUDDLE_THRESHOLD: f32 : 0.2;
-NO_PUDDLE_ID: Puddle : -1;
+SHADOW_THRESHOLD: f32 : 0.2;
+NO_SHADOW: Shadow : -1;
 
 Lightmap :: struct {
     allocator: *Allocator;
     blockers: []u8;
     tiles:    []f32;
-    puddles:  []Puddle;
+    shadows:  []Shadow;
     size: v2i;
     gamma: f32;
 
     intermediate: []f32;
-    puddle_sizes: [..]s64;
+    shadow_sizes: [..]s64;
 
 #if DEVELOPER {
     disabled: bool;
@@ -25,13 +25,13 @@ Lightmap :: struct {
 create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
     map.allocator = allocator;
     map.size      = size;
-    map.tiles     = allocate_array(map.allocator, f32, map.size.x * map.size.y);
-    map.blockers  = allocate_array(map.allocator, u8, map.size.x * map.size.y);
-    map.puddles   = allocate_array(map.allocator, Puddle, map.size.x * map.size.y);
+    map.tiles     = allocate_array(map.allocator, f32,    map.size.x * map.size.y);
+    map.blockers  = allocate_array(map.allocator, u8,     map.size.x * map.size.y);
+    map.shadows   = allocate_array(map.allocator, Shadow, map.size.x * map.size.y);
 
     clear_slice(map.tiles);
     clear_slice(map.blockers);
-    clear_slice(map.puddles);    
+    clear_slice(map.shadows);    
 
     map.gamma = 1;
 
@@ -63,11 +63,11 @@ resize_lightmap :: (map: *Lightmap, new_size: v2i) {
 
     deallocate_array(map.allocator, *map.tiles);
     deallocate_array(map.allocator, *map.blockers);
-    deallocate_array(map.allocator, *map.puddles);
+    deallocate_array(map.allocator, *map.shadows);
 
     map.tiles    = new_tiles;
     map.blockers = new_blockers;
-    map.puddles  = allocate_array(map.allocator, Puddle, new_size.x * new_size.y);
+    map.shadows  = allocate_array(map.allocator, Shadow, new_size.x * new_size.y);
     map.size     = new_size;
 }
 
@@ -173,86 +173,86 @@ maybe_move_blocker :: (map: *Lightmap, entity: *Entity, new_position: v2i) {
 
 
 
-calculate_puddles :: (map: *Lightmap, tick_allocator: *Allocator) {
-    put_puddle :: (tile_position: v2i, puddle: Puddle) #macro {
-        map.puddles[tile_position.y * map.size.x + tile_position.x] = puddle;
+calculate_shadows :: (map: *Lightmap, tick_allocator: *Allocator) {
+    put_shadow :: (tile_position: v2i, shadow: Shadow) #macro {
+        map.shadows[tile_position.y * map.size.x + tile_position.x] = shadow;
     }
 
-    visit_tile_recursively :: (map: *Lightmap, target_tile: v2i, target_puddle: Puddle) {
+    visit_tile_recursively :: (map: *Lightmap, target_tile: v2i, target_shadow: Shadow) {
         idx := target_tile.y * map.size.x + target_tile.x;
-        if query_lightmap(map, target_tile) > PUDDLE_THRESHOLD || map.puddles[idx] == target_puddle return;
-        assert(map.puddles[idx] == NO_PUDDLE_ID, "Somehow two different puddle IDs are direct neighbors??");
-        map.puddles[idx] = target_puddle;
-        array_put(*map.puddle_sizes, target_puddle, array_get(*map.puddle_sizes, target_puddle) + 1);
-        visit_tile_neighbors_recursively(map, target_tile, target_puddle);
+        if query_lightmap(map, target_tile) > SHADOW_THRESHOLD || map.shadows[idx] == target_shadow return;
+        assert(map.shadows[idx] == NO_SHADOW, "Somehow two different shadow IDs are direct neighbors??");
+        map.shadows[idx] = target_shadow;
+        array_put(*map.shadow_sizes, target_shadow, array_get(*map.shadow_sizes, target_shadow) + 1);
+        visit_tile_neighbors_recursively(map, target_tile, target_shadow);
     }
 
-    visit_tile_neighbors_recursively :: (map: *Lightmap, my_tile: v2i, my_puddle: Puddle) {
-        if my_tile.x > 0 then visit_tile_recursively(map, .{ my_tile.x - 1, my_tile.y }, my_puddle);
-        if my_tile.x + 1 < map.size.x then visit_tile_recursively(map, .{ my_tile.x + 1, my_tile.y }, my_puddle);
-        if my_tile.y > 0 then visit_tile_recursively(map, .{ my_tile.x, my_tile.y - 1 }, my_puddle);
-        if my_tile.y + 1 < map.size.y then visit_tile_recursively(map, .{ my_tile.x, my_tile.y + 1 }, my_puddle);
+    visit_tile_neighbors_recursively :: (map: *Lightmap, my_tile: v2i, my_shadow: Shadow) {
+        if my_tile.x > 0 then visit_tile_recursively(map, .{ my_tile.x - 1, my_tile.y }, my_shadow);
+        if my_tile.x + 1 < map.size.x then visit_tile_recursively(map, .{ my_tile.x + 1, my_tile.y }, my_shadow);
+        if my_tile.y > 0 then visit_tile_recursively(map, .{ my_tile.x, my_tile.y - 1 }, my_shadow);
+        if my_tile.y + 1 < map.size.y then visit_tile_recursively(map, .{ my_tile.x, my_tile.y + 1 }, my_shadow);
     }
 
     //
-    // A puddle is a set of low-brightness, connected tiles.
-    // Therefore, we need to walk through all tiles like a graph, so that each puddle fills out its entire
+    // A shadow is a set of low-brightness, connected tiles.
+    // Therefore, we need to walk through all tiles like a graph, so that each shadow fills out its entire
     // representation.
     //
 
-    array_clear_without_deallocation(*map.puddle_sizes);
-    map.puddle_sizes.allocator = tick_allocator;
-    for i := 0; i < map.puddles.count; ++i map.puddles[i] = NO_PUDDLE_ID;
+    array_clear_without_deallocation(*map.shadow_sizes);
+    map.shadow_sizes.allocator = tick_allocator;
+    for i := 0; i < map.shadows.count; ++i map.shadows[i] = NO_SHADOW;
 
     for x := 0; x < map.size.x; ++x {
         for y := 0; y < map.size.y; ++y {
             idx := y * map.size.x + x;
-            if map.puddles[idx] != NO_PUDDLE_ID || query_lightmap(map, .{ x, y}) > PUDDLE_THRESHOLD    continue;
+            if map.shadows[idx] != NO_SHADOW || query_lightmap(map, .{ x, y}) > SHADOW_THRESHOLD    continue;
 
-            map.puddles[idx] = map.puddle_sizes.count;
-            array_add(*map.puddle_sizes, 1);
+            map.shadows[idx] = map.shadow_sizes.count;
+            array_add(*map.shadow_sizes, 1);
 
-            visit_tile_neighbors_recursively(map, .{ x, y }, map.puddles[idx]);
+            visit_tile_neighbors_recursively(map, .{ x, y }, map.shadows[idx]);
         }
     }
 }
 
-query_puddle :: (map: *Lightmap, tile: v2i) -> Puddle {
-    return map.puddles[tile.y * map.size.x + tile.x];
+query_shadow :: (map: *Lightmap, tile: v2i) -> Shadow {
+    return map.shadows[tile.y * map.size.x + tile.x];
 }
 
-get_random_position_in_puddle :: (map: *Lightmap, puddle: Puddle) -> v2i {
-    tile_index_in_puddle := rdtsc() % array_get(*map.puddle_sizes, puddle);
+get_random_position_in_shadow :: (map: *Lightmap, shadow: Shadow) -> v2i {
+    tile_index_in_shadow := rdtsc() % array_get(*map.shadow_sizes, shadow);
 
     for x := 0; x < map.size.x; ++x {
         for y := 0; y < map.size.y; ++y {
-            if query_puddle(map, .{ x, y }) == puddle {
-                if tile_index_in_puddle == 0 then return .{ x, y };
-                --tile_index_in_puddle;
+            if query_shadow(map, .{ x, y }) == shadow {
+                if tile_index_in_shadow == 0 then return .{ x, y };
+                --tile_index_in_shadow;
             }
         }
     }
 
-    panic("Failed to find a random position in a puddle.");
+    panic("Failed to find a random position in a shadow.");
     return .{ 0, 0 };
 }
 
-debug_print_puddles :: (map: *Lightmap) {
-    print("------------ PUDDLES ------------\n");
+debug_print_shadows :: (map: *Lightmap) {
+    print("------------ SHADOWS ------------\n");
 
     for y := 0; y < map.size.y; ++y {
         for x := 0; x < map.size.x; ++x {
-            puddle := query_puddle(map, .{ x, y });
-            if puddle == NO_PUDDLE_ID {
+            shadow := query_shadow(map, .{ x, y });
+            if shadow == NO_SHADOW {
                 print(" ");
             } else {
-                print("%", cast(u64) puddle);
+                print("%", cast(u64) shadow);
             }
         }
 
         print("\n");
     }
-    print("------------ PUDDLES ------------\n");
+    print("------------ SHADOWS ------------\n");
 }
 
 

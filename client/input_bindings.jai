@@ -43,7 +43,7 @@ Input_Action :: enum {
     Developer_Panel_Toggle;
     Message_History_Panel_Toggle;
     Sound_Hud_Toggle;
-    Puddle_Hud_Toggle;
+    Shadow_Hud_Toggle;
 }
 
 Input_Binding :: struct {
@@ -128,7 +128,7 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Developer_Panel_Toggle]       = .[ keycode(.F5) ];
     ib[.Message_History_Panel_Toggle] = .[ keycode(.F6) ];
     ib[.Sound_Hud_Toggle]             = .[ keycode(.F7) ];
-    ib[.Puddle_Hud_Toggle]            = .[ keycode(.F8) ];
+    ib[.Shadow_Hud_Toggle]            = .[ keycode(.F8) ];
 
     for i := 0; i < ib.Capacity; ++i {
         client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);
@@ -199,7 +199,7 @@ input_action_string :: (action: Input_Action) -> string {
       case .Developer_Panel_Toggle; name = "Toggle Dev Panel";
       case .Message_History_Panel_Toggle; name = "Toggle Message History";
       case .Sound_Hud_Toggle;       name = "Toggle Sound Hud";
-      case .Puddle_Hud_Toggle;      name = "Toggle Puddle Hud";
+      case .Shadow_Hud_Toggle;      name = "Toggle Shadow Hud";
     }
 
     return name;
@@ -210,7 +210,7 @@ input_action_available :: (action: Input_Action) -> bool {
         available: bool = ---;
 
         if action == {
-          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Message_History_Panel_Toggle, .Sound_Hud_Toggle, .Puddle_Hud_Toggle; available = false;
+          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Message_History_Panel_Toggle, .Sound_Hud_Toggle, .Shadow_Hud_Toggle; available = false;
           case; available = true;
         }
 
