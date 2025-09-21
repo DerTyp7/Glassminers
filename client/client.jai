@@ -1624,6 +1624,130 @@ maybe_do_tutorial_panel :: (client: *Client) {
     ui_pop_width(ui);
 }
 
+update_local_player_input :: (client: *Client, local_player: *Local_Player) {
+    guy_entity := get_entity(client, local_player.guy_pid);
+    guy := down(guy_entity, Guy);
+
+    #if DEVELOPER {
+        //
+        // Move the camera around freely
+        //
+        local_player.camera.zoom_step = clamp(local_player.camera.zoom_step - client.window.mouse_wheel_turns, 0, 32);
+
+        if client.free_camera_enabled {
+            speed := local_player.camera.zoom * 10;
+
+            if input_action_fired_globally(client, .Move_West, .Held)  local_player.camera.center_in_world.x -= speed * client.tick_time;
+            if input_action_fired_globally(client, .Move_East, .Held)  local_player.camera.center_in_world.x += speed * client.tick_time;
+            if input_action_fired_globally(client, .Move_North, .Held) local_player.camera.center_in_world.y -= speed * client.tick_time;
+            if input_action_fired_globally(client, .Move_South, .Held) local_player.camera.center_in_world.y += speed * client.tick_time;
+            is_in_free_camera = true;
+        
+            update_camera(client, *local_player.camera, local_player.camera.center_in_world, local_player.viewport, 1, false);
+
+            return;
+        }
+    }
+
+    if guy.state != .Dead {
+        //
+        // If the guy is alive, update the hud and send some input to the server.
+        //
+        update_hud(client, local_player);
+
+        input: Guy_Input_Message = ---;
+        input.guy_pid          = local_player.guy_pid;
+        input.position         = guy.physical_position;
+        input.wants_to_move    = false;
+        input.aim_direction    = guy.physical_rotation;
+        input.interaction_kind = .Count;
+        input.crafting_recipe  = local_player.hud.crafting_recipe_confirmed_this_frame;
+        input.cheat            = local_player.hud.cheat_confirmed_this_frame;
+        input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
+
+        if !local_player.hud.was_open_this_frame {
+            if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
+                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                    input.position.x = guy.physical_position.x;
+                    input.position.y = guy.physical_position.y - 1;
+                }
+                input.aim_direction = .North;
+                input.wants_to_move = true;
+            }
+
+            if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
+                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                    input.position.x = guy.physical_position.x - 1;
+                    input.position.y = guy.physical_position.y;
+                }
+                input.aim_direction = .West;
+                input.wants_to_move = true;
+            }
+
+            if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
+                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                    input.position.x = guy.physical_position.x;
+                    input.position.y = guy.physical_position.y + 1;
+                }
+                input.aim_direction = .South;
+                input.wants_to_move = true;
+            }
+
+            if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
+                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                    input.position.x = guy.physical_position.x + 1;
+                    input.position.y = guy.physical_position.y;
+                }
+                input.aim_direction = .East;
+                input.wants_to_move = true;
+            }
+
+            if input_action_fired_for_local_player(client, local_player, .Look_North, .Pressed) { input.aim_direction = .North; input.wants_to_move = true; }
+            if input_action_fired_for_local_player(client, local_player, .Look_West, .Pressed)  { input.aim_direction = .West;  input.wants_to_move = true; }
+            if input_action_fired_for_local_player(client, local_player, .Look_South, .Pressed) { input.aim_direction = .South; input.wants_to_move = true; }
+            if input_action_fired_for_local_player(client, local_player, .Look_East, .Pressed)  { input.aim_direction = .East;  input.wants_to_move = true; }
+
+            if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Pressed)    { input.interaction_kind = .Primary_Start; }
+            if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Released)   { input.interaction_kind = .Primary_End; }
+            if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Pressed)  { input.interaction_kind = .Secondary_Start; }
+            if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Released) { input.interaction_kind = .Secondary_End; }
+        }
+
+        if (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
+            // If nothing interesting happened, we can safe us the network traffic and just
+            // not send anything
+            msg := make_message_from(input);
+            array_add(*client.outgoing_messages, msg);
+        }
+
+        local_player.entity_tracked_by_camera = local_player.guy_pid; // If we're alive, we always want to track ourselves
+    } else {
+        //
+        // If spectating, update the tracked entity
+        //
+        if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
+            local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, true);
+        } else if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
+            local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, false);
+        }
+
+        if !entity_exists(client, local_player.entity_tracked_by_camera) {
+            // Fallback in case the tracked entity disappears for some reason
+            local_player.entity_tracked_by_camera = local_player.guy_pid;
+        }
+    }
+
+    //
+    // Update the camera
+    //
+    {
+        target_entity := get_entity(client, local_player.entity_tracked_by_camera);
+        target_world_center := v2f.{ xx target_entity.physical_position.x, xx target_entity.physical_position.y };
+        interpolation_speed := min(10 * client.tick_time, 1);
+        update_camera(client, *local_player.camera, target_world_center, local_player.viewport, interpolation_speed, true);
+    }
+}
+
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
@@ -1737,146 +1861,12 @@ do_game_tick :: (client: *Client) {
     maybe_do_tutorial_panel(client);
 
     //
-    // Forward any input for the guys to the server
+    // Update the input for all local players
     //
     if !(client.pause_menu_open || client.server_paused_game) {
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
-            
-            guy_entity := get_entity(client, local_player.guy_pid);
-            guy := down(guy_entity, Guy);
-
-            // Determine if we are in free-camera mode.
-            is_in_free_camera := false;
-#if DEVELOPER {
-            is_in_free_camera = i == 0 && client.free_camera_enabled;
-}
-            
-            if !is_in_free_camera && guy.state != .Dead {
-                //
-                // Update the hud
-                //
-                update_hud(client, local_player);
-            }
-
-            if is_in_free_camera {
-                //
-                // Move the free camera
-                //
-                speed: f32 = 10.0 * local_player.camera.zoom; // @Incomplete: This doesn't compile in release...
-
-                if input_action_fired_globally(client, .Move_West, .Held)  local_player.camera.center_in_world.x -= speed * client.tick_time;
-                if input_action_fired_globally(client, .Move_East, .Held)  local_player.camera.center_in_world.x += speed * client.tick_time;
-                if input_action_fired_globally(client, .Move_North, .Held) local_player.camera.center_in_world.y -= speed * client.tick_time;
-                if input_action_fired_globally(client, .Move_South, .Held) local_player.camera.center_in_world.y += speed * client.tick_time;
-            } else if guy.state == .Dead {
-                //
-                // If spectating, update the tracked entity
-                //
-                if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
-                    local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, true);
-                } else if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
-                    local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, false);
-                }
-
-                if !entity_exists(client, local_player.entity_tracked_by_camera) {
-                    // Fallback in case the tracked entity disappears for some reason
-                    local_player.entity_tracked_by_camera = local_player.guy_pid;
-                }
-            } else {
-                //
-                // If alive, send some input to the server
-                //
-                input: Guy_Input_Message = ---;
-                input.guy_pid          = local_player.guy_pid;
-                input.position         = guy.physical_position;
-                input.wants_to_move    = false;
-                input.aim_direction    = guy.physical_rotation;
-                input.interaction_kind = .Count;
-                input.crafting_recipe  = local_player.hud.crafting_recipe_confirmed_this_frame;
-                input.cheat            = local_player.hud.cheat_confirmed_this_frame;
-                input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
-
-                if !local_player.hud.was_open_this_frame {
-                    if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x;
-                            input.position.y = guy.physical_position.y - 1;
-                        }
-                        input.aim_direction = .North;
-                        input.wants_to_move = true;
-                    }
-
-                    if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x - 1;
-                            input.position.y = guy.physical_position.y;
-                        }
-                        input.aim_direction = .West;
-                        input.wants_to_move = true;
-                    }
-
-                    if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x;
-                            input.position.y = guy.physical_position.y + 1;
-                        }
-                        input.aim_direction = .South;
-                        input.wants_to_move = true;
-                    }
-
-                    if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
-                        if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
-                            input.position.x = guy.physical_position.x + 1;
-                            input.position.y = guy.physical_position.y;
-                        }
-                        input.aim_direction = .East;
-                        input.wants_to_move = true;
-                    }
-
-                    if input_action_fired_for_local_player(client, local_player, .Look_North, .Pressed) { input.aim_direction = .North; input.wants_to_move = true; }
-                    if input_action_fired_for_local_player(client, local_player, .Look_West, .Pressed)  { input.aim_direction = .West;  input.wants_to_move = true; }
-                    if input_action_fired_for_local_player(client, local_player, .Look_South, .Pressed) { input.aim_direction = .South; input.wants_to_move = true; }
-                    if input_action_fired_for_local_player(client, local_player, .Look_East, .Pressed)  { input.aim_direction = .East;  input.wants_to_move = true; }
-
-                    if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Pressed)    { input.interaction_kind = .Primary_Start; }
-                    if input_action_fired_for_local_player(client, local_player, .Interact_Primary, .Released)   { input.interaction_kind = .Primary_End; }
-                    if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Pressed)  { input.interaction_kind = .Secondary_Start; }
-                    if input_action_fired_for_local_player(client, local_player, .Interact_Secondary, .Released) { input.interaction_kind = .Secondary_End; }
-                }
-
-                if (local_player.hud.was_confirmed_this_frame || input.wants_to_move || input.interaction_kind != .Count) {
-                    // If nothing interesting happened, we can safe us the network traffic and just
-                    // not send anything
-                    msg := make_message_from(input);
-                    array_add(*client.outgoing_messages, msg);
-                }
-
-                local_player.entity_tracked_by_camera = local_player.guy_pid; // If we're alive, we always want to track ourselves
-            }
-            
-            {
-                //
-                // Update the camera
-                //
-                target_world_center: v2f = ---;
-                interpolation_speed: f32 = ---;
-
-                if is_in_free_camera {
-                    target_world_center = local_player.camera.center_in_world;
-                    interpolation_speed = 1; // Be snappy with the free camera
-                } else {
-                    target_entity := get_entity(client, local_player.entity_tracked_by_camera);
-                    target_world_center = .{ xx target_entity.physical_position.x, xx target_entity.physical_position.y };
-                    interpolation_speed = min(10 * client.tick_time, 1);
-                }
-                
-                update_camera(client, *local_player.camera, target_world_center, local_player.viewport, interpolation_speed, !is_in_free_camera);
-
-                #if DEVELOPER {
-                    local_player.camera.zoom_step = clamp(local_player.camera.zoom_step - client.window.mouse_wheel_turns, 0, 32);
-                }
-            }
+            update_local_player_input(client, local_player);
         }
     }
 
