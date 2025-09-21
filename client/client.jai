@@ -604,11 +604,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             emitter.particles_per_second = 1024;
             emitter.alive_t  = 0.6;
         }
-
-        if entity.entity_flags & .Living {
-            entity.health_bar_damage_animation_t = 1;
-            entity.health_bar_damage_animation_base = ceil(entity.health / HEALTH_PER_HEART) * HEALTH_PER_HEART; // This is the heart that we just lost, since we want to animate that one.
-        }
         
         // Play heal particles
         if entity.entity_flags & .Living && gained_heart {
@@ -2200,8 +2195,9 @@ main :: (args: []string) -> s32 {
                     guy := down(entity, Guy);
                     
                     digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
-                    desired_vibration := max(entity.health_bar_damage_animation_t, digging_vibration);
-                    applied_vibration := ifx !client.server_paused_game && client.vibration_enabled then desired_vibration else 0;
+                    damage_vibration:  f32 = 0; // @Incomplete: Vibration for taking damage!
+                    
+                    applied_vibration := ifx !client.server_paused_game && client.vibration_enabled then max(damage_vibration, digging_vibration) else 0;
 
                     health := (entity.health - HEALTH_PER_HEART) / (DEFAULT_ENTITY_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);

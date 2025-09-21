@@ -624,7 +624,7 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
     leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
 
     brightness := query_lightmap_gamma_adjusted(*client.lightmap, entity.physical_position);
-    
+
     for i := 0; i < heart_count; ++i {
         heart_0 := (cast(f32) i) * DEFAULT_ENTITY_HEALTH[entity.entity_kind] / cast(f32) heart_count;
         heart_1 := (cast(f32) i + 1) * DEFAULT_ENTITY_HEALTH[entity.entity_kind] / cast(f32) heart_count;
@@ -633,24 +633,20 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
         sprite_index: Sprite_Index = ---;
         tint: GE_Color = ---;
 
-        if heart_1 > entity.health && heart_0 < entity.health_bar_damage_animation_base {
+        LOW:  GE_Color : .{ 70, 70, 70, 255 };
+        HIGH: GE_Color : .{ 255, 255, 255, 255 };
+
+        if entity.health > heart_0 && entity.health < heart_1 {
+            // If this heart range represents the current health
             t := (entity.health - heart_0) / (heart_1 - heart_0);
-
-            if entity.health_bar_damage_animation_t > 0.5 {
-                sprite_index = .Hud_Heart_Damaged_1;
-            } else if entity.health_bar_damage_animation_t > 0.0 {
-                sprite_index = .Hud_Heart_Damaged_0;
-            } else {
-                sprite_index = .Hud_Heart_Full;
-            }
-
-            tint = ge_mix_colors(.{ 100, 100, 100, 255 }, .{ 255, 255, 255, 255 }, t) ;
-        } else if heart_1 <= entity.health {
             sprite_index = .Hud_Heart_Full;
-            tint = .{ 255, 255, 255, 255 };
-        } else if heart_0 >= entity.health_bar_damage_animation_base {
+            tint = ge_mix_colors(LOW, HIGH, t);
+        } else if entity.health >= heart_1 {
             sprite_index = .Hud_Heart_Full;
-            tint = .{ 100, 100, 100, 255 };
+            tint = HIGH;
+        } else {
+            sprite_index = .Hud_Heart_Damaged_0;
+            tint = LOW;
         }
 
         tint = darken_color(tint, brightness);
