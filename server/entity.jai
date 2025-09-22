@@ -1290,7 +1290,7 @@ find_target_guy_for_npc :: (server: *Server, npc_position: v2i) -> *Guy, s32 {
 
     for i := 0; i < server.guys.slot_count; ++i {
         guy, occupied := index_bucket_array(*server.guys, i);
-        if !occupied continue;
+        if !occupied|| guy.marked_for_removal || (guy.entity_flags & .Disabled_Temporarily) || guy.state == .Dead continue;
         
         if !has_line_of_sight(server, npc_position, guy.physical_position) continue;
         
