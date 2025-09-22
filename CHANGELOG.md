@@ -2,6 +2,7 @@
 
 - Increased the damage of the void eyes to kill a guy in three seconds
 - Decreased the speed at which the void eye moves around when idle
+- Improved the look of the lava and slab tiles
 - Improved the spawning behavior of void eyes to be less overall, but more present in small shadows
 - Improved the health bar animation when taking damage
 - Fixed not closing the hud (and the chest visually) when the chest / trader is removed

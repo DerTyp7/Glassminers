@@ -59,7 +59,6 @@ Lava_0       sprites/animates/lava-0.png
 Lava_1       sprites/animates/lava-1.png
 Lava_2       sprites/animates/lava-2.png
 Lava_3       sprites/animates/lava-3.png
-Lava_4       sprites/animates/lava-4.png
 Slab_0       sprites/animates/slab-0.png
 Slab_1       sprites/animates/slab-1.png
 Slab_2       sprites/animates/slab-2.png

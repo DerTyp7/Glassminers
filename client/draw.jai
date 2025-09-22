@@ -51,7 +51,6 @@ Sprite_Index :: enum {
     Lava_1;
     Lava_2;
     Lava_3;
-    Lava_4;
     Slab_0;
     Slab_1;
     Slab_2;
