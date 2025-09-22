@@ -1,0 +1,96 @@
+name: Build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            subversion \
+            clang \
+            libx11-6 \
+            libunwind8 \
+            libx11-dev \
+            libxi-dev \
+            libasound2-dev \
+            libfreetype6-dev \
+            libgl1-mesa-dev \
+            --no-install-recommends
+          sudo rm -rf /var/lib/apt/lists/*
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare run_tree directory
+        run: rm run_tree/*.out
+
+      - name: Print dir
+        shell: pwsh
+        run: ls run_tree/
+
+      - name: Checkout JAI SVN repository
+        run: svn checkout svn://tealfire.de/svn/Jai/ -rHEAD jai
+
+      - name: Build server-release
+        run: |
+          jai/bin/jai first.jai -- server-release
+          test -f run_tree/server.out && echo "Build successful: server.out created"
+          ls -la run_tree/server.out
+
+      - name: Build release
+        run: |
+          jai/bin/jai first.jai -- release
+          test -f run_tree/client.out && echo "Build successful: client.out created"
+          ls -la run_tree/client.out
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare run_tree directory
+        shell: pwsh
+        run: rm run_tree/*.exe
+
+      - name: Print dir
+        shell: pwsh
+        run: ls run_tree/
+
+      - name: Checkout JAI SVN repository
+        shell: pwsh
+        run: git svn clone svn://tealfire.de/svn/Jai/ -rHEAD jai
+
+      - name: Build server-release
+        shell: pwsh
+        run: |
+          .\\jai\\bin\\jai.exe first.jai -- server-release
+
+          if (Test-Path -Path "run_tree\\server.exe") {
+            Write-Host "Build successful: server.exe created"
+            Get-ChildItem -Path "run_tree\\server.exe"
+          } else {
+            Write-Host "ERROR: server.exe was not created"
+            exit 1
+          }
+
+      - name: Build release
+        shell: pwsh
+        run: |
+          .\\jai\\bin\\jai.exe first.jai -- release
+
+          if (Test-Path -Path "run_tree\\client.exe") {
+            Write-Host "Build successful: client.exe created"
+            Get-ChildItem -Path "run_tree\\client.exe"
+          } else {
+            Write-Host "ERROR: client.exe was not created"
+            exit 1
+          }
