@@ -332,8 +332,12 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
         
-        chance := random_f32_zero_to_one(*server.entity_random);
-        if chance < MONSTER_DROPS_COIN_CHANCE[server.game_mode] {
+        random := random_f32_zero_to_one(*server.entity_random);
+
+        t := (cast(f32) server.current_section_index / cast(f32) COIN_DROP_CHANCE_POINT_SECTION_INDEX);
+        chance := COIN_DROP_CHANCE[server.game_mode][1] * t + COIN_DROP_CHANCE[server.game_mode][0] * (1 - t);
+
+        if random < chance {
             item_drop = .Coin;
         }
         

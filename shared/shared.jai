@@ -163,13 +163,15 @@ EMITTER_MAX_CHARGE:  [Game_Mode.Count]f32 : .[
 
 TORCH_TIME_TO_LIVE: f32 : 30; // In seconds
 
-MONSTER_DROPS_COIN_CHANCE: [Game_Mode.Count]f32 : .[
-    1,    // Developer
-    1,    // Tutorial
-    0.9,  // Easy
-    0.75, // Medium
-    0.5,  // Hard
+COIN_DROP_CHANCE: [Game_Mode.Count][2]f32 : .[
+    .[ 1,    1   ], // Developer
+    .[ 1,    0.5 ], // Tutorial
+    .[ 0.9,  0.7 ], // Easy
+    .[ 0.75, 0.4 ], // Medium
+    .[ 0.5,  0.2 ], // Hard
 ];
+
+COIN_DROP_CHANCE_POINT_SECTION_INDEX :: 8; // From this section index forwards, the actual drop chance will be the low point indicated in the above array...
 
 RESURRECTION_TIME: f32 : 5;
 STRENGTH_POTION_TIME: f32 : 30;

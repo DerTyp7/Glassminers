@@ -1,6 +1,8 @@
 ## 0.4.1 (unreleased)
 
 - Added a time-to-live to the torch, it will now be removed after 30 seconds
+- Added zooming out the camera in developer builds
+- Added a drop-off for the chance of coin drops when killing monsters to increase difficulty
 - Increased the damage of the void eyes to kill a guy in three seconds
 - Decreased the speed at which the void eye moves around when idle
 - Improved the look of the lava and slab tiles
@@ -10,7 +12,6 @@
 - Fixed void eyes sticking around on dead guys
 - Fixed entities spawning directly in front of an emitter
 - Fixed the slab entity not emitting light
-- Added zooming out the camera in developer builds
 
 ## 0.4.0 (20.09.2025)
 
