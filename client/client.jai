@@ -1795,6 +1795,13 @@ do_game_tick :: (client: *Client) {
             emitter, occupied := index_bucket_array(*client.emitters, i);
             if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
         }
+
+        for i := 0; i < client.torches.slot_count; ++i {
+            torch, occupied := index_bucket_array(*client.torches, i);
+            if occupied {
+                update_torch(client, torch);
+            }
+        }
         
         for i := 0; i < client.frogs.slot_count; ++i {
             frog, occupied := index_bucket_array(*client.frogs, i);
@@ -1830,13 +1837,6 @@ do_game_tick :: (client: *Client) {
         for i := 0; i < client.goblins.slot_count; ++i {
             goblin, occupied := index_bucket_array(*client.goblins, i);
             if occupied then update_goblin(client, goblin);
-        }
-
-        for i := 0; i < client.torches.slot_count; ++i {
-            torch, occupied := index_bucket_array(*client.torches, i);
-            if occupied {
-                update_torch(client, torch);
-            }
         }
         
         for i := 0; i < client.all_entities.slot_count; ++i {

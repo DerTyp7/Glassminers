@@ -64,10 +64,20 @@ Slab_1       sprites/animates/slab-1.png
 Slab_2       sprites/animates/slab-2.png
 Slab_3       sprites/animates/slab-3.png
 Slab_4       sprites/animates/slab-4.png
-Torch_0      sprites/animates/torch-0.png
-Torch_1      sprites/animates/torch-1.png
-Torch_2      sprites/animates/torch-2.png
-Torch_3      sprites/animates/torch-3.png
+
+Torch_High_0     sprites/animates/torch-high-0.png
+Torch_High_1     sprites/animates/torch-high-1.png
+Torch_High_2     sprites/animates/torch-high-2.png
+Torch_High_3     sprites/animates/torch-high-3.png
+Torch_Mid_0      sprites/animates/torch-mid-0.png
+Torch_Mid_1      sprites/animates/torch-mid-1.png
+Torch_Mid_2      sprites/animates/torch-mid-2.png
+Torch_Mid_3      sprites/animates/torch-mid-3.png
+Torch_Low_0      sprites/animates/torch-low-0.png
+Torch_Low_1      sprites/animates/torch-low-1.png
+Torch_Low_2      sprites/animates/torch-low-2.png
+Torch_Low_3      sprites/animates/torch-low-3.png
+
 Flag_0       sprites/animates/flag-0.png
 Flag_1       sprites/animates/flag-1.png
 Flag_2       sprites/animates/flag-2.png

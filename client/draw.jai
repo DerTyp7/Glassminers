@@ -56,10 +56,20 @@ Sprite_Index :: enum {
     Slab_2;
     Slab_3;
     Slab_4;
-    Torch_0;
-    Torch_1;
-    Torch_2;
-    Torch_3;
+    
+    Torch_High_0;
+    Torch_High_1;
+    Torch_High_2;
+    Torch_High_3;
+    Torch_Mid_0;
+    Torch_Mid_1;
+    Torch_Mid_2;
+    Torch_Mid_3;
+    Torch_Low_0;
+    Torch_Low_1;
+    Torch_Low_2;
+    Torch_Low_3;
+    
     Flag_0;
     Flag_1;
     Flag_2;
@@ -324,7 +334,7 @@ get_sprite_index_for_item :: (item: Item_Kind) -> Sprite_Index {
       case .Stone; index = .Stone;
       case .Coal;  index = .Coal_Item;
       case .Coin;  index = .Coin;
-      case .Torch; index = .Torch_0;
+      case .Torch; index = .Torch_High_0;
       case .Flag;  index = .Flag_0;
       case .Chest; index = .Chest_Closed;
     }
@@ -1067,7 +1077,7 @@ get_sprite_for_entity :: (client: *Client, entity: *Entity) -> Sprite_Index, Dra
           case .Slime_Hole; index = .Slime_Hole_Empty;
           case .Item_Stack; index = get_sprite_index_for_item(down(entity, Item_Stack).item_kind);
           case .Slab;       index = .Slab_0;
-          case .Torch;      index = .Torch_0;
+          case .Torch;      index = .Torch_High_0;
           case .Flag;       index = .Flag_0;
           case .Chest;      index = ifx down(entity, Chest).visually_open then .Chest_Open else .Chest_Closed;
           case .Guy;        index = .Guy_Idle_Front_0;

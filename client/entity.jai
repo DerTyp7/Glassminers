@@ -113,6 +113,7 @@ Slime :: struct {
 Torch :: struct {
     #using entity : *Entity = ---;
     particles: Pid = INVALID_PID;
+    time_left_in_seconds: f32 = TORCH_TIME_TO_LIVE;
 }
 
 Entity_Manager :: struct {
@@ -418,7 +419,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     if entity.entity_kind == {
       case .Lava;     play_animation(entity, .Lava);
       case .Slab;     play_animation(entity, .Slab);
-      case .Torch;    play_animation(entity, .Torch);
+      case .Torch;    play_animation(entity, .Torch_High);
       case .Flag;     play_animation(entity, .Flag);
       case .Guy;      play_animation_from_group(client, entity, .Guy_Idle);
       case .Frog;     play_animation_from_group(client, entity, .Frog_Idle);
@@ -786,8 +787,23 @@ update_slab :: (client: *Client, slab: *Slab) {
 }
 
 update_torch :: (client: *Client, torch: *Torch) {
+    // @Incomplete: Maybe reduce the particle effect with low time left?
+
     system := get_particle_system(client, torch.particles);
     system.time_to_live += client.tick_time;
+    torch.time_left_in_seconds -= client.tick_time;
+
+    desired_animation: Animation_Index = ---;
+
+    if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.1 {
+        desired_animation = .Torch_Low;
+    } else if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.3 {
+        desired_animation = .Torch_Medium;
+    } else {
+        desired_animation = .Torch_High;
+    }
+
+    if torch.animation != desired_animation then play_animation(torch, desired_animation);
 }
 
 visually_open_chest :: (client: *Client, chest: *Chest) {

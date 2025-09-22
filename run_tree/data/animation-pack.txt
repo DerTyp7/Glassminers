@@ -401,11 +401,23 @@ Slab_2
 Slab_3
 Slab_4
 
-:Torch 0.15 loop
-Torch_0
-Torch_1
-Torch_2
-Torch_3
+:Torch_High 0.15 loop
+Torch_High_0
+Torch_High_1
+Torch_High_2
+Torch_High_3
+
+:Torch_Medium 0.15 loop
+Torch_Mid_0
+Torch_Mid_1
+Torch_Mid_2
+Torch_Mid_3
+
+:Torch_Low 0.15 loop
+Torch_Low_0
+Torch_Low_1
+Torch_Low_2
+Torch_Low_3
 
 :Slime_Hole_Filled 0.5 loop
 Slime_Hole_Filled_0

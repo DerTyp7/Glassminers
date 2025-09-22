@@ -457,7 +457,7 @@ Hud_State :: enum {
 CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
     /* Crafting hud */
     .Mirror,
-    .Torch_0,
+    .Torch_High_0,
     .Chest_Closed,
 
     /* Trader hud */

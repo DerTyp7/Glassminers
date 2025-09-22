@@ -161,6 +161,8 @@ EMITTER_MAX_CHARGE:  [Game_Mode.Count]f32 : .[
     70,  // Hard
 ];
 
+TORCH_TIME_TO_LIVE: f32 : 30; // In seconds
+
 MONSTER_DROPS_COIN_CHANCE: [Game_Mode.Count]f32 : .[
     1,    // Developer
     1,    // Tutorial

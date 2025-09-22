@@ -68,7 +68,9 @@ Animation_Index :: enum {
     // Generic Animations
     Lava;
     Slab;
-    Torch;
+    Torch_High;
+    Torch_Medium;
+    Torch_Low;
     Slime_Hole_Filled;
     Flag; 
 }

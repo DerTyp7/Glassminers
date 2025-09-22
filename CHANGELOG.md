@@ -1,5 +1,6 @@
 ## 0.4.1 (unreleased)
 
+- Added a time-to-live to the torch, it will now be removed after 30 seconds
 - Increased the damage of the void eyes to kill a guy in three seconds
 - Decreased the speed at which the void eye moves around when idle
 - Improved the look of the lava and slab tiles

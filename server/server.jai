@@ -1139,6 +1139,11 @@ do_game_tick :: (server: *Server) {
 
             update_off_emitter(server, emitter);
         }
+
+        for i := 0; i < server.torches.slot_count; ++i {
+            torch, occupied := index_bucket_array(*server.torches, i);
+            if occupied update_torch(server, torch);
+        }
         
         //
         // Update all frogs, as their beams will be used for the lightmap calculation as well.
@@ -1197,7 +1202,7 @@ do_game_tick :: (server: *Server) {
 
             if entity.entity_kind == {
               case .Trader; update_trader(server, entity);
-              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Torch, .Chest, .Flag; remove_if_in_lava(server, entity);
+              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Chest, .Flag; remove_if_in_lava(server, entity);
             }
 
             if entity.entity_flags & .Auto_Heal && !entity.damaged_this_frame {

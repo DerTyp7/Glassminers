@@ -89,11 +89,11 @@ build_client :: (mode: Build_Mode) {
     if options.user_options.count {
         for i := 0; i < options.user_options.count; ++i {
             if options.user_options[i] == {
-                case "debug"; build_client(.Debug);
-                case "release"; build_client(.Release);
-                case "server-debug"; build_server(.Debug, .Executable);
-                case "server-release"; build_server(.Release, .Executable);
-                case; print("Unknown build option, please specify one of: [ 'debug', 'release', 'server-debug', 'server-release' ].\n");
+              case "debug"; build_client(.Debug);
+              case "release"; build_client(.Release);
+              case "server-debug"; build_server(.Debug, .Executable);
+              case "server-release"; build_server(.Release, .Executable);
+              case; print("Unknown build option, please specify one of: [ 'debug', 'release', 'server-debug', 'server-release' ].\n");
             }
         }
     } else {
