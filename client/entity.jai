@@ -374,18 +374,18 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     // Create some special particle systems
     if entity.entity_kind == {
       case .Torch;
-        torch := down(entity, Torch);
+        torch  := down(entity, Torch);
         system := create_particle_system(client, 1, entity.visual_position, 1);
-        smoke := create_particle_emitter(system, 0, 16);
-        smoke.shape    = .Cone;
+        smoke  := create_particle_emitter(system, 0, 32);
+        smoke.shape                = .Cone;
         smoke.cone_angles          = .[ -0.1, 0.1 ];
         smoke.turbulence           = 0.05;
         smoke.particles_per_second = 3;
-        smoke.drag     = 0.5;
-        smoke.size     = .[ .{ 0.05, 0.05 }, .{ 0.1, 0.1 } ];
-        smoke.speed    = .[ 0.4, 0.8 ];
-        smoke.lifetime = .[ 4, 8 ];
-        smoke.color    = .[ .{ 212, 191, 15, 200 }, .{ 176, 126, 67, 150 } ];
+        smoke.drag                 = 0.5;
+        smoke.size                 = .[ .{ 0.05, 0.05 }, .{ 0.1, 0.1 } ];
+        smoke.speed                = .[ 0.4, 0.8 ];
+        smoke.lifetime             = .[ 4, 8 ];
+        smoke.color                = .[ .{ 212, 191, 15, 200 }, .{ 176, 126, 67, 150 } ];
         torch.particles = system.pid;
         
       case .Lava;
@@ -790,6 +790,7 @@ update_torch :: (client: *Client, torch: *Torch) {
     // @Incomplete: Maybe reduce the particle effect with low time left?
 
     system := get_particle_system(client, torch.particles);
+    emitter := *system.emitters[0];
     system.time_to_live += client.tick_time;
     torch.time_left_in_seconds -= client.tick_time;
 
@@ -797,8 +798,14 @@ update_torch :: (client: *Client, torch: *Torch) {
 
     if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.1 {
         desired_animation = .Torch_Low;
+        emitter.particles_per_second = 7;
+        emitter.lifetime = .[ 1, 2 ];
+        emitter.speed = .[ 1.2, 1.4 ];
     } else if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.3 {
         desired_animation = .Torch_Medium;
+        emitter.particles_per_second = 5;
+        emitter.lifetime = .[ 2, 4 ];
+        emitter.speed = .[ 0.8, 1.2 ];
     } else {
         desired_animation = .Torch_High;
     }

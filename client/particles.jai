@@ -105,6 +105,21 @@ prewarm_particle_system :: (#using system: *Particle_System, total_time: f32, st
     }
 }
 
+count_alive_particles :: (#using system: *Particle_System) -> s64 {
+    count := 0;
+
+    for i := 0; i < system.emitters.count; ++i {
+        emitter := *system.emitters[i];
+        
+        for j := 0; j < emitter.particles.count; ++j {
+            particle := *emitter.particles[j];
+            if particle.elapsed < particle.lifetime then ++count;
+        }
+    }
+
+    return count;
+}
+
 
 
 #file_scope
@@ -122,14 +137,14 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
                 continue;
             }
 
-            particle.local_position   = get_spawn_position(random, emitter);
-            particle.velocity         = get_spawn_velocity(random, emitter, particle.local_position);
-            particle.speed            = random_f32_in(random, emitter.speed[0], emitter.speed[1]);
-            particle.size.x           = random_f32_in(random, emitter.size[0].x, emitter.size[1].x);
-            particle.size.y           = ifx !emitter.force_uniform_scale then random_f32_in(random, emitter.size[0].y, emitter.size[1].y) else particle.size.x;
-            particle.color            = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(random));
-            particle.elapsed          = 0;
-            particle.lifetime         = random_f32_in(random, emitter.lifetime[0], emitter.lifetime[1]);
+            particle.local_position    = get_spawn_position(random, emitter);
+            particle.velocity          = get_spawn_velocity(random, emitter, particle.local_position);
+            particle.speed             = random_f32_in(random, emitter.speed[0], emitter.speed[1]);
+            particle.size.x            = random_f32_in(random, emitter.size[0].x, emitter.size[1].x);
+            particle.size.y            = ifx !emitter.force_uniform_scale then random_f32_in(random, emitter.size[0].y, emitter.size[1].y) else particle.size.x;
+            particle.color             = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(random));
+            particle.elapsed           = 0;
+            particle.lifetime          = random_f32_in(random, emitter.lifetime[0], emitter.lifetime[1]);
             particle.random_zero_to_one = random_f32_in(random, 0, 1);
             new_particle_accumulator -= 1;
         }
