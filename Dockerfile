@@ -1,11 +1,10 @@
-FROM debian:12.11-slim
+FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
   git \
   subversion \
   clang \
   libx11-6 \
-  libunwind8 \
   --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
