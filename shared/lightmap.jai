@@ -96,7 +96,7 @@ update_lightmap :: (map: *Lightmap, em: *Entity_Manager, dt: f32) {
               case .Torch;
                 fill_lightmap_tile(map, entity.physical_position, TORCH_BRIGHTNESS);
                 
-              case .Lava;
+              case .Lava, .Slab;
                 fill_lightmap_tile(map, entity.physical_position, LAVA_BRIGHTNESS);
             }
         }

@@ -8,6 +8,7 @@
 - Fixed not closing the hud (and the chest visually) when the chest / trader is removed
 - Fixed void eyes sticking around on dead guys
 - Fixed entities spawning directly in front of an emitter
+- Fixed the slab entity not emitting light
 - Added zooming out the camera in developer builds
 
 ## 0.4.0 (20.09.2025)
