@@ -17,7 +17,6 @@ jobs:
             subversion \
             clang \
             libx11-6 \
-            libunwind8 \
             libx11-dev \
             libxi-dev \
             libasound2-dev \
@@ -32,9 +31,8 @@ jobs:
       - name: Prepare run_tree directory
         run: rm run_tree/*.out
 
-      - name: Print dir
-        shell: pwsh
-        run: ls run_tree/
+      - name: Log run_tree directory
+        run: ls -la run_tree/
 
       - name: Checkout JAI SVN repository
         run: svn checkout svn://tealfire.de/svn/Jai/ -rHEAD jai
@@ -61,7 +59,7 @@ jobs:
         shell: pwsh
         run: rm run_tree/*.exe
 
-      - name: Print dir
+      - name: Log run_tree directory
         shell: pwsh
         run: ls run_tree/
 
