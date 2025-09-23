@@ -146,6 +146,9 @@ Client :: struct {
     sounds_played_this_frame: [Sound_Index.Count]bool;
     
 #if DEVELOPER {
+    checkerboard_texture: *GE_Texture;
+    draw_entities_with_checkerboard_texture := false;
+
     sound_watchdog: File_Watcher;
     sprite_watchdog: File_Watcher;
     pack_watchdog: File_Watcher;
@@ -1779,6 +1782,8 @@ do_game_tick :: (client: *Client) {
     }
 
     if input_action_fired_globally(client, .Shadow_Hud_Toggle, .Pressed) then client.shadow_hud_enabled = !client.shadow_hud_enabled;
+
+    if input_action_fired_globally(client, .Checkerboard_Texture_Toggle, .Pressed) then client.draw_entities_with_checkerboard_texture = !client.draw_entities_with_checkerboard_texture;
 }
     
     //

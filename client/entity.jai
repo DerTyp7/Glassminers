@@ -1,5 +1,5 @@
 Camera :: struct {
-    VISIBLE_TILES: f32 : 6.3;
+    DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
 
     window_aspect_ratio: f32;
     world_to_screen_coordinates: v2f;
@@ -218,27 +218,39 @@ snap_position_to_rooms :: (client: *Client, camera: *Camera, target_center_posit
 }
 
 update_camera :: (client: *Client, camera: *Camera, target_center_in_world: v2f, viewport: [4]f32, interpolation: f32, snap_to_room_center: bool) {
-    camera.viewport     = viewport;
-    camera.window_aspect_ratio = (camera.viewport[2] - camera.viewport[0]) / (camera.viewport[3] - camera.viewport[1]);
+    camera.viewport = viewport;
+
+    viewport_width := camera.viewport[2] - camera.viewport[0];
+    viewport_height := camera.viewport[3] - camera.viewport[1];
+
+    camera.window_aspect_ratio = viewport_width / viewport_height;
+
+    // Calculate the actual number of visible tiles on screen.
+    // Apparently, OpenGL introduces pixel artifacts when scaling a texture with a fractional scale (for whatever
+    // reason... Ugh).
+    // Therefore, we calculate a visible_tiles value where we know the size of a tile on screen is an integer
+    // multiple of 16.
+    driving_viewport_dimension := ifx camera.window_aspect_ratio >= 1 then viewport_height else viewport_width;
+    NOMINATOR: f32 : cast(f32) SPRITE_HEIGHT;
+    tile_size_in_pixels_on_screen := floor((driving_viewport_dimension / NOMINATOR) / Camera.DESIRED_MIN_VISIBLE_TILES) * NOMINATOR;
+    visible_tiles: f32 = driving_viewport_dimension / tile_size_in_pixels_on_screen;
 
 #if DEVELOPER {
     desired_zoom := powf(camera.zoom_step, 1.5) + 1;
     camera.zoom += (desired_zoom - camera.zoom) * min(client.tick_time * 20, 1);
-    zoomed_visible_tiles: f32 = Camera.VISIBLE_TILES * camera.zoom;
-} #else {
-    zoomed_visible_tiles: f32 = Camera.VISIBLE_TILES;
+    zoomed_visible_tiles: f32 = visible_tiles * camera.zoom;
 }
 
     if camera.window_aspect_ratio >= 1 {
-        camera.world_to_screen_coordinates.y = (camera.viewport[3] - camera.viewport[1]) / zoomed_visible_tiles;
+        camera.world_to_screen_coordinates.y = viewport_height / zoomed_visible_tiles;
         camera.world_to_screen_coordinates.x = camera.world_to_screen_coordinates.y;
-        camera.covered_world_area.x = camera.VISIBLE_TILES * camera.window_aspect_ratio;
-        camera.covered_world_area.y = camera.VISIBLE_TILES;
+        camera.covered_world_area.x = visible_tiles * camera.window_aspect_ratio;
+        camera.covered_world_area.y = visible_tiles;
     } else {
-        camera.world_to_screen_coordinates.x = (camera.viewport[2] - camera.viewport[0]) / zoomed_visible_tiles;
+        camera.world_to_screen_coordinates.x = viewport_width / zoomed_visible_tiles;
         camera.world_to_screen_coordinates.y = camera.world_to_screen_coordinates.x;
-        camera.covered_world_area.x = camera.VISIBLE_TILES;
-        camera.covered_world_area.y = camera.VISIBLE_TILES / camera.window_aspect_ratio;
+        camera.covered_world_area.x = visible_tiles;
+        camera.covered_world_area.y = visible_tiles / camera.window_aspect_ratio;
     }
 
 #if DEVELOPER {

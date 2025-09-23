@@ -268,6 +268,10 @@ create_draw_data :: (client: *Client) -> bool {
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     create_ui_scaled_draw_data(client);
 
+#if DEVELOPER {
+    client.checkerboard_texture = ge_create_texture_from_file(*client.graphics, "data/sprites/developer/checkerboard.png", .Filter_Nearest | .Wrap_Repeat);
+}
+
 #if BAKE_ASSETS {
     ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, TITLE_FONT_SIZE, .Ascii);
     ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, HUD_FONT_SIZE, .Ascii);
@@ -298,6 +302,10 @@ destroy_draw_data :: (client: *Client) {
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         ge_destroy_texture(*client.graphics, client.sprite_atlases[i]);
     }
+
+#if DEVELOPER {
+    ge_destroy_texture(*client.graphics, client.checkerboard_texture);
+}
 
     ge_destroy_font(*client.graphics, *client.ui_font);
     ge_destroy_font(*client.graphics, *client.title_font);
@@ -680,7 +688,15 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
         brightness := query_lightmap_at_fractional_gamma_adjusted(*client.lightmap, world_center);
         tint = darken_color(tint, brightness);
     }
-    
+
+#if DEVELOPER {
+    if client.draw_entities_with_checkerboard_texture {
+        texture = client.checkerboard_texture;
+        HALF_TEXEL_SIZE: f32 : 0.5 / 16;
+        uvs = .[ .{ 0, 0 }, .{ 1, 0 }, .{ 1, 1 }, .{ 0, 1 } ];
+    }
+}
+
     for i := 0; i < indices.Capacity; ++i {
         idx := indices[i];
         screen_position := screen_from_world_position(*local_player.camera, v2f.{ world_center.x + world_vertices[idx].x, world_center.y + world_vertices[idx].y });
