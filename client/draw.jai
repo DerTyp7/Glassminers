@@ -682,8 +682,9 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
     }
     
     for i := 0; i < indices.Capacity; ++i {
-        screen_position := screen_from_world_position(*local_player.camera, v2f.{ world_center.x + world_vertices[indices[i]].x, world_center.y + world_vertices[indices[i]].y });
-        ge_imm2d_textured_vertex(*client.graphics, screen_position.x, screen_position.y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
+        idx := indices[i];
+        screen_position := screen_from_world_position(*local_player.camera, v2f.{ world_center.x + world_vertices[idx].x, world_center.y + world_vertices[idx].y });
+        ge_imm2d_textured_vertex(*client.graphics, screen_position.x, screen_position.y, uvs[idx].x, uvs[idx].y, texture, tint);
     }
 }
 

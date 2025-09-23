@@ -12,6 +12,9 @@ UI_FONT_SIZE:    s16 : 13;
 TITLE_FONT_SIZE: s16 : 45;
 HUD_FONT_SIZE:   s16 : 25;
 
+USE_CHECKERBOARD_TEXTURE_FOR_ALL_SPRITES :: false;
+CHECKERBOARD_TEXTURE_FILEPATH :: "sprites/inanimates/checkerboard.png";
+
 Texture_Data :: struct {
     width:    u32;
     height:   u32;
@@ -114,7 +117,12 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
 
             entry := array_push(*entries);
             entry.ident    = trim_string_view(substring_view(line, 0, space_index));
-            entry.filepath = print_into_allocator(*allocator, "%/%", directory, trim_string_view(substring_view(line, space_index + 1, line.count)));
+
+            #if USE_CHECKERBOARD_TEXTURE_FOR_ALL_SPRITES {
+                entry.filepath = print_into_allocator(*allocator, "%/sprites/inanimates/checkerboard.png", directory); // @Cleanup: This can be done in a nicer way... Like only loading the file once and then just generating X sprite atlases with that...
+            } #else {
+                entry.filepath = print_into_allocator(*allocator, "%/%", directory, trim_string_view(substring_view(line, space_index + 1, line.count)));
+            }
 
             found_sprite_index: bool = ---;
             entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
