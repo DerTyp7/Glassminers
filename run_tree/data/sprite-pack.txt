@@ -35,8 +35,8 @@ Strength_Potion sprites/items/strength-potion.png
 #
 # Debug Icons
 #
-Ghost_Mode      sprites/items/ghost-mode.png
-Kill_Creature   sprites/items/skull.png
+Ghost_Mode      sprites/developer/ghost-mode.png
+Kill_Creature   sprites/developer/skull.png
 
 #
 # Inanimates
