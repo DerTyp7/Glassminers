@@ -1665,8 +1665,14 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
         input.chest_item       = local_player.hud.chest_item_confirmed_this_frame;
 
         if !local_player.hud.was_open_this_frame {
+            // The turn modifier check must only be done once.
+            // Otherwise when pressing >=2 movement keys at the same time,
+            // "input_action_fired_for_local_player" will return true on the second call, 
+            // causing the player to move.
+            turn_modifier_fired := input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held);
+
             if input_action_fired_for_local_player(client, local_player, .Move_North, .Pressed) {
-                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                if !turn_modifier_fired {
                     input.position.x = guy.physical_position.x;
                     input.position.y = guy.physical_position.y - 1;
                 }
@@ -1675,7 +1681,7 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
             }
 
             if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
-                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                if !turn_modifier_fired {
                     input.position.x = guy.physical_position.x - 1;
                     input.position.y = guy.physical_position.y;
                 }
@@ -1684,7 +1690,7 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
             }
 
             if input_action_fired_for_local_player(client, local_player, .Move_South, .Pressed) {
-                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                if !turn_modifier_fired {
                     input.position.x = guy.physical_position.x;
                     input.position.y = guy.physical_position.y + 1;
                 }
@@ -1693,7 +1699,7 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
             }
 
             if input_action_fired_for_local_player(client, local_player, .Move_East, .Pressed) {
-                if !input_action_fired_for_local_player(client, local_player, .Turn_Modifier, .Held) {
+                if !turn_modifier_fired {
                     input.position.x = guy.physical_position.x + 1;
                     input.position.y = guy.physical_position.y;
                 }

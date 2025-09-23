@@ -13,6 +13,8 @@
 - Fixed entities spawning directly in front of an emitter
 - Fixed the slab entity not emitting light
 - Fixed monsters attacking dead guys. This means you can no longer resurrect a guy while he is targetted by a monster
+- Fixed the player moving when pressing multiple movement keys while the turn-modifier-key is pressed
+- Fixed stuck inputs for players on linux when the window loses focus while a key is pressed
 
 ## 0.4.0 (20.09.2025)
 
