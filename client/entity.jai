@@ -522,6 +522,8 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
           case .Guy; sound_index = pick_random_sound(.[ .Guy_Walk_0, .Guy_Walk_1 ]);
           case .Rock, .Crystal, .Coal, .Mirror; sound_index = .Rock_Sliding_0;
           case .Slime; sound_index = pick_random_sound(.[ .Slime_Walk_0, .Slime_Walk_1 ]);
+          case .Void_Eye;
+            sound_index = pick_random_sound(.[ .Void_Eye_Move_0, .Void_Eye_Move_1, .Void_Eye_Move_2 ]);
         }
 
         if sound_index != .Count {

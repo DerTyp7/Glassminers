@@ -949,6 +949,9 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
         return;
     }
 
+    // @Incomplete: Store whether we are currently chasing a player or not and send that to the client.
+    // Then the client can play a sound when a void eye is attacking someone...
+
     target_guy, distance_to_target := find_nearest_alive_guy(server, eye.physical_position);
     move_target: v2i = eye.physical_position;
 

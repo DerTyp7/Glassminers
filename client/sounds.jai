@@ -45,6 +45,12 @@ Sound_Index :: enum {
     Slime_Scared_0;
     Slime_Walk_0;
     Slime_Walk_1;
+    Void_Eye_Idle_0;
+    Void_Eye_Idle_1;
+    Void_Eye_Move_0;
+    Void_Eye_Move_1;
+    Void_Eye_Move_2;
+    Void_Eye_Attack_0;
 }
 
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
@@ -80,6 +86,12 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "slime-scared-0",
     "slime-walk-0",
     "slime-walk-1",
+    "void-eye-idle-0",
+    "void-eye-idle-1",
+    "void-eye-move-0",
+    "void-eye-move-1",
+    "void-eye-move-2",
+    "void-eye-attack-0",
 ];
 
 create_sound_data :: (client: *Client) -> bool {
@@ -313,12 +325,14 @@ Random_Sound :: struct {
     seconds_till_next_play: f32;
 }
 
-random_sounds: [5]Random_Sound = .[
-    .{ .Ambient_Lava_0,  11,  1, .Count,  .Fade_In | .Fade_Out, --- },
-    .{ .Ambient_Scare_0, 60,  7, .Count,  .Default, --- },
-    .{ .Ambient_Scare_1, 60,  7, .Count,  .Default, --- },
-    .{ .Frog_Idle_0,      7,  2, .Frog,   .Default, --- },
-    .{ .Goblin_Idle_0,    7,  2, .Goblin, .Default, --- },
+random_sounds: [7]Random_Sound = .[
+    .{ .Ambient_Lava_0,  11, 1, .Count,  .Fade_In | .Fade_Out, --- },
+    .{ .Ambient_Scare_0, 60, 7, .Count,  .Default, --- },
+    .{ .Ambient_Scare_1, 60, 7, .Count,  .Default, --- },
+    .{ .Frog_Idle_0,      7, 2, .Frog,   .Default, --- },
+    .{ .Goblin_Idle_0,    7, 2, .Goblin, .Default, --- },
+    .{ .Void_Eye_Idle_0,  15, 4, .Void_Eye, .Default, --- },
+    .{ .Void_Eye_Idle_1,  20, 6, .Void_Eye, .Default, --- },
 ];
 
 find_entity_to_play_random_sound :: (client: *Client, sound: *Random_Sound) -> *Entity {
