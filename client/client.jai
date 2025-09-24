@@ -1956,12 +1956,16 @@ do_game_tick :: (client: *Client) {
         }
     }
 }
-    
+
+entry_point :: () {
+
+}
+
 main :: (args: []string) -> s32 {
     //
     // Start up the engine
     //
-    set_working_directory_to_executable_path();
+    set_working_directory(cut_file_name_from_path(args[0]));
     os_enable_high_resolution_timer();
     create_temp_allocator(128 * Memory_Unit.Megabytes);
 
@@ -2267,3 +2271,5 @@ main :: (args: []string) -> s32 {
     destroy_temp_allocator();
     return 0;
 }
+
+// #run main(.[ compiler_get_active_workspace_options().output_file_path ]);
