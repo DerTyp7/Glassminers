@@ -4,6 +4,7 @@
 - Added zooming out the camera in developer builds
 - Added a drop-off for the chance of coin drops when killing monsters to increase difficulty
 - Added idle, movement and attack sounds for the void eye monster
+- Added a sound effect when the game is over
 - Increased the damage of the void eyes to kill a guy in three seconds
 - Decreased the speed at which the void eye moves around when idle
 - Improved the look of the lava and slab tiles

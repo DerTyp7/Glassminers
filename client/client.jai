@@ -498,6 +498,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.game_score = msg.game_over.score;
         client.previous_game_result = msg.game_over.result;
         initiate_state_transition(client, .Game_Over, 5);
+        play_sound(client, .Hud_Failure_0, .Default);
 
       case .Game_Score;
         client.game_score = msg.game_score.score;
