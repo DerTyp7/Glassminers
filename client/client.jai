@@ -769,6 +769,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied && entity.entity_kind == .Slime_Hole then update_slime_hole(client, entity);
         }
+
+      case .Void_Eye_State;
+        entity := get_entity(client, msg.void_eye_state.entity_pid);
+        eye := down(entity, Void_Eye);
+        eye.state = msg.void_eye_state.state;
     }
 }
 
@@ -1840,16 +1845,21 @@ do_game_tick :: (client: *Client) {
             }
         }
 
+        for i := 0; i < client.goblins.slot_count; ++i {
+            goblin, occupied := index_bucket_array(*client.goblins, i);
+            if occupied then update_goblin(client, goblin);
+        }
+
         for i := 0; i < client.slimes.slot_count; ++i {
             slime, occupied := index_bucket_array(*client.slimes, i);
             if occupied then update_slime(client, slime);
         }
 
-        for i := 0; i < client.goblins.slot_count; ++i {
-            goblin, occupied := index_bucket_array(*client.goblins, i);
-            if occupied then update_goblin(client, goblin);
+        for i := 0; i < client.void_eyes.slot_count; ++i {
+            eye, occupied := index_bucket_array(*client.void_eyes, i);
+            if occupied then update_void_eye(client, eye);
         }
-        
+
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
             if occupied interpolate_visuals_and_play_sounds(client, entity);

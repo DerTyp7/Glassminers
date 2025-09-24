@@ -110,6 +110,11 @@ Slime :: struct {
     particles: Pid = INVALID_PID;
 }
 
+Void_Eye :: struct {
+    #using entity : *Entity = ---;
+    state: Void_Eye_State;
+}
+
 Torch :: struct {
     #using entity : *Entity = ---;
     particles: Pid = INVALID_PID;
@@ -128,7 +133,8 @@ Entity_Manager :: struct {
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
-    
+    void_eyes:    Bucket_Array(Void_Eye);
+
     particle_pid_counter := 0;
     particle_pid_lookup: Probed_Hash_Table(Pid, *Particle_System);
     particle_systems: Bucket_Array(Particle_System);
@@ -155,6 +161,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
     create_bucket_array(*client.slimes, *client.world_allocator);
+    create_bucket_array(*client.void_eyes, *client.world_allocator);
 
     probed_hash_table_create(*client.particle_pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.particle_systems, *client.world_allocator);
@@ -172,6 +179,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
     destroy_bucket_array(*client.slimes);
+    destroy_bucket_array(*client.void_eyes);
 
     probed_hash_table_destroy(*client.particle_pid_lookup);
     destroy_bucket_array(*client.particle_systems);
@@ -381,7 +389,8 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Void_Eye, .Trader, .Flag;
+      case .Void_Eye;   make_derived(entity, *client.void_eyes);
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -652,6 +661,7 @@ physically_remove_dead_entities :: (client: *Client) {
     remove_deriveds(*client.frogs);
     remove_deriveds(*client.goblins);
     remove_deriveds(*client.slimes);
+    remove_deriveds(*client.void_eyes);
 
     for i := 0; i < client.all_entities.slot_count; ++i {
         entity, occupied := index_bucket_array(*client.all_entities, i);
@@ -803,8 +813,6 @@ update_slab :: (client: *Client, slab: *Slab) {
 }
 
 update_torch :: (client: *Client, torch: *Torch) {
-    // @Incomplete: Maybe reduce the particle effect with low time left?
-
     system := get_particle_system(client, torch.particles);
     emitter := *system.emitters[0];
     system.time_to_live += client.tick_time;
@@ -916,6 +924,10 @@ update_frog :: (client: *Client, frog: *Frog) {
     frog.state_t += client.tick_time;
 }
 
+update_goblin :: (client: *Client, goblin: *Goblin) {
+    maybe_play_animation_from_group_after(client, goblin, .Goblin_Idle);
+}
+
 update_slime :: (client: *Client, slime: *Slime) {
     maybe_play_animation_from_group_after(client, slime, .Slime_Idle);
 
@@ -944,8 +956,10 @@ update_slime :: (client: *Client, slime: *Slime) {
     }
 }
 
-update_goblin :: (client: *Client, goblin: *Goblin) {
-    maybe_play_animation_from_group_after(client, goblin, .Goblin_Idle);
+update_void_eye :: (client: *Client, eye: *Void_Eye) {
+    if eye.state == .Attacking && !sound_active(client, eye.sound) {
+        eye.sound = play_sound_on_entity(client, .Void_Eye_Attack_0, eye, .Once_Per_Frame);
+    }
 }
 
 update_slime_hole :: (client: *Client, hole: *Entity) {

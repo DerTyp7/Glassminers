@@ -105,6 +105,7 @@ Slime :: struct {
 
 Void_Eye :: struct {
     #using entity : *Entity = ---;
+    state: Void_Eye_State;
     time_since_last_move: f32;
     time_since_spawn: f32;
 }
@@ -907,6 +908,7 @@ manage_void_eye_lifetimes :: (server: *Server) {
     // Remove all void eyes that are outside a shadow, and count how many void eyes are in each shadow
     //
     void_eyes_per_shadow := allocate_array(*temp, s64, server.lightmap.shadow_sizes.count);
+    clear_slice(void_eyes_per_shadow); // @Cleanup: Apparently the temp allocator isn't guaranteed to zero-initialize?
 
     for i := 0; i < server.void_eyes.slot_count; ++i {
         eye, occupied := index_bucket_array(*server.void_eyes, i);
@@ -931,7 +933,8 @@ manage_void_eye_lifetimes :: (server: *Server) {
 
         for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_shadow.count; ++i {
             shadow_size := array_get(*server.lightmap.shadow_sizes, i);
-            if void_eyes_per_shadow[i] == 0 && shadow_size >= MIN_SHADOW_SIZE_FOR_VOID_EYE ||
+
+            if (void_eyes_per_shadow[i] == 0 && shadow_size >= MIN_SHADOW_SIZE_FOR_VOID_EYE) ||
                void_eyes_per_shadow[i] < shadow_size / SHADOW_SIZE_PER_VOID_EYE {
                 position := get_random_position_in_shadow(*server.lightmap, i);
                 create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
@@ -943,14 +946,22 @@ manage_void_eye_lifetimes :: (server: *Server) {
     }
 }
 
+switch_void_eye_state :: (server: *Server, eye: *Void_Eye, new_state: Void_Eye_State) {
+    if eye.state == new_state return;
+
+    eye.state = new_state;
+
+    msg := make_message(Void_Eye_State_Message);
+    msg.void_eye_state.entity_pid = eye.pid;
+    msg.void_eye_state.state = new_state;
+    array_add(*server.outgoing_messages, msg);
+}
+
 update_void_eye :: (server: *Server, eye: *Void_Eye) {
     eye.time_since_spawn += server.tick_time;
     if eye.time_since_spawn < VOID_EYE_SPAWN_TIME {
         return;
     }
-
-    // @Incomplete: Store whether we are currently chasing a player or not and send that to the client.
-    // Then the client can play a sound when a void eye is attacking someone...
 
     target_guy, distance_to_target := find_nearest_alive_guy(server, eye.physical_position);
     move_target: v2i = eye.physical_position;
@@ -994,6 +1005,15 @@ update_void_eye :: (server: *Server, eye: *Void_Eye) {
     }
 
     eye.time_since_last_move += server.tick_time;
+
+
+    if distance_to_target == 0 {
+        switch_void_eye_state(server, eye, .Attacking);
+    } else if is_chasing_player {
+        switch_void_eye_state(server, eye, .Chasing);
+    } else {
+        switch_void_eye_state(server, eye, .Idle);
+    }
 }
 
 update_trader :: (server: *Server, trader: *Entity) {

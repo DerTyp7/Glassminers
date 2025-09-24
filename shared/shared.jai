@@ -307,6 +307,12 @@ Slime_State :: enum {
     Hiding;
 }
 
+Void_Eye_State :: enum {
+    Idle;
+    Chasing;
+    Attacking;
+}
+
 Interaction_Kind :: enum {
     Primary_Start;
     Primary_End;

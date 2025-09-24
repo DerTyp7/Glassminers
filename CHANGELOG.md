@@ -3,6 +3,7 @@
 - Added a time-to-live to the torch, it will now be removed after 30 seconds
 - Added zooming out the camera in developer builds
 - Added a drop-off for the chance of coin drops when killing monsters to increase difficulty
+- Added idle, movement and attack sounds for the void eye monster
 - Increased the damage of the void eyes to kill a guy in three seconds
 - Decreased the speed at which the void eye moves around when idle
 - Improved the look of the lava and slab tiles
@@ -16,6 +17,7 @@
 - Fixed the player moving when pressing multiple movement keys while the turn-modifier-key is pressed
 - Fixed stuck inputs for players on linux when the window loses focus while a key is pressed
 - Fixed visual artifacts for sprites sometimes appearing (depending on the window size) by ensuring a constant tile size on screen
+- Fixed sometimes spawning an infinite amount of void eye monsters
 
 ## 0.4.0 (20.09.2025)
 
