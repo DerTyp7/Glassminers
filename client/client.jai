@@ -985,10 +985,10 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Host", .Default, window_position(client, -1));
         ui_label(ui, false, "Name");
-        ui_text_input_with_string(ui, "Enter your name", *client.ui_state.account_name, *client.engine_allocator);
+        ui_text_input_with_string_pointer(ui, "Enter your name", *client.ui_state.account_name, true, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Port");
-        ui_text_input_with_int(ui, "Enter the port", *client.ui_state.network_port);
+        ui_text_input_with_int_pointer(ui, "Enter the port", *client.ui_state.network_port, true);
         ui_divider(ui, true);
         
         if client.server_data.state == .Closed && ui_button(ui, "Host!") {
@@ -1020,12 +1020,12 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Join", .Default, window_position(client, +1));
         ui_label(ui, false, "Name");
-        ui_text_input_with_string(ui, "Enter your name", *client.ui_state.account_name, *client.engine_allocator);
+        ui_text_input_with_string_pointer(ui, "Enter your name", *client.ui_state.account_name, true, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Host");
-        ui_text_input_with_string(ui, "Enter the address", *client.ui_state.network_host, *client.engine_allocator);
+        ui_text_input_with_string_pointer(ui, "Enter the address", *client.ui_state.network_host, true, *client.engine_allocator);
         ui_label(ui, false, "Port");
-        ui_text_input_with_int(ui, "Enter the port", *client.ui_state.network_port);
+        ui_text_input_with_int_pointer(ui, "Enter the port", *client.ui_state.network_port, true);
         ui_divider(ui, true);
         
         if client.server_data.state == .Closed && ui_button(ui, "Join!") {
@@ -1177,7 +1177,7 @@ do_lobby_screen :: (client: *Client) {
                 ui_push_container(ui, .Horizontal);
                 ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
 
-                entered_name := ui_text_input_with_string(ui, "Name", *client.ui_state.local_player_name, *client.engine_allocator);
+                entered_name := ui_text_input_with_string_pointer(ui, "Name", *client.ui_state.local_player_name, true, *client.engine_allocator);
 
                 if ui_button(ui, "Add!") || entered_name {
                     maybe_add_local_player(client);
@@ -2272,4 +2272,4 @@ main :: (args: []string) -> s32 {
     return 0;
 }
 
-// #run main(.[ compiler_get_active_workspace_options().output_file_path ]);
+#run main(.[ compiler_get_active_workspace_options().output_file_path ]);
