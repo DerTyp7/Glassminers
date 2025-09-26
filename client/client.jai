@@ -2272,4 +2272,4 @@ main :: (args: []string) -> s32 {
     return 0;
 }
 
-#run main(.[ compiler_get_active_workspace_options().output_file_path ]);
+//#run main(.[ compiler_get_active_workspace_options().output_file_path ]);
