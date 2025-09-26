@@ -1,4 +1,4 @@
-## 0.4.1 (unreleased)
+## 0.4.1 (26.09.2025)
 
 - Added a time-to-live to the torch, it will now be removed after 30 seconds
 - Added zooming out the camera in developer builds
