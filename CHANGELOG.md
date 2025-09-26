@@ -1,3 +1,7 @@
+## 0.4.2 (unreleased)
+
+- Fixed the viewport being wrong for the local player on the right in fullscreen mode
+
 ## 0.4.1 (26.09.2025)
 
 - Added a time-to-live to the torch, it will now be removed after 30 seconds

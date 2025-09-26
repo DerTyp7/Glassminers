@@ -907,20 +907,20 @@ recalculate_local_player_viewports :: (client: *Client) {
       case 2;
         center_x: f32 = floor(cast(f32) client.window.w * 0.5);
         client.local_players[0].viewport = .[ 0, 0, center_x, xx client.window.h ];
-        client.local_players[1].viewport = .[ center_x + 1, 0, xx client.window.w, xx client.window.h ];
+        client.local_players[1].viewport = .[ center_x, 0, xx client.window.w, xx client.window.h ];
       case 3;
         center_x: f32 = floor(cast(f32) client.window.w * 0.5);
         center_y: f32 = floor(cast(f32) client.window.h * 0.5);
         client.local_players[0].viewport = .[ 0, 0, center_x, center_y ];
-        client.local_players[1].viewport = .[ center_x + 1, 0, xx client.window.w, center_y ];
-        client.local_players[2].viewport = .[ 0, center_y + 1, center_x, xx client.window.h ];
+        client.local_players[1].viewport = .[ center_x, 0, xx client.window.w, center_y ];
+        client.local_players[2].viewport = .[ 0, center_y, center_x, xx client.window.h ];
       case 4;
         center_x: f32 = floor(cast(f32) client.window.w * 0.5);
         center_y: f32 = floor(cast(f32) client.window.h * 0.5);
         client.local_players[0].viewport = .[ 0, 0, center_x, center_y ];
-        client.local_players[1].viewport = .[ center_x + 1, 0, xx client.window.w, center_y ];
-        client.local_players[2].viewport = .[ 0, center_y + 1, center_x, xx client.window.h ];
-        client.local_players[3].viewport = .[ center_x + 1, center_y + 1, xx client.window.w, xx client.window.h ];
+        client.local_players[1].viewport = .[ center_x, 0, xx client.window.w, center_y ];
+        client.local_players[2].viewport = .[ 0, center_y, center_x, xx client.window.h ];
+        client.local_players[3].viewport = .[ center_x, center_y, xx client.window.w, xx client.window.h ];
     }
 }
 
