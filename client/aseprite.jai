@@ -266,7 +266,7 @@ aseprite_chunk_type_to_name :: (chunk_type: Aseprite_Chunk_Type) -> string {
         chunk_header: *Aseprite_Chunk_Header = xx (file_content.data + current_byte_location);
         print("  %: ", aseprite_chunk_type_to_name(chunk_header.chunk_type));
         
-        OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(Aseprite_Chunk_Header);
+        OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
         chunk_data: *void = (file_content.data + current_byte_location + OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT);
         
         if chunk_header.chunk_type == {
