@@ -98,6 +98,11 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
             frame_header: *Aseprite_Frame_Header = xx (memory.data + start_of_frame_location);
             current_byte_location += size_of(~frame_header);
             
+            // Layers are stored in the first frame.
+            // Now that we have layer array allocated, 
+            // store the strings into into them as well
+            layer_index := 0;
+            
             print("Frame %:\n", frame_index);
 
             while current_byte_location < start_of_frame_location + frame_header.bytes_in_this_frame {
@@ -108,7 +113,8 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                 if chunk_header.chunk_type == {
                     case .Old_Palette_1;
                         content: *Aseprite_Chunk_Palette_Old = xx chunk_data;
-                        print("%", ~content);
+                        colors := aseprite_get_flattened_palette_from_old_palette_chunk(allocator, content);
+                        print("% colors: %,  %", colors.count, colors, ~content);
                         
                     case .Color_Profile;
                         content: *Aseprite_Chunk_Color_Profile = xx chunk_data;
@@ -116,7 +122,13 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                         
                     case .Layer;
                         content: *Aseprite_Chunk_Layer = xx chunk_data;
-                        print("%", ~content);
+
+                        // Get string of layer
+                        layer_name := aseprite_read_string(allocator, *content.__reserved_0[2] + 1);
+                        result.layers[layer_index].name = layer_name;
+                        layer_index += 1;
+                       
+                        print(" \"%\"%", layer_name, ~content);
                         
                     case .Cel;
                         content: *Aseprite_Chunk_Cel = xx chunk_data;
@@ -266,7 +278,7 @@ Aseprite_Chunk_Palette_Old_Packet :: struct {
     number_of_colors: u8; // "0 means 256"
     // For each packet: Aseprite_Chunk_Palette_Old_Packet_Color
 }
-
+ 
 Aseprite_Chunk_Palette_Old :: struct {
     number_of_packets: u16;
     // Then there are Aseprite_Chunk_Palette_Old_Packet 
@@ -375,13 +387,72 @@ Aseprite_Chunk_Cel :: struct {
     // TODO(Felix): There is a bunch of stuff following depending on the cell type
 }
 
-
-
-
 // TODO(Felix): This is temporary code to see which chunks 
 // we actually need to implement for parsing Glassminers Aseprite files.
 // Ideally we'd implement everything, but I'll implement stuff
 // as needed.
+
+
+// -------------------------- Helpers  ---------------------------- //
+
+Palette_Entry :: GE_Color;
+
+aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator, chunk: *Aseprite_Chunk_Palette_Old) -> []Palette_Entry {
+    SIZE_OF_COLOR_ENTRY   :: 3;
+    SIZE_OF_PACKET_HEADER :: 2;
+    
+    // First pass: Count colors
+    color_count: u32;
+    {
+        current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx ((cast(*u8)chunk) + size_of(~chunk));
+        for packet_index := 0; packet_index < chunk.number_of_packets; ++packet_index {
+            print("DEBUG: %\n", ~current_packet);
+            
+            colors_in_packet := ifx current_packet.number_of_colors == 0 then 256 else current_packet.number_of_colors;
+            color_count += colors_in_packet;
+            offset_to_next_packet := SIZE_OF_PACKET_HEADER + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
+            current_packet = xx ((cast(*u8)current_packet) + offset_to_next_packet);
+        }
+    }
+    
+    // Prepare memory
+    result: []Palette_Entry = allocate_array(allocator, Palette_Entry, color_count);
+    
+    // Second pass: Fill colors
+    {
+        current_color_index: u32 = 0;
+        current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx ((cast(*u8)chunk) + size_of(~chunk));
+        for packet_index := 0; packet_index < chunk.number_of_packets; ++packet_index {
+            colors_in_packet := ifx current_packet.number_of_colors == 0 then 256 else current_packet.number_of_colors;
+            offset_to_next_packet := SIZE_OF_PACKET_HEADER + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
+
+            colors: *Aseprite_Chunk_Palette_Old_Packet_Color = xx ((cast(*u8)current_packet) + SIZE_OF_PACKET_HEADER);
+            for i := 0; i < colors_in_packet; ++i {
+                to_fill: *Palette_Entry = *result[current_color_index];
+                current_color_index += 1;
+                
+                to_fill.r = colors[i].red;
+                to_fill.g = colors[i].green;
+                to_fill.b = colors[i].blue;
+                to_fill.a = 255;
+            }
+            
+            current_packet = xx ((cast(*u8)current_packet) + offset_to_next_packet);
+        }
+    }
+    
+    return result;
+}
+
+aseprite_read_string :: (allocator: *Allocator, aseprite_string: *void) -> string {
+    string_length:   u16 = ~cast(*u16)aseprite_string;
+    string_content: *u8  = xx (aseprite_string + 2);
+    
+    result := allocate_string(allocator, string_length);
+    copy_memory(result.data, string_content, string_length);
+    
+    return result;
+}
 
 aseprite_chunk_type_to_name :: (chunk_type: Aseprite_Chunk_Type) -> string {
     enum_info := cast(*Type_Info_Enum) type_info(Aseprite_Chunk_Type);
