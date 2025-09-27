@@ -24,6 +24,14 @@ Parsed_Aseprite_File :: struct {
 // - one for the "permanent" / result data.
 // Too bad!
 
+// DEBUG
+#run {
+    SIMPLE_FILE_PATH      :: "/home/void/Software/Victor/Glassminers/aseprite/inanimates/bedrock.aseprite";
+    COMPLICATED_FILE_PATH :: "/home/void/Software/Victor/Glassminers/aseprite/guy/guy-walking.aseprite";
+    EXAMPLE_FILE_PATH     :: COMPLICATED_FILE_PATH;
+    load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
+}
+
 load_aseprite_layer_images_from_file :: (allocator: *Allocator, path_to_file: string) -> Parsed_Aseprite_File, bool {
     file_content, success := read_entire_file(allocator, path_to_file);
     if !success { return .{}, false; }
@@ -39,12 +47,12 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     if file_header.magic_number != ASEPRITE_MAGIC_NUMBER_FILE_HEADER { return .{}, false; }
     result.width  = file_header.width_in_pixels;
     result.height = file_header.height_in_pixels;
-    
     frames_count := file_header.frames;
+    
     
     // NOTE(Felix): I'm assuming that every layer has the same amount of frames.
     // Iterate over all layers of one frame once to determine the layer size
-    layers_count: u16;
+    layer_count: u16;
     {
         current_byte_location   := size_of(~file_header); 
         start_of_frame_location := current_byte_location;
@@ -56,15 +64,78 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
         while current_byte_location < start_of_frame_location + frame_header.bytes_in_this_frame {
             chunk_header: *Aseprite_Chunk_Header = xx (memory.data + current_byte_location);
             if chunk_header.chunk_type == .Layer { 
-                layers_count += 1;
+                layer_count += 1;
             }
             
             current_byte_location += chunk_header.chunk_size;
         }
     }
     
+    // Prepare memory
+    {
+        BYTES_PER_PIXEL :: 4;
+        bytes_per_image := BYTES_PER_PIXEL * result.width * result.height;
+        result.layers = allocate_array(allocator, Parsed_Aseprite_File.Layer, layer_count);
+        for layer_index := 0; layer_index < layer_count; ++layer_index {
+            layer: *Parsed_Aseprite_File.Layer = *result.layers[layer_index];
+            layer.images = allocate_array(allocator, string, frames_count);
+            for frame_index := 0; frame_index < frames_count; ++frame_index {
+                layer.images[frame_index] = allocate_string(allocator, bytes_per_image);
+            }
+        }
+    }
+    
+    
     // Second pass: Actually read pixel data and extract data
-    result.layers = allocate_array(allocator, Parsed_Aseprite_File::Layer, layers_count);
+    {
+        current_byte_location   := size_of(~file_header); 
+        
+        frame_index := 0;
+
+        // for all frames
+        while current_byte_location < file_header.file_size {
+            start_of_frame_location := current_byte_location;
+            frame_header: *Aseprite_Frame_Header = xx (memory.data + start_of_frame_location);
+            current_byte_location += size_of(~frame_header);
+            
+            print("Frame %:\n", frame_index);
+
+            while current_byte_location < start_of_frame_location + frame_header.bytes_in_this_frame {
+                chunk_header: *Aseprite_Chunk_Header = xx (memory.data + current_byte_location);
+                chunk_data: *void = xx (memory.data + current_byte_location + ASEPRITE_OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT);
+                print(" %", aseprite_chunk_type_to_name(chunk_header.chunk_type));
+                
+                if chunk_header.chunk_type == {
+                    case .Old_Palette_1;
+                        content: *Aseprite_Chunk_Palette_Old = xx chunk_data;
+                        print("%", ~content);
+                        
+                    case .Color_Profile;
+                        content: *Aseprite_Chunk_Color_Profile = xx chunk_data;
+                        print("%", ~content);
+                        
+                    case .Layer;
+                        content: *Aseprite_Chunk_Layer = xx chunk_data;
+                        print("%", ~content);
+                        
+                    case .Cel;
+                        content: *Aseprite_Chunk_Cel = xx chunk_data;
+                        print("%", ~content);
+                        
+                    case;
+                        print("Chunk type not implemented!");
+                        return .{}, false;
+
+                }
+
+                print("\n");
+                current_byte_location += chunk_header.chunk_size;
+            }
+            
+            print("\n");
+            frame_index += 1;
+        }
+    }
     
     // TODO
     return .{}, false;
