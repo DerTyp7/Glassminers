@@ -1,5 +1,75 @@
-
 // TODO(Felix): This should probably be a compiler module or something
+
+ASEPRITE_MAGIC_NUMBER_FILE_HEADER  :: 0xA5E0;
+ASEPRITE_MAGIC_NUMBER_FRAME_HEADER :: 0xF1FA;
+ASEPRITE_OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
+
+// Easy api
+
+// Returns in RGBA
+Parsed_Aseprite_File :: struct {
+    width:  u16;
+    height: u16;
+
+    layers: []Layer;
+
+    Layer :: struct {
+        name:     string;  // Actual string
+        images: []string;  // String is image data
+    }
+}
+
+// TODO(Felix): Ideally, this would take two separate allocators:
+// - one for the temporary data, and
+// - one for the "permanent" / result data.
+// Too bad!
+
+load_aseprite_layer_images_from_file :: (allocator: *Allocator, path_to_file: string) -> Parsed_Aseprite_File, bool {
+    file_content, success := read_entire_file(allocator, path_to_file);
+    if !success { return .{}, false; }
+    
+    return load_aseprite_layer_images_from_memory(allocator, file_content);
+}
+
+load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string) -> Parsed_Aseprite_File, bool {
+    result: Parsed_Aseprite_File;
+    
+    // File Header parsing & checks
+    file_header: *Aseprite_File_Header = xx memory.data;
+    if file_header.magic_number != ASEPRITE_MAGIC_NUMBER_FILE_HEADER { return .{}, false; }
+    result.width  = file_header.width_in_pixels;
+    result.height = file_header.height_in_pixels;
+    
+    frames_count := file_header.frames;
+    
+    // NOTE(Felix): I'm assuming that every layer has the same amount of frames.
+    // Iterate over all layers of one frame once to determine the layer size
+    layers_count: u16;
+    {
+        current_byte_location   := size_of(~file_header); 
+        start_of_frame_location := current_byte_location;
+        frame_header: *Aseprite_Frame_Header = xx (memory.data + current_byte_location);
+
+        if frame_header.magic_number != ASEPRITE_MAGIC_NUMBER_FRAME_HEADER { return .{}, false; }
+        current_byte_location += size_of(~frame_header);
+        
+        while current_byte_location < start_of_frame_location + frame_header.bytes_in_this_frame {
+            chunk_header: *Aseprite_Chunk_Header = xx (memory.data + current_byte_location);
+            if chunk_header.chunk_type == .Layer { 
+                layers_count += 1;
+            }
+            
+            current_byte_location += chunk_header.chunk_size;
+        }
+    }
+    
+    // Second pass: Actually read pixel data and extract data
+    result.layers = allocate_array(allocator, Parsed_Aseprite_File::Layer, layers_count);
+    
+    // TODO
+    return .{}, false;
+}
+
 
 // File documentation
 // https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md
@@ -79,7 +149,6 @@ Aseprite_Chunk_Type :: enum (u16) {
 }
 
 // TODO(Felix): Chunk implementations
-//  - Old_Palette_1
 //  - Old_Palette_2
 //  - Cel_Extra    
 //  - External_File
@@ -113,14 +182,35 @@ Aseprite_Chunk_Color_Profile :: struct {
 
 
 
+// Palette ("old")
+
+Aseprite_Chunk_Palette_Old_Packet_Color :: struct {
+    red:   u8;
+    green: u8;
+    blue:  u8;
+}
+
+Aseprite_Chunk_Palette_Old_Packet :: struct {
+    to_skip_count:    u8; // "Number of palette entries to skip from the last packet (start from 0)"
+    number_of_colors: u8; // "0 means 256"
+    // For each packet: Aseprite_Chunk_Palette_Old_Packet_Color
+}
+
+Aseprite_Chunk_Palette_Old :: struct {
+    number_of_packets: u16;
+    // Then there are Aseprite_Chunk_Palette_Old_Packet 
+}
+
+
+
 // Palette ("new")
 
-Aseprite_Chunk_Pallete_Entry_Flags :: enum(u16) {
+Aseprite_Chunk_Palette_Entry_Flags :: enum(u16) {
     Has_Name :: 1;
 }
 
 Aseprite_Chunk_Palette_Entry :: struct {
-    flags: Aseprite_Chunk_Pallete_Entry_Flags;
+    flags: Aseprite_Chunk_Palette_Entry_Flags;
     
     red:   u8;
     green: u8;
@@ -216,9 +306,6 @@ Aseprite_Chunk_Cel :: struct {
 
 
 
-ASEPRITE_MAGIC_NUMBER_FILE_HEADER  :: 0xA5E0;
-ASEPRITE_MAGIC_NUMBER_FRAME_HEADER :: 0xF1FA;
-
 
 // TODO(Felix): This is temporary code to see which chunks 
 // we actually need to implement for parsing Glassminers Aseprite files.
@@ -236,91 +323,3 @@ aseprite_chunk_type_to_name :: (chunk_type: Aseprite_Chunk_Type) -> string {
     return "INVALID_CHUNK_TYPE";
 }
 
-#run {
-    // TODO(Felix): find and parse all files
-    //set_working_directory_to_executable_path();
-
-    SIMPLE_FILE_PATH      :: "/home/void/Software/Victor/Glassminers/aseprite/inanimates/bedrock.aseprite";
-    COMPLICATED_FILE_PATH :: "/home/void/Software/Victor/Glassminers/aseprite/guy/guy-walking.aseprite";
-    EXAMPLE_FILE_PATH     :: COMPLICATED_FILE_PATH;
-
-    file_content, success := read_entire_file(Default_Allocator, EXAMPLE_FILE_PATH);
-    assert(success, "File could not be loaded!");
-
-
-
-    // Begin of parsing code
-    file_header: *Aseprite_File_Header = xx file_content.data;
-    assert(file_header.magic_number == ASEPRITE_MAGIC_NUMBER_FILE_HEADER, "Unexpected magic number for aseprite file header!");
-    print("File Header:  %\n", ~file_header);
-
-    current_byte_location := size_of(~file_header);
-    
-    // iterate over frames
-    while current_byte_location < file_header.file_size {
-        frame_header: *Aseprite_Frame_Header = xx (file_content.data + current_byte_location);
-        assert(frame_header.magic_number == ASEPRITE_MAGIC_NUMBER_FRAME_HEADER, "Unexpected magic number for aseprite file header!");
-        print("Frame Header: %\n", ~frame_header);
-        
-        start_of_frame_bytes := current_byte_location;
-
-        // Iterate over chunks
-        print("Iterating over chunks:\n");
-        current_byte_location += size_of(~frame_header);
-        while current_byte_location < start_of_frame_bytes + frame_header.bytes_in_this_frame {
-            chunk_header: *Aseprite_Chunk_Header = xx (file_content.data + current_byte_location);
-            print("  %: ", aseprite_chunk_type_to_name(chunk_header.chunk_type));
-
-            OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
-            chunk_data: *void = (file_content.data + current_byte_location + OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT);
-
-            if chunk_header.chunk_type == {
-                case .Palette;
-                    palette: *Aseprite_Chunk_Palette = xx chunk_data;
-                    print("%", ~palette);
-
-                case .Layer;
-                    layer: *Aseprite_Chunk_Layer = xx chunk_data;
-                    print("%", ~layer);
-
-                case .Cel;
-                    cel: *Aseprite_Chunk_Cel = xx chunk_data;
-                    print("%", ~cel);
-
-                case .Color_Profile;
-                    color_profile: *Aseprite_Chunk_Color_Profile = xx chunk_data;
-                    print("%", ~color_profile);
-
-                case;
-                    print("  Chunk type % not implemented.", format_int(chunk_header.chunk_type, .Hexadecimal, false, true, 4));
-            }
-
-            print("\n");
-            current_byte_location += chunk_header.chunk_size;
-        }
-        
-        print("End of Frame \n\n");
-    }
-}
-
-
-// DEBUG Code below 
-
-ASEPRITE_FILE_HEADER_EXPECTED_SIZE  :: 128;
-ASEPRITE_FRAME_HEADER_EXPECTED_SIZE :: 16;
-
-
-// TODO(Felix): This is debug code, remove this
-#run {
-    assert(size_of(Aseprite_File_Header)  == ASEPRITE_FILE_HEADER_EXPECTED_SIZE, "Unexpected aseprite file header struct size");
-    assert(size_of(Aseprite_Frame_Header) == ASEPRITE_FRAME_HEADER_EXPECTED_SIZE, "Unexpected aseprite frame header struct size");
-}
-
-#run {
-    ACTUAL_HEADER_SIZE :: size_of(Aseprite_File_Header);
-    EXPECTED_HEADER_SIZE :: 128;
-    if ACTUAL_HEADER_SIZE != EXPECTED_HEADER_SIZE {
-        print("Big problem: % vs expected %\n", ACTUAL_HEADER_SIZE, EXPECTED_HEADER_SIZE);
-    }
-    assert(ACTUAL_HEADER_SIZE == 128, "Unexpected aseprite file header size");
-}
