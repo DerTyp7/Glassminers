@@ -3,7 +3,7 @@ Camera :: struct {
     // with an integer scaling onto the back buffer. Otherwise, we might get small offsets in the UVs on
     // the same row of pixels and similar things.
     // Therefore, we ensure that the tile size on screen is a multiple of 16.
-    FORCE_INTEGER_TILE_SCALING :: false;
+    FORCE_INTEGER_TILE_SCALING :: true;
 
     DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
 

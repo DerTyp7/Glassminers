@@ -596,7 +596,11 @@ draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen
     texture := client.sprite_atlases[atlas_index];
 
     for i := 0; i < indices.Capacity; ++i {
-        ge_imm2d_textured_vertex(*client.graphics, screen_center.x + vertices[indices[i]].x, screen_center.y + vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
+        ge_imm2d_textured_vertex(*client.graphics, 
+            screen_center.x + vertices[indices[i]].x, 
+            screen_center.y + vertices[indices[i]].y, 
+            uvs[indices[i]].x, uvs[indices[i]].y,
+            texture, tint);
     }
 }
 
@@ -704,8 +708,14 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
 
     for i := 0; i < indices.Capacity; ++i {
         idx := indices[i];
-        screen_position := screen_from_world_position(*local_player.camera, v2f.{ world_center.x + world_vertices[idx].x, world_center.y + world_vertices[idx].y });
-        ge_imm2d_textured_vertex(*client.graphics, screen_position.x, screen_position.y, uvs[idx].x, uvs[idx].y, texture, tint);
+        screen_position := screen_from_world_position(*local_player.camera, 
+            v2f.{ world_center.x + world_vertices[idx].x, world_center.y + world_vertices[idx].y });
+        
+        ge_imm2d_textured_vertex(*client.graphics,
+            screen_position.x, 
+            screen_position.y, 
+            uvs[idx].x, uvs[idx].y,
+            texture, tint);
     }
 }
 
