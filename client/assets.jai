@@ -1,14 +1,14 @@
-// @Cleanup: Refactor these SPRITE_WIDTH to be the initial constant, and calculate the SPRITE_ATLAS_SIZE based on that.
-// @Cleanup: Also increase the sprite atlas size for better performance? See if the draw calls go down?
-SPRITES_PER_ATLAS      :: SPRITE_ATLAS_COLUMNS * SPRITE_ATLAS_ROWS;
-SPRITE_ATLAS_WIDTH     :: 128;
-SPRITE_ATLAS_HEIGHT    :: 128;
+SPRITE_WIDTH           :: 16;
+SPRITE_HEIGHT          :: 16;
+SPRITE_ATLAS_COLUMNS   :: 16;
+SPRITE_ATLAS_ROWS      :: 16;
+
+SPRITE_ATLAS_WIDTH     :: SPRITE_WIDTH * SPRITE_ATLAS_COLUMNS;
+SPRITE_ATLAS_HEIGHT    :: SPRITE_HEIGHT * SPRITE_ATLAS_ROWS;
 SPRITE_ATLAS_CHANNELS  :: 4;
-SPRITE_ATLAS_COLUMNS   :: 8;
-SPRITE_ATLAS_ROWS      :: 8;
-SPRITE_ATLAS_COUNT     :: 4;
-SPRITE_WIDTH           :: SPRITE_ATLAS_WIDTH / SPRITE_ATLAS_COLUMNS;
-SPRITE_HEIGHT          :: SPRITE_ATLAS_HEIGHT / SPRITE_ATLAS_ROWS;
+
+SPRITES_PER_ATLAS      :: SPRITE_ATLAS_COLUMNS * SPRITE_ATLAS_ROWS;
+SPRITE_ATLAS_COUNT     :: cast(s64) ceil(cast(f64) Sprite_Index.Count / cast(f64) SPRITES_PER_ATLAS);
 
 UI_FONT_SIZE:    s16 : 13;
 TITLE_FONT_SIZE: s16 : 45;
@@ -185,7 +185,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
         atlas_count := cast(s64) ceil(cast(f64) (highest_sprite_index + 1) / cast(f64) SPRITES_PER_ATLAS);
 
         if atlas_count != SPRITE_ATLAS_COUNT {
-            logprint(.Error, "The SPRITE_ATLAS_COUNT constant is no longer correct... Victor needs to change it!");
+            logprint(.Error, "The SPRITE_ATLAS_COUNT (%) constant is no longer correct... It should be % (we have a total of % sprites)!", SPRITE_ATLAS_COUNT, atlas_count, highest_sprite_index + 1);
             result = .Complete_Failure;
         }
 
