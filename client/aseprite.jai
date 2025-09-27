@@ -12,7 +12,6 @@ Parsed_Aseprite_File :: struct {
     height: u16;
 
     layers: []Layer;
-
     Layer :: struct {
         name:     string;  // Actual string
         images: []string;  // String is image data
@@ -29,7 +28,7 @@ Parsed_Aseprite_File :: struct {
     SIMPLE_FILE_PATH      :: "/home/void/Software/Victor/Glassminers/aseprite/inanimates/bedrock.aseprite";
     COMPLICATED_FILE_PATH :: "/home/void/Software/Victor/Glassminers/aseprite/guy/guy-walking.aseprite";
     EXAMPLE_FILE_PATH     :: COMPLICATED_FILE_PATH;
-    load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
+    //load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
 }
 
 load_aseprite_layer_images_from_file :: (allocator: *Allocator, path_to_file: string) -> Parsed_Aseprite_File, bool {
@@ -80,7 +79,9 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
             layer: *Parsed_Aseprite_File.Layer = *result.layers[layer_index];
             layer.images = allocate_array(allocator, string, frames_count);
             for frame_index := 0; frame_index < frames_count; ++frame_index {
-                layer.images[frame_index] = allocate_string(allocator, bytes_per_image);
+                image_data := allocate_string(allocator, bytes_per_image);
+                clear_memory(image_data.data, image_data.count); // Ensure that the images are completely transparent at first
+                layer.images[frame_index] = image_data;
             }
         }
     }
@@ -89,8 +90,8 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     // Second pass: Actually read pixel data and extract data
     {
         current_byte_location   := size_of(~file_header); 
-        
         frame_index := 0;
+        color_palette: []Palette_Entry; // I'm assuming that there will be just one big palette
 
         // for all frames
         while current_byte_location < file_header.file_size {
@@ -102,49 +103,47 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
             // Now that we have layer array allocated, 
             // store the strings into into them as well
             layer_index := 0;
-            
-            print("Frame %:\n", frame_index);
 
             while current_byte_location < start_of_frame_location + frame_header.bytes_in_this_frame {
                 chunk_header: *Aseprite_Chunk_Header = xx (memory.data + current_byte_location);
                 chunk_data: *void = xx (memory.data + current_byte_location + ASEPRITE_OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT);
-                print(" %", aseprite_chunk_type_to_name(chunk_header.chunk_type));
-                
                 if chunk_header.chunk_type == {
                     case .Old_Palette_1;
-                        content: *Aseprite_Chunk_Palette_Old = xx chunk_data;
-                        colors := aseprite_get_flattened_palette_from_old_palette_chunk(allocator, content);
-                        print("% colors: %,  %", colors.count, colors, ~content);
+                        old_palette: *Aseprite_Chunk_Palette_Old = xx chunk_data;
+                        assert(color_palette.count == 0, "Color palette already exists, we are missing logic to extend it!");
+                        color_palette = aseprite_get_flattened_palette_from_old_palette_chunk(allocator, old_palette);
                         
                     case .Color_Profile;
-                        content: *Aseprite_Chunk_Color_Profile = xx chunk_data;
-                        print("%", ~content);
+                        color_profile: *Aseprite_Chunk_Color_Profile = xx chunk_data;
                         
                     case .Layer;
-                        content: *Aseprite_Chunk_Layer = xx chunk_data;
+                        layer: *Aseprite_Chunk_Layer = xx chunk_data;
 
                         // Get string of layer
-                        layer_name := aseprite_read_string(allocator, *content.__reserved_0[2] + 1);
+                        layer_name := aseprite_read_string(allocator, *layer.__reserved_0[2] + 1);
                         result.layers[layer_index].name = layer_name;
                         layer_index += 1;
-                       
-                        print(" \"%\"%", layer_name, ~content);
+                        
                         
                     case .Cel;
-                        content: *Aseprite_Chunk_Cel = xx chunk_data;
-                        print("%", ~content);
+                        cel: *Aseprite_Chunk_Cel = xx chunk_data;
+                        print("% \n", ~cel);
+                        
+                        // This is a very limited implementation at the moment
+                        assert(file_header.color_depth == .Indexed, "Only indexed colors are implemented.");
+                        assert(cel.cel_type == .Raw_Image_Data, "Cel Chunk type is not implemented.");
+                        image: *string = *result.layers[cel.layer_index].images[frame_index];
+                        aseprite_modify_image_from_indexed_cel_chunk(image, color_palette, cel);
                         
                     case;
-                        print("Chunk type not implemented!");
+                        print("Chunk type % not implemented!\n", aseprite_chunk_type_to_name(chunk_header.chunk_type));
                         return .{}, false;
 
                 }
 
-                print("\n");
                 current_byte_location += chunk_header.chunk_size;
             }
             
-            print("\n");
             frame_index += 1;
         }
     }
@@ -174,7 +173,7 @@ Aseprite_File_Header :: struct {
     
     width_in_pixels:  u16;
     height_in_pixels: u16;
-    color_depth:      u16; // Bits per pixel
+    color_depth:      Aseprite_Color_Depth;
     flags:            u32;
     speed:            u16; // milliseconds between frames
     
@@ -397,6 +396,12 @@ Aseprite_Chunk_Cel :: struct {
 
 Palette_Entry :: GE_Color;
 
+Aseprite_Color_Depth :: enum(u16) {
+    RGBA      :: 32;
+    Grayscale :: 16;
+    Indexed   ::  8;
+}
+
 aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator, chunk: *Aseprite_Chunk_Palette_Old) -> []Palette_Entry {
     SIZE_OF_COLOR_ENTRY   :: 3;
     SIZE_OF_PACKET_HEADER :: 2;
@@ -406,8 +411,6 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
     {
         current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx ((cast(*u8)chunk) + size_of(~chunk));
         for packet_index := 0; packet_index < chunk.number_of_packets; ++packet_index {
-            print("DEBUG: %\n", ~current_packet);
-            
             colors_in_packet := ifx current_packet.number_of_colors == 0 then 256 else current_packet.number_of_colors;
             color_count += colors_in_packet;
             offset_to_next_packet := SIZE_OF_PACKET_HEADER + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
@@ -422,6 +425,7 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
     {
         current_color_index: u32 = 0;
         current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx ((cast(*u8)chunk) + size_of(~chunk));
+        assert(current_packet.to_skip_count == 0, "Skipping over palette indices not handled.");
         for packet_index := 0; packet_index < chunk.number_of_packets; ++packet_index {
             colors_in_packet := ifx current_packet.number_of_colors == 0 then 256 else current_packet.number_of_colors;
             offset_to_next_packet := SIZE_OF_PACKET_HEADER + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
@@ -442,6 +446,33 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
     }
     
     return result;
+}
+
+aseprite_modify_image_from_indexed_cel_chunk :: (image: *string, palette: []Palette_Entry, cel: *Aseprite_Chunk_Cel) {
+    print("DEBUG %\n", ~cel);
+    start_of_content: *u8 = (*cel.__reserved_0[4] + 1);
+    width:  u16 = ~cast(*u16)(start_of_content + 0);
+    height: u16 = ~cast(*u16)(start_of_content + 2);
+    
+    BYTES_PER_PIXEL :: 4;
+
+    Aseprite_Pixel :: u8; // Index into palette
+    pixels: *Aseprite_Pixel = xx (start_of_content + 4);
+    current_pixel_index: u32 = 0;
+    for y := 0; y < height; ++y {
+        for x := 0; x < width; ++x {
+            palette_index := pixels[y*width + x];
+            print("% ", palette_index);
+            assert(palette_index < palette.count, "Out of bounds palette index.");
+
+            destination_pixel: *u8 = *image.data[y*width + x];
+            destination_pixel[0] = palette[palette_index].r;
+            destination_pixel[1] = palette[palette_index].g;
+            destination_pixel[2] = palette[palette_index].b;
+            destination_pixel[3] = cel.opacity_level;
+        }
+        print("\n");
+    }
 }
 
 aseprite_read_string :: (allocator: *Allocator, aseprite_string: *void) -> string {
