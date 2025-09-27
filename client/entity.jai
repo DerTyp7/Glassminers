@@ -1,4 +1,10 @@
 Camera :: struct {
+    // To avoid visual artifacts when rendering pixel art, we should ensure that the textures are rendering
+    // with an integer scaling onto the back buffer. Otherwise, we might get small offsets in the UVs on
+    // the same row of pixels and similar things.
+    // Therefore, we ensure that the tile size on screen is a multiple of 16.
+    FORCE_INTEGER_TILE_SCALING :: false;
+
     DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
 
     window_aspect_ratio: f32;
@@ -233,15 +239,14 @@ update_camera :: (client: *Client, camera: *Camera, target_center_in_world: v2f,
 
     camera.window_aspect_ratio = viewport_width / viewport_height;
 
-    // Calculate the actual number of visible tiles on screen.
-    // Apparently, OpenGL introduces pixel artifacts when scaling a texture with a fractional scale (for whatever
-    // reason... Ugh).
-    // Therefore, we calculate a visible_tiles value where we know the size of a tile on screen is an integer
-    // multiple of 16.
+#if Camera.FORCE_INTEGER_TILE_SCALING {
     driving_viewport_dimension := ifx camera.window_aspect_ratio >= 1 then viewport_height else viewport_width;
     NOMINATOR: f32 : cast(f32) SPRITE_HEIGHT;
     tile_size_in_pixels_on_screen := floor((driving_viewport_dimension / NOMINATOR) / Camera.DESIRED_MIN_VISIBLE_TILES) * NOMINATOR;
     visible_tiles: f32 = driving_viewport_dimension / tile_size_in_pixels_on_screen;
+} #else {
+    visible_tiles := Camera.DESIRED_MIN_VISIBLE_TILES;
+}
 
 #if DEVELOPER {
     desired_zoom := powf(camera.zoom_step, 1.5) + 1;

@@ -262,7 +262,12 @@ find_sprite_index_from_name :: (name: string) -> s64, bool {
 //
 
 create_draw_data :: (client: *Client) -> bool {
-    ge_create(*client.graphics, *client.window, *client.engine_allocator);
+    if !ge_create(*client.graphics, *client.window, *client.engine_allocator) {
+        panic("Failed to create a rendering context. Please make sure you're fulfilling the hardware requirements.");
+        os_exit(-1);
+    } else {
+        logprint(.Debug, "Created the graphics engine: %", client.graphics.backend_version);
+    }
     ge_set_vsync(*client.graphics, false);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
