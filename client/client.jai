@@ -32,6 +32,9 @@
 #load "hud.jai";
 #load "draw.jai";
 
+// TODO(Felix)
+#load "aseprite.jai";
+
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 MEMORY_DEBUGGING :: DEVELOPER && false;
 BAKE_ASSETS :: !DEVELOPER;
