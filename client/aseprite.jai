@@ -239,67 +239,69 @@ aseprite_chunk_type_to_name :: (chunk_type: Aseprite_Chunk_Type) -> string {
 #run {
     // TODO(Felix): find and parse all files
     //set_working_directory_to_executable_path();
-    
-    SIMPLE_FILE_PATH :: "/home/void/Software/Victor/Glassminers/aseprite/inanimates/bedrock.aseprite";
-    EXAMPLE_FILE_PATH :: SIMPLE_FILE_PATH;
-    
+
+    SIMPLE_FILE_PATH      :: "/home/void/Software/Victor/Glassminers/aseprite/inanimates/bedrock.aseprite";
+    COMPLICATED_FILE_PATH :: "/home/void/Software/Victor/Glassminers/aseprite/guy/guy-walking.aseprite";
+    EXAMPLE_FILE_PATH     :: COMPLICATED_FILE_PATH;
+
     file_content, success := read_entire_file(Default_Allocator, EXAMPLE_FILE_PATH);
     assert(success, "File could not be loaded!");
 
-    
-    
+
+
     // Begin of parsing code
     file_header: *Aseprite_File_Header = xx file_content.data;
     assert(file_header.magic_number == ASEPRITE_MAGIC_NUMBER_FILE_HEADER, "Unexpected magic number for aseprite file header!");
     print("File Header:  %\n", ~file_header);
-    
+
     current_byte_location := size_of(~file_header);
     
-    frame_header: *Aseprite_Frame_Header = xx (file_content.data + current_byte_location);
-    assert(frame_header.magic_number == ASEPRITE_MAGIC_NUMBER_FRAME_HEADER, "Unexpected magic number for aseprite file header!");
-    print("Frame Header: %\n", ~frame_header);
-    
-    // Iterate over chunks
-    print("Iterating over chunks:\n");
-    current_byte_location += size_of(~frame_header);
-    while current_byte_location < file_content.count {
-        chunk_header: *Aseprite_Chunk_Header = xx (file_content.data + current_byte_location);
-        print("  %: ", aseprite_chunk_type_to_name(chunk_header.chunk_type));
+    // iterate over frames
+    while current_byte_location < file_header.file_size {
+        frame_header: *Aseprite_Frame_Header = xx (file_content.data + current_byte_location);
+        assert(frame_header.magic_number == ASEPRITE_MAGIC_NUMBER_FRAME_HEADER, "Unexpected magic number for aseprite file header!");
+        print("Frame Header: %\n", ~frame_header);
         
-        OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
-        chunk_data: *void = (file_content.data + current_byte_location + OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT);
-        
-        if chunk_header.chunk_type == {
-            case .Palette;
-                palette: *Aseprite_Chunk_Palette = xx chunk_data;
-                print("%", ~palette);
-                break;
-                
-            case .Layer;
-                layer: *Aseprite_Chunk_Layer = xx chunk_data;
-                print("%", ~layer);
-                break;
-                
-            case .Cel;
-                cel: *Aseprite_Chunk_Cel = xx chunk_data;
-                print("%", ~cel);
-                break;
-            
-            case .Color_Profile;
-                color_profile: *Aseprite_Chunk_Color_Profile = xx chunk_data;
-                print("%", ~color_profile);
-                break;
-            
-            case;
-                print("  Chunk type % not implemented.\n", format_int(chunk_header.chunk_type, .Hexadecimal, false, true, 4));
+        start_of_frame_bytes := current_byte_location;
+
+        // Iterate over chunks
+        print("Iterating over chunks:\n");
+        current_byte_location += size_of(~frame_header);
+        while current_byte_location < start_of_frame_bytes + frame_header.bytes_in_this_frame {
+            chunk_header: *Aseprite_Chunk_Header = xx (file_content.data + current_byte_location);
+            print("  %: ", aseprite_chunk_type_to_name(chunk_header.chunk_type));
+
+            OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
+            chunk_data: *void = (file_content.data + current_byte_location + OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT);
+
+            if chunk_header.chunk_type == {
+                case .Palette;
+                    palette: *Aseprite_Chunk_Palette = xx chunk_data;
+                    print("%", ~palette);
+
+                case .Layer;
+                    layer: *Aseprite_Chunk_Layer = xx chunk_data;
+                    print("%", ~layer);
+
+                case .Cel;
+                    cel: *Aseprite_Chunk_Cel = xx chunk_data;
+                    print("%", ~cel);
+
+                case .Color_Profile;
+                    color_profile: *Aseprite_Chunk_Color_Profile = xx chunk_data;
+                    print("%", ~color_profile);
+
+                case;
+                    print("  Chunk type % not implemented.", format_int(chunk_header.chunk_type, .Hexadecimal, false, true, 4));
+            }
+
+            print("\n");
+            current_byte_location += chunk_header.chunk_size;
         }
-        //print("  Type: %\n", format_int(chunk_header.chunk_type, .Hexadecimal, false, true, 4));
         
-        print("\n");
-        current_byte_location += chunk_header.chunk_size;
+        print("End of Frame \n\n");
     }
 }
-
 
 
 // DEBUG Code below 
