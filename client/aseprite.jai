@@ -23,13 +23,18 @@ Parsed_Aseprite_File :: struct {
 // - one for the "permanent" / result data.
 // Too bad!
 
+// TODO(Felix): Need to implement zlib because aseprite files are compressed >:(
+
 // DEBUG
 #run {
     SIMPLE_FILE_PATH      :: "/home/void/Software/Victor/Glassminers/aseprite/inanimates/bedrock.aseprite";
     COMPLICATED_FILE_PATH :: "/home/void/Software/Victor/Glassminers/aseprite/guy/guy-walking.aseprite";
     EXAMPLE_FILE_PATH     :: COMPLICATED_FILE_PATH;
-    //load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
+    load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
 }
+
+#run { assert(size_of(Aseprite_File_Header) == 128, "File Header size bad"); }
+#run { assert(size_of(Aseprite_Frame_Header) == 16, "Frame Header Size bad"); }
 
 load_aseprite_layer_images_from_file :: (allocator: *Allocator, path_to_file: string) -> Parsed_Aseprite_File, bool {
     file_content, success := read_entire_file(allocator, path_to_file);
@@ -48,7 +53,7 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     result.height = file_header.height_in_pixels;
     frames_count := file_header.frames;
     
-    
+
     // NOTE(Felix): I'm assuming that every layer has the same amount of frames.
     // Iterate over all layers of one frame once to determine the layer size
     layer_count: u16;
@@ -127,9 +132,9 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                         
                     case .Cel;
                         cel: *Aseprite_Chunk_Cel = xx chunk_data;
-                        print("% \n", ~cel);
                         
                         // This is a very limited implementation at the moment
+                        print("Cel Chunk Type: %\n", cel.cel_type);
                         assert(file_header.color_depth == .Indexed, "Only indexed colors are implemented.");
                         assert(cel.cel_type == .Raw_Image_Data, "Cel Chunk type is not implemented.");
                         image: *string = *result.layers[cel.layer_index].images[frame_index];
@@ -166,7 +171,7 @@ Aseprite_Fixed_Type :: u32; // 32-bit fixed floating point (16.16). -_-
 // These structs are representing the headers in memory,
 // so don't shuffle the members around!
 
-Aseprite_File_Header :: struct {
+Aseprite_File_Header :: struct #packed {
     file_size:    u32;
     magic_number: u16; // Should be 0xA5E0
     frames:       u16;
@@ -177,8 +182,8 @@ Aseprite_File_Header :: struct {
     flags:            u32;
     speed:            u16; // milliseconds between frames
     
-    __reserved_0: u16; // these two
-    __reserved_1: u16; // should be 0
+    __reserved_0: u32; // these two
+    __reserved_1: u32; // should be 0
     
     palette_entry_index: u8;
     __reserved_2: [3]u8;
@@ -193,17 +198,17 @@ Aseprite_File_Header :: struct {
     __reserved_3: [84]u8;
 }
 
-Aseprite_Frame_Header :: struct {
+Aseprite_Frame_Header :: struct #packed {
     bytes_in_this_frame: u32;
     magic_number:        u16; // Should be 0xF1FA
     
     old_field_number_of_chunks: u16;
     frame_duration_in_ms:       u16; // milliseconds
     __reserved_0: [2]u8;
-    new_field_number_of_chunks: u16;
+    new_field_number_of_chunks: u32;
 }
 
-Aseprite_Chunk_Header :: struct {
+Aseprite_Chunk_Header :: struct #packed {
     chunk_size: u32; // in bytes, >= 6 
     chunk_type: Aseprite_Chunk_Type;
     // chunk_size includes not only the size of the remaining bytes of the chunk,
@@ -253,7 +258,7 @@ Aseprite_Color_Profile_Type :: enum(u16) {
     Embedded_ICC     :: 2; 
 }
 
-Aseprite_Chunk_Color_Profile :: struct {
+Aseprite_Chunk_Color_Profile :: struct #packed {
     type:  Aseprite_Color_Profile_Type;
     flags: u16;
     gamma: Aseprite_Fixed_Type;
@@ -266,19 +271,19 @@ Aseprite_Chunk_Color_Profile :: struct {
 
 // Palette ("old")
 
-Aseprite_Chunk_Palette_Old_Packet_Color :: struct {
+Aseprite_Chunk_Palette_Old_Packet_Color :: struct #packed {
     red:   u8;
     green: u8;
     blue:  u8;
 }
 
-Aseprite_Chunk_Palette_Old_Packet :: struct {
+Aseprite_Chunk_Palette_Old_Packet :: struct #packed {
     to_skip_count:    u8; // "Number of palette entries to skip from the last packet (start from 0)"
     number_of_colors: u8; // "0 means 256"
     // For each packet: Aseprite_Chunk_Palette_Old_Packet_Color
 }
  
-Aseprite_Chunk_Palette_Old :: struct {
+Aseprite_Chunk_Palette_Old :: struct #packed {
     number_of_packets: u16;
     // Then there are Aseprite_Chunk_Palette_Old_Packet 
 }
@@ -291,7 +296,7 @@ Aseprite_Chunk_Palette_Entry_Flags :: enum(u16) {
     Has_Name :: 1;
 }
 
-Aseprite_Chunk_Palette_Entry :: struct {
+Aseprite_Chunk_Palette_Entry :: struct #packed {
     flags: Aseprite_Chunk_Palette_Entry_Flags;
     
     red:   u8;
@@ -302,7 +307,7 @@ Aseprite_Chunk_Palette_Entry :: struct {
     // If type & .HasName: ASEPRITE_STRING name here
 }
 
-Aseprite_Chunk_Palette :: struct {
+Aseprite_Chunk_Palette :: struct #packed {
     palette_size:      u32;
     first_color_index: u32;
     last_color_index:  u32;
@@ -345,7 +350,7 @@ Aseprite_Chunk_Layer_Blend_Mode :: enum(u16) {
     Divide      :: 18;
 }
 
-Aseprite_Chunk_Layer :: struct {
+Aseprite_Chunk_Layer :: struct #packed {
     flags: Aseprite_Chunk_Layer_Flags;
     type:  Aseprite_Chunk_Layer_Type;
     layer_child_level: u16;
@@ -374,7 +379,7 @@ Aseprite_Chunk_Cel_Type :: enum(u16) {
     Compressed_Tilemap :: 3;
 }
 
-Aseprite_Chunk_Cel :: struct {
+Aseprite_Chunk_Cel :: struct #packed {
     layer_index:   u16;
     x_position:    s16;
     y_position:    s16;
@@ -449,7 +454,6 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
 }
 
 aseprite_modify_image_from_indexed_cel_chunk :: (image: *string, palette: []Palette_Entry, cel: *Aseprite_Chunk_Cel) {
-    print("DEBUG %\n", ~cel);
     start_of_content: *u8 = (*cel.__reserved_0[4] + 1);
     width:  u16 = ~cast(*u16)(start_of_content + 0);
     height: u16 = ~cast(*u16)(start_of_content + 2);
