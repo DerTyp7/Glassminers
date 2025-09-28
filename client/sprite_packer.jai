@@ -63,7 +63,12 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     entries.allocator = *allocator;
     
     defer {
-        for i := 0; i < entries.count; ++i free_texture_data(*array_get(*entries, i).texture);
+        for i := 0; i < entries.count; ++i { 
+            // TODO(Felix): Clean this up
+            if string_ends_with(array_get(*entries, i).filepath, ".png", .Case_Insensitive) {
+                free_texture_data(*array_get(*entries, i).texture);
+            }
+        }
         destroy_memory_arena(*arena);
     };
 
@@ -154,10 +159,24 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     {
         for i := 0; i < entries.count; ++i {
             entry := array_get_pointer(*entries, i);
+            
+            found_sprite: bool = false;
+            if string_ends_with(entry.filepath, ".aseprite", .Case_Insensitive) {
+                // TODO(Felix): This is my second war crime this week
+                parsed_aseprite_file, success := load_aseprite_layer_images_from_file(*allocator, entry.filepath);
+                if success {
+                    // TODO(Felix): This is just one frame for now
+                    entry.texture.width = parsed_aseprite_file.width;
+                    entry.texture.height = parsed_aseprite_file.height;
+                    entry.texture.channels = 4; // hardcoded RGBA
+                    entry.texture.pixels = parsed_aseprite_file.layers[0].images[0]; // TODO(Felix): More flexible!
 
-            found_sprite: bool = ---;
-            entry.texture, found_sprite = load_texture_data(*allocator, entry.filepath);
-
+                    found_sprite = success;
+                }
+            } else if string_ends_with(entry.filepath, ".png", .Case_Insensitive) {
+                entry.texture, found_sprite = load_texture_data(*allocator, entry.filepath);
+            }
+            
             if !found_sprite {
                 logprint(.Error, "The source sprite file '%' does not exist!", entry.filepath);
                 result = .Complete_Failure;

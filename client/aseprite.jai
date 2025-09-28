@@ -552,6 +552,8 @@ aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []
 
 aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color_depth: Aseprite_Color_Depth,
                                  opacity_level: u8, width: u16, height: u16, aseprite_pixel_data: string) {
+    BYTES_PER_RESULT_PIXEL :: 4;
+    
     current_pixel_index: u32 = 0;
     if #complete color_depth == {
         case .RGBA;
@@ -562,7 +564,7 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
                 for x := 0; x < width; ++x {
                     pixel: Aseprite_Pixel = pixels[y*width + x];
 
-                    destination_pixel: *u8 = *image.data[y*width + x];
+                    destination_pixel: *u8 = *image.data[(y*width + x) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = pixel[0];
                     destination_pixel[1] = pixel[1];
                     destination_pixel[2] = pixel[2];
@@ -582,7 +584,7 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
                     palette_index := pixels[y*width + x];
                     assert(palette_index < palette.count, "Out of bounds palette index.");
 
-                    destination_pixel: *u8 = *image.data[y*width + x];
+                    destination_pixel: *u8 = *image.data[(y*width + x) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = palette[palette_index].r;
                     destination_pixel[1] = palette[palette_index].g;
                     destination_pixel[2] = palette[palette_index].b;

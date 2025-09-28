@@ -1,7 +1,7 @@
 #
 # HUD
 #
-Hud_Heart_Full            sprites/hud/heart-full.png
+Hud_Heart_Full            ../../aseprite/hud/heart-full.aseprite
 Hud_Heart_Damaged_0       sprites/hud/heart-damaged-0.png
 Hud_Heart_Damaged_1       sprites/hud/heart-damaged-1.png
 
@@ -25,30 +25,30 @@ Hud_Arrow        sprites/hud/Hud-Arrow.png
 #
 # Items
 #
-Coal_Item       sprites/items/coal.png
-Shard           sprites/items/shard.png
-Stone           sprites/items/stone.png
-Coin            sprites/items/coin.png
-Health_Potion   sprites/items/health-potion.png
-Strength_Potion sprites/items/strength-potion.png
+Coal_Item       ../../aseprite/items/coal.aseprite
+Shard           ../../aseprite/items/shard.aseprite
+Stone           ../../aseprite/items/stone.aseprite
+Coin            ../../aseprite/items/coin.aseprite
+Health_Potion   ../../aseprite/items/health-potion.aseprite
+Strength_Potion ../../aseprite/items/strength-potion.aseprite
 
 #
 # Debug Icons
 #
-Ghost_Mode      sprites/developer/ghost-mode.png
-Kill_Creature   sprites/developer/skull.png
+Ghost_Mode      ../../aseprite/developer/ghost-mode.aseprite
+Kill_Creature   ../../aseprite/developer/skull.aseprite
 
 #
 # Inanimates
 #
-Background   sprites/inanimates/background.png
-World_Edge   sprites/inanimates/world-edge.png
-Bedrock      sprites/inanimates/bedrock.png
-Crystal      sprites/inanimates/crystal.png
-Rock         sprites/inanimates/rock.png
-Coal_Block   sprites/inanimates/coal.png
-Emitter      sprites/inanimates/emitter.png
-Mirror       sprites/inanimates/mirror.png
+Background   ../../aseprite/inanimates/background.aseprite
+World_Edge   ../../aseprite/inanimates/world-edge.aseprite
+Bedrock      ../../aseprite/inanimates/bedrock.aseprite
+Crystal      ../../aseprite/inanimates/crystal.aseprite
+Rock         ../../aseprite/inanimates/rock.aseprite
+Coal_Block   ../../aseprite/inanimates/coal.aseprite
+Emitter      ../../aseprite/inanimates/emitter.aseprite
+Mirror       ../../aseprite/inanimates/mirror.aseprite
 Chest_Closed sprites/inanimates/chest-closed.png
 Chest_Open   sprites/inanimates/chest-open.png
 
