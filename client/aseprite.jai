@@ -1,12 +1,13 @@
 // TODO(Felix): This should probably be a compiler module or something
 
+// Aseprite stores some data in a zlib compressed format
 #load "zlib.jai";
 
-ASEPRITE_MAGIC_NUMBER_FILE_HEADER  :: 0xA5E0;
-ASEPRITE_MAGIC_NUMBER_FRAME_HEADER :: 0xF1FA;
-ASEPRITE_OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
+// -------------------------- Easy API  ---------------------------- //
 
-// Easy api
+// load_aseprite_layer_images_from_file   :: (allocator: *Allocator, path_to_file: string) -> Parsed_Aseprite_File, bool;
+// load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string)       -> Parsed_Aseprite_File, bool;
+// aseprite_print_file_structure :: (file_data: string);
 
 // Returns in RGBA
 Parsed_Aseprite_File :: struct {
@@ -20,28 +21,11 @@ Parsed_Aseprite_File :: struct {
     }
 }
 
+
 // TODO(Felix): Ideally, this would take two separate allocators:
 // - one for the temporary data, and
 // - one for the "permanent" / result data.
 // Too bad!
-
-// TODO(Felix): Need to implement zlib because aseprite files are compressed >:(
-
-// DEBUG
-#run {
-    SIMPLE_FILE_PATH      :: "/home/void/Software/Victor/Glassminers/aseprite/inanimates/bedrock.aseprite";
-    COMPLICATED_FILE_PATH :: "/home/void/Software/Victor/Glassminers/aseprite/guy/guy-walking.aseprite";
-    EXAMPLE_FILE_PATH     :: COMPLICATED_FILE_PATH;
-    
-    // TODO(Felix)
-    load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
-    
-    //file_content, success := read_entire_file(Default_Allocator, EXAMPLE_FILE_PATH);
-    //aseprite_print_file_structure(file_content);
-}
-
-#run { assert(size_of(Aseprite_File_Header) == 128, "File Header size bad"); }
-#run { assert(size_of(Aseprite_Frame_Header) == 16, "Frame Header Size bad"); }
 
 load_aseprite_layer_images_from_file :: (allocator: *Allocator, path_to_file: string) -> Parsed_Aseprite_File, bool {
     file_content, success := read_entire_file(allocator, path_to_file);
@@ -59,6 +43,7 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     result.width  = file_header.width_in_pixels;
     result.height = file_header.height_in_pixels;
     frames_count := file_header.frames;
+    
     
     // NOTE(Felix): I'm assuming that every layer has the same amount of frames.
     // Iterate over all layers of one frame once to determine the layer size
@@ -189,8 +174,7 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
         }
     }
     
-    // TODO
-    return .{}, false;
+    return result, true;
 }
 
 aseprite_print_file_structure :: (file_data: string) {
@@ -222,11 +206,17 @@ aseprite_print_file_structure :: (file_data: string) {
     print("Done.\n");
 }
 
+// -------------------------- Start of internals ---------------------------- //
 
 // File documentation
 // https://github.com/aseprite/aseprite/blob/main/docs/ase-file-specs.md
 
 // All aseprite bytes are stored in little endian.
+
+ASEPRITE_MAGIC_NUMBER_FILE_HEADER  :: 0xA5E0;
+ASEPRITE_MAGIC_NUMBER_FRAME_HEADER :: 0xF1FA;
+ASEPRITE_OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
+
 
 // -------------------------- Types ---------------------------- //
 
