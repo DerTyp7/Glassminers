@@ -570,7 +570,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
               
               /* Trader Hud */              
               case .Health_Potion;   set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
-              case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
+              case .Strength_Potion; start_strength_effect(server, guy);
               case .Shard;           put_item_in_hand(server, guy, .Shard);
               case .Coal;            put_item_in_hand(server, guy, .Coal);
             }
@@ -606,7 +606,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
       case .Give_Shard; try_to_give_item(server, guy, .Shard);
       case .Give_Stone; try_to_give_item(server, guy, .Stone);
       case .Give_Health; set_entity_health(server, guy, DEFAULT_ENTITY_HEALTH[.Guy]);
-      case .Give_Strength; guy.strength_t = STRENGTH_POTION_TIME;
+      case .Give_Strength; start_strength_effect(server, guy);
       case .Spawn_Goblin; spawn_creature_with_cheat(server, guy, .Goblin);
       case .Spawn_Frog; spawn_creature_with_cheat(server, guy, .Frog);
       case .Spawn_Slime; spawn_creature_with_cheat(server, guy, .Slime);

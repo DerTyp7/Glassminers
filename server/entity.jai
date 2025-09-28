@@ -542,6 +542,11 @@ put_item_in_hand :: (server: *Server, guy: *Guy, kind: Item_Kind) {
     broadcast_guy_state(server, guy);    
 }
 
+start_strength_effect :: (server: *Server, guy: *Guy) {
+    guy.strength_t = STRENGTH_POTION_TIME;
+    broadcast_guy_state(server, guy);
+}
+
 update_guy :: (server: *Server, guy: *Guy) {
     previous_target_position := guy.target_position;
     look_vector := vector_from_direction(guy.physical_rotation);
