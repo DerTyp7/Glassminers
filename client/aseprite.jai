@@ -60,7 +60,6 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     result.height = file_header.height_in_pixels;
     frames_count := file_header.frames;
     
-
     // NOTE(Felix): I'm assuming that every layer has the same amount of frames.
     // Iterate over all layers of one frame once to determine the layer size
     layer_count: u16;
@@ -125,6 +124,12 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                         assert(color_palette.count == 0, "Color palette already exists, we are missing logic to extend it!");
                         color_palette = aseprite_get_flattened_palette_from_old_palette_chunk(allocator, old_palette);
                         
+                    case .Palette;
+                        palette: *Aseprite_Chunk_Palette = chunk_data;
+                        assert(color_palette.count == 0, "Color palette already exists, we are missing logic to extend it!");
+                        color_palette = aseprite_get_flattened_palette_from_palette_chunk(allocator, palette);
+                        print("COLOR COUNT: %\n", color_palette.count);
+                        
                     case .Color_Profile;
                         color_profile: *Aseprite_Chunk_Color_Profile = xx chunk_data;
                         
@@ -138,15 +143,13 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                         
                         
                     case .Cel;
-                        assert(file_header.color_depth == .Indexed, "Only indexed colors are implemented.");
-                        
                         cel: *Aseprite_Chunk_Cel = xx chunk_data;
                         image: *string = *result.layers[cel.layer_index].images[frame_index];
                         
                         // This is a very limited implementation at the moment
                         if #complete cel.cel_type == {
                             case .Raw_Image_Data;
-                                aseprite_modify_image_from_raw_indexed_cel_chunk(image, color_palette, cel);
+                                aseprite_modify_image_from_raw_indexed_cel_chunk(image, color_palette, file_header.color_depth, cel);
                                 
                             case .Compressed_Image;
                                 // TODO(Felix): Can we determine the uncompressed size? That should be doable
@@ -160,13 +163,9 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                                 compressed_content: string = .{compressed_content_size, start_of_compressed_content};
                                 uncompressed_content: string = zlib_decode(compressed_content);
                                 
-                                aseprite_modify_image_index_palette_pixels(image, color_palette, cel.opacity_level, width, height, uncompressed_content);
-                                
+                                aseprite_modify_image_pixels(image, color_palette, file_header.color_depth, 
+                                                             cel.opacity_level, width, height, uncompressed_content);
                                 zlib_free_malloc_decoded(uncompressed_content);
-                                
-                                // TODO(Felix)
-                                //assert(false, "Aseprite Cel Type \"Compressed Image\" is not implemented.");
-                                return .{}, false;
                                 
                             case .Linked_Cel;
                                 assert(false, "Aseprite Cel Type \"Linked Cel\" is not implemented.");
@@ -519,35 +518,87 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
     return result;
 }
 
-aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []Palette_Entry, cel: *Aseprite_Chunk_Cel) {
+aseprite_get_flattened_palette_from_palette_chunk :: (allocator: *Allocator, chunk: *Aseprite_Chunk_Palette) -> []Palette_Entry {
+    // I think this is for combining multiple palettes - I'm not doing this for now
+    assert(chunk.first_color_index == 0, "Unexpected first color index");
+   
+    start_of_data: *u8 = (cast(*u8)chunk) + size_of(~chunk);
+    color_count := chunk.palette_size;
+    
+    result: []Palette_Entry = allocate_array(allocator, Palette_Entry, color_count);
+    
+    // TODO(Felix): This iteration needs some cleaning up.
+    
+    start_of_entry: *u8 = start_of_data;
+    for i := 0; i < result.count; ++i {
+        to_fill: *Palette_Entry = *result[i];
+        has_name: bool = ~cast(*u16)(start_of_entry + 0);
+        to_fill.r = ~cast(*u8)(start_of_entry + 2);
+        to_fill.g = ~cast(*u8)(start_of_entry + 3);
+        to_fill.b = ~cast(*u8)(start_of_entry + 4);
+        to_fill.a = ~cast(*u8)(start_of_entry + 5);
+        
+        SIZE_OF_ENTRY_WITHOUT_NAME :: 6;
+        start_of_entry += SIZE_OF_ENTRY_WITHOUT_NAME;
+        if has_name {
+            string_length: u16 = ~cast(*u16)start_of_entry;
+            start_of_entry += size_of(string_length);
+            start_of_entry += string_length;
+        }    
+    }
+    
+    return result;
+}
+
+aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []Palette_Entry, color_depth: Aseprite_Color_Depth, cel: *Aseprite_Chunk_Cel) {
     start_of_content: *u8 = (*cel.__reserved_0[4] + 1);
     width:  u16 = ~cast(*u16)(start_of_content + 0);
     height: u16 = ~cast(*u16)(start_of_content + 2);
     
-    Aseprite_Pixel :: u8; // Index into palette
-    aseprite_pixel_data: string = .{ xx (start_of_content + 4), width*height * size_of(Aseprite_Pixel) };
-    aseprite_modify_image_index_palette_pixels(image, palette, cel.opacity_level, width, height, aseprite_pixel_data);
+    aseprite_pixel_size := color_depth / 8;
+    aseprite_pixel_data: string = .{ xx (start_of_content + 4), width*height * aseprite_pixel_size };
+    aseprite_modify_image_pixels(image, palette, color_depth, cel.opacity_level, width, height, aseprite_pixel_data);
 }
 
-aseprite_modify_image_index_palette_pixels :: (image: *string, palette: []Palette_Entry, opacity_level: u8, width: u16, height: u16, aseprite_pixel_data: string) {
-    BYTES_PER_PIXEL :: 4;
-    Aseprite_Pixel :: u8; // Index into palette
-    pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
-    
+aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color_depth: Aseprite_Color_Depth,
+                                 opacity_level: u8, width: u16, height: u16, aseprite_pixel_data: string) {
     current_pixel_index: u32 = 0;
-    for y := 0; y < height; ++y {
-        for x := 0; x < width; ++x {
-            palette_index := pixels[y*width + x];
-            print("% ", palette_index);
-            assert(palette_index < palette.count, "Out of bounds palette index.");
+    if #complete color_depth == {
+        case .RGBA;
+            // Each pixel is [4]u8
+            Aseprite_Pixel :: [4]u8; // Index into palette
+            pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
+            for y := 0; y < height; ++y {
+                for x := 0; x < width; ++x {
+                    pixel: Aseprite_Pixel = pixels[y*width + x];
 
-            destination_pixel: *u8 = *image.data[y*width + x];
-            destination_pixel[0] = palette[palette_index].r;
-            destination_pixel[1] = palette[palette_index].g;
-            destination_pixel[2] = palette[palette_index].b;
-            destination_pixel[3] = opacity_level;
-        }
-        print("\n");
+                    destination_pixel: *u8 = *image.data[y*width + x];
+                    destination_pixel[0] = pixel[0];
+                    destination_pixel[1] = pixel[1];
+                    destination_pixel[2] = pixel[2];
+                    destination_pixel[3] = pixel[3];
+                }
+            }
+
+        case .Grayscale;
+            assert(false, "Grayscale color depth is not implemented!");
+            
+        case .Indexed;
+            // Each pixel is just an u8 color palette index
+            Aseprite_Pixel :: u8; // Index into palette
+            pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
+            for y := 0; y < height; ++y {
+                for x := 0; x < width; ++x {
+                    palette_index := pixels[y*width + x];
+                    assert(palette_index < palette.count, "Out of bounds palette index.");
+
+                    destination_pixel: *u8 = *image.data[y*width + x];
+                    destination_pixel[0] = palette[palette_index].r;
+                    destination_pixel[1] = palette[palette_index].g;
+                    destination_pixel[2] = palette[palette_index].b;
+                    destination_pixel[3] = opacity_level;
+                }
+            }
     }
 }
 
