@@ -395,6 +395,10 @@ remove_entity :: (server: *Server, entity: *Entity) {
     maybe_remove_blocker(*server.lightmap, entity);
 }
 
+
+
+/* --------------------------------------------- Position Queries --------------------------------------------- */
+
 find_any_entity_at_position :: (server: *Server, position: v2i) -> *Entity {
     found_entity: *Entity = null;
     
@@ -471,6 +475,9 @@ find_nearest_entity_of_kind :: (server: *Server, kind: Entity_Kind, position: v2
     return nearest_entity, nearest_distance;
 }
 
+
+/* ---------------------------------------------- Entity Movement --------------------------------------------- */
+
 update_physical_location :: (server: *Server, entity: *Entity, position: v2i, rotation: Direction) {
     something_changed := position.x != entity.physical_position.x || position.y != entity.physical_position.y || rotation != entity.physical_rotation;
 
@@ -495,10 +502,6 @@ update_physical_location :: (server: *Server, entity: *Entity, position: v2i, ro
         msg.move_entity.rotation = entity.physical_rotation;
         array_add(*server.outgoing_messages, msg);
     }
-}
-
-position_in_bounds :: (server: *Server, position: v2i) -> bool {
-    return position.x >= 0 && position.x < server.world_size.x && position.y >= 0 && position.y < server.world_size.y;
 }
 
 can_move_to_position :: (server: *Server, entity: *Entity, position: v2i, strength: s64) -> bool {
@@ -527,19 +530,7 @@ move_and_rotate_to_position :: (server: *Server, entity: *Entity, position: v2i)
 
 
 
-//
-// Derived Types
-//
-
-broadcast_guy_state :: (server: *Server, guy: *Guy) {
-    msg := make_message(Guy_State_Message);
-    msg.guy_state.entity_pid      = guy.pid;
-    msg.guy_state.state           = guy.state;
-    msg.guy_state.target_position = guy.target_position;
-    msg.guy_state.carrying_item   = guy.carrying_item;
-    msg.guy_state.strength_t      = guy.strength_t;
-    array_add(*server.outgoing_messages, msg);
-}
+/* ----------------------------------------------- Entity Logic ----------------------------------------------- */
 
 switch_guy_state :: (server: *Server, guy: *Guy, state: Guy_State) {
     if guy.state != state {
@@ -620,14 +611,6 @@ set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, 
     }
 }
 
-broadcast_chest_inventory :: (server: *Server, chest: *Chest) {
-    msg := make_message(Chest_State_Message);
-    msg.chest_state.entity_pid = chest.pid;
-    msg.chest_state.inventory = chest.inventory;
-    msg.chest_state.visually_open = chest.visually_open_counter > 0;
-    array_add(*server.outgoing_messages, msg);
-}
-
 update_powered_emitter :: (server: *Server, emitter: *Emitter) {
     clear_beam_data(*emitter.beam_data);
 
@@ -661,16 +644,6 @@ update_slab :: (server: *Server, slab: *Slab) {
         
         remove_entity(server, slab);
         create_entity(server, .Lava, lava_position, .North);
-    }
-}
-
-rotate_npc_towards_target_guy :: (server: *Server, npc: *Entity) {
-    target_guy, target_distance := find_target_guy_for_npc(server, npc.physical_position);
-
-    if target_guy {
-        delta := v2i.{ target_guy.physical_position.x - npc.physical_position.x, target_guy.physical_position.y - npc.physical_position.y };
-        rotation := direction_from_vector(delta);
-        update_physical_location(server, npc, npc.physical_position, rotation);
     }
 }
 
@@ -903,60 +876,6 @@ update_slime :: (server: *Server, slime: *Slime) {
     slime.time_since_last_move += server.tick_time;
 }
 
-manage_void_eye_lifetimes :: (server: *Server) {
-    //
-    // Remove all void eyes that are outside a shadow, and count how many void eyes are in each shadow
-    //
-    void_eyes_per_shadow := allocate_array(*temp, s64, server.lightmap.shadow_sizes.count);
-    clear_slice(void_eyes_per_shadow); // @Cleanup: Apparently the temp allocator isn't guaranteed to zero-initialize?
-
-    for i := 0; i < server.void_eyes.slot_count; ++i {
-        eye, occupied := index_bucket_array(*server.void_eyes, i);
-        if !occupied then continue;
-
-        shadow := query_shadow(*server.lightmap, eye.physical_position);
-        if shadow != NO_SHADOW {
-            set_entity_health(server, eye, eye.health + VOID_EYE_HPS_IN_DARKNESS * server.tick_time);
-            void_eyes_per_shadow[shadow] += 1;
-        } else {
-            damage_and_maybe_kill_entity(server, eye, VOID_EYE_DPS_IN_BRIGHTNESS * server.tick_time);
-        }
-    }
-
-    //
-    // Spawn a new void eye in each shadow that doesn't have one yet
-    //
-    if server.void_eyes_spawn_cooldown <= 0 {
-        server.void_eyes_spawn_accumulator += server.tick_time * VOID_EYE_SPAWN_RATE * cast(f32) server.world_size.x;
-        void_eyes_to_spawn_this_tick       := cast(s64) floor(server.void_eyes_spawn_accumulator);
-        server.void_eyes_spawn_accumulator -= xx void_eyes_to_spawn_this_tick;
-
-        for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_shadow.count; ++i {
-            shadow_size := array_get(*server.lightmap.shadow_sizes, i);
-
-            if (void_eyes_per_shadow[i] == 0 && shadow_size >= MIN_SHADOW_SIZE_FOR_VOID_EYE) ||
-               void_eyes_per_shadow[i] < shadow_size / SHADOW_SIZE_PER_VOID_EYE {
-                position := get_random_position_in_shadow(*server.lightmap, i);
-                create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
-                --void_eyes_to_spawn_this_tick;
-            }
-        }
-    } else {
-        server.void_eyes_spawn_cooldown -= server.tick_time;
-    }
-}
-
-switch_void_eye_state :: (server: *Server, eye: *Void_Eye, new_state: Void_Eye_State) {
-    if eye.state == new_state return;
-
-    eye.state = new_state;
-
-    msg := make_message(Void_Eye_State_Message);
-    msg.void_eye_state.entity_pid = eye.pid;
-    msg.void_eye_state.state = new_state;
-    array_add(*server.outgoing_messages, msg);
-}
-
 update_void_eye :: (server: *Server, eye: *Void_Eye) {
     eye.time_since_spawn += server.tick_time;
     if eye.time_since_spawn < VOID_EYE_SPAWN_TIME {
@@ -1038,217 +957,12 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
     return stack.item_kind;
 }
 
-try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind) -> bool {
-    for i := 0; i < chest.item_count; ++i {
-        if chest.item_kinds[i] == kind {
-            if i + 1 < chest.item_count copy_memory(*chest.item_kinds[i], *chest.item_kinds[i + 1], (chest.item_count - i - 1) * size_of(Item_Kind));
-            --chest.item_count;
-            broadcast_chest_inventory(server, chest);            
-            return true;
-        }
-    }
-
-    return false;
-}
-
-// This will first try to put the item on the ground, and if that doesn't work it'll try to
-// place the item inside the guy's hand. The target_guy might be standing away from the target
-// position. This could be interesting for cases where they destruct a mirror, and under the
-// mirror is already a coin item
-try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy, target_guy: *Guy) -> bool {
-    if !position_in_bounds(server, target_position) return false;
-
-    place_stack_on_ground :: () #macro {
-        stack_entity := create_entity(server, .Item_Stack, target_position, .North);
-        stack := down(stack_entity, Item_Stack);
-        stack.item_kind = kind;
-        stack.count = 1;
-
-        msg := make_message(Item_Stack_State_Message);
-        msg.item_stack_state.entity_pid = stack.pid;
-        msg.item_stack_state.item_kind  = stack.item_kind;
-        msg.item_stack_state.count      = stack.count;
-        array_add(*server.outgoing_messages, msg);
-    }
-
-    place_flag_on_ground :: () #macro {
-        flag_entity := create_entity(server, .Flag, target_position, .North);
-        server.flag_pid = flag_entity.pid;
-
-        new_score := target_position.x + 1;
-
-        if new_score > server.game_score {
-            server.game_score = new_score;
-            msg := make_message(Game_Score_Message);
-            msg.game_score.score = server.game_score;
-            array_add(*server.outgoing_messages, msg);
-        }
-    }
-
-    place_chest_on_ground :: () #macro {
-        chest_entity := create_entity(server, .Chest, target_position, .North);
-        
-        if source_guy && source_guy.state == .Carrying && source_guy.carrying_item == .Chest {
-            chest := down(chest_entity, Chest);
-            chest.inventory = source_guy.carrying_chest_inventory;
-            broadcast_chest_inventory(server, chest);
-        }
-    }
-
-    place_torch_on_ground :: () #macro {
-        create_entity(server, .Torch, target_position, .North);
-    }
-
-    internal_placing_logic :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy) -> bool {
-        //
-        // Turns out the placement logic for items is actually pretty complex (or to be fair I wanted it to be this
-        // complex). Here's a little diagram of the logic:
-        //
-        // vv ON GROUND || IN HAND >>	Resource	                Torch	                Flag	                Chest
-        // Stack                    	If Same (Not On Ground)	    No	                    Yes	                    Yes
-        // Chest	                    Inside (Not On Ground)	    Inside (Not On Ground)	No	                    No
-        // Guy	                        In Hand (Not On Ground)	    In Hand (On Ground)	    In Hand (On Ground)	    In Hand (Not On Ground)
-        // Hole	                        No	                        No	                    Yes	                    Yes
-        // Torch	                    No	                        No	                    Yes	                    Yes
-        // Flag	                        Yes	                        Yes	                    No	                    No
-        // Blocking (Non Guy / Chest)	No	                        No	                    No	                    No
-        // Empty	                    Yes	                        Yes	                    Yes	                    Yes
-        //
-        // As it is so "arbitrary", we unfortunately need this monster of a function.
-        //
-     
-        stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
-        chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
-        guy_entity   := find_entity_of_kind_at_position(server, .Guy, target_position);
-        hole_entity  := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
-        torch_entity := find_entity_of_kind_at_position(server, .Torch, target_position);
-        flag_entity  := find_entity_of_kind_at_position(server, .Flag, target_position);
-        move_blocking_entity := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
-        
-        if move_blocking_entity && (move_blocking_entity.entity_kind == .Guy || move_blocking_entity.entity_kind == .Chest) {
-            // These kinds of move-blocking entities are handled as a special case here, so ignore them.
-            // We only care about move blocking entities that should block *items* from being put on them,
-            // which is kind-of a different thing, but I don't want to create *another* entity flag just for
-            // that...
-            move_blocking_entity = null;
-        }
-
-        if move_blocking_entity {
-            // Any move blocking entity for which there's no special handling completely blocks placing
-            // down an item.    
-            return false;
-        }
-        
-        if guy_entity {
-            guy := down(guy_entity, Guy);
-            if guy.state == .Idle {
-                put_item_in_hand(server, guy, kind);
-                if source_guy {
-                    guy.carrying_chest_inventory = source_guy.carrying_chest_inventory;
-                } else {
-                    guy.carrying_chest_inventory.item_count = 0;
-                }
-                return true;
-            }
-        }
-        
-        if chest_entity {
-            chest := down(chest_entity, Chest);
-            if kind != .Flag && kind != .Chest && chest.item_count < chest.item_kinds.Capacity {
-                chest.item_kinds[chest.item_count] = kind;
-                ++chest.item_count;
-                broadcast_chest_inventory(server, chest);
-                return true;
-            }
-        }
-
-        if stack_entity {
-            stack := down(stack_entity, Item_Stack);
-            if stack.item_kind == kind && stack.count < PHYSICAL_ITEM_STACK_CAPACITY {
-                ++stack.count;
-
-                msg := make_message(Item_Stack_State_Message);
-                msg.item_stack_state.entity_pid = stack.pid;
-                msg.item_stack_state.item_kind  = stack.item_kind;
-                msg.item_stack_state.count      = stack.count;
-                array_add(*server.outgoing_messages, msg);
-                return true;
-            }
-        }
-
-        if kind == {
-          case .Torch;
-            if !stack_entity && !chest_entity && !hole_entity && !torch_entity {
-                place_torch_on_ground();
-                return true;
-            }
-
-          case .Flag;
-            if !chest_entity && !flag_entity {
-                place_flag_on_ground();
-                return true;
-            }
-        
-          case .Chest;
-            if !chest_entity && !guy_entity && !flag_entity {
-                place_chest_on_ground();
-                return true;
-            }
-
-          case;
-            if !stack_entity && !chest_entity && !guy_entity && !hole_entity && !torch_entity {
-                place_stack_on_ground();
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    success := internal_placing_logic(server, target_position, kind, source_guy);
-
-    if !success && target_guy && target_guy.state == .Idle {
-        //
-        // If we couldn't place the item onto the target position, try putting it directly
-        // into the target guy's hand (if there is a target guy...)
-        // This can for example happen when mining a mirror, but there's already an item stack on
-        // that tile.
-        //
-        put_item_in_hand(server, target_guy, kind);
-        success = true;
-    }
-    
-    return success;
-}
-
-// This will first try to put the item inside the guy's hand, and if that doesn't work it'll try to
-// place the item on the ground
-try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
-    if guy.state == .Idle {
-        put_item_in_hand(server, guy, kind);
-    } else {
-        try_to_place_item(server, guy.physical_position, kind, guy, null);
-    }
-}
-
-
-
-//
-// Helpers
-//
-
-is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, *Emitter, Direction {
-    for i := 0; i < server.emitters.slot_count; ++i {
-        emitter, occupied := index_bucket_array(*server.emitters, i);
-        if !occupied || emitter.state == .Off continue;
-
-        for j := 0; j < emitter.beam_data.fields.count; ++j {
-            field := array_get(*emitter.beam_data.fields, j);
-            if field.x == position.x && field.y == position.y return true, emitter, field.incoming_direction;
-        }
-    }
-    
-    return false, ---, ---;
+broadcast_chest_inventory :: (server: *Server, chest: *Chest) {
+    msg := make_message(Chest_State_Message);
+    msg.chest_state.entity_pid = chest.pid;
+    msg.chest_state.inventory = chest.inventory;
+    msg.chest_state.visually_open = chest.visually_open_counter > 0;
+    array_add(*server.outgoing_messages, msg);
 }
 
 
@@ -1307,6 +1021,27 @@ clear_beam_data :: (data: *Beam_Data) {
     data.fields.allocator = *temp;
 }
 
+broadcast_guy_state :: (server: *Server, guy: *Guy) {
+    msg := make_message(Guy_State_Message);
+    msg.guy_state.entity_pid      = guy.pid;
+    msg.guy_state.state           = guy.state;
+    msg.guy_state.target_position = guy.target_position;
+    msg.guy_state.carrying_item   = guy.carrying_item;
+    msg.guy_state.strength_t      = guy.strength_t;
+    array_add(*server.outgoing_messages, msg);
+}
+
+switch_void_eye_state :: (server: *Server, eye: *Void_Eye, new_state: Void_Eye_State) {
+    if eye.state == new_state return;
+
+    eye.state = new_state;
+
+    msg := make_message(Void_Eye_State_Message);
+    msg.void_eye_state.entity_pid = eye.pid;
+    msg.void_eye_state.state = new_state;
+    array_add(*server.outgoing_messages, msg);
+}
+
 find_target_guy_for_npc :: (server: *Server, npc_position: v2i) -> *Guy, s32 {
     target_guy: *Guy = null;
     target_distance: s32 = MAX_S32;
@@ -1325,6 +1060,16 @@ find_target_guy_for_npc :: (server: *Server, npc_position: v2i) -> *Guy, s32 {
     }
 
     return target_guy, target_distance;
+}
+
+rotate_npc_towards_target_guy :: (server: *Server, npc: *Entity) {
+    target_guy, target_distance := find_target_guy_for_npc(server, npc.physical_position);
+
+    if target_guy {
+        delta := v2i.{ target_guy.physical_position.x - npc.physical_position.x, target_guy.physical_position.y - npc.physical_position.y };
+        rotation := direction_from_vector(delta);
+        update_physical_location(server, npc, npc.physical_position, rotation);
+    }
 }
 
 has_line_of_sight :: (server: *Server, source: v2i, target: v2i) -> bool {

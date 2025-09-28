@@ -1,3 +1,362 @@
+setup_initial_chest_inventory :: (server: *Server) -> Item_Inventory {
+    inventory: Item_Inventory = ---;
+
+    if server.game_mode == {
+      case .Easy;   inventory = .{ 6, .[ .Coin, .Coin, .Shard, .Shard, .Coal, .Coal, ---, --- ] };
+      case .Medium; inventory = .{ 3, .[ .Coin, .Shard, .Coal, ---, ---, ---, ---, --- ] };
+      case .Hard;   inventory = .{ 1, .[ random_one_of(*server.entity_random, .[ Item_Kind.Shard, Item_Kind.Coal, Item_Kind.Coin ]), ---, ---, ---, ---, ---, ---, --- ] };
+      case; inventory = .{ };
+    }
+
+    return inventory;
+}
+
+position_in_bounds :: (server: *Server, position: v2i) -> bool {
+    return position.x >= 0 && position.x < server.world_size.x && position.y >= 0 && position.y < server.world_size.y;
+}
+
+is_emitter_beam_at :: (server: *Server, position: v2i) -> bool, *Emitter, Direction {
+    for i := 0; i < server.emitters.slot_count; ++i {
+        emitter, occupied := index_bucket_array(*server.emitters, i);
+        if !occupied || emitter.state == .Off continue;
+
+        for j := 0; j < emitter.beam_data.fields.count; ++j {
+            field := array_get(*emitter.beam_data.fields, j);
+            if field.x == position.x && field.y == position.y return true, emitter, field.incoming_direction;
+        }
+    }
+    
+    return false, ---, ---;
+}
+
+// This will first try to put the item on the ground, and if that doesn't work it'll try to
+// place the item inside the guy's hand. The target_guy might be standing away from the target
+// position. This could be interesting for cases where they destruct a mirror, and under the
+// mirror is already a coin item
+try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy, target_guy: *Guy) -> bool {
+    if !position_in_bounds(server, target_position) return false;
+
+    place_stack_on_ground :: () #macro {
+        stack_entity := create_entity(server, .Item_Stack, target_position, .North);
+        stack := down(stack_entity, Item_Stack);
+        stack.item_kind = kind;
+        stack.count = 1;
+
+        msg := make_message(Item_Stack_State_Message);
+        msg.item_stack_state.entity_pid = stack.pid;
+        msg.item_stack_state.item_kind  = stack.item_kind;
+        msg.item_stack_state.count      = stack.count;
+        array_add(*server.outgoing_messages, msg);
+    }
+
+    place_flag_on_ground :: () #macro {
+        flag_entity := create_entity(server, .Flag, target_position, .North);
+        server.flag_pid = flag_entity.pid;
+
+        new_score := target_position.x + 1;
+
+        if new_score > server.game_score {
+            server.game_score = new_score;
+            msg := make_message(Game_Score_Message);
+            msg.game_score.score = server.game_score;
+            array_add(*server.outgoing_messages, msg);
+        }
+    }
+
+    place_chest_on_ground :: () #macro {
+        chest_entity := create_entity(server, .Chest, target_position, .North);
+        
+        if source_guy && source_guy.state == .Carrying && source_guy.carrying_item == .Chest {
+            chest := down(chest_entity, Chest);
+            chest.inventory = source_guy.carrying_chest_inventory;
+            broadcast_chest_inventory(server, chest);
+        }
+    }
+
+    place_torch_on_ground :: () #macro {
+        create_entity(server, .Torch, target_position, .North);
+    }
+
+    internal_placing_logic :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy) -> bool {
+        //
+        // Turns out the placement logic for items is actually pretty complex (or to be fair I wanted it to be this
+        // complex). Here's a little diagram of the logic:
+        //
+        // vv ON GROUND || IN HAND >>	Resource	                Torch	                Flag	                Chest
+        // Stack                    	If Same (Not On Ground)	    No	                    Yes	                    Yes
+        // Chest	                    Inside (Not On Ground)	    Inside (Not On Ground)	No	                    No
+        // Guy	                        In Hand (Not On Ground)	    In Hand (On Ground)	    In Hand (On Ground)	    In Hand (Not On Ground)
+        // Hole	                        No	                        No	                    Yes	                    Yes
+        // Torch	                    No	                        No	                    Yes	                    Yes
+        // Flag	                        Yes	                        Yes	                    No	                    No
+        // Blocking (Non Guy / Chest)	No	                        No	                    No	                    No
+        // Empty	                    Yes	                        Yes	                    Yes	                    Yes
+        //
+        // As it is so "arbitrary", we unfortunately need this monster of a function.
+        //
+     
+        stack_entity := find_entity_of_kind_at_position(server, .Item_Stack, target_position);
+        chest_entity := find_entity_of_kind_at_position(server, .Chest, target_position);
+        guy_entity   := find_entity_of_kind_at_position(server, .Guy, target_position);
+        hole_entity  := find_entity_of_kind_at_position(server, .Slime_Hole, target_position);
+        torch_entity := find_entity_of_kind_at_position(server, .Torch, target_position);
+        flag_entity  := find_entity_of_kind_at_position(server, .Flag, target_position);
+        move_blocking_entity := find_entity_with_flags_at_position(server, .Blocks_Movement, target_position);
+        
+        if move_blocking_entity && (move_blocking_entity.entity_kind == .Guy || move_blocking_entity.entity_kind == .Chest) {
+            // These kinds of move-blocking entities are handled as a special case here, so ignore them.
+            // We only care about move blocking entities that should block *items* from being put on them,
+            // which is kind-of a different thing, but I don't want to create *another* entity flag just for
+            // that...
+            move_blocking_entity = null;
+        }
+
+        if move_blocking_entity {
+            // Any move blocking entity for which there's no special handling completely blocks placing
+            // down an item.    
+            return false;
+        }
+        
+        if guy_entity {
+            guy := down(guy_entity, Guy);
+            if guy.state == .Idle {
+                put_item_in_hand(server, guy, kind);
+                if source_guy {
+                    guy.carrying_chest_inventory = source_guy.carrying_chest_inventory;
+                } else {
+                    guy.carrying_chest_inventory.item_count = 0;
+                }
+                return true;
+            }
+        }
+        
+        if chest_entity {
+            chest := down(chest_entity, Chest);
+            if kind != .Flag && kind != .Chest && chest.item_count < chest.item_kinds.Capacity {
+                chest.item_kinds[chest.item_count] = kind;
+                ++chest.item_count;
+                broadcast_chest_inventory(server, chest);
+                return true;
+            }
+        }
+
+        if stack_entity {
+            stack := down(stack_entity, Item_Stack);
+            if stack.item_kind == kind && stack.count < PHYSICAL_ITEM_STACK_CAPACITY {
+                ++stack.count;
+
+                msg := make_message(Item_Stack_State_Message);
+                msg.item_stack_state.entity_pid = stack.pid;
+                msg.item_stack_state.item_kind  = stack.item_kind;
+                msg.item_stack_state.count      = stack.count;
+                array_add(*server.outgoing_messages, msg);
+                return true;
+            }
+        }
+
+        if kind == {
+          case .Torch;
+            if !stack_entity && !chest_entity && !hole_entity && !torch_entity {
+                place_torch_on_ground();
+                return true;
+            }
+
+          case .Flag;
+            if !chest_entity && !flag_entity {
+                place_flag_on_ground();
+                return true;
+            }
+        
+          case .Chest;
+            if !chest_entity && !guy_entity && !flag_entity {
+                place_chest_on_ground();
+                return true;
+            }
+
+          case;
+            if !stack_entity && !chest_entity && !guy_entity && !hole_entity && !torch_entity {
+                place_stack_on_ground();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    success := internal_placing_logic(server, target_position, kind, source_guy);
+
+    if !success && target_guy && target_guy.state == .Idle {
+        //
+        // If we couldn't place the item onto the target position, try putting it directly
+        // into the target guy's hand (if there is a target guy...)
+        // This can for example happen when mining a mirror, but there's already an item stack on
+        // that tile.
+        //
+        put_item_in_hand(server, target_guy, kind);
+        success = true;
+    }
+    
+    return success;
+}
+
+do_game_tick :: (server: *Server) {
+    read_incoming_packets(server);
+    handle_client_timeouts(server);
+
+    if !server.game_paused {
+        game_result: Game_Result = .Unfinished_Game;
+        
+        generate_next_section: bool = false;
+
+        //
+        // Update all emitters. The emitters that are off need to access the beams of the emitters
+        // that have power, so we need to update the powered emitters first to build up the beams.
+        // Otherwise we'd attempt to access the beams of the previous frames, which would cause
+        // segfaults.
+        //
+        for i := 0; i < server.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*server.emitters, i);
+            if !occupied continue;
+
+            update_powered_emitter(server, emitter);
+
+            if emitter.pid == server.latest_emitter && emitter.state == .Active then generate_next_section = true;
+        }
+
+        for i := 0; i < server.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*server.emitters, i);
+            if !occupied continue;
+
+            update_off_emitter(server, emitter);
+        }
+
+        for i := 0; i < server.torches.slot_count; ++i {
+            torch, occupied := index_bucket_array(*server.torches, i);
+            if occupied update_torch(server, torch);
+        }
+        
+        //
+        // Update all frogs, as their beams will be used for the lightmap calculation as well.
+        //
+        for i := 0; i < server.frogs.slot_count; ++i {
+            frog, occupied := index_bucket_array(*server.frogs, i);
+            if occupied update_frog(server, frog);
+        }
+        
+        update_lightmap(*server.lightmap, *server.em, server.tick_time);
+        calculate_shadows(*server.lightmap, *temp);
+
+        for i := 0; i < server.slabs.slot_count; ++i {
+            slab, occupied := index_bucket_array(*server.slabs, i);
+            if occupied update_slab(server, slab);
+        }
+
+        for i := 0; i < server.goblins.slot_count; ++i {
+            goblin, occupied := index_bucket_array(*server.goblins, i);
+            if occupied update_goblin(server, goblin);
+        }
+
+        for i := 0; i < server.slimes.slot_count; ++i {
+            slime, occupied := index_bucket_array(*server.slimes, i);
+            if occupied update_slime(server, slime);
+        }
+
+        manage_void_eye_lifetimes(server);
+        
+        for i := 0; i < server.void_eyes.slot_count; ++i {
+            eye, occupied := index_bucket_array(*server.void_eyes, i);
+            if occupied update_void_eye(server, eye);
+        }
+        
+        number_of_dead_guys := 0;
+        
+        for i := 0; i < server.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*server.guys, i);
+            if !occupied continue;
+
+            if guy.state != .Dead {
+                for input_index := 0; input_index < guy.received_inputs_count; ++input_index {
+                    handle_guy_input(server, guy, *guy.received_inputs[input_index]);
+                }
+            }
+            guy.received_inputs_count = 0;
+
+            update_guy(server, guy);
+
+            if guy.state == .Dead ++number_of_dead_guys;
+        }
+
+        for i := 0; i < server.all_entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*server.all_entities, i);
+            if !occupied continue;
+
+            if entity.entity_kind == {
+              case .Trader; update_trader(server, entity);
+              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Chest, .Flag; remove_if_in_lava(server, entity);
+            }
+
+            if entity.entity_flags & .Auto_Heal && !entity.damaged_this_frame {
+                set_entity_health(server, entity, entity.health + HEALTH_PER_HEART * server.tick_time);
+            }
+            
+            entity.damaged_this_frame = false;
+        }
+
+        //
+        // Check for game over scenarios
+        //
+        {
+            number_of_players := 0;
+            for i := 0; i < server.clients.count; ++i {
+                number_of_players += array_get(*server.clients, i).local_player_count;
+            }
+            
+            if number_of_dead_guys == number_of_players {
+                game_result = .All_Players_Died;
+            }
+        }
+        
+        if !entity_exists(server, server.flag_pid) && !is_any_guy_carrying_the_flag(server) {
+            // This means that the flag is not currently carried by any player, but it no longer
+            // physically exists, which can only mean it got killed (e.g. by lava or whatever).
+            game_result = .Flag_Was_Destroyed;
+        }
+
+        if server.game_mode == .Tutorial && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) && were_all_emitters_activated(server) {
+            game_result = .Completed_Tutorial;
+        }
+
+        //
+        // Progress through the game state
+        //
+        if game_result != .Unfinished_Game {
+            msg := make_message(Game_Over_Message);
+            msg.game_over.score  = server.game_score;
+            msg.game_over.result = game_result;
+            
+            array_add(*server.outgoing_messages, msg);
+            server.next_state = .Game_Over;
+        } else if generate_next_section {
+            generate_next_world_section(server);
+        }
+    } else if server.clients.count == 0 {
+        server.next_state = .Game_Over;
+    }
+        
+    //
+    // Send all updates to clients.
+    //
+    send_all_outgoing_messages(server);
+    
+    //
+    // Finally actually delete all marked entities
+    //
+    physically_remove_dead_entities(server);
+}
+
+
+
+#file_scope
 
 is_any_guy_carrying_the_flag :: (server: *Server) -> bool {
     found_the_flag := false;
@@ -23,20 +382,6 @@ were_all_emitters_activated :: (server: *Server) -> bool {
 
     return all_active;
 }
-
-setup_initial_chest_inventory :: (server: *Server) -> Item_Inventory {
-    inventory: Item_Inventory = ---;
-
-    if server.game_mode == {
-      case .Easy;   inventory = .{ 6, .[ .Coin, .Coin, .Shard, .Shard, .Coal, .Coal, ---, --- ] };
-      case .Medium; inventory = .{ 3, .[ .Coin, .Shard, .Coal, ---, ---, ---, ---, --- ] };
-      case .Hard;   inventory = .{ 1, .[ random_one_of(*server.entity_random, .[ Item_Kind.Shard, Item_Kind.Coal, Item_Kind.Coin ]), ---, ---, ---, ---, ---, ---, --- ] };
-      case; inventory = .{ };
-    }
-
-    return inventory;
-}
-
 
 get_available_resources_for_guy :: (server: *Server, guy: *Guy) -> [..]Item_Kind {
     result: [..]Item_Kind;
@@ -285,157 +630,68 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
 }
 }
 
-do_game_tick :: (server: *Server) {
-    read_incoming_packets(server);
-    handle_client_timeouts(server);
+manage_void_eye_lifetimes :: (server: *Server) {
+    //
+    // Remove all void eyes that are outside a shadow, and count how many void eyes are in each shadow
+    //
+    void_eyes_per_shadow := allocate_array(*temp, s64, server.lightmap.shadow_sizes.count);
+    clear_slice(void_eyes_per_shadow); // @Cleanup: Apparently the temp allocator isn't guaranteed to zero-initialize?
 
-    if !server.game_paused {
-        game_result: Game_Result = .Unfinished_Game;
-        
-        generate_next_section: bool = false;
+    for i := 0; i < server.void_eyes.slot_count; ++i {
+        eye, occupied := index_bucket_array(*server.void_eyes, i);
+        if !occupied then continue;
 
-        //
-        // Update all emitters. The emitters that are off need to access the beams of the emitters
-        // that have power, so we need to update the powered emitters first to build up the beams.
-        // Otherwise we'd attempt to access the beams of the previous frames, which would cause
-        // segfaults.
-        //
-        for i := 0; i < server.emitters.slot_count; ++i {
-            emitter, occupied := index_bucket_array(*server.emitters, i);
-            if !occupied continue;
-
-            update_powered_emitter(server, emitter);
-
-            if emitter.pid == server.latest_emitter && emitter.state == .Active then generate_next_section = true;
+        shadow := query_shadow(*server.lightmap, eye.physical_position);
+        if shadow != NO_SHADOW {
+            set_entity_health(server, eye, eye.health + VOID_EYE_HPS_IN_DARKNESS * server.tick_time);
+            void_eyes_per_shadow[shadow] += 1;
+        } else {
+            damage_and_maybe_kill_entity(server, eye, VOID_EYE_DPS_IN_BRIGHTNESS * server.tick_time);
         }
-
-        for i := 0; i < server.emitters.slot_count; ++i {
-            emitter, occupied := index_bucket_array(*server.emitters, i);
-            if !occupied continue;
-
-            update_off_emitter(server, emitter);
-        }
-
-        for i := 0; i < server.torches.slot_count; ++i {
-            torch, occupied := index_bucket_array(*server.torches, i);
-            if occupied update_torch(server, torch);
-        }
-        
-        //
-        // Update all frogs, as their beams will be used for the lightmap calculation as well.
-        //
-        for i := 0; i < server.frogs.slot_count; ++i {
-            frog, occupied := index_bucket_array(*server.frogs, i);
-            if occupied update_frog(server, frog);
-        }
-        
-        update_lightmap(*server.lightmap, *server.em, server.tick_time);
-        calculate_shadows(*server.lightmap, *temp);
-
-        for i := 0; i < server.slabs.slot_count; ++i {
-            slab, occupied := index_bucket_array(*server.slabs, i);
-            if occupied update_slab(server, slab);
-        }
-
-        for i := 0; i < server.goblins.slot_count; ++i {
-            goblin, occupied := index_bucket_array(*server.goblins, i);
-            if occupied update_goblin(server, goblin);
-        }
-
-        for i := 0; i < server.slimes.slot_count; ++i {
-            slime, occupied := index_bucket_array(*server.slimes, i);
-            if occupied update_slime(server, slime);
-        }
-
-        manage_void_eye_lifetimes(server);
-        
-        for i := 0; i < server.void_eyes.slot_count; ++i {
-            eye, occupied := index_bucket_array(*server.void_eyes, i);
-            if occupied update_void_eye(server, eye);
-        }
-        
-        number_of_dead_guys := 0;
-        
-        for i := 0; i < server.guys.slot_count; ++i {
-            guy, occupied := index_bucket_array(*server.guys, i);
-            if !occupied continue;
-
-            if guy.state != .Dead {
-                for input_index := 0; input_index < guy.received_inputs_count; ++input_index {
-                    handle_guy_input(server, guy, *guy.received_inputs[input_index]);
-                }
-            }
-            guy.received_inputs_count = 0;
-
-            update_guy(server, guy);
-
-            if guy.state == .Dead ++number_of_dead_guys;
-        }
-
-        for i := 0; i < server.all_entities.slot_count; ++i {
-            entity, occupied := index_bucket_array(*server.all_entities, i);
-            if !occupied continue;
-
-            if entity.entity_kind == {
-              case .Trader; update_trader(server, entity);
-              case .Rock, .Coal, .Crystal, .Mirror, .Item_Stack, .Chest, .Flag; remove_if_in_lava(server, entity);
-            }
-
-            if entity.entity_flags & .Auto_Heal && !entity.damaged_this_frame {
-                set_entity_health(server, entity, entity.health + HEALTH_PER_HEART * server.tick_time);
-            }
-            
-            entity.damaged_this_frame = false;
-        }
-
-        //
-        // Check for game over scenarios
-        //
-        {
-            number_of_players := 0;
-            for i := 0; i < server.clients.count; ++i {
-                number_of_players += array_get(*server.clients, i).local_player_count;
-            }
-            
-            if number_of_dead_guys == number_of_players {
-                game_result = .All_Players_Died;
-            }
-        }
-        
-        if !entity_exists(server, server.flag_pid) && !is_any_guy_carrying_the_flag(server) {
-            // This means that the flag is not currently carried by any player, but it no longer
-            // physically exists, which can only mean it got killed (e.g. by lava or whatever).
-            game_result = .Flag_Was_Destroyed;
-        }
-
-        if server.game_mode == .Tutorial && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) && were_all_emitters_activated(server) {
-            game_result = .Completed_Tutorial;
-        }
-
-        //
-        // Progress through the game state
-        //
-        if game_result != .Unfinished_Game {
-            msg := make_message(Game_Over_Message);
-            msg.game_over.score  = server.game_score;
-            msg.game_over.result = game_result;
-            
-            array_add(*server.outgoing_messages, msg);
-            server.next_state = .Game_Over;
-        } else if generate_next_section {
-            generate_next_world_section(server);
-        }
-    } else if server.clients.count == 0 {
-        server.next_state = .Game_Over;
     }
-        
+
     //
-    // Send all updates to clients.
+    // Spawn a new void eye in each shadow that doesn't have one yet
     //
-    send_all_outgoing_messages(server);
-    
-    //
-    // Finally actually delete all marked entities
-    //
-    physically_remove_dead_entities(server);
+    if server.void_eyes_spawn_cooldown <= 0 {
+        server.void_eyes_spawn_accumulator += server.tick_time * VOID_EYE_SPAWN_RATE * cast(f32) server.world_size.x;
+        void_eyes_to_spawn_this_tick       := cast(s64) floor(server.void_eyes_spawn_accumulator);
+        server.void_eyes_spawn_accumulator -= xx void_eyes_to_spawn_this_tick;
+
+        for i := 0; void_eyes_to_spawn_this_tick > 0 && i < void_eyes_per_shadow.count; ++i {
+            shadow_size := array_get(*server.lightmap.shadow_sizes, i);
+
+            if (void_eyes_per_shadow[i] == 0 && shadow_size >= MIN_SHADOW_SIZE_FOR_VOID_EYE) ||
+               void_eyes_per_shadow[i] < shadow_size / SHADOW_SIZE_PER_VOID_EYE {
+                position := get_random_position_in_shadow(*server.lightmap, i);
+                create_entity(server, .Void_Eye, position, DEFAULT_ENTITY_ROTATION[.Void_Eye]);
+                --void_eyes_to_spawn_this_tick;
+            }
+        }
+    } else {
+        server.void_eyes_spawn_cooldown -= server.tick_time;
+    }
+}
+
+// This will first try to put the item inside the guy's hand, and if that doesn't work it'll try to
+// place the item on the ground
+try_to_give_item :: (server: *Server, guy: *Guy, kind: Item_Kind) {
+    if guy.state == .Idle {
+        put_item_in_hand(server, guy, kind);
+    } else {
+        try_to_place_item(server, guy.physical_position, kind, guy, null);
+    }
+}
+
+try_to_take_item_from_chest :: (server: *Server, chest: *Chest, kind: Item_Kind) -> bool {
+    for i := 0; i < chest.item_count; ++i {
+        if chest.item_kinds[i] == kind {
+            if i + 1 < chest.item_count copy_memory(*chest.item_kinds[i], *chest.item_kinds[i + 1], (chest.item_count - i - 1) * size_of(Item_Kind));
+            --chest.item_count;
+            broadcast_chest_inventory(server, chest);            
+            return true;
+        }
+    }
+
+    return false;
 }
