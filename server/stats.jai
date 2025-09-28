@@ -25,7 +25,7 @@ increase_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_K
     should_send: bool = ---;
 
     if #complete kind == {
-      case .Completed_Moves; should_send = stat.counter % 2 == 0; // nocheckin
+      case .Completed_Moves; should_send = stat.counter % 2 == 0; // @Incomplete
     }
 
     if should_send {
@@ -40,7 +40,7 @@ increase_global_statistic :: (server: *Server, kind: Global_Stat_Kind) {
     should_send: bool = ---;
 
     if #complete kind == {
-      case .Monsters_Killed; should_send = stat.counter % 2 == 0; // nocheckin
+      case .Monsters_Killed; should_send = stat.counter % 2 == 0; // @Incomplete
     }
 
     if should_send {    

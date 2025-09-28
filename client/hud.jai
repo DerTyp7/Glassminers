@@ -448,6 +448,9 @@ draw_shadow_hud :: (client: *Client, local_player: *Local_Player) {
 /* ------------------------------------------------- Stat Hud ------------------------------------------------- */
 
 Stat_Message :: struct {
+    player_kind: Player_Stat_Kind;
+    global_kind: Global_Stat_Kind;
+    is_global: bool;
     text: string;
     time_left_in_seconds: f32;
 }
@@ -461,16 +464,42 @@ reset_stat_hud :: (client: *Client) {
     client.stat_hud.active_message_count = 0;
 }
 
-add_stat_message :: (client: *Client, text: string) {
-    // @Incomplete: If we already have a message of the same stat, then overwrite that one instead of adding a new...
-    
-    if client.stat_hud.active_message_count == client.stat_hud.messages.Capacity {
-        remove_first_stat_message(client);
+add_player_stat_message :: (client: *Client, player_name: string, kind: Player_Stat_Kind, stat: Statistic) {
+    hud := *client.stat_hud;
+    text := format_player_stat(*client.world_allocator, player_name, kind, stat);
+
+    found_existing := false;
+
+    for i := 0; i < hud.active_message_count; ++i {
+        if !hud.messages[i].is_global && hud.messages[i].player_kind == kind {
+            replace_stat_message(client, hud, i, text);
+            found_existing = true;
+            break;
+        }
     }
 
-    client.stat_hud.messages[client.stat_hud.active_message_count].text = text;
-    client.stat_hud.messages[client.stat_hud.active_message_count].time_left_in_seconds = 5;
-    ++client.stat_hud.active_message_count;
+    if !found_existing {
+        add_stat_message(client, text, kind, ---, false);
+    }
+}
+
+add_global_stat_message :: (client: *Client, kind: Global_Stat_Kind, stat: Statistic) {
+    hud := *client.stat_hud;
+    text := format_global_stat(*client.world_allocator, kind, stat);
+
+    found_existing := false;
+
+    for i := 0; i < hud.active_message_count; ++i {
+        if hud.messages[i].is_global && hud.messages[i].global_kind == kind {
+            replace_stat_message(client, hud, i, text);
+            found_existing = true;
+            break;
+        }
+    }
+
+    if !found_existing {
+        add_stat_message(client, text, ---, kind, true);
+    }
 }
 
 draw_stat_hud :: (client: *Client) {
@@ -483,7 +512,7 @@ draw_stat_hud :: (client: *Client) {
             message.time_left_in_seconds -= client.tick_time;
         }
 
-        WIDTH:        f32 : 380; // 360; // nocheckin
+        WIDTH:        f32 : 370;
         HEIGHT:       f32 : 64;
         TEXT_WIDTH:   f32 : WIDTH - 20;
         BANNER_WIDTH: f32 : 10;
@@ -504,7 +533,7 @@ draw_stat_hud :: (client: *Client) {
         {
             text_view := message.text;
             while text_view.count {
-                line_end := find_line_wrapping_point(*client.ui_font, text_view, xx WIDTH - 20, true); // nocheckin actually implement word wrapping
+                line_end := find_line_wrapping_point(*client.ui_font, text_view, xx WIDTH - 20, true);
                 line_view := substring_view(text_view, 0, line_end);
                 array_add(*lines, line_view);
                 text_view = substring_view(text_view, line_end, text_view.count);
@@ -767,8 +796,29 @@ draw_curve :: (client: *Client, hud: *Hud, radius: f32, theta0, theta1: f32) {
 
 /* ------------------------------------------------- Stat Hud ------------------------------------------------- */
 
+STAT_MESSAGE_DURATION: f32 : 5;
+
 remove_first_stat_message :: (client: *Client) {
     deallocate_string(*client.world_allocator, *client.stat_hud.messages[0].text);
     copy_memory(*client.stat_hud.messages[0], *client.stat_hud.messages[1], (client.stat_hud.active_message_count - 1) * size_of(Stat_Message));
     --client.stat_hud.active_message_count;
+}
+
+replace_stat_message :: (client: *Client, hud: *Stat_Hud, index: s64, text: string) {
+    deallocate_string(*client.world_allocator, *hud.messages[index].text);
+    hud.messages[index].text = text;
+    hud.messages[index].time_left_in_seconds = STAT_MESSAGE_DURATION;
+}
+
+add_stat_message :: (client: *Client, text: string, player_kind: Player_Stat_Kind, global_kind: Global_Stat_Kind, is_global: bool) {
+    if client.stat_hud.active_message_count == client.stat_hud.messages.Capacity {
+        remove_first_stat_message(client);
+    }
+
+    client.stat_hud.messages[client.stat_hud.active_message_count].player_kind = player_kind;
+    client.stat_hud.messages[client.stat_hud.active_message_count].global_kind = global_kind;
+    client.stat_hud.messages[client.stat_hud.active_message_count].is_global = is_global;
+    client.stat_hud.messages[client.stat_hud.active_message_count].text = text;
+    client.stat_hud.messages[client.stat_hud.active_message_count].time_left_in_seconds = STAT_MESSAGE_DURATION;
+    ++client.stat_hud.active_message_count;
 }

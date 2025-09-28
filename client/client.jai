@@ -507,10 +507,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Player_Stat;
         name := find_player_name_from_guy_pid(client, msg.player_stat.guy_pid);
-        add_stat_message(client, format_player_stat(*client.world_allocator, name, msg.player_stat.kind, msg.player_stat.stat));
+        add_player_stat_message(client, name, msg.player_stat.kind, msg.player_stat.stat);
 
       case .Global_Stat;
-        add_stat_message(client, format_global_stat(*client.world_allocator, msg.global_stat.kind, msg.global_stat.stat));
+        add_global_stat_message(client, msg.global_stat.kind, msg.global_stat.stat);
 
       case .World_Resize;
         client.world_size = msg.world_resize.new_world_size;
