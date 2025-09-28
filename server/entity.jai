@@ -957,6 +957,18 @@ take_item_from_stack :: (server: *Server, stack: *Item_Stack) -> Item_Kind {
     return stack.item_kind;
 }
 
+update_visual_chest_state :: (server: *Server, chest: *Chest, visually_open: bool) {
+    visually_open_before := chest.visually_open_counter > 0;
+
+    if visually_open {
+        ++chest.visually_open_counter;
+    } else {
+        --chest.visually_open_counter;
+    }
+
+    if chest.visually_open_counter > 0 != visually_open_before then broadcast_chest_inventory(server, chest); // Notify the clients that the visual openess of the chest has changed...
+}
+
 broadcast_chest_inventory :: (server: *Server, chest: *Chest) {
     msg := make_message(Chest_State_Message);
     msg.chest_state.entity_pid = chest.pid;

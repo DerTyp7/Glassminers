@@ -242,16 +242,7 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
       case .Chest_State;
         entity := get_entity(server, msg.chest_state.entity_pid);
         chest := down(entity, Chest);
-
-        visually_open_before := chest.visually_open_counter > 0;
-
-        if msg.chest_state.visually_open {
-            ++chest.visually_open_counter;
-        } else {
-            --chest.visually_open_counter;
-        }
-
-        if chest.visually_open_counter > 0 != visually_open_before then broadcast_chest_inventory(server, chest); // Notify the clients that the visual openess of the chest has changed...
+        update_visual_chest_state(server, chest, msg.chest_state.visually_open);
     }
 }    
 

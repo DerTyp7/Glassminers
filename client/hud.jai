@@ -609,17 +609,6 @@ hud_option_should_succeed :: (client: *Client, local_player: *Local_Player, opti
     return success;
 }
 
-crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool { // The server is in charge here, but we'll do a heuristic for player feedback
-    // Check that the target position is free if required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Crafting, guy.target_position) return false;
-
-    // Check that the guy has the required resources available
-    available_resources := get_available_resources_for_guy(client, guy);
-    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
-
-    return true;
-}
-
 crafting_recipe_is_enabled :: (client: *Client, local_player: *Local_Player, recipe: Crafting_Recipe) -> bool {
     hud := *local_player.hud;
 
