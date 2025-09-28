@@ -97,11 +97,65 @@ crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_
     return true;
 }
 
+start_the_game :: (client: *Client, game_info: Game_Start_Message) {
+    client.pause_menu_open    = false;
+    client.server_paused_game = false;
+    client.game_seed  = game_info.seed;
+    client.world_size = game_info.size;
+    client.game_mode  = game_info.game_mode;
+    initiate_state_transition(client, .Ingame, 0);
+
+#if DEVELOPER  clear_message_histories(client);
+
+    reset_stat_hud(client);
+
+    seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
+    initialize_random_sounds(client);
+    create_entity_manager(client);
+    create_particle_manager(client);
+    create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
+            
+    for i := 0; i < client.local_player_count; ++i {
+        create_hud(client, i);
+        client.local_players[i].guy_pid = INVALID_PID;
+    }
+    
+    // Create the dust particles
+    {
+        system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
+        emitter := create_particle_emitter(system, 0, client.world_size.x * 10);
+        emitter.shape = .Box;
+        emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
+        emitter.random_initial_velocity = true;
+        emitter.turbulence = 0.001;
+        emitter.fadein     = 1;
+        emitter.fadeout    = 3;
+        emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
+        emitter.speed      = .[ 0.05, 0.2 ];
+        emitter.lifetime   = .[ 2, 10 ];
+        emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
+        emitter.particles_per_second = xx client.world_size.x;
+        
+        prewarm_particle_system(system, 5, 0.1);
+
+        client.global_particle_system = system.pid;
+    }
+
+    request_tutorial_panel(client, .About_Tutorial_Panels);
+    recalculate_local_player_viewports(client);
+
+    // Reset debug settings
+    #if DEVELOPER {
+        client.developer_panel_state = .Closed;
+        client.free_camera_enabled = false;
+    }
+}
+
 do_game_tick :: (client: *Client) {
     read_incoming_packets(client);
     handle_server_timeout(client, .Game_Over, "");
 
-    recalculate_local_player_viewports(client);
+    if client.window.resized_this_frame recalculate_local_player_viewports(client);
     reassign_gamepad_indices(client);
 
     //    
@@ -400,6 +454,14 @@ recalculate_local_player_viewports :: (client: *Client) {
         client.local_players[1].viewport = .[ center_x, 0, xx client.window.w, center_y ];
         client.local_players[2].viewport = .[ 0, center_y, center_x, xx client.window.h ];
         client.local_players[3].viewport = .[ center_x, center_y, xx client.window.w, xx client.window.h ];
+    }
+
+    for i := 0; i < client.local_player_count; ++i {
+        local_player := *client.local_players[i];
+        if entity_exists(client, local_player.guy_pid) {
+            entity := get_entity(client, local_player.guy_pid);
+            update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
+        }
     }
 }
 

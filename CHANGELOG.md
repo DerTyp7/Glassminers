@@ -1,6 +1,6 @@
 ## 0.4.2 (unreleased)
 
-- Fixed the viewport being wrong for the local player on the right in fullscreen mode
+- Fixed the viewport sometimes not being calculated correctly
 - Fixed the particles for the strength effect starting late
 
 ## 0.4.1 (26.09.2025)

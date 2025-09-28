@@ -33,6 +33,8 @@
 #load "hud.jai";
 #load "draw.jai";
 
+GE_ACTIVE_BACKEND :: GE_Backend.GL_Modern;
+
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 MEMORY_DEBUGGING :: false;
 BAKE_ASSETS :: !DEVELOPER;
@@ -445,57 +447,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         toggle_all_game_sounds(client, client.server_paused_game);
         
       case .Game_Start;
-        client.pause_menu_open = false;
-        client.server_paused_game = false;
-        client.game_seed  = msg.game_start.seed;
-        client.world_size = msg.game_start.size;
-        client.game_mode  = msg.game_start.game_mode;
-        initiate_state_transition(client, .Ingame, 0);
+        start_the_game(client, msg.game_start);
 
-#if DEVELOPER  clear_message_histories(client);
-
-        reset_stat_hud(client);
-
-        seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
-        initialize_random_sounds(client);
-        create_entity_manager(client);
-        create_particle_manager(client);
-        create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
-        
-        for i := 0; i < client.local_player_count; ++i {
-            create_hud(client, i);
-            client.local_players[i].guy_pid = INVALID_PID;
-        }
-        
-        // Create the dust particles
-        {
-            system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
-            emitter := create_particle_emitter(system, 0, client.world_size.x * 10);
-            emitter.shape = .Box;
-            emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
-            emitter.random_initial_velocity = true;
-            emitter.turbulence = 0.001;
-            emitter.fadein     = 1;
-            emitter.fadeout    = 3;
-            emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
-            emitter.speed      = .[ 0.05, 0.2 ];
-            emitter.lifetime   = .[ 2, 10 ];
-            emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
-            emitter.particles_per_second = xx client.world_size.x;
-            
-            prewarm_particle_system(system, 5, 0.1);
-
-            client.global_particle_system = system.pid;
-        }
-
-        request_tutorial_panel(client, .About_Tutorial_Panels);
-        
-        // Reset debug settings
-        #if DEVELOPER {
-            client.developer_panel_state = .Closed;
-            client.free_camera_enabled = false;
-        }
-        
       case .Game_Over;
         client.game_score = msg.game_over.score;
         client.previous_game_result = msg.game_over.result;
@@ -539,15 +492,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         }
 
         maybe_remove_blocker(*client.lightmap, entity);
-
-        // edge-case: Update hole entity in case slime got killed in hole
-        // (currently only possible with cheat)
-        if entity.entity_kind == .Slime {
-            hole_entity := find_entity_of_kind_at_position(client, .Slime_Hole, entity.physical_position);
-            if hole_entity != null {
-                update_slime_hole(client, hole_entity);
-            }
-        }
         
       case .Move_Entity;
         entity := get_entity(client, msg.move_entity.entity_pid);
@@ -985,7 +929,7 @@ do_main_menu :: (client: *Client) {
         ui_divider(ui, true);
 
         if client.server_data.state == .Closed && ui_button(ui, "Play!") && host_server(client, DEFAULT_PORT) {
-            join_server(client, "YOU", "localhost", DEFAULT_PORT);
+            join_server(client, client.ui_state.account_name, "localhost", DEFAULT_PORT);
             client.immediately_start_game = true;
         }
         

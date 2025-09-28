@@ -291,16 +291,10 @@ draw_player_hud :: (client: *Client, local_player: *Local_Player) {
         draw_text_screen_space(client, font, "Spectating", position, .Center | .Median, GRAY_COLOR, .Default);
         position.y += cast(f32) font.line_height;
 
-        player_name_text: string;
+        player_name_text: string = find_player_name_from_guy_pid(client, local_player.entity_tracked_by_camera);
 
         // Draw the player name
         {            
-            if local_player.guy_pid == local_player.entity_tracked_by_camera {
-                player_name_text = "YOU";
-            } else {
-                player_name_text = find_player_name_from_guy_pid(client, local_player.entity_tracked_by_camera);
-            }
-
             spectated_guy := down(get_entity(client, local_player.entity_tracked_by_camera), Guy);
             if spectated_guy.state == .Dead {
                 player_name_text = concatenate_strings(*temp, player_name_text, " (DEAD)");
