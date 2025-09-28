@@ -489,6 +489,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
           case .Frog;   play_sound_on_entity(client, .Frog_Death_0,   entity, .Once_Per_Frame);
           case .Goblin; play_sound_on_entity(client, .Goblin_Death_0, entity, .Once_Per_Frame);
           case .Slime;  play_sound_on_entity(client, .Slime_Death_0,  entity, .Once_Per_Frame);
+          case .Trader; play_sound_on_entity(client, .Trader_Death_0, entity, .Once_Per_Frame);
         }
 
         maybe_remove_blocker(*client.lightmap, entity);
@@ -522,23 +523,27 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         // Play damage sounds
         sound_index: Sound_Index = .Count;
-        
-        if entity.entity_kind == {
-          case .Frog;   sound_index = .Frog_Hurt_0;
-          case .Goblin; sound_index = .Goblin_Hurt_0;
-          case .Slime;  sound_index = .Slime_Hurt_0;
-        }
 
         dropped_heart := floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART);
         gained_heart  := floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART);
-        
-        if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound) {
-            entity.sound          = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
-            entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
-        }
 
-        // Play a potential damage animation
         if msg.entity_health.new_health < entity.health {
+            // Play a hurt sound
+            if dropped_heart {
+                if entity.entity_kind == {
+                case .Frog;   sound_index = .Frog_Hurt_0;
+                case .Goblin; sound_index = .Goblin_Hurt_0;
+                case .Slime;  sound_index = .Slime_Hurt_0;
+                case .Trader; sound_index = .Trader_Hurt_0;
+                }
+            }
+        
+            if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound) {
+                entity.sound          = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
+                entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
+            }
+
+            // Play a damaged animation
             if entity.entity_kind == {
               case .Guy; maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Damaged);
               case .Goblin; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Damaged);

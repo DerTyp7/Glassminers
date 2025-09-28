@@ -3,6 +3,7 @@
 Added tracking of statistics.
 These will sometimes be shown on a pop-up box for the players for entertainment value.
 
+- Added idle, hurt and death sound effects to the trader
 - Fixed the viewport sometimes not being calculated correctly
 - Fixed the particles for the strength effect starting late
 
