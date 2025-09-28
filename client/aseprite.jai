@@ -34,10 +34,10 @@ Parsed_Aseprite_File :: struct {
     EXAMPLE_FILE_PATH     :: COMPLICATED_FILE_PATH;
     
     // TODO(Felix)
-    //load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
+    load_aseprite_layer_images_from_file(Default_Allocator, EXAMPLE_FILE_PATH);
     
-    file_content, success := read_entire_file(Default_Allocator, EXAMPLE_FILE_PATH);
-    aseprite_print_file_structure(file_content);
+    //file_content, success := read_entire_file(Default_Allocator, EXAMPLE_FILE_PATH);
+    //aseprite_print_file_structure(file_content);
 }
 
 #run { assert(size_of(Aseprite_File_Header) == 128, "File Header size bad"); }
@@ -149,7 +149,23 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                                 aseprite_modify_image_from_raw_indexed_cel_chunk(image, color_palette, cel);
                                 
                             case .Compressed_Image;
-                                assert(false, "Aseprite Cel Type \"Compressed Image\" is not implemented.");
+                                // TODO(Felix): Can we determine the uncompressed size? That should be doable
+                                
+                                start_of_content: *u8 = (*cel.__reserved_0[4] + 1);
+                                width:  u16 = ~cast(*u16)(start_of_content + 0);
+                                height: u16 = ~cast(*u16)(start_of_content + 2);
+                                start_of_compressed_content: *u8 = xx (start_of_content + 4);
+                                compressed_content_size := chunk_header.chunk_size - size_of(~cel) - 2*size_of(u16);
+                                
+                                compressed_content: string = .{compressed_content_size, start_of_compressed_content};
+                                uncompressed_content: string = zlib_decode(compressed_content);
+                                
+                                aseprite_modify_image_index_palette_pixels(image, color_palette, cel.opacity_level, width, height, uncompressed_content);
+                                
+                                zlib_free_malloc_decoded(uncompressed_content);
+                                
+                                // TODO(Felix)
+                                //assert(false, "Aseprite Cel Type \"Compressed Image\" is not implemented.");
                                 return .{}, false;
                                 
                             case .Linked_Cel;
@@ -508,10 +524,16 @@ aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []
     width:  u16 = ~cast(*u16)(start_of_content + 0);
     height: u16 = ~cast(*u16)(start_of_content + 2);
     
-    BYTES_PER_PIXEL :: 4;
-
     Aseprite_Pixel :: u8; // Index into palette
-    pixels: *Aseprite_Pixel = xx (start_of_content + 4);
+    aseprite_pixel_data: string = .{ xx (start_of_content + 4), width*height * size_of(Aseprite_Pixel) };
+    aseprite_modify_image_index_palette_pixels(image, palette, cel.opacity_level, width, height, aseprite_pixel_data);
+}
+
+aseprite_modify_image_index_palette_pixels :: (image: *string, palette: []Palette_Entry, opacity_level: u8, width: u16, height: u16, aseprite_pixel_data: string) {
+    BYTES_PER_PIXEL :: 4;
+    Aseprite_Pixel :: u8; // Index into palette
+    pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
+    
     current_pixel_index: u32 = 0;
     for y := 0; y < height; ++y {
         for x := 0; x < width; ++x {
@@ -523,7 +545,7 @@ aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []
             destination_pixel[0] = palette[palette_index].r;
             destination_pixel[1] = palette[palette_index].g;
             destination_pixel[2] = palette[palette_index].b;
-            destination_pixel[3] = cel.opacity_level;
+            destination_pixel[3] = opacity_level;
         }
         print("\n");
     }
