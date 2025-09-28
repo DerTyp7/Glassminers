@@ -453,12 +453,13 @@ Stat_Message :: struct {
     is_global: bool;
     text: string;
     time_left_in_seconds: f32;
-    animation_t: f32;
+    alive_time_in_seconds : f32; // We're resetting the time_left_in_seconds when replacing the message content, which would mess with our text_animation_t.
 }
 
 Stat_Hud :: struct {
     messages: [4]Stat_Message; // We only want to show one stat at a time. If however multiple stats are received at the same time, we want to remember those for later... We're just assuming we're never going to have more than 4 stats received at once, to avoid dynamic allocation here...
     active_message_count: s64;
+    background_animation_t: f32;
 }
 
 reset_stat_hud :: (client: *Client) {
@@ -504,28 +505,37 @@ add_global_stat_message :: (client: *Client, kind: Global_Stat_Kind, stat: Stati
 }
 
 draw_stat_hud :: (client: *Client) {
-    // @Incomplete: Animate the box in / out... Same with the text
     hud := *client.stat_hud;
+
+    ANIMATION_TIME: f32 : 0.2;
+    animation_speed: f32 = client.tick_time / ANIMATION_TIME;
+
+    if hud.active_message_count > 0 && hud.messages[hud.active_message_count - 1].time_left_in_seconds >= ANIMATION_TIME {
+        hud.background_animation_t = clamp(hud.background_animation_t + animation_speed, 0, 1);
+    } else {
+        hud.background_animation_t = clamp(hud.background_animation_t - animation_speed, 0, 1);
+    }
+
     if hud.active_message_count == 0 return;
 
     message := *client.stat_hud.messages[0];
 
     if !client.server_paused_game {
-        message.time_left_in_seconds -= client.tick_time;
+        message.time_left_in_seconds  -= client.tick_time;
+        message.alive_time_in_seconds += client.tick_time;
     }
+
+    text_animation_t := min(smoothstep(message.alive_time_in_seconds, 0, ANIMATION_TIME), smoothstep(message.time_left_in_seconds, 0, ANIMATION_TIME));
 
     WIDTH:        f32 : 370;
     HEIGHT:       f32 : 64;
     TEXT_WIDTH:   f32 : WIDTH - 20;
     BANNER_WIDTH: f32 : 10;
 
-    ANIMATION_TIME: f32 : 0.2;
-    message.animation_t = min(smoothstep(message.time_left_in_seconds, 0, ANIMATION_TIME), 1 - smoothstep(message.time_left_in_seconds, STAT_MESSAGE_DURATION - ANIMATION_TIME, STAT_MESSAGE_DURATION));
-
-    top_left            := v2f.{ xx client.window.w - WIDTH * message.animation_t, xx client.window.h * 0.2 };
+    top_left            := v2f.{ xx client.window.w - WIDTH * hud.background_animation_t, xx client.window.h * 0.2 };
     banner_bottom_right := v2f.{ top_left.x + BANNER_WIDTH, top_left.y + HEIGHT };
     bottom_right        := v2f.{ top_left.x + WIDTH, top_left.y + HEIGHT };
-    text_position       := v2f.{ xx client.window.w - TEXT_WIDTH * message.animation_t, (top_left.y + bottom_right.y) * 0.5 };
+    text_position       := v2f.{ xx client.window.w - TEXT_WIDTH * text_animation_t, (top_left.y + bottom_right.y) * 0.5 };
 
     draw_rect_screen_space(client, top_left, bottom_right, .{ DARK_GRAY_COLOR.r, DARK_GRAY_COLOR.g, DARK_GRAY_COLOR.b, 200 });
     draw_rect_screen_space(client, top_left, banner_bottom_right, ORANGE_COLOR);
@@ -823,5 +833,6 @@ add_stat_message :: (client: *Client, text: string, player_kind: Player_Stat_Kin
     client.stat_hud.messages[client.stat_hud.active_message_count].is_global = is_global;
     client.stat_hud.messages[client.stat_hud.active_message_count].text = text;
     client.stat_hud.messages[client.stat_hud.active_message_count].time_left_in_seconds = STAT_MESSAGE_DURATION;
+    client.stat_hud.messages[client.stat_hud.active_message_count].alive_time_in_seconds = 0;
     ++client.stat_hud.active_message_count;
 }
