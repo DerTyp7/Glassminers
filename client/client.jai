@@ -521,20 +521,18 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
 
-        // Play damage sounds
-        sound_index: Sound_Index = .Count;
-
         dropped_heart := floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART);
         gained_heart  := floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART);
 
         if msg.entity_health.new_health < entity.health {
-            // Play a hurt sound
+            // Play a damaged sound
+            sound_index: Sound_Index = .Count;
             if dropped_heart {
                 if entity.entity_kind == {
-                case .Frog;   sound_index = .Frog_Hurt_0;
-                case .Goblin; sound_index = .Goblin_Hurt_0;
-                case .Slime;  sound_index = .Slime_Hurt_0;
-                case .Trader; sound_index = .Trader_Hurt_0;
+                case .Frog;   sound_index = .Frog_Damaged_0;
+                case .Goblin; sound_index = .Goblin_Damaged_0;
+                case .Slime;  sound_index = .Slime_Damaged_0;
+                case .Trader; sound_index = .Trader_Damaged_0;
                 }
             }
         

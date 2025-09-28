@@ -12,8 +12,6 @@ Play_Sound_Flags :: enum bitfield {
     Fade_Out;
 }
 
-// @Cleanup: The animations are called "damaged", so the sounds should be too...
-
 Sound_Index :: enum {
     Hud_Pickup_0;
     Hud_Placedown_0;
@@ -30,21 +28,21 @@ Sound_Index :: enum {
     Rock_Sliding_0;
 
     Guy_Digging_0;
+    Guy_Death_0;
     Guy_Walk_0;
     Guy_Walk_1;
-    Guy_Death_0;
         
     Frog_Attack_0;
-    Frog_Hurt_0;
+    Frog_Damaged_0;
     Frog_Death_0;
     Frog_Idle_0;
     
     Goblin_Attack_0;
-    Goblin_Hurt_0;
+    Goblin_Damaged_0;
     Goblin_Death_0;
     Goblin_Idle_0;
     
-    Slime_Hurt_0;
+    Slime_Damaged_0;
     Slime_Death_0;
     Slime_Scared_0;
     Slime_Walk_0;
@@ -57,7 +55,7 @@ Sound_Index :: enum {
     Void_Eye_Move_2;
     Void_Eye_Attack_0;
 
-    Trader_Hurt_0;
+    Trader_Damaged_0;
     Trader_Death_0;
     Trader_Idle_0;
 }
@@ -78,21 +76,21 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "rock-sliding-0",
 
     "guy-digging-0",
+    "guy-death-0",
     "guy-walk-0",
     "guy-walk-1",
-    "guy-death-0",
 
     "frog-attack-0",
-    "frog-hurt-0",
+    "frog-damaged-0",
     "frog-death-0",
     "frog-idle-0",
 
     "goblin-attack-0",
-    "goblin-hurt-0",
+    "goblin-damaged-0",
     "goblin-death-0",
     "goblin-idle-0",
 
-    "slime-hurt-0",
+    "slime-damaged-0",
     "slime-death-0",
     "slime-scared-0",
     "slime-walk-0",
@@ -105,7 +103,7 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "void-eye-move-2",
     "void-eye-attack-0",
 
-    "trader-hurt-0",
+    "trader-damaged-0",
     "trader-death-0",
     "trader-idle-0",
 ];
@@ -374,5 +372,5 @@ find_entity_to_play_random_sound :: (client: *Client, sound: *Random_Sound) -> *
     random_player_index := rdtsc() % client.local_player_count;
     target_guy := get_entity(client, client.local_players[random_player_index].guy_pid);
     entity, distance := find_nearest_entity_of_kind(client, sound.play_on_entity_kind, target_guy.physical_position);
-    return ifx !sound_active(client, entity.sound) then entity else null;
+    return ifx entity != null && !sound_active(client, entity.sound) then entity else null;
 }
