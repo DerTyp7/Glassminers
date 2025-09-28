@@ -453,6 +453,7 @@ Stat_Message :: struct {
     is_global: bool;
     text: string;
     time_left_in_seconds: f32;
+    animation_t: f32;
 }
 
 Stat_Hud :: struct {
@@ -504,50 +505,52 @@ add_global_stat_message :: (client: *Client, kind: Global_Stat_Kind, stat: Stati
 
 draw_stat_hud :: (client: *Client) {
     // @Incomplete: Animate the box in / out... Same with the text
+    hud := *client.stat_hud;
+    if hud.active_message_count == 0 return;
 
-    if client.stat_hud.active_message_count {
-        message := *client.stat_hud.messages[0];
+    message := *client.stat_hud.messages[0];
 
-        if !client.server_paused_game {
-            message.time_left_in_seconds -= client.tick_time;
-        }
-
-        WIDTH:        f32 : 370;
-        HEIGHT:       f32 : 64;
-        TEXT_WIDTH:   f32 : WIDTH - 20;
-        BANNER_WIDTH: f32 : 10;
-
-        top_left := v2f.{ xx client.window.w - WIDTH, xx client.window.h * 0.2 };
-        banner_bottom_right := v2f.{ top_left.x + BANNER_WIDTH, top_left.y + HEIGHT };
-        bottom_right := v2f.{ top_left.x + WIDTH, top_left.y + HEIGHT };
-
-        text_position := v2f.{ banner_bottom_right.x + 10, (top_left.y + bottom_right.y) * 0.5 };
-
-        draw_rect_screen_space(client, top_left, bottom_right, DARK_CYAN_COLOR);
-        draw_rect_screen_space(client, top_left, banner_bottom_right, ORANGE_COLOR);
-
-        // Calculate the number of lines we'll have
-        lines: [..]string;
-        lines.allocator = *temp;
-
-        {
-            text_view := message.text;
-            while text_view.count {
-                line_end := find_line_wrapping_point(*client.ui_font, text_view, xx WIDTH - 20, true);
-                line_view := substring_view(text_view, 0, line_end);
-                array_add(*lines, line_view);
-                text_view = substring_view(text_view, line_end, text_view.count);
-            }
-        }
-
-        for i := 0; i < lines.count; ++i {
-            vertical_offset: f32 = cast(f32) client.ui_font.line_height * cast(f32) (i * 2 - (lines.count - 1)) * 0.5;
-            line_position := v2f.{ text_position.x, text_position.y + vertical_offset };
-            draw_text_screen_space(client, *client.ui_font, array_get(*lines, i), line_position, .Left | .Median, WHITE_COLOR, .Default);
-        }
-
-        if message.time_left_in_seconds < 0 then remove_first_stat_message(client);
+    if !client.server_paused_game {
+        message.time_left_in_seconds -= client.tick_time;
     }
+
+    WIDTH:        f32 : 370;
+    HEIGHT:       f32 : 64;
+    TEXT_WIDTH:   f32 : WIDTH - 20;
+    BANNER_WIDTH: f32 : 10;
+
+    ANIMATION_TIME: f32 : 0.2;
+    message.animation_t = min(smoothstep(message.time_left_in_seconds, 0, ANIMATION_TIME), 1 - smoothstep(message.time_left_in_seconds, STAT_MESSAGE_DURATION - ANIMATION_TIME, STAT_MESSAGE_DURATION));
+
+    top_left            := v2f.{ xx client.window.w - WIDTH * message.animation_t, xx client.window.h * 0.2 };
+    banner_bottom_right := v2f.{ top_left.x + BANNER_WIDTH, top_left.y + HEIGHT };
+    bottom_right        := v2f.{ top_left.x + WIDTH, top_left.y + HEIGHT };
+    text_position       := v2f.{ xx client.window.w - TEXT_WIDTH * message.animation_t, (top_left.y + bottom_right.y) * 0.5 };
+
+    draw_rect_screen_space(client, top_left, bottom_right, .{ DARK_GRAY_COLOR.r, DARK_GRAY_COLOR.g, DARK_GRAY_COLOR.b, 200 });
+    draw_rect_screen_space(client, top_left, banner_bottom_right, ORANGE_COLOR);
+
+    // Calculate the number of lines we'll have
+    lines: [..]string;
+    lines.allocator = *temp;
+
+    {
+        text_view := message.text;
+        while text_view.count {
+            line_end := find_line_wrapping_point(*client.ui_font, text_view, xx WIDTH - 20, true);
+            line_view := substring_view(text_view, 0, line_end);
+            array_add(*lines, line_view);
+            text_view = substring_view(text_view, line_end, text_view.count);
+        }
+    }
+
+    for i := 0; i < lines.count; ++i {
+        vertical_offset: f32 = cast(f32) client.ui_font.line_height * cast(f32) (i * 2 - (lines.count - 1)) * 0.5;
+        line_position := v2f.{ text_position.x, text_position.y + vertical_offset };
+        draw_text_screen_space(client, *client.ui_font, array_get(*lines, i), line_position, .Left | .Median, WHITE_COLOR, .Default);
+    }
+
+    if message.time_left_in_seconds < 0 then remove_first_stat_message(client);
 }
 
 
