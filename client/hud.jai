@@ -48,7 +48,7 @@ create_hud :: (client: *Client, local_player_index: s64) {
     hud.state = .Disabled;
 }
 
-update_hud :: (client: *Client, local_player: *Local_Player) {
+update_player_hud :: (client: *Client, local_player: *Local_Player) {
     hud := *local_player.hud;
     guy_entity := get_entity(client, local_player.guy_pid);
     guy := down(guy_entity, Guy);
@@ -209,7 +209,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     }
 }
 
-draw_hud :: (client: *Client, local_player: *Local_Player) {
+draw_player_hud :: (client: *Client, local_player: *Local_Player) {
     hud := *local_player.hud;
 
     if hud.state != .Disabled {
@@ -324,7 +324,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     }
 }
 
-draw_global_hud :: (client: *Client) {
+draw_score_hud :: (client: *Client) {
     // Game Score
     {
         text := tprint("Score: %", client.game_score);
@@ -607,17 +607,6 @@ hud_option_should_succeed :: (client: *Client, local_player: *Local_Player, opti
     }
 
     return success;
-}
-
-crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool { // The server is in charge here, but we'll do a heuristic for player feedback
-    // Check that the target position is free if required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Crafting, guy.target_position) return false;
-
-    // Check that the guy has the required resources available
-    available_resources := get_available_resources_for_guy(client, guy);
-    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
-
-    return true;
 }
 
 crafting_recipe_is_enabled :: (client: *Client, local_player: *Local_Player, recipe: Crafting_Recipe) -> bool {

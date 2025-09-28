@@ -143,6 +143,54 @@ destroy_animation_data :: (client: *Client) {
     client.animations = .[];
     client.animation_groups = .[];
 }
+    
+get_animation_frame_index :: (animation: *Animation, rotation: Direction, t: f32) -> s64, bool {
+    if animation.frame_count == 0 return -1, false;
+
+    total_animation_time := xx animation.frame_count * animation.frame_time;
+
+    flip := false;
+    frame_index: s64 = ---;
+
+    if animation.frame_time == 0 {
+        frame_index = 0;
+    } else if animation.flags & .Loop {
+        frame_index = cast(s64) floor(fmodf(t, total_animation_time) / animation.frame_time);
+    } else {
+        frame_index = min(cast(s64) floor(t / animation.frame_time), animation.frame_count - 1);
+    }
+    
+    if animation.flags & .Flip && (rotation == .East || rotation == .South) {
+        flip = true;
+    }
+    
+    return frame_index, flip;
+}
+
+get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> Sprite_Index, bool {
+    frame_index, flip := get_animation_frame_index(animation, rotation, t);
+    return ifx frame_index >= 0 then animation.frames[frame_index] else .Count, flip;
+}
+
+
+
+#file_scope
+
+#if BAKE_ASSETS {
+    BAKED_ANIMATIONS, BAKED_ANIMATION_GROUPS :: #run bake_all_animations(ASSET_FILE_PATH("run_tree/data/animation-pack.txt"));
+
+    bake_all_animations :: (filepath: string) -> [Animation_Index.Count]Animation, [Animation_Group_Index.Count]Animation_Group {
+        animations: [Animation_Index.Count]Animation = ---;
+        animation_groups: [Animation_Group_Index.Count]Animation_Group = ---;
+        
+        if load_animation_file(animations, animation_groups, filepath) != .Success {
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the animation pack '%'.\n", filepath));
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));            
+        }
+        
+        return animations, animation_groups;
+    }
+}
 
 Animation_Packing_Result :: enum {
     Success;
@@ -336,38 +384,6 @@ load_animation_file :: (animations: []Animation, groups: []Animation_Group, file
         
     return result;
 }
-    
-get_animation_frame_index :: (animation: *Animation, rotation: Direction, t: f32) -> s64, bool {
-    if animation.frame_count == 0 return -1, false;
-
-    total_animation_time := xx animation.frame_count * animation.frame_time;
-
-    flip := false;
-    frame_index: s64 = ---;
-
-    if animation.frame_time == 0 {
-        frame_index = 0;
-    } else if animation.flags & .Loop {
-        frame_index = cast(s64) floor(fmodf(t, total_animation_time) / animation.frame_time);
-    } else {
-        frame_index = min(cast(s64) floor(t / animation.frame_time), animation.frame_count - 1);
-    }
-    
-    if animation.flags & .Flip && (rotation == .East || rotation == .South) {
-        flip = true;
-    }
-    
-    return frame_index, flip;
-}
-
-get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> Sprite_Index, bool {
-    frame_index, flip := get_animation_frame_index(animation, rotation, t);
-    return ifx frame_index >= 0 then animation.frames[frame_index] else .Count, flip;
-}
-
-
-
-#file_scope
 
 find_animation_index_from_name :: (name: string) -> Animation_Index {
     names :: enum_names(Animation_Index);
