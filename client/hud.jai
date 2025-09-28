@@ -461,23 +461,31 @@ reset_stat_hud :: (client: *Client) {
     client.stat_hud.active_message_count = 0;
 }
 
-add_stat_message :: (client: *Client, format: string, args: ..Any) {
+add_stat_message :: (client: *Client, text: string) {
+    // @Incomplete: If we already have a message of the same stat, then overwrite that one instead of adding a new...
+    
     if client.stat_hud.active_message_count == client.stat_hud.messages.Capacity {
         remove_first_stat_message(client);
     }
 
-    client.stat_hud.messages[client.stat_hud.active_message_count].text = print_into_allocator(*client.world_allocator, format, ..args);
+    client.stat_hud.messages[client.stat_hud.active_message_count].text = text;
     client.stat_hud.messages[client.stat_hud.active_message_count].time_left_in_seconds = 5;
     ++client.stat_hud.active_message_count;
 }
 
 draw_stat_hud :: (client: *Client) {
+    // @Incomplete: Animate the box in / out... Same with the text
+
     if client.stat_hud.active_message_count {
         message := *client.stat_hud.messages[0];
-        message.time_left_in_seconds -= client.tick_time;
 
-        WIDTH:  f32 : 360;
-        HEIGHT: f32 : 64;
+        if !client.server_paused_game {
+            message.time_left_in_seconds -= client.tick_time;
+        }
+
+        WIDTH:        f32 : 380; // 360; // nocheckin
+        HEIGHT:       f32 : 64;
+        TEXT_WIDTH:   f32 : WIDTH - 20;
         BANNER_WIDTH: f32 : 10;
 
         top_left := v2f.{ xx client.window.w - WIDTH, xx client.window.h * 0.2 };
@@ -488,7 +496,26 @@ draw_stat_hud :: (client: *Client) {
 
         draw_rect_screen_space(client, top_left, bottom_right, DARK_CYAN_COLOR);
         draw_rect_screen_space(client, top_left, banner_bottom_right, ORANGE_COLOR);
-        draw_text_screen_space(client, *client.ui_font, message.text, text_position, .Left | .Median, WHITE_COLOR, .Default);
+
+        // Calculate the number of lines we'll have
+        lines: [..]string;
+        lines.allocator = *temp;
+
+        {
+            text_view := message.text;
+            while text_view.count {
+                line_end := find_line_wrapping_point(*client.ui_font, text_view, xx WIDTH - 20, true); // nocheckin actually implement word wrapping
+                line_view := substring_view(text_view, 0, line_end);
+                array_add(*lines, line_view);
+                text_view = substring_view(text_view, line_end, text_view.count);
+            }
+        }
+
+        for i := 0; i < lines.count; ++i {
+            vertical_offset: f32 = cast(f32) client.ui_font.line_height * cast(f32) (i * 2 - (lines.count - 1)) * 0.5;
+            line_position := v2f.{ text_position.x, text_position.y + vertical_offset };
+            draw_text_screen_space(client, *client.ui_font, array_get(*lines, i), line_position, .Left | .Median, WHITE_COLOR, .Default);
+        }
 
         if message.time_left_in_seconds < 0 then remove_first_stat_message(client);
     }

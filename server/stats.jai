@@ -15,18 +15,37 @@ reset_all_statistics :: (server: *Server) {
     reset_statistics(server.global_stats);
 }
 
-increase_player_statistic :: (server: *Server, guy_pid: Pid, stat: Player_Stat_Kind) {
+increase_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_Kind) {
     player := find_local_player_by_guy_pid(server, guy_pid);
     assert(player != null, "Tried to increase a player stat for a non-existent player.");
-    increase(*player.stats[stat]);
-    // @Incomplete: Determine when a stat is actually relevant to show...
-    send_player_stat_message(server, stat, player);
+    
+    stat := *player.stats[kind];
+    increase(stat);
+
+    should_send: bool = ---;
+
+    if #complete kind == {
+      case .Completed_Moves; should_send = stat.counter % 2 == 0; // nocheckin
+    }
+
+    if should_send {
+        send_player_stat_message(server, kind, player);
+    }
 }
 
-increase_global_statistic :: (server: *Server, stat: Global_Stat_Kind) {
-    increase(*server.global_stats[stat]);
-    // @Incomplete: Determine when a stat is actually relevant to show...
-    send_global_stat_message(server, stat);
+increase_global_statistic :: (server: *Server, kind: Global_Stat_Kind) {
+    stat := *server.global_stats[kind];
+    increase(stat);
+
+    should_send: bool = ---;
+
+    if #complete kind == {
+      case .Monsters_Killed; should_send = stat.counter % 2 == 0; // nocheckin
+    }
+
+    if should_send {    
+        send_global_stat_message(server, kind);
+    }
 }
 
 
