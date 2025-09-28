@@ -444,6 +444,7 @@ draw_shadow_hud :: (client: *Client, local_player: *Local_Player) {
 }
 
 
+
 /* ------------------------------------------------- Stat Hud ------------------------------------------------- */
 
 Stat_Message :: struct {
@@ -475,9 +476,21 @@ draw_stat_hud :: (client: *Client) {
         message := *client.stat_hud.messages[0];
         message.time_left_in_seconds -= client.tick_time;
 
-        logprint(.Debug, "Drawing stat: %.", ~message);
+        WIDTH:  f32 : 360;
+        HEIGHT: f32 : 64;
+        BANNER_WIDTH: f32 : 10;
 
-        if message.time_left_in_seconds < 0 then  remove_first_stat_message(client);
+        top_left := v2f.{ xx client.window.w - WIDTH, xx client.window.h * 0.2 };
+        banner_bottom_right := v2f.{ top_left.x + BANNER_WIDTH, top_left.y + HEIGHT };
+        bottom_right := v2f.{ top_left.x + WIDTH, top_left.y + HEIGHT };
+
+        text_position := v2f.{ banner_bottom_right.x + 10, (top_left.y + bottom_right.y) * 0.5 };
+
+        draw_rect_screen_space(client, top_left, bottom_right, DARK_CYAN_COLOR);
+        draw_rect_screen_space(client, top_left, banner_bottom_right, ORANGE_COLOR);
+        draw_text_screen_space(client, *client.ui_font, message.text, text_position, .Left | .Median, WHITE_COLOR, .Default);
+
+        if message.time_left_in_seconds < 0 then remove_first_stat_message(client);
     }
 }
 

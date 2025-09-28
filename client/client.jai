@@ -1423,7 +1423,7 @@ main :: (args: []string) -> s32 {
            defer client.timing_draw = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
 }
 
-            ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
+            ge_clear_screen(*client.graphics, DARK_BLUE_COLOR);
             
             if #complete client.current_state == {
               case .Lobby #through;
