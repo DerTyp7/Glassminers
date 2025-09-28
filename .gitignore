@@ -22,3 +22,7 @@ docker/logs/
 # Baked sprite atlases
 
 run_tree/data/sprite_atlas_*.png
+
+# Generated source files
+
+shared/VERSION_STRING.jai
