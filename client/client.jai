@@ -1258,7 +1258,7 @@ main :: (args: []string) -> s32 {
     set_working_directory(cut_file_name_from_path(args[0]));
     os_enable_high_resolution_timer();
     create_temp_allocator(128 * Memory_Unit.Megabytes);
-
+    
     logprint(.Info, "Starting the client...");
     
     client: Client;
