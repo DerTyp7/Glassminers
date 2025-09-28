@@ -463,6 +463,7 @@ handle_guy_movement :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
         // Rotate and move to the target position by recursively pushing things
         guy.physical_rotation = input.aim_direction;
         move_to_position(server, guy, input.position);
+        increase_player_statistic(server, guy.pid, .Completed_Moves);
     } else {
         // If we can't move to the position then at least update the rotation
         update_physical_location(server, guy, guy.physical_position, input.aim_direction);

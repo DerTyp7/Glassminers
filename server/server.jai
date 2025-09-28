@@ -18,6 +18,7 @@
 #load "game_tick.jai";
 #load "entity.jai";
 #load "pathfinder.jai";
+#load "stats.jai";
 
 TICK_RATE: f32 : 60;
 DEVELOPER   :: #run compiler_is_user_option_present("Developer");
@@ -26,6 +27,7 @@ BAKE_ASSETS :: !DEVELOPER;
 Local_Player :: struct {
     guy_pid: Pid = INVALID_PID;
     name := "";
+    stats: [Player_Stat_Kind.Count]Statistic;
 }
 
 Remote_Client :: struct {
@@ -73,6 +75,7 @@ Server :: struct {
     tick_time: f32;
     world_size: v2i;
     current_section_index: u64; // keeps track of how often the world was expanded & next section generation
+    global_stats: [Global_Stat_Kind.Count]Statistic;
     flag_pid: Pid;
     latest_emitter: Pid = INVALID_PID;
     lightmap: Lightmap;
@@ -102,6 +105,17 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
     print_into_buffer(*buffer, format, ..args);
     print_into_buffer(*buffer, "\n");
     flush_print_buffer(*buffer);
+}
+
+find_local_player_by_guy_pid :: (server: *Server, guy_pid: Pid) -> *Local_Player {
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get_pointer(*server.clients, i);
+        for j := 0; j < client.local_player_count; ++j {
+            if client.local_players[j].guy_pid == guy_pid then return *client.local_players[j];
+        }
+    }
+
+    return null;
 }
 
 find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
@@ -338,6 +352,7 @@ switch_to_next_state :: (server: *Server) {
 create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
     create_entity_manager(server);
+    reset_all_statistics(server);
 
     server.current_section_index    = 0;
     server.void_eyes_spawn_cooldown = 5;    

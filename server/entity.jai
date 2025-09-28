@@ -346,6 +346,8 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         if random < chance {
             item_drop = .Coin;
         }
+
+        increase_global_statistic(server, .Monsters_Killed);
         
       case;
         remove_entity(server, entity);
