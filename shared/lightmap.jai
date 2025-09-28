@@ -1,9 +1,4 @@
 Shadow :: u8;
-
-TORCH_BRIGHTNESS: f32 : 1.0;
-LAVA_BRIGHTNESS: f32 : 0.5;
-
-SHADOW_THRESHOLD: f32 : 0.2;
 NO_SHADOW: Shadow : -1;
 
 Lightmap :: struct {
@@ -110,7 +105,7 @@ update_lightmap :: (map: *Lightmap, em: *Entity_Manager, dt: f32) {
     
     for y := 0; y < map.size.y; ++y {
         for x := 0; x < map.size.x; ++x {
-            previous := query_previous_map(map, .{ x, y }) - LIGHTMAP_FADE_PER_SECOND * dt;
+            previous := query_previous_map(map, .{ x, y }) - FADE_PER_SECOND * dt;
             updated := previous;
             updated += calculate_neighbor_effect(map, .{ x + 1, y }, previous, dt);
             updated += calculate_neighbor_effect(map, .{ x - 1, y }, previous, dt);
@@ -129,7 +124,7 @@ query_lightmap :: (map: *Lightmap, tile: v2i) -> f32 {
     assert(tile.x >= 0 && tile.x < map.size.x && tile.y >= 0 && tile.y < map.size.y, "Tried to query the lightmap out of bounds.");
 
     index := tile.y * map.size.x + tile.x;
-    return max(map.tiles[index], LIGHTMAP_AMBIENCE);
+    return max(map.tiles[index], AMBIENT_BRIGHTNESS);
 }
 
 query_lightmap_gamma_adjusted :: (map: *Lightmap, tile: v2i) -> f32 {
@@ -259,9 +254,13 @@ debug_print_shadows :: (map: *Lightmap) {
 
 #file_scope
 
-LIGHTMAP_FADE_PER_SECOND: f32 : 0.25;
-LIGHTMAP_NEIGHBOR_EFFECT: f32 : 1;
-LIGHTMAP_AMBIENCE: f32 : 0.02;
+FADE_PER_SECOND:    f32 : 0.25;
+NEIGHBOR_EFFECT:    f32 : 1;
+SHADOW_THRESHOLD:   f32 : 0.2;
+
+AMBIENT_BRIGHTNESS: f32 : 0.02;
+TORCH_BRIGHTNESS:   f32 : 1.0;
+LAVA_BRIGHTNESS:    f32 : 0.5;
 
 query_previous_map :: (map: *Lightmap, tile: v2i) -> f32 {
     if tile.x < 0 || tile.x >= map.size.x || tile.y < 0 || tile.y >= map.size.y return 0;
@@ -276,7 +275,7 @@ calculate_neighbor_effect :: (map: *Lightmap, neighbor: v2i, previous: f32, dt: 
     }
 
     neighbor_value := query_previous_map(map, neighbor);
-    return max((neighbor_value - previous) * LIGHTMAP_NEIGHBOR_EFFECT * dt, 0);
+    return max((neighbor_value - previous) * NEIGHBOR_EFFECT * dt, 0);
 }
 
 fill_lightmap_tile :: (map: *Lightmap, tile: v2i, brightness: f32) {
