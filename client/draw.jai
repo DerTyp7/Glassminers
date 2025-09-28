@@ -3,6 +3,18 @@ GRAY_COLOR   :: GE_Color.{ 100, 100, 100, 255 };
 ORANGE_COLOR :: GE_Color.{ 255, 166, 0, 255 };
 YELLOW_COLOR :: GE_Color.{ 252, 238, 28, 255 };
 
+Draw_Sprite_Flags :: enum bitfield {
+    None :: 0x0;
+    Flipped;
+    Lit;
+}
+
+Draw_Text_Flags :: enum bitfield {
+    Default;
+    Shadow;
+    Background;
+}
+
 Sprite_Index :: enum {
     // HUD
     Hud_Heart_Full;
@@ -413,12 +425,6 @@ draw_outlined_rect_screen_space :: (client: *Client, c0, c1: v2f, thickness: f32
     ge_imm2d_colored_rect_outline(*client.graphics, c0.x, c0.y, c1.x, c1.y, thickness, color);
 }
 
-Draw_Text_Flags :: enum bitfield {
-    Default;
-    Shadow;
-    Background;
-}
-
 draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: GE_Color, flags: Draw_Text_Flags) {
     if bitfield_contains(*flags, Draw_Text_Flags.Background) {
         width: f32 = xx get_string_width_in_pixels(font, text);
@@ -570,7 +576,6 @@ draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, 
     foreground :: GE_Color.{ 100, 240, 150, 200 };
     draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
 }
-
 
 draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
     if sprite_index == .Count return; // This makes it more convenient when drawing input action hints, because we might not have sprites for every input binding...
@@ -1016,12 +1021,6 @@ PROGRESS_BAR_AS_CIRCLE :: false;
 
 #if BAKE_ASSETS {
     BAKED_FONT :: #run bake_raw_file(ASSET_FILE_PATH("run_tree/data/font.ttf"));
-}
-
-Draw_Sprite_Flags :: enum bitfield {
-    None :: 0x0;
-    Flipped;
-    Lit;
 }
 
 Draw_Beam_Flags :: enum bitfield {
