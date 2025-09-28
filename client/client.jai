@@ -224,6 +224,7 @@ Client :: struct {
     #using pm: Particle_Manager;
     lightmap: Lightmap;
     global_particle_system: Pid;
+    stat_hud: Stat_Hud;
     
     //
     // Debugging
@@ -453,12 +454,14 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
 #if DEVELOPER  clear_message_histories(client);
 
+        reset_stat_hud(client);
+
         seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
         initialize_random_sounds(client);
         create_entity_manager(client);
         create_particle_manager(client);
         create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
-
+        
         for i := 0; i < client.local_player_count; ++i {
             create_hud(client, i);
             client.local_players[i].guy_pid = INVALID_PID;
@@ -505,11 +508,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Player_Stat;
         // @Incomplete
         name := find_player_name_from_guy_pid(client, msg.player_stat.guy_pid);
-        logprint(.Debug, "Received player stat for %: % -> %.", name, msg.player_stat.kind, msg.player_stat.stat.counter);
+        add_stat_message(client, "%: % -> %", name, msg.player_stat.kind, msg.player_stat.stat.counter);
 
       case .Global_Stat;
         // @Incomplete
-        logprint(.Debug, "Received global stat: % -> %.", msg.global_stat.kind, msg.global_stat.stat.counter);
+        add_stat_message(client, "% -> %", msg.global_stat.kind, msg.global_stat.stat.counter);
 
       case .World_Resize;
         client.world_size = msg.world_resize.new_world_size;
@@ -1463,6 +1466,7 @@ main :: (args: []string) -> s32 {
 
                 draw_viewport_information(*client);
                 draw_score_hud(*client);
+                draw_stat_hud(*client);
 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 

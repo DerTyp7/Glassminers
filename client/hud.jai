@@ -444,6 +444,44 @@ draw_shadow_hud :: (client: *Client, local_player: *Local_Player) {
 }
 
 
+/* ------------------------------------------------- Stat Hud ------------------------------------------------- */
+
+Stat_Message :: struct {
+    text: string;
+    time_left_in_seconds: f32;
+}
+
+Stat_Hud :: struct {
+    messages: [4]Stat_Message; // We only want to show one stat at a time. If however multiple stats are received at the same time, we want to remember those for later... We're just assuming we're never going to have more than 4 stats received at once, to avoid dynamic allocation here...
+    active_message_count: s64;
+}
+
+reset_stat_hud :: (client: *Client) {
+    client.stat_hud.active_message_count = 0;
+}
+
+add_stat_message :: (client: *Client, format: string, args: ..Any) {
+    if client.stat_hud.active_message_count == client.stat_hud.messages.Capacity {
+        remove_first_stat_message(client);
+    }
+
+    client.stat_hud.messages[client.stat_hud.active_message_count].text = print_into_allocator(*client.world_allocator, format, ..args);
+    client.stat_hud.messages[client.stat_hud.active_message_count].time_left_in_seconds = 5;
+    ++client.stat_hud.active_message_count;
+}
+
+draw_stat_hud :: (client: *Client) {
+    if client.stat_hud.active_message_count {
+        message := *client.stat_hud.messages[0];
+        message.time_left_in_seconds -= client.tick_time;
+
+        logprint(.Debug, "Drawing stat: %.", ~message);
+
+        if message.time_left_in_seconds < 0 then  remove_first_stat_message(client);
+    }
+}
+
+
 
 #file_scope
 
@@ -684,4 +722,13 @@ draw_curve :: (client: *Client, hud: *Hud, radius: f32, theta0, theta1: f32) {
 
         draw_line_screen_space(client, p0, p1, .{ 255, 255, 255, 180 }, 5);
     }
+}
+
+
+/* ------------------------------------------------- Stat Hud ------------------------------------------------- */
+
+remove_first_stat_message :: (client: *Client) {
+    deallocate_string(*client.world_allocator, *client.stat_hud.messages[0].text);
+    copy_memory(*client.stat_hud.messages[0], *client.stat_hud.messages[1], (client.stat_hud.active_message_count - 1) * size_of(Stat_Message));
+    --client.stat_hud.active_message_count;
 }
