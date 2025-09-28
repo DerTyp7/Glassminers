@@ -487,11 +487,19 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
 /* --------------------------------------------------- Stats -------------------------------------------------- */
 
 Player_Stat_Kind :: enum {
-    Completed_Moves;
+    Moves;
+    Deaths;
+    Guys_Resurrected;
+    Resources_Mined;
+    Mirrors_Constructed;
+    Coins_Spent_Total;
+    Coins_Spent_Healing;
+    Damage_Taken;
 }
 
 Global_Stat_Kind :: enum {
     Monsters_Killed;
+    Sections_Reached;
 }
 
 Statistic :: struct {
@@ -504,7 +512,14 @@ format_player_stat :: (allocator: *Allocator, player_name: string, kind: Player_
     f :: print_into_allocator;
 
     if #complete kind == {
-      case .Completed_Moves; result = f(allocator, "% has walked over % tiles!", player_name, stat.counter);
+      case .Moves;               result = f(allocator, "% has walked over % tiles!", player_name, stat.counter);
+      case .Deaths;              result = f(allocator, "% has died % times! LOL", player_name, stat.counter);
+      case .Guys_Resurrected;    result = f(allocator, "% has resurrected over % players.", player_name, stat.counter);
+      case .Resources_Mined;     result = f(allocator, "% has mined over % resources!", player_name, stat.counter);
+      case .Mirrors_Constructed; result = f(allocator, "% has built over % mirrors!", player_name, stat.counter);
+      case .Coins_Spent_Total;   result = f(allocator, "Mr. Money % has spent over % coins!", player_name, stat.counter);
+      case .Coins_Spent_Healing; result = f(allocator, "% has spent over % coins healing themselves!", player_name, stat.counter);
+      case .Damage_Taken;        result = f(allocator, "% has taken over % hearts of damage!", player_name, stat.counter / cast(s64) HEALTH_PER_HEART);
     }
 
     return result;
@@ -516,7 +531,8 @@ format_global_stat :: (allocator: *Allocator, kind: Global_Stat_Kind, stat: Stat
     f :: print_into_allocator;
 
     if #complete kind == {
-      case .Monsters_Killed; result = f(allocator, "Over % monsters have been slain!", stat.counter);
+      case .Monsters_Killed;  result = f(allocator, "Over % monsters have been slain!", stat.counter);
+      case .Sections_Reached; result = f(allocator, "Section % was reached!", stat.counter);
     }
 
     return result;

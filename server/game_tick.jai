@@ -337,6 +337,7 @@ do_game_tick :: (server: *Server) {
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if generate_next_section {
+            increment_global_statistic(server, .Sections_Reached);
             generate_next_world_section(server);
         }
     } else if server.clients.count == 0 {
@@ -463,7 +464,7 @@ handle_guy_movement :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
         // Rotate and move to the target position by recursively pushing things
         guy.physical_rotation = input.aim_direction;
         move_to_position(server, guy, input.position);
-        increase_player_statistic(server, guy.pid, .Completed_Moves);
+        increment_player_statistic(server, guy.pid, .Moves);
     } else {
         // If we can't move to the position then at least update the rotation
         update_physical_location(server, guy, guy.physical_position, input.aim_direction);
@@ -563,17 +564,32 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
     //
     if input.crafting_recipe != .Count {
         if try_to_fulfill_recipe(server, guy, input.crafting_recipe) {
+            // @Cleanup: We're currently manually tracking the stats for the coins here when interacting with
+            // the trader. I would like to read that out from the crafting recipe basically to make it
+            // more robust.
+
             if #complete input.crafting_recipe == {
               /* Crafting Hud */
-              case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
+              case .Mirror;
+                create_entity(server, .Mirror, guy.target_position, .North);
+                increment_player_statistic(server, guy.pid, .Mirrors_Constructed);
               case .Torch;  put_item_in_hand(server, guy, .Torch);
               case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
               
               /* Trader Hud */              
-              case .Health_Potion;   set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
-              case .Strength_Potion; start_strength_effect(server, guy);
-              case .Shard;           put_item_in_hand(server, guy, .Shard);
-              case .Coal;            put_item_in_hand(server, guy, .Coal);
+              case .Health_Potion;
+                set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Healing);
+              case .Strength_Potion;
+                start_strength_effect(server, guy);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+              case .Shard;
+                put_item_in_hand(server, guy, .Shard);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+              case .Coal;
+                put_item_in_hand(server, guy, .Coal);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
             }
         }
     }

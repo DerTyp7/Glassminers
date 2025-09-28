@@ -15,7 +15,7 @@ reset_all_statistics :: (server: *Server) {
     reset_statistics(server.global_stats);
 }
 
-increase_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_Kind) {
+increment_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_Kind) {
     player := find_local_player_by_guy_pid(server, guy_pid);
     assert(player != null, "Tried to increase a player stat for a non-existent player.");
     
@@ -25,7 +25,14 @@ increase_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_K
     should_send: bool = ---;
 
     if #complete kind == {
-      case .Completed_Moves; should_send = stat.counter % 2 == 0; // @Incomplete
+      case .Moves;               should_send = stat.counter % 500 == 0;
+      case .Deaths;              should_send = stat.counter % 5 == 0;
+      case .Guys_Resurrected;    should_send = stat.counter % 5 == 0;
+      case .Resources_Mined;     should_send = stat.counter % 20 == 0;
+      case .Mirrors_Constructed; should_send = stat.counter % 15 == 0;
+      case .Coins_Spent_Total;   should_send = stat.counter % 15 == 0;
+      case .Coins_Spent_Healing; should_send = stat.counter % 10 == 0;
+      case .Damage_Taken;        should_send = stat.counter % (cast(s64) HEALTH_PER_HEART * 20) == 0;
     }
 
     if should_send {
@@ -33,14 +40,24 @@ increase_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_K
     }
 }
 
-increase_global_statistic :: (server: *Server, kind: Global_Stat_Kind) {
+increase_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_Kind, count: s64) {
+    // This is really dumb, but our logic of determining whether to broadcast a statistic out to the
+    // clients usually depends on a modulo (meaning we need to match the exact value once to send it out).
+    // Therefore, this is the easiest solution. Increasing by more than one also rarely happens anyway...
+    for i := 0; i < count; ++i {
+        increment_player_statistic(server, guy_pid, kind);
+    }
+}
+
+increment_global_statistic :: (server: *Server, kind: Global_Stat_Kind) {
     stat := *server.global_stats[kind];
     increase(stat);
 
     should_send: bool = ---;
 
     if #complete kind == {
-      case .Monsters_Killed; should_send = stat.counter % 2 == 0; // @Incomplete
+      case .Monsters_Killed;  should_send = stat.counter % 30 == 0;
+      case .Sections_Reached; should_send = true;
     }
 
     if should_send {    

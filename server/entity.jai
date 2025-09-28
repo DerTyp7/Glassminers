@@ -292,7 +292,11 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
     // side effects, like the controller vibrating on "damage" when the guy is already dead...)
     //
     if entity.health <= 0 return false;
-    
+
+    if entity.entity_kind == .Guy {
+        increase_player_statistic(server, entity.pid, .Damage_Taken, cast(s64) min(entity.health, immediate_damage));
+    }
+
     entity.damaged_this_frame = true;
     entity.health = max(entity.health - immediate_damage, 0);
     has_died := entity.health <= 0;
@@ -319,14 +323,17 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
       case .Rock;
         remove_entity(server, entity);
         item_drop = .Stone;
+        increment_player_statistic(server, killer.pid, .Resources_Mined);
 
       case .Coal;
         remove_entity(server, entity);
         item_drop = .Coal;
+        increment_player_statistic(server, killer.pid, .Resources_Mined);
 
       case .Crystal;
         remove_entity(server, entity);
         item_drop = .Shard;
+        increment_player_statistic(server, killer.pid, .Resources_Mined);
 
       case .Guy;
         guy := down(entity, Guy);
@@ -334,6 +341,8 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         switch_guy_state(server, guy, .Dead);
 
         if was_carrying then try_to_place_item(server, guy.physical_position, guy.carrying_item, guy, null);
+
+        increment_player_statistic(server, guy.pid, .Deaths);
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
@@ -347,7 +356,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
             item_drop = .Coin;
         }
 
-        increase_global_statistic(server, .Monsters_Killed);
+        increment_global_statistic(server, .Monsters_Killed);
         
       case;
         remove_entity(server, entity);
@@ -586,6 +595,7 @@ update_guy :: (server: *Server, guy: *Guy) {
                 other_guy := down(other_entity, Guy);
                 switch_guy_state(server, other_guy, .Idle);
                 set_entity_health(server, other_guy, HEALTH_PER_HEART);
+                increment_player_statistic(server, guy.pid, .Guys_Resurrected);
             }
 
             switch_guy_state(server, guy, .Idle);
