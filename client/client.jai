@@ -502,6 +502,15 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Game_Score;
         client.game_score = msg.game_score.score;
 
+      case .Player_Stat;
+        // @Incomplete
+        name := find_player_name_from_guy_pid(client, msg.player_stat.guy_pid);
+        logprint(.Debug, "Received player stat for %: % -> %.", name, msg.player_stat.kind, msg.player_stat.stat.counter);
+
+      case .Global_Stat;
+        // @Incomplete
+        logprint(.Debug, "Received global stat: % -> %.", msg.global_stat.kind, msg.global_stat.stat.counter);
+
       case .World_Resize;
         client.world_size = msg.world_resize.new_world_size;
         resize_lightmap(*client.lightmap, client.world_size);

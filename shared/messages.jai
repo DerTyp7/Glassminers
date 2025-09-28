@@ -7,6 +7,8 @@ Message_Type :: enum {
     Game_Start;
     Game_Over;
     Game_Score;
+    Player_Stat;
+    Global_Stat;
     World_Resize;
     Create_Entity;
     Destroy_Entity;
@@ -69,6 +71,19 @@ Game_Over_Message :: struct {
 Game_Score_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Score;
     score: u64;
+}
+
+Player_Stat_Message :: struct {
+    MSG_TYPE :: Message_Type.Player_Stat;
+    guy_pid: Pid;
+    kind: Player_Stat_Kind;
+    stat: Statistic;
+}
+
+Global_Stat_Message :: struct {
+    MSG_TYPE :: Message_Type.Global_Stat;
+    kind: Global_Stat_Kind;
+    stat: Statistic;
 }
 
 World_Resize_Message :: struct {
@@ -181,6 +196,8 @@ Message :: struct {
         game_start: Game_Start_Message;
         game_over: Game_Over_Message;
         game_score: Game_Score_Message;
+        player_stat: Player_Stat_Message;
+        global_stat: Global_Stat_Message;
         world_resize: World_Resize_Message;
         create_entity: Create_Entity_Message;
         destroy_entity: Destroy_Entity_Message;
@@ -275,6 +292,8 @@ message_size_in_bytes :: (message: *Message) -> s64 { // This is only really rel
            .Game_Start,
            .Game_Over,
            .Game_Score,
+           .Player_Stat,
+           .Global_Stat,
            .World_Resize,
            .Create_Entity,
            .Destroy_Entity,
@@ -314,6 +333,8 @@ type_id_from_message_type :: (type: Message_Type) -> Type {
       case .Game_Start;          result = type_id(Game_Start_Message);
       case .Game_Over;           result = type_id(Game_Over_Message);
       case .Game_Score;          result = type_id(Game_Score_Message);
+      case .Player_Stat;         result = type_id(Player_Stat_Message);
+      case .Global_Stat;         result = type_id(Global_Stat_Message);
       case .World_Resize;        result = type_id(World_Resize_Message);
       case .Create_Entity;       result = type_id(Create_Entity_Message);
       case .Destroy_Entity;      result = type_id(Destroy_Entity_Message);
@@ -341,28 +362,30 @@ print_message :: (message: *Message, prefix: string) {
     sprint(*builder, "%", message.msg_type);
     
     if #complete message.msg_type == {
-      case .Client_Disconnect;  sprint(*builder, "%", message.client_disconnect);
-      case .Player_Information; sprint(*builder, "%", message.player_information);
+      case .Client_Disconnect;   sprint(*builder, "%", message.client_disconnect);
+      case .Player_Information;  sprint(*builder, "%", message.player_information);
       case .Remove_Local_Player; sprint(*builder, "%", message.remove_local_player);
-      case .Request_Game_Start; sprint(*builder, "%", message.request_game_start);
-      case .Game_Pause;         sprint(*builder, "%", message.game_pause);
-      case .Game_Start;         sprint(*builder, "%", message.game_start);
-      case .Game_Over;          sprint(*builder, "%", message.game_over);
-      case .Game_Score;         sprint(*builder, "%", message.game_score);
-      case .World_Resize;       sprint(*builder, "%", message.world_resize);
-      case .Create_Entity;      sprint(*builder, "%", message.create_entity);
-      case .Destroy_Entity;     sprint(*builder, "%", message.destroy_entity);
-      case .Move_Entity;        sprint(*builder, "%", message.move_entity);
-      case .Entity_Health;      sprint(*builder, "%", message.entity_health);
-      case .Guy_State;          sprint(*builder, "%", message.guy_state);
-      case .Guy_Input;          sprint(*builder, "%", message.guy_input);
-      case .Emitter_State;      sprint(*builder, "%", message.emitter_state);
-      case .Item_Stack_State;   sprint(*builder, "%", message.item_stack_state);
-      case .Chest_State;        sprint(*builder, "%", message.chest_state);
-      case .Frog_State;         sprint(*builder, "%", message.frog_state);
-      case .Goblin_State;       sprint(*builder, "%", message.goblin_state);
-      case .Slime_State;        sprint(*builder, "%", message.slime_state);
-      case .Void_Eye_State;     sprint(*builder, "%", message.void_eye_state);
+      case .Request_Game_Start;  sprint(*builder, "%", message.request_game_start);
+      case .Game_Pause;          sprint(*builder, "%", message.game_pause);
+      case .Game_Start;          sprint(*builder, "%", message.game_start);
+      case .Game_Over;           sprint(*builder, "%", message.game_over);
+      case .Game_Score;          sprint(*builder, "%", message.game_score);
+      case .Player_Stat;         sprint(*builder, "%", message.player_stat);
+      case .Global_Stat;         sprint(*builder, "%", message.global_stat);
+      case .World_Resize;        sprint(*builder, "%", message.world_resize);
+      case .Create_Entity;       sprint(*builder, "%", message.create_entity);
+      case .Destroy_Entity;      sprint(*builder, "%", message.destroy_entity);
+      case .Move_Entity;         sprint(*builder, "%", message.move_entity);
+      case .Entity_Health;       sprint(*builder, "%", message.entity_health);
+      case .Guy_State;           sprint(*builder, "%", message.guy_state);
+      case .Guy_Input;           sprint(*builder, "%", message.guy_input);
+      case .Emitter_State;       sprint(*builder, "%", message.emitter_state);
+      case .Item_Stack_State;    sprint(*builder, "%", message.item_stack_state);
+      case .Chest_State;         sprint(*builder, "%", message.chest_state);
+      case .Frog_State;          sprint(*builder, "%", message.frog_state);
+      case .Goblin_State;        sprint(*builder, "%", message.goblin_state);
+      case .Slime_State;         sprint(*builder, "%", message.slime_state);
+      case .Void_Eye_State;      sprint(*builder, "%", message.void_eye_state);
     }
     
     logprint(.Debug, finish_string_builder(*builder));

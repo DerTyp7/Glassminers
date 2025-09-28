@@ -4,6 +4,8 @@
 
 /* ---------------------------------------------- Build Helpers ---------------------------------------------- */
 
+// @Cleanup: Move this down to bake_file...?
+
 // This turns a file path relative to the project root into an absolute file path on the current file system.
 // This makes the build robust against when building in a different directory than the project root.
 ASSET_FILE_PATH :: (root_path: string) -> string {
@@ -17,14 +19,27 @@ ASSET_FILE_PATH :: (root_path: string) -> string {
 
 /* ------------------------------------------------- Typedefs ------------------------------------------------- */
 
+// @Cleanup: Why the heck is this up here?
+
 v2i :: Vector2_Base(s32);
 v2f :: Vector2_Base(f32);
 Pid :: u32;
 INVALID_PID: Pid : -1;
 
 MAX_LOCAL_PLAYERS :: 4;
-
 LOG_MESSAGES :: false;
+
+Player_Stat_Kind :: enum {
+    Completed_Moves;
+}
+
+Global_Stat_Kind :: enum {
+    Monsters_Killed;
+}
+
+Statistic :: struct {
+    counter: s64;
+}
 
 Game_Mode :: enum {
     // Developer

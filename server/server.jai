@@ -166,7 +166,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Frog_State, .Goblin_State, .Slime_State, .Void_Eye_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .Player_Stat, .Global_Stat, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Frog_State, .Goblin_State, .Slime_State, .Void_Eye_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients

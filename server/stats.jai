@@ -1,15 +1,3 @@
-Player_Stat_Kind :: enum {
-    Completed_Moves;
-}
-
-Global_Stat_Kind :: enum {
-    Monsters_Killed;
-}
-
-Statistic :: struct {
-    counter: s64;
-}
-
 reset_statistics :: (stats: []Statistic) {
     for i := 0; i < stats.count; ++i {
         stats[i] = .{};
@@ -50,11 +38,16 @@ increase :: (stat: *Statistic) {
 }
 
 send_player_stat_message :: (server: *Server, stat: Player_Stat_Kind, player: *Local_Player) {
-    // @Incomplete
-    logprint(.Debug, "Sending player stat of '%': % -> %.", player.name, stat, player.stats[stat]);
+    msg := make_message(Player_Stat_Message);
+    msg.player_stat.guy_pid = player.guy_pid;
+    msg.player_stat.kind = stat;
+    msg.player_stat.stat = player.stats[stat];
+    array_add(*server.outgoing_messages, msg);
 }
 
 send_global_stat_message :: (server: *Server, stat: Global_Stat_Kind) {
-    // @Incomplete
-    logprint(.Debug, "Sending global stat: % -> %.", stat, server.global_stats[stat]);
+    msg := make_message(Global_Stat_Message);
+    msg.global_stat.kind = stat;
+    msg.global_stat.stat = server.global_stats[stat];
+    array_add(*server.outgoing_messages, msg);
 }
