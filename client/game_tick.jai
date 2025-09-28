@@ -1,3 +1,47 @@
+Camera :: struct {
+    // To avoid visual artifacts when rendering pixel art, we should ensure that the textures are rendering
+    // with an integer scaling onto the back buffer. Otherwise, we might get small offsets in the UVs on
+    // the same row of pixels and similar things.
+    // Therefore, we ensure that the tile size on screen is a multiple of 16.
+    FORCE_INTEGER_TILE_SCALING :: true;
+
+    DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
+
+    window_aspect_ratio: f32;
+    world_to_screen_coordinates: v2f;
+    covered_world_area: v2f; // Always unzoomed
+    zoomed_covered_world_area: v2f; // Can include zoom in developer builds
+    center_in_world: v2f;
+    viewport: [4]f32;
+
+#if DEVELOPER {
+    zoom: f32 = 1;
+    zoom_step: f32 = 0;
+}
+}
+
+screen_from_world_position :: (camera: *Camera, world: v2f) -> v2f {
+    return .{ round((world.x - camera.center_in_world.x) * camera.world_to_screen_coordinates.x + (camera.viewport[2] - camera.viewport[0]) * 0.5 + camera.viewport[0]),
+              round((world.y - camera.center_in_world.y) * camera.world_to_screen_coordinates.y + (camera.viewport[3] - camera.viewport[1]) * 0.5 + camera.viewport[1]) };
+}
+
+screen_from_world_size :: (camera: *Camera, world: v2f) -> v2f {
+    return .{ round(world.x * camera.world_to_screen_coordinates.x), round(world.y * camera.world_to_screen_coordinates.y) };
+}
+
+screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
+    return round(height * camera.world_to_screen_coordinates.y);
+}
+
+snap_camera_to_guy :: (client: *Client, local_player: *Local_Player) {
+    entity := get_entity(client, local_player.guy_pid);
+    update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
+}
+
+
+
+
+#if DEVELOPER {
 clear_message_histories :: (client: *Client) {
     client.incoming_message_history.active = 0;
     client.outgoing_message_history.active = 0;
@@ -18,6 +62,7 @@ register_message_history :: (client: *Client, history: *Message_History, message
         entry.age           = 0;
         entry.size_in_bytes = size_in_bytes;
     }
+}
 }
 
 request_tutorial_panel :: (client: *Client, kind: Tutorial_Panel) {
@@ -253,6 +298,82 @@ do_game_tick :: (client: *Client) {
 
 /* ------------------------------------------- Local Player Handling ------------------------------------------ */
 
+snap_position_to_rooms :: (client: *Client, camera: *Camera, target_center_position: v2f) -> v2f {
+    custom_clamp :: (value, low, high: $T) -> T {
+        if low < high {
+            return clamp(value, low, high);
+        } else {
+            return (low + high) * 0.5;
+        }
+    }
+
+    visible_half_size := v2f.{ camera.covered_world_area.x / 2 - 0.5, camera.covered_world_area.y / 2 - 0.5 };
+
+    room_position := v2f.{ floor(xx target_center_position.x / CAMERA_AREA_WIDTH) * CAMERA_AREA_WIDTH + CAMERA_AREA_OFFSET, 
+                           visible_half_size.y };
+    
+    target_position := v2f.{
+        custom_clamp(room_position.x, visible_half_size.x, xx client.world_size.x - visible_half_size.x - 1),
+        custom_clamp(room_position.y, visible_half_size.y, xx client.world_size.y - visible_half_size.y - 1) };
+    
+    return target_position;
+}
+
+update_camera :: (client: *Client, local_player: *Local_Player, target_center_in_world: v2f, interpolation: f32, snap_to_room_center: bool) {
+    camera := *local_player.camera;
+ 
+    camera.viewport = local_player.viewport;
+
+    viewport_width := camera.viewport[2] - camera.viewport[0];
+    viewport_height := camera.viewport[3] - camera.viewport[1];
+
+    camera.window_aspect_ratio = viewport_width / viewport_height;
+
+#if Camera.FORCE_INTEGER_TILE_SCALING {
+    driving_viewport_dimension := ifx camera.window_aspect_ratio >= 1 then viewport_height else viewport_width;
+    NOMINATOR: f32 : cast(f32) SPRITE_HEIGHT;
+    tile_size_in_pixels_on_screen := floor((driving_viewport_dimension / NOMINATOR) / Camera.DESIRED_MIN_VISIBLE_TILES) * NOMINATOR;
+    visible_tiles: f32 = driving_viewport_dimension / tile_size_in_pixels_on_screen;
+} #else {
+    visible_tiles := Camera.DESIRED_MIN_VISIBLE_TILES;
+}
+
+#if DEVELOPER {
+    desired_zoom := powf(camera.zoom_step, 1.5) + 1;
+    camera.zoom += (desired_zoom - camera.zoom) * interpolation;
+    zoomed_visible_tiles: f32 = visible_tiles * camera.zoom;
+} #else {
+    zoomed_visible_tiles: f32 = visible_tiles;
+}
+
+    if camera.window_aspect_ratio >= 1 {
+        camera.world_to_screen_coordinates.y = viewport_height / zoomed_visible_tiles;
+        camera.world_to_screen_coordinates.x = camera.world_to_screen_coordinates.y;
+        camera.covered_world_area.x = visible_tiles * camera.window_aspect_ratio;
+        camera.covered_world_area.y = visible_tiles;
+    } else {
+        camera.world_to_screen_coordinates.x = viewport_width / zoomed_visible_tiles;
+        camera.world_to_screen_coordinates.y = camera.world_to_screen_coordinates.x;
+        camera.covered_world_area.x = visible_tiles;
+        camera.covered_world_area.y = visible_tiles / camera.window_aspect_ratio;
+    }
+
+#if DEVELOPER {
+    camera.zoomed_covered_world_area.x = camera.covered_world_area.x * camera.zoom;
+    camera.zoomed_covered_world_area.y = camera.covered_world_area.y * camera.zoom;
+} #else {
+    camera.zoomed_covered_world_area.x = camera.covered_world_area.x;
+    camera.zoomed_covered_world_area.y = camera.covered_world_area.y;
+}
+
+    if snap_to_room_center {
+        target_center_in_world = snap_position_to_rooms(client, camera, target_center_in_world);
+    }
+        
+    camera.center_in_world.x = lerp_with_snap(camera.center_in_world.x, target_center_in_world.x, interpolation);
+    camera.center_in_world.y = lerp_with_snap(camera.center_in_world.y, target_center_in_world.y, interpolation);
+}
+
 recalculate_local_player_viewports :: (client: *Client) {
     #assert(MAX_LOCAL_PLAYERS == 4);
 
@@ -349,12 +470,14 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
         if client.free_camera_enabled {
             speed := local_player.camera.zoom * 10;
 
-            if input_action_fired_globally(client, .Move_West, .Held)  local_player.camera.center_in_world.x -= speed * client.tick_time;
-            if input_action_fired_globally(client, .Move_East, .Held)  local_player.camera.center_in_world.x += speed * client.tick_time;
-            if input_action_fired_globally(client, .Move_North, .Held) local_player.camera.center_in_world.y -= speed * client.tick_time;
-            if input_action_fired_globally(client, .Move_South, .Held) local_player.camera.center_in_world.y += speed * client.tick_time;
+            target_center: v2f = local_player.camera.center_in_world;
+
+            if input_action_fired_globally(client, .Move_West, .Held)  target_center.x -= speed * client.tick_time;
+            if input_action_fired_globally(client, .Move_East, .Held)  target_center.x += speed * client.tick_time;
+            if input_action_fired_globally(client, .Move_North, .Held) target_center.y -= speed * client.tick_time;
+            if input_action_fired_globally(client, .Move_South, .Held) target_center.y += speed * client.tick_time;
         
-            update_camera(client, *local_player.camera, local_player.camera.center_in_world, local_player.viewport, 1, false);
+            update_camera(client, local_player, target_center, 1, false);
 
             return;
         }
@@ -364,7 +487,7 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
         //
         // If the guy is alive, update the hud and send some input to the server.
         //
-        update_hud(client, local_player);
+        update_player_hud(client, local_player);
 
         input: Guy_Input_Message = ---;
         input.guy_pid          = local_player.guy_pid;
@@ -459,9 +582,9 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
     //
     {
         target_entity := get_entity(client, local_player.entity_tracked_by_camera);
-        target_world_center := v2f.{ xx target_entity.physical_position.x, xx target_entity.physical_position.y };
+        target_center := v2f.{ xx target_entity.physical_position.x, xx target_entity.physical_position.y };
         interpolation_speed := min(10 * client.tick_time, 1);
-        update_camera(client, *local_player.camera, target_world_center, local_player.viewport, interpolation_speed, true);
+        update_camera(client, local_player, target_center, interpolation_speed, true);
     }
 }
 

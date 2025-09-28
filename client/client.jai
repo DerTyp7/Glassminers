@@ -434,12 +434,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             }
         } else if msg.player_information.guy_pid != INVALID_PID {
             local_player := *client.local_players[msg.player_information.local_player_index];
-            
             local_player.guy_pid = msg.player_information.guy_pid;
-
-            // Calculate the initial camera position to avoid lerping the first few frames
-            guy := get_entity(client, local_player.guy_pid);
-            update_camera(client, *local_player.camera, .{ xx guy.physical_position.x, xx guy.physical_position.y }, local_player.viewport, 1, true);
+            snap_camera_to_guy(client, local_player);
         }
 
       case .Game_Pause;
@@ -1450,11 +1446,11 @@ main :: (args: []string) -> s32 {
               case .Ingame;
                 for i := 0; i < client.local_player_count; ++i {
                     draw_world(*client, *client.local_players[i]);
-                    draw_hud(*client, *client.local_players[i]);
+                    draw_player_hud(*client, *client.local_players[i]);
                 }
 
                 draw_viewport_information(*client);
-                draw_global_hud(*client);
+                draw_score_hud(*client);
 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 

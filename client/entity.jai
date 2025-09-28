@@ -1,25 +1,3 @@
-Camera :: struct {
-    // To avoid visual artifacts when rendering pixel art, we should ensure that the textures are rendering
-    // with an integer scaling onto the back buffer. Otherwise, we might get small offsets in the UVs on
-    // the same row of pixels and similar things.
-    // Therefore, we ensure that the tile size on screen is a multiple of 16.
-    FORCE_INTEGER_TILE_SCALING :: true;
-
-    DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
-
-    window_aspect_ratio: f32;
-    world_to_screen_coordinates: v2f;
-    covered_world_area: v2f; // Always unzoomed
-    zoomed_covered_world_area: v2f; // Can include zoom in developer builds
-    center_in_world: v2f;
-    viewport: [4]f32;
-
-#if DEVELOPER {
-    zoom: f32 = 1;
-    zoom_step: f32 = 0;
-}
-}
-
 Beam_Data :: struct {
     Field :: struct {
         #using position: v2i;
@@ -192,102 +170,9 @@ destroy_entity_manager :: (client: *Client) {
 }
 
 
-
-//
-// Camera
-//
-
-screen_from_world_position :: (camera: *Camera, world: v2f) -> v2f {
-    return .{ round((world.x - camera.center_in_world.x) * camera.world_to_screen_coordinates.x + (camera.viewport[2] - camera.viewport[0]) * 0.5 + camera.viewport[0]),
-              round((world.y - camera.center_in_world.y) * camera.world_to_screen_coordinates.y + (camera.viewport[3] - camera.viewport[1]) * 0.5 + camera.viewport[1]) };
-}
-
-screen_from_world_size :: (camera: *Camera, world: v2f) -> v2f {
-    return .{ round(world.x * camera.world_to_screen_coordinates.x), round(world.y * camera.world_to_screen_coordinates.y) };
-}
-
-screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
-    return round(height * camera.world_to_screen_coordinates.y);
-}
-
-snap_position_to_rooms :: (client: *Client, camera: *Camera, target_center_position: v2f) -> v2f {
-    custom_clamp :: (value, low, high: $T) -> T {
-        if low < high {
-            return clamp(value, low, high);
-        } else {
-            return (low + high) * 0.5;
-        }
-    }
-
-    visible_half_size := v2f.{ camera.covered_world_area.x / 2 - 0.5, camera.covered_world_area.y / 2 - 0.5 };
-
-    room_position := v2f.{ floor(xx target_center_position.x / CAMERA_AREA_WIDTH) * CAMERA_AREA_WIDTH + CAMERA_AREA_OFFSET, 
-                           visible_half_size.y };
-    
-    target_position := v2f.{
-        custom_clamp(room_position.x, visible_half_size.x, xx client.world_size.x - visible_half_size.x - 1),
-        custom_clamp(room_position.y, visible_half_size.y, xx client.world_size.y - visible_half_size.y - 1) };
-    
-    return target_position;
-}
-
-update_camera :: (client: *Client, camera: *Camera, target_center_in_world: v2f, viewport: [4]f32, interpolation: f32, snap_to_room_center: bool) {
-    camera.viewport = viewport;
-
-    viewport_width := camera.viewport[2] - camera.viewport[0];
-    viewport_height := camera.viewport[3] - camera.viewport[1];
-
-    camera.window_aspect_ratio = viewport_width / viewport_height;
-
-#if Camera.FORCE_INTEGER_TILE_SCALING {
-    driving_viewport_dimension := ifx camera.window_aspect_ratio >= 1 then viewport_height else viewport_width;
-    NOMINATOR: f32 : cast(f32) SPRITE_HEIGHT;
-    tile_size_in_pixels_on_screen := floor((driving_viewport_dimension / NOMINATOR) / Camera.DESIRED_MIN_VISIBLE_TILES) * NOMINATOR;
-    visible_tiles: f32 = driving_viewport_dimension / tile_size_in_pixels_on_screen;
-} #else {
-    visible_tiles := Camera.DESIRED_MIN_VISIBLE_TILES;
-}
-
-#if DEVELOPER {
-    desired_zoom := powf(camera.zoom_step, 1.5) + 1;
-    camera.zoom += (desired_zoom - camera.zoom) * min(client.tick_time * 20, 1);
-    zoomed_visible_tiles: f32 = visible_tiles * camera.zoom;
-} #else {
-    zoomed_visible_tiles: f32 = visible_tiles;
-}
-
-    if camera.window_aspect_ratio >= 1 {
-        camera.world_to_screen_coordinates.y = viewport_height / zoomed_visible_tiles;
-        camera.world_to_screen_coordinates.x = camera.world_to_screen_coordinates.y;
-        camera.covered_world_area.x = visible_tiles * camera.window_aspect_ratio;
-        camera.covered_world_area.y = visible_tiles;
-    } else {
-        camera.world_to_screen_coordinates.x = viewport_width / zoomed_visible_tiles;
-        camera.world_to_screen_coordinates.y = camera.world_to_screen_coordinates.x;
-        camera.covered_world_area.x = visible_tiles;
-        camera.covered_world_area.y = visible_tiles / camera.window_aspect_ratio;
-    }
-
-#if DEVELOPER {
-    camera.zoomed_covered_world_area.x = camera.covered_world_area.x * camera.zoom;
-    camera.zoomed_covered_world_area.y = camera.covered_world_area.y * camera.zoom;
-} #else {
-    camera.zoomed_covered_world_area.x = camera.covered_world_area.x;
-    camera.zoomed_covered_world_area.y = camera.covered_world_area.y;
-}
-
-    if snap_to_room_center {
-        target_center_in_world = snap_position_to_rooms(client, camera, target_center_in_world);
-    }
-        
-    camera.center_in_world.x = lerp_with_snap(camera.center_in_world.x, target_center_in_world.x, interpolation);
-    camera.center_in_world.y = lerp_with_snap(camera.center_in_world.y, target_center_in_world.y, interpolation);
-}
-
-
-
 //
 // Particle System
+// nocheckin: Move this into particles??
 //
 
 create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitter_count: s64) -> *Particle_System {

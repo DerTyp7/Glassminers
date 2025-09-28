@@ -48,7 +48,7 @@ create_hud :: (client: *Client, local_player_index: s64) {
     hud.state = .Disabled;
 }
 
-update_hud :: (client: *Client, local_player: *Local_Player) {
+update_player_hud :: (client: *Client, local_player: *Local_Player) {
     hud := *local_player.hud;
     guy_entity := get_entity(client, local_player.guy_pid);
     guy := down(guy_entity, Guy);
@@ -209,7 +209,7 @@ update_hud :: (client: *Client, local_player: *Local_Player) {
     }
 }
 
-draw_hud :: (client: *Client, local_player: *Local_Player) {
+draw_player_hud :: (client: *Client, local_player: *Local_Player) {
     hud := *local_player.hud;
 
     if hud.state != .Disabled {
@@ -324,7 +324,7 @@ draw_hud :: (client: *Client, local_player: *Local_Player) {
     }
 }
 
-draw_global_hud :: (client: *Client) {
+draw_score_hud :: (client: *Client) {
     // Game Score
     {
         text := tprint("Score: %", client.game_score);
