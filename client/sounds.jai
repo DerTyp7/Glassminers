@@ -305,7 +305,25 @@ SOUND_CATEGORY_MAP: [Sound_Index.Count]Sound_Category : .[
     .Sound_Effect, // Currently all sounds are considered a sound effect...
 ];
 
+#if BAKE_ASSETS {
+    BAKED_SOUNDS :: #run bake_all_sounds(ASSET_FILE_PATH("run_tree/data/sounds"));
 
+    bake_all_sounds :: (directory: string) -> [Sound_Index.Count]string {
+        result: [Sound_Index.Count]string = ---;
+
+        start := os_get_cpu_time();
+
+        for i := 0; i < Sound_Index.Count; ++i {
+            filepath := print_into_allocator(Default_Allocator, "%/%.ogg", directory, SOUND_FILEPATH_MAP[i]);
+            result[i] = bake_raw_file(filepath);
+        }
+
+        end := os_get_cpu_time();
+        logprint(.Debug, "Sound baking took %ms.", os_convert_cpu_time(end - start, .Milliseconds));
+
+        return result;
+    }
+}
 
 /* 
   Random sounds are played, well, at random sometimes during the game.

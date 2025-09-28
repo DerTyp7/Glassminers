@@ -26,7 +26,7 @@
 #load "input_bindings.jai";
 #load "entity.jai";
 #load "particles.jai";
-#load "assets.jai";
+#load "sprite_packer.jai";
 #load "sounds.jai";
 #load "animation.jai";
 #load "hud.jai";

@@ -628,3 +628,17 @@ random_one_of :: (random: *Random_Generator, elements: []$T) -> T {
     index := random_u64_in(random, 0, elements.count);
     return elements[index];
 }
+
+
+
+/* ------------------------------------------------ File Baking ----------------------------------------------- */
+
+bake_raw_file :: (filepath: string) -> string {
+    file_content, success := read_entire_file(Default_Allocator, filepath);
+    if !success {
+        compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the raw file '%': The file does not exist.\n", filepath));
+        return "";
+    }
+
+    return file_content;
+}

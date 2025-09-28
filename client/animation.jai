@@ -369,6 +369,22 @@ get_animation_frame :: (animation: *Animation, rotation: Direction, t: f32) -> S
 
 #file_scope
 
+#if BAKE_ASSETS {
+    BAKED_ANIMATIONS, BAKED_ANIMATION_GROUPS :: #run bake_all_animations(ASSET_FILE_PATH("run_tree/data/animation-pack.txt"));
+
+    bake_all_animations :: (filepath: string) -> [Animation_Index.Count]Animation, [Animation_Group_Index.Count]Animation_Group {
+        animations: [Animation_Index.Count]Animation = ---;
+        animation_groups: [Animation_Group_Index.Count]Animation_Group = ---;
+        
+        if load_animation_file(animations, animation_groups, filepath) != .Success {
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the animation pack '%'.\n", filepath));
+            compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]:    We are in the working directory: '%'.\n", get_working_directory(Default_Allocator)));            
+        }
+        
+        return animations, animation_groups;
+    }
+}
+
 find_animation_index_from_name :: (name: string) -> Animation_Index {
     names :: enum_names(Animation_Index);
     

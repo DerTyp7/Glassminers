@@ -268,38 +268,40 @@ create_draw_data :: (client: *Client) -> bool {
     } else {
         logprint(.Debug, "Created the graphics engine: %", client.graphics.backend_version);
     }
+
     ge_set_vsync(*client.graphics, false);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
-    create_ui_scaled_draw_data(client);
 
 #if DEVELOPER {
     client.checkerboard_texture = ge_create_texture_from_file(*client.graphics, "data/sprites/developer/checkerboard.png", .Filter_Nearest | .Wrap_Repeat);
 }
 
+    create_ui_scaled_draw_data(client);
+
 #if BAKE_ASSETS {
-    ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, TITLE_FONT_SIZE, .Ascii);
-    ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, HUD_FONT_SIZE, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, DEFAULT_TITLE_FONT_SIZE, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, DEFAULT_HUD_FONT_SIZE, .Ascii);
 
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         client.sprite_atlases[i] = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLASES[i].width, BAKED_SPRITE_ATLASES[i].height, BAKED_SPRITE_ATLASES[i].channels, BAKED_SPRITE_ATLASES[i].pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
     }
     return true;
 } #else {
-    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", TITLE_FONT_SIZE, .Ascii);
-    ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", HUD_FONT_SIZE, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", DEFAULT_TITLE_FONT_SIZE, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", DEFAULT_HUD_FONT_SIZE, .Ascii);
     return reload_sprite_atlases_from_disk(client);
 }
 }
 
 create_ui_scaled_draw_data :: (client: *Client) {
     ge_destroy_font(*client.graphics, *client.ui_font);
-    desired_scale: s16 = cast(s16) ceil(cast(f32) UI_FONT_SIZE * UI_SCALING_VALUES[client.current_ui_scale]);
+    ui_font_size: s16 = cast(s16) ceil(cast(f32) DEFAULT_UI_FONT_SIZE * UI_SCALING_VALUES[client.current_ui_scale]);
 
 #if BAKE_ASSETS {
-    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, desired_scale, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, ui_font_size, .Ascii);
 } #else {
-    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", desired_scale, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", ui_font_size, .Ascii);
 }
 }
 
@@ -1007,6 +1009,15 @@ draw_viewport_information :: (client: *Client) {
 
 #file_scope
 
+DEFAULT_UI_FONT_SIZE:    s16 : 13;
+DEFAULT_TITLE_FONT_SIZE: s16 : 45;
+DEFAULT_HUD_FONT_SIZE:   s16 : 25;
+PROGRESS_BAR_AS_CIRCLE :: false;
+
+#if BAKE_ASSETS {
+    BAKED_FONT :: #run bake_raw_file(ASSET_FILE_PATH("run_tree/data/font.ttf"));
+}
+
 Draw_Sprite_Flags :: enum bitfield {
     None :: 0x0;
     Flipped;
@@ -1025,8 +1036,6 @@ darken_color :: (color: GE_Color, brightness: f32) -> GE_Color {
               cast(u8) (cast(f32) color.b * brightness),
               color.a };
 }
-
-PROGRESS_BAR_AS_CIRCLE :: false;
 
 get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32, looping: bool) -> Sprite_Index {
     frame_index := cast(s64) floor(time / frame_time);
