@@ -221,6 +221,7 @@ Client :: struct {
     local_player_count := 1;
 
     #using em: Entity_Manager;
+    #using pm: Particle_Manager;
     lightmap: Lightmap;
     global_particle_system: Pid;
     
@@ -455,6 +456,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
         initialize_random_sounds(client);
         create_entity_manager(client);
+        create_particle_manager(client);
         create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
 
         for i := 0; i < client.local_player_count; ++i {
@@ -880,6 +882,7 @@ maybe_transition_to_next_state :: (client: *Client) {
         stop_all_sounds(client);
         destroy_lightmap(*client.lightmap);
         destroy_entity_manager(client);
+        destroy_particle_manager(client);
         disconnect_from_server(client);
         maybe_shutdown_server(client);
         reset_allocator(*client.world_allocator);

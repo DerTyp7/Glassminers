@@ -38,6 +38,9 @@ snap_camera_to_guy :: (client: *Client, local_player: *Local_Player) {
     update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
 }
 
+position_in_bounds :: (client: *Client, position: v2i) -> bool {
+    return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
+}
 
 
 

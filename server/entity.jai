@@ -128,9 +128,7 @@ Entity_Manager :: struct {
 
 
 
-//
-// Entity Manager
-//
+/* ---------------------------------------------- Entity Manager ---------------------------------------------- */
 
 create_entity_manager :: (server: *Server) {
     server.pid_counter = 0;
@@ -166,9 +164,7 @@ destroy_entity_manager :: (server: *Server) {
 
 
 
-//
-// Base Entity
-//
+/* ------------------------------------------------ Base Entity ----------------------------------------------- */
 
 down :: (entity: *Entity, $T: Type) -> *T {
 #if DEVELOPER {
@@ -239,6 +235,15 @@ get_entity :: (server: *Server, pid: Pid) -> *Entity {
 entity_exists :: (server: *Server, pid: Pid) -> bool {
     pointer := probed_hash_table_query(*server.pid_lookup, pid);
     return pointer != null;
+}
+
+remove_entity :: (server: *Server, entity: *Entity) {
+    entity.marked_for_removal = true;
+    msg := make_message(Destroy_Entity_Message);
+    msg.destroy_entity.entity_pid = entity.pid;
+    array_add(*server.outgoing_messages, msg);
+
+    maybe_remove_blocker(*server.lightmap, entity);
 }
 
 physically_remove_dead_entities :: (server: *Server) {
@@ -384,15 +389,6 @@ set_entity_health :: (server: *Server, entity: *Entity, health: f32) {
         msg.entity_health.new_health = entity.health;
         array_add(*server.outgoing_messages, msg);
     }
-}
-
-remove_entity :: (server: *Server, entity: *Entity) {
-    entity.marked_for_removal = true;
-    msg := make_message(Destroy_Entity_Message);
-    msg.destroy_entity.entity_pid = entity.pid;
-    array_add(*server.outgoing_messages, msg);
-
-    maybe_remove_blocker(*server.lightmap, entity);
 }
 
 
