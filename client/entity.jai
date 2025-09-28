@@ -1,19 +1,3 @@
-Camera :: struct {
-    DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
-
-    window_aspect_ratio: f32;
-    world_to_screen_coordinates: v2f;
-    covered_world_area: v2f; // Always unzoomed
-    zoomed_covered_world_area: v2f; // Can include zoom in developer builds
-    center_in_world: v2f;
-    viewport: [4]f32;
-
-#if DEVELOPER {
-    zoom: f32 = 1;
-    zoom_step: f32 = 0;
-}
-}
-
 Beam_Data :: struct {
     Field :: struct {
         #using position: v2i;
@@ -134,21 +118,14 @@ Entity_Manager :: struct {
     goblins:      Bucket_Array(Goblin);
     slimes:       Bucket_Array(Slime);
     void_eyes:    Bucket_Array(Void_Eye);
-
-    particle_pid_counter := 0;
-    particle_pid_lookup: Probed_Hash_Table(Pid, *Particle_System);
-    particle_systems: Bucket_Array(Particle_System);
 }
 
 
 
-//
-// Entity Manager
-//
+/* ---------------------------------------------- Entity Manager ---------------------------------------------- */
 
 create_entity_manager :: (client: *Client) {
     client.entity_pid_lookup.allocator = *client.world_allocator;
-    client.particle_pid_lookup.allocator = *client.world_allocator;
 
     probed_hash_table_create(*client.entity_pid_lookup, 128, pid_hash, pids_equal);
     create_bucket_array(*client.all_entities, *client.world_allocator);
@@ -162,9 +139,6 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.goblins, *client.world_allocator);
     create_bucket_array(*client.slimes, *client.world_allocator);
     create_bucket_array(*client.void_eyes, *client.world_allocator);
-
-    probed_hash_table_create(*client.particle_pid_lookup, 128, pid_hash, pids_equal);
-    create_bucket_array(*client.particle_systems, *client.world_allocator);
 }
 
 destroy_entity_manager :: (client: *Client) {
@@ -180,173 +154,18 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.goblins);
     destroy_bucket_array(*client.slimes);
     destroy_bucket_array(*client.void_eyes);
-
-    probed_hash_table_destroy(*client.particle_pid_lookup);
-    destroy_bucket_array(*client.particle_systems);
 }
 
 
 
-//
-// Camera
-//
+/* ------------------------------------------------ Base Entity ----------------------------------------------- */
 
-screen_from_world_position :: (camera: *Camera, world: v2f) -> v2f {
-    return .{ round((world.x - camera.center_in_world.x) * camera.world_to_screen_coordinates.x + (camera.viewport[2] - camera.viewport[0]) * 0.5 + camera.viewport[0]),
-              round((world.y - camera.center_in_world.y) * camera.world_to_screen_coordinates.y + (camera.viewport[3] - camera.viewport[1]) * 0.5 + camera.viewport[1]) };
-}
-
-screen_from_world_size :: (camera: *Camera, world: v2f) -> v2f {
-    return .{ round(world.x * camera.world_to_screen_coordinates.x), round(world.y * camera.world_to_screen_coordinates.y) };
-}
-
-screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
-    return round(height * camera.world_to_screen_coordinates.y);
-}
-
-snap_position_to_rooms :: (client: *Client, camera: *Camera, target_center_position: v2f) -> v2f {
-    custom_clamp :: (value, low, high: $T) -> T {
-        if low < high {
-            return clamp(value, low, high);
-        } else {
-            return (low + high) * 0.5;
-        }
-    }
-
-    visible_half_size := v2f.{ camera.covered_world_area.x / 2 - 0.5, camera.covered_world_area.y / 2 - 0.5 };
-
-    room_position := v2f.{ floor(xx target_center_position.x / CAMERA_AREA_WIDTH) * CAMERA_AREA_WIDTH + CAMERA_AREA_OFFSET, 
-                           visible_half_size.y };
-    
-    target_position := v2f.{
-        custom_clamp(room_position.x, visible_half_size.x, xx client.world_size.x - visible_half_size.x - 1),
-        custom_clamp(room_position.y, visible_half_size.y, xx client.world_size.y - visible_half_size.y - 1) };
-    
-    return target_position;
-}
-
-update_camera :: (client: *Client, camera: *Camera, target_center_in_world: v2f, viewport: [4]f32, interpolation: f32, snap_to_room_center: bool) {
-    camera.viewport = viewport;
-
-    viewport_width := camera.viewport[2] - camera.viewport[0];
-    viewport_height := camera.viewport[3] - camera.viewport[1];
-
-    camera.window_aspect_ratio = viewport_width / viewport_height;
-
-    // Calculate the actual number of visible tiles on screen.
-    // Apparently, OpenGL introduces pixel artifacts when scaling a texture with a fractional scale (for whatever
-    // reason... Ugh).
-    // Therefore, we calculate a visible_tiles value where we know the size of a tile on screen is an integer
-    // multiple of 16.
-    driving_viewport_dimension := ifx camera.window_aspect_ratio >= 1 then viewport_height else viewport_width;
-    NOMINATOR: f32 : cast(f32) SPRITE_HEIGHT;
-    tile_size_in_pixels_on_screen := floor((driving_viewport_dimension / NOMINATOR) / Camera.DESIRED_MIN_VISIBLE_TILES) * NOMINATOR;
-    visible_tiles: f32 = driving_viewport_dimension / tile_size_in_pixels_on_screen;
-
+down :: (entity: *Entity, $T: Type) -> *T {
 #if DEVELOPER {
-    desired_zoom := powf(camera.zoom_step, 1.5) + 1;
-    camera.zoom += (desired_zoom - camera.zoom) * min(client.tick_time * 20, 1);
-    zoomed_visible_tiles: f32 = visible_tiles * camera.zoom;
-} #else {
-    zoomed_visible_tiles: f32 = visible_tiles;
+    assert(entity != null && entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");
 }
-
-    if camera.window_aspect_ratio >= 1 {
-        camera.world_to_screen_coordinates.y = viewport_height / zoomed_visible_tiles;
-        camera.world_to_screen_coordinates.x = camera.world_to_screen_coordinates.y;
-        camera.covered_world_area.x = visible_tiles * camera.window_aspect_ratio;
-        camera.covered_world_area.y = visible_tiles;
-    } else {
-        camera.world_to_screen_coordinates.x = viewport_width / zoomed_visible_tiles;
-        camera.world_to_screen_coordinates.y = camera.world_to_screen_coordinates.x;
-        camera.covered_world_area.x = visible_tiles;
-        camera.covered_world_area.y = visible_tiles / camera.window_aspect_ratio;
-    }
-
-#if DEVELOPER {
-    camera.zoomed_covered_world_area.x = camera.covered_world_area.x * camera.zoom;
-    camera.zoomed_covered_world_area.y = camera.covered_world_area.y * camera.zoom;
-} #else {
-    camera.zoomed_covered_world_area.x = camera.covered_world_area.x;
-    camera.zoomed_covered_world_area.y = camera.covered_world_area.y;
+    return cast(*T) entity.derived;
 }
-
-    if snap_to_room_center {
-        target_center_in_world = snap_position_to_rooms(client, camera, target_center_in_world);
-    }
-        
-    camera.center_in_world.x = lerp_with_snap(camera.center_in_world.x, target_center_in_world.x, interpolation);
-    camera.center_in_world.y = lerp_with_snap(camera.center_in_world.y, target_center_in_world.y, interpolation);
-}
-
-
-
-//
-// Particle System
-//
-
-create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitter_count: s64) -> *Particle_System {
-    pid := ++client.particle_pid_counter;
-
-    system := push_bucket_array(*client.particle_systems);
-    system.pid            = pid;
-    system.allocator      = *client.world_allocator;
-    system.time_to_live   = ttl;
-    system.world_position = world_position;
-    system.global_alpha   = 1;
-    system.emitters       = allocate_array(system.allocator, Particle_Emitter, emitter_count);
-
-    seed_random_generator(*system.random, os_get_cpu_time(), system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
-
-    if cast(f32) client.particle_pid_lookup.count / cast(f32) client.particle_pid_lookup.buckets.count >= 0.7 {
-        probed_hash_table_resize(*client.particle_pid_lookup, client.particle_pid_lookup.buckets.count * 2);
-    }
-
-    successfully_added := probed_hash_table_add(*client.particle_pid_lookup, pid, system);
-    assert(successfully_added, "For some reason we failed to register the particle pid on the client.");
-
-    return system;
-}
-
-physically_remove_dead_particle_systems :: (client: *Client) {
-    for i := 0; i < client.particle_systems.slot_count; ++i {
-        system, occupied := index_bucket_array(*client.particle_systems, i);
-        if !occupied continue;
-        
-        if system.time_to_live <= 0 {
-            probed_hash_table_remove(*client.particle_pid_lookup, system.pid);
-            remove_index_from_bucket_array(*client.particle_systems, i);
-        }
-    }
-}
-
-particle_system_exists :: (client: *Client, pid: Pid) -> bool {
-    return probed_hash_table_query(*client.particle_pid_lookup, pid) != null;
-}
-
-get_particle_system :: (client: *Client, pid: Pid) -> *Particle_System {
-    pointer := probed_hash_table_query(*client.particle_pid_lookup, pid);
-    assert(pointer != null, "Tried to get a non-existent particle system.");
-    return ~pointer;
-}
-
-create_halo_particles :: (client: *Client, entity: *Entity, ttl: f32) -> *Particle_System, *Particle_Emitter {
-    particles := create_particle_system(client, ttl, .{ entity.visual_position.x, entity.visual_position.y - 0.35 }, 1);
-    emitter := create_particle_emitter(particles, 0, 64);
-    emitter.drag = 0.95;
-    emitter.box_half_size = .{ 0.45, 0.15 };
-    emitter.shape_cutout_factor = 0.95;
-    emitter.lifetime = .[ 0.5, 0.7 ];
-    emitter.speed = .[ 0.3, 0.5 ];
-    emitter.gravity = .{ 0, -2 };
-    return particles, emitter;
-}
-
-
-
-//
-// Base Entity
-//
 
 create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, position: v2i, rotation: Direction) -> *Entity {
     make_derived :: (entity: *Entity, array: *Bucket_Array($T)) {
@@ -466,11 +285,34 @@ entity_exists :: (client: *Client, pid: Pid) -> bool {
     return pointer != null;
 }
 
-down :: (entity: *Entity, $T: Type) -> *T {
-#if DEVELOPER {
-    assert(entity != null && entity.derived_type_id == type_id(T) && entity.derived != null, "Invalid down() cast on entity.");
-}
-    return cast(*T) entity.derived;
+physically_remove_dead_entities :: (client: *Client) {
+    remove_deriveds :: (array: *Bucket_Array($T)) {
+        for i := 0; i < array.slot_count; ++i {
+            derived, occupied := index_bucket_array(array, i);
+            if occupied && derived.marked_for_removal {
+                remove_index_from_bucket_array(array, i);
+            }
+        }
+    }
+    
+    remove_deriveds(*client.guys);
+    remove_deriveds(*client.emitters);
+    remove_deriveds(*client.slabs);
+    remove_deriveds(*client.item_stacks);
+    remove_deriveds(*client.torches);
+    remove_deriveds(*client.chests);
+    remove_deriveds(*client.frogs);
+    remove_deriveds(*client.goblins);
+    remove_deriveds(*client.slimes);
+    remove_deriveds(*client.void_eyes);
+
+    for i := 0; i < client.all_entities.slot_count; ++i {
+        entity, occupied := index_bucket_array(*client.all_entities, i);
+        if occupied && entity.marked_for_removal {
+            probed_hash_table_remove(*client.entity_pid_lookup, entity.pid);
+            remove_index_from_bucket_array(*client.all_entities, i);
+        }
+    }
 }
 
 interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
@@ -584,6 +426,10 @@ maybe_play_animation_from_group_after :: (client: *Client, entity: *Entity, new_
     }
 }
 
+
+
+/* --------------------------------------------- Position Queries --------------------------------------------- */
+
 find_any_entity_at_position :: (client: *Client, position: v2i) -> *Entity {
     found_entity: *Entity = null;
 
@@ -642,36 +488,6 @@ find_nearest_entity_of_kind :: (client: *Client, kind: Entity_Kind, position: v2
     return nearest_entity, nearest_distance;
 }
 
-physically_remove_dead_entities :: (client: *Client) {
-    remove_deriveds :: (array: *Bucket_Array($T)) {
-        for i := 0; i < array.slot_count; ++i {
-            derived, occupied := index_bucket_array(array, i);
-            if occupied && derived.marked_for_removal {
-                remove_index_from_bucket_array(array, i);
-            }
-        }
-    }
-    
-    remove_deriveds(*client.guys);
-    remove_deriveds(*client.emitters);
-    remove_deriveds(*client.slabs);
-    remove_deriveds(*client.item_stacks);
-    remove_deriveds(*client.torches);
-    remove_deriveds(*client.chests);
-    remove_deriveds(*client.frogs);
-    remove_deriveds(*client.goblins);
-    remove_deriveds(*client.slimes);
-    remove_deriveds(*client.void_eyes);
-
-    for i := 0; i < client.all_entities.slot_count; ++i {
-        entity, occupied := index_bucket_array(*client.all_entities, i);
-        if occupied && entity.marked_for_removal {
-            probed_hash_table_remove(*client.entity_pid_lookup, entity.pid);
-            remove_index_from_bucket_array(*client.all_entities, i);
-        }
-    }
-}
-
 visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
     size: v2f = ---;
     
@@ -683,26 +499,9 @@ visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
     return size;
 }
 
-position_in_bounds :: (client: *Client, position: v2i) -> bool {
-    return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
-}
 
 
-
-//
-// Derived Types
-//
-
-is_furthest_active_emitter :: (client: *Client, emitter: *Emitter) -> bool {
-    for i := 0; i < client.emitters.slot_count; ++i {
-        other_emitter, occupied := index_bucket_array(*client.emitters, i);
-        if !occupied || other_emitter == emitter || other_emitter.state == .Off || other_emitter.physical_position.x < emitter.physical_position.x continue;
-
-        return false;
-    }
-
-    return true;
-}
+/* ----------------------------------------------- Entity Logic ----------------------------------------------- */
 
 update_powered_emitter :: (client: *Client, emitter: *Emitter) {
     clear_beam_data(client, *emitter.beam_data);
@@ -984,9 +783,16 @@ update_slime_hole :: (client: *Client, hole: *Entity) {
 
 #file_scope
 
-//
-// Helpers
-//
+is_furthest_active_emitter :: (client: *Client, emitter: *Emitter) -> bool {
+    for i := 0; i < client.emitters.slot_count; ++i {
+        other_emitter, occupied := index_bucket_array(*client.emitters, i);
+        if !occupied || other_emitter == emitter || other_emitter.state == .Off || other_emitter.physical_position.x < emitter.physical_position.x continue;
+
+        return false;
+    }
+
+    return true;
+}
 
 is_emitter_beam_at :: (client: *Client, position: v2i) -> bool, *Emitter, Direction {
     for i := 0; i < client.emitters.slot_count; ++i {

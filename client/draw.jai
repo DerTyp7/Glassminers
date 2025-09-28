@@ -3,6 +3,18 @@ GRAY_COLOR   :: GE_Color.{ 100, 100, 100, 255 };
 ORANGE_COLOR :: GE_Color.{ 255, 166, 0, 255 };
 YELLOW_COLOR :: GE_Color.{ 252, 238, 28, 255 };
 
+Draw_Sprite_Flags :: enum bitfield {
+    None :: 0x0;
+    Flipped;
+    Lit;
+}
+
+Draw_Text_Flags :: enum bitfield {
+    Default;
+    Shadow;
+    Background;
+}
+
 Sprite_Index :: enum {
     // HUD
     Hud_Heart_Full;
@@ -262,39 +274,46 @@ find_sprite_index_from_name :: (name: string) -> s64, bool {
 //
 
 create_draw_data :: (client: *Client) -> bool {
-    ge_create(*client.graphics, *client.window, *client.engine_allocator);
+    if !ge_create(*client.graphics, *client.window, *client.engine_allocator) {
+        panic("Failed to create a rendering context. Please make sure you're fulfilling the hardware requirements.");
+        os_exit(-1);
+    } else {
+        logprint(.Debug, "Created the graphics engine: %", client.graphics.backend_version);
+    }
+
     ge_set_vsync(*client.graphics, false);
     client.ui_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
-    create_ui_scaled_draw_data(client);
 
 #if DEVELOPER {
     client.checkerboard_texture = ge_create_texture_from_file(*client.graphics, "data/sprites/developer/checkerboard.png", .Filter_Nearest | .Wrap_Repeat);
 }
 
+    create_ui_scaled_draw_data(client);
+
 #if BAKE_ASSETS {
-    ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, TITLE_FONT_SIZE, .Ascii);
-    ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, HUD_FONT_SIZE, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.title_font, BAKED_FONT, DEFAULT_TITLE_FONT_SIZE, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.hud_font, BAKED_FONT, DEFAULT_HUD_FONT_SIZE, .Ascii);
 
     for i := 0; i < SPRITE_ATLAS_COUNT; ++i {
         client.sprite_atlases[i] = ge_create_texture_from_raw_buffer(*client.graphics, BAKED_SPRITE_ATLASES[i].width, BAKED_SPRITE_ATLASES[i].height, BAKED_SPRITE_ATLASES[i].channels, BAKED_SPRITE_ATLASES[i].pixels.data, .Filter_Nearest | .Wrap_Clamp_To_Edge);
     }
     return true;
 } #else {
-    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", TITLE_FONT_SIZE, .Ascii);
-    ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", HUD_FONT_SIZE, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.title_font, "data/font.ttf", DEFAULT_TITLE_FONT_SIZE, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.hud_font, "data/font.ttf", DEFAULT_HUD_FONT_SIZE, .Ascii);
     return reload_sprite_atlases_from_disk(client);
 }
 }
 
 create_ui_scaled_draw_data :: (client: *Client) {
     ge_destroy_font(*client.graphics, *client.ui_font);
-    desired_scale: s16 = cast(s16) ceil(cast(f32) UI_FONT_SIZE * UI_SCALING_VALUES[client.current_ui_scale]);
+    ui_font_size: s16 = cast(s16) ceil(cast(f32) DEFAULT_UI_FONT_SIZE * UI_SCALING_VALUES[client.current_ui_scale]);
 
 #if BAKE_ASSETS {
-    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, desired_scale, .Ascii);
+    ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, ui_font_size, .Ascii);
 } #else {
-    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", desired_scale, .Ascii);
+    ge_create_font_from_file(*client.graphics, *client.ui_font, "data/font.ttf", ui_font_size, .Ascii);
 }
 }
 
@@ -404,12 +423,6 @@ draw_line_screen_space :: (client: *Client, c0, c1: v2f, color: GE_Color, thickn
 
 draw_outlined_rect_screen_space :: (client: *Client, c0, c1: v2f, thickness: f32, color: GE_Color) {
     ge_imm2d_colored_rect_outline(*client.graphics, c0.x, c0.y, c1.x, c1.y, thickness, color);
-}
-
-Draw_Text_Flags :: enum bitfield {
-    Default;
-    Shadow;
-    Background;
 }
 
 draw_text_screen_space :: (client: *Client, font: *Font, text: string, position: v2f, alignment: Text_Alignment, foreground: GE_Color, flags: Draw_Text_Flags) {
@@ -564,7 +577,6 @@ draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, 
     draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
 }
 
-
 draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
     if sprite_index == .Count return; // This makes it more convenient when drawing input action hints, because we might not have sprites for every input binding...
 
@@ -591,7 +603,11 @@ draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen
     texture := client.sprite_atlases[atlas_index];
 
     for i := 0; i < indices.Capacity; ++i {
-        ge_imm2d_textured_vertex(*client.graphics, screen_center.x + vertices[indices[i]].x, screen_center.y + vertices[indices[i]].y, uvs[indices[i]].x, uvs[indices[i]].y, texture, tint);
+        ge_imm2d_textured_vertex(*client.graphics, 
+            screen_center.x + vertices[indices[i]].x, 
+            screen_center.y + vertices[indices[i]].y, 
+            uvs[indices[i]].x, uvs[indices[i]].y,
+            texture, tint);
     }
 }
 
@@ -699,8 +715,14 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
 
     for i := 0; i < indices.Capacity; ++i {
         idx := indices[i];
-        screen_position := screen_from_world_position(*local_player.camera, v2f.{ world_center.x + world_vertices[idx].x, world_center.y + world_vertices[idx].y });
-        ge_imm2d_textured_vertex(*client.graphics, screen_position.x, screen_position.y, uvs[idx].x, uvs[idx].y, texture, tint);
+        screen_position := screen_from_world_position(*local_player.camera, 
+            v2f.{ world_center.x + world_vertices[idx].x, world_center.y + world_vertices[idx].y });
+        
+        ge_imm2d_textured_vertex(*client.graphics,
+            screen_position.x, 
+            screen_position.y, 
+            uvs[idx].x, uvs[idx].y,
+            texture, tint);
     }
 }
 
@@ -992,10 +1014,13 @@ draw_viewport_information :: (client: *Client) {
 
 #file_scope
 
-Draw_Sprite_Flags :: enum bitfield {
-    None :: 0x0;
-    Flipped;
-    Lit;
+DEFAULT_UI_FONT_SIZE:    s16 : 13;
+DEFAULT_TITLE_FONT_SIZE: s16 : 45;
+DEFAULT_HUD_FONT_SIZE:   s16 : 25;
+PROGRESS_BAR_AS_CIRCLE :: false;
+
+#if BAKE_ASSETS {
+    BAKED_FONT :: #run bake_raw_file(ASSET_FILE_PATH("run_tree/data/font.ttf"));
 }
 
 Draw_Beam_Flags :: enum bitfield {
@@ -1010,8 +1035,6 @@ darken_color :: (color: GE_Color, brightness: f32) -> GE_Color {
               cast(u8) (cast(f32) color.b * brightness),
               color.a };
 }
-
-PROGRESS_BAR_AS_CIRCLE :: false;
 
 get_time_animated_sprite_index :: (client: *Client, frame_time: f32, frames: []Sprite_Index, time: f32, looping: bool) -> Sprite_Index {
     frame_index := cast(s64) floor(time / frame_time);

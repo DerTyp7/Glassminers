@@ -67,6 +67,88 @@ Particle_System :: struct {
     emitters: []Particle_Emitter;
 }
 
+Particle_Manager :: struct {
+    particle_pid_counter := 0;
+    particle_pid_lookup: Probed_Hash_Table(Pid, *Particle_System);
+    particle_systems: Bucket_Array(Particle_System);
+}
+
+
+
+/* --------------------------------------------- Particle Manager --------------------------------------------- */
+
+create_particle_manager :: (client: *Client) {
+    client.particle_pid_lookup.allocator = *client.world_allocator;
+    probed_hash_table_create(*client.particle_pid_lookup, 128, pid_hash, pids_equal);
+    create_bucket_array(*client.particle_systems, *client.world_allocator);
+}
+
+destroy_particle_manager :: (client: *Client) {
+    probed_hash_table_destroy(*client.particle_pid_lookup);
+    destroy_bucket_array(*client.particle_systems);
+}
+
+create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitter_count: s64) -> *Particle_System {
+    pid := ++client.particle_pid_counter;
+
+    system := push_bucket_array(*client.particle_systems);
+    system.pid            = pid;
+    system.allocator      = *client.world_allocator;
+    system.time_to_live   = ttl;
+    system.world_position = world_position;
+    system.global_alpha   = 1;
+    system.emitters       = allocate_array(system.allocator, Particle_Emitter, emitter_count);
+
+    seed_random_generator(*system.random, os_get_cpu_time(), system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
+
+    if cast(f32) client.particle_pid_lookup.count / cast(f32) client.particle_pid_lookup.buckets.count >= 0.7 {
+        probed_hash_table_resize(*client.particle_pid_lookup, client.particle_pid_lookup.buckets.count * 2);
+    }
+
+    successfully_added := probed_hash_table_add(*client.particle_pid_lookup, pid, system);
+    assert(successfully_added, "For some reason we failed to register the particle pid on the client.");
+
+    return system;
+}
+
+physically_remove_dead_particle_systems :: (client: *Client) {
+    for i := 0; i < client.particle_systems.slot_count; ++i {
+        system, occupied := index_bucket_array(*client.particle_systems, i);
+        if !occupied continue;
+        
+        if system.time_to_live <= 0 {
+            probed_hash_table_remove(*client.particle_pid_lookup, system.pid);
+            remove_index_from_bucket_array(*client.particle_systems, i);
+        }
+    }
+}
+
+particle_system_exists :: (client: *Client, pid: Pid) -> bool {
+    return probed_hash_table_query(*client.particle_pid_lookup, pid) != null;
+}
+
+get_particle_system :: (client: *Client, pid: Pid) -> *Particle_System {
+    pointer := probed_hash_table_query(*client.particle_pid_lookup, pid);
+    assert(pointer != null, "Tried to get a non-existent particle system.");
+    return ~pointer;
+}
+
+create_halo_particles :: (client: *Client, entity: *Entity, ttl: f32) -> *Particle_System, *Particle_Emitter {
+    particles := create_particle_system(client, ttl, .{ entity.visual_position.x, entity.visual_position.y - 0.35 }, 1);
+    emitter := create_particle_emitter(particles, 0, 64);
+    emitter.drag = 0.95;
+    emitter.box_half_size = .{ 0.45, 0.15 };
+    emitter.shape_cutout_factor = 0.95;
+    emitter.lifetime = .[ 0.5, 0.7 ];
+    emitter.speed = .[ 0.3, 0.5 ];
+    emitter.gravity = .{ 0, -2 };
+    return particles, emitter;
+}
+
+
+
+/* ------------------------------------------------- Creation ------------------------------------------------- */
+
 create_particle_emitter :: (#using system: *Particle_System, emitter_index: s64, particle_count: s64) -> *Particle_Emitter {
     emitter := *emitters[emitter_index];
     ~emitter = Particle_Emitter.{};
@@ -79,13 +161,6 @@ create_particle_emitter :: (#using system: *Particle_System, emitter_index: s64,
     
     emitter.new_particle_accumulator = 0;
     return emitter;
-}
-
-destroy_particle_system :: (#using system: *Particle_System) {
-    for i := 0; i < emitters.count; ++i {
-        deallocate_array(allocator, *emitters[i].particles);
-    }
-    deallocate_array(allocator, *emitters);
 }
 
 update_particle_system :: (#using system: *Particle_System, dt: f32) {
@@ -105,24 +180,16 @@ prewarm_particle_system :: (#using system: *Particle_System, total_time: f32, st
     }
 }
 
-count_alive_particles :: (#using system: *Particle_System) -> s64 {
-    count := 0;
-
-    for i := 0; i < system.emitters.count; ++i {
-        emitter := *system.emitters[i];
-        
-        for j := 0; j < emitter.particles.count; ++j {
-            particle := *emitter.particles[j];
-            if particle.elapsed < particle.lifetime then ++count;
-        }
-    }
-
-    return count;
-}
-
 
 
 #file_scope
+
+destroy_particle_system :: (#using system: *Particle_System) {
+    for i := 0; i < emitters.count; ++i {
+        deallocate_array(allocator, *emitters[i].particles);
+    }
+    deallocate_array(allocator, *emitters);
+}
 
 update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle_Emitter, dt: f32) {
     new_particle_accumulator += particles_per_second * dt;
