@@ -109,6 +109,13 @@ UI_Scale :: enum {
 
 UI_SCALING_VALUES: [UI_Scale.Count]f32 : .[ 0.75, 1, 2, 4 ];
 
+Game_Summary :: struct {
+    result: Game_Result;
+    score: u64;
+    player_stat_message: string;
+    global_stat_message: string;
+}
+
 Client :: struct {
     //
     // Engine structure
@@ -131,7 +138,7 @@ Client :: struct {
     state_transition_duration: f32;
     random: Random_Generator;
 
-    previous_game_result: Game_Result;
+    previous_game_summary: Game_Summary;
     info_text: string;
     info_text_t: f32;
     vibration_enabled := true;
@@ -451,7 +458,18 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .Game_Over;
         client.game_score = msg.game_over.score;
-        client.previous_game_result = msg.game_over.result;
+        client.previous_game_summary.result = msg.game_over.result;
+        client.previous_game_summary.score  = msg.game_over.score;
+        
+        if msg.game_over.player_stat_kind != .Count {
+            player_name := find_player_name_from_guy_pid(client, msg.game_over.player_stat_guy_pid);
+            client.previous_game_summary.player_stat_message = format_player_stat(*client.engine_allocator, player_name, msg.game_over.player_stat_kind, msg.game_over.player_stat);
+        }
+        
+        if msg.game_over.global_stat_kind != .Count {
+            client.previous_game_summary.global_stat_message = format_global_stat(*client.engine_allocator, msg.game_over.global_stat_kind, msg.game_over.global_stat);
+        }
+
         initiate_state_transition(client, .Game_Over, 5);
 
         if msg.game_over.result != .Completed_Tutorial then play_sound(client, .Hud_Failure_0, .Default);
@@ -775,7 +793,7 @@ read_incoming_packets :: (client: *Client) {
             }
           
           case Packet_Type.Connection_Closed;
-            client.previous_game_result = .Connection_Lost;
+            client.previous_game_summary.result = .Connection_Lost;
             initiate_state_transition(client, .Game_Over, 0);
             
           case Packet_Type.Ping;
@@ -794,7 +812,7 @@ read_incoming_packets :: (client: *Client) {
 
 handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: string) {
     if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
-        client.previous_game_result = .Connection_Lost;
+        client.previous_game_summary.result = .Connection_Lost;
         initiate_state_transition(client, next_screen, 0);
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
     } else if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
@@ -822,7 +840,7 @@ maybe_transition_to_next_state :: (client: *Client) {
     // logprint(.Debug, "Switching from '%' to '%'...", client.current_state, client.next_state);
 
     if #complete client.current_state == {
-      case .Main_Menu, .Game_Over;
+      case .Main_Menu;
 
       case .Connecting;
         if client.next_state != .Lobby {
@@ -853,6 +871,10 @@ maybe_transition_to_next_state :: (client: *Client) {
             local_player := *client.local_players[i];
             set_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, 0, 0, 255, 255, 255);
         }
+
+      case .Game_Over;
+        deallocate_string(*client.engine_allocator, *client.previous_game_summary.player_stat_message);
+        deallocate_string(*client.engine_allocator, *client.previous_game_summary.global_stat_message);
     }
 
     client.current_state = client.next_state;
@@ -1177,13 +1199,25 @@ do_lobby_screen :: (client: *Client) {
 }
 
 do_game_over_screen :: (client: *Client) {
+    display_game_stats :: () #macro {
+        summary := client.previous_game_summary;
+
+        if summary.player_stat_message.count {
+            ui_divider(ui, true);
+        }
+
+        if summary.global_stat_message.count {
+            ui_divider(ui, true);
+        }
+    }
+
     ui :: *client.ui;
     ui_push_width(ui, .Pixels, 350, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
     
     score_text := tprint("Final Score: %", client.game_score);
     
-    if #complete client.previous_game_result == {
+    if #complete client.previous_game_summary.result == {
       case .Unfinished_Game; // Should never happen, this value is just used on the server side
           
       case .Completed_Tutorial;
@@ -1192,10 +1226,12 @@ do_game_over_screen :: (client: *Client) {
       case .All_Players_Died; 
         ui_label(ui, true, "All players have died!");
         ui_label(ui, true, score_text);
+        display_game_stats();
         
       case .Flag_Was_Destroyed;
         ui_label(ui, true, "The flag was destroyed!");
         ui_label(ui, true, score_text);
+        display_game_stats();
 
       case .Connection_Lost;
         ui_label(ui, true, "Connection died!");

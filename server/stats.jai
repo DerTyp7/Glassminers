@@ -65,6 +65,14 @@ increment_global_statistic :: (server: *Server, kind: Global_Stat_Kind) {
     }
 }
 
+find_game_over_player_stat :: (server: *Server) -> Player_Stat_Kind, Pid, Statistic {
+    return .Count, ---, ---;
+}
+
+find_game_over_global_stat :: (server: *Server) -> Global_Stat_Kind, Statistic {
+    return .Count, ---;
+}
+
 
 
 #file_scope

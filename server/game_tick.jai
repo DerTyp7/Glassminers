@@ -337,7 +337,9 @@ do_game_tick :: (server: *Server) {
             msg := make_message(Game_Over_Message);
             msg.game_over.score  = server.game_score;
             msg.game_over.result = game_result;
-            
+            msg.game_over.player_stat_kind, msg.game_over.player_stat_guy_pid, msg.game_over.player_stat = find_game_over_player_stat(server);
+            msg.game_over.global_stat_kind, msg.game_over.global_stat = find_game_over_global_stat(server);
+
             array_add(*server.outgoing_messages, msg);
             server.next_state = .Game_Over;
         } else if generate_next_section {

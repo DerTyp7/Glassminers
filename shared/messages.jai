@@ -66,6 +66,11 @@ Game_Over_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Over;
     result: Game_Result;
     score: u64;
+    player_stat_kind: Player_Stat_Kind;
+    player_stat_guy_pid: Pid;
+    player_stat: Statistic;
+    global_stat_kind: Global_Stat_Kind;
+    global_stat: Statistic;
 }
 
 Game_Score_Message :: struct {
