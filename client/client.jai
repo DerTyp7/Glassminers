@@ -526,21 +526,22 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         if msg.entity_health.new_health < entity.health {
             // Play a damaged sound
-            sound_index: Sound_Index = .Count;
-            if dropped_heart {
+            if dropped_heart && msg.entity_health.new_health > 0 {
+                sound_index: Sound_Index = .Count;
                 if entity.entity_kind == {
-                case .Frog;   sound_index = .Frog_Damaged_0;
-                case .Goblin; sound_index = .Goblin_Damaged_0;
-                case .Slime;  sound_index = .Slime_Damaged_0;
-                case .Trader; sound_index = .Trader_Damaged_0;
+                  case .Guy;    sound_index = .Guy_Damaged_0;
+                  case .Frog;   sound_index = .Frog_Damaged_0;
+                  case .Goblin; sound_index = .Goblin_Damaged_0;
+                  case .Slime;  sound_index = .Slime_Damaged_0;
+                  case .Trader; sound_index = .Trader_Damaged_0;
+                }
+        
+                if sound_index != .Count {
+                    play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
+                    get_sound_length_in_seconds(client, sound_index) * 2;
                 }
             }
         
-            if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound) {
-                entity.sound          = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
-                entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
-            }
-
             // Play a damaged animation
             if entity.entity_kind == {
               case .Guy; maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Damaged);

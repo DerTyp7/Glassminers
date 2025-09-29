@@ -27,6 +27,7 @@ Sound_Index :: enum {
     Emitter_Dying;
     Rock_Sliding_0;
 
+    Guy_Damaged_0;
     Guy_Digging_0;
     Guy_Death_0;
     Guy_Walk_0;
@@ -75,6 +76,7 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "emitter-dying",
     "rock-sliding-0",
 
+    "guy-damaged-0",
     "guy-digging-0",
     "guy-death-0",
     "guy-walk-0",
@@ -365,7 +367,7 @@ random_sounds: [8]Random_Sound = .[
     .{ .Goblin_Idle_0,    7, 2, .Goblin,   .Default, --- },
     .{ .Void_Eye_Idle_0, 15, 4, .Void_Eye, .Default, --- },
     .{ .Void_Eye_Idle_1, 20, 6, .Void_Eye, .Default, --- },
-    .{ .Trader_Idle_0,    7, 2, .Trader,   .Default, --- },
+    .{ .Trader_Idle_0,   15, 4, .Trader,   .Default, --- },
 ];
 
 find_entity_to_play_random_sound :: (client: *Client, sound: *Random_Sound) -> *Entity {

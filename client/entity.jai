@@ -27,7 +27,6 @@ Entity :: struct {
     visual_size: v2f;
 
     sound: Sound_Pid = INVALID_SOUND_PID;
-    sound_cooldown: f32;
     
     derived: *void;
     
@@ -380,10 +379,6 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
         if sound_index != .Count {
             entity.sound = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
         }
-    }
-
-    if entity.sound_cooldown > 0 {
-        entity.sound_cooldown -= client.tick_time;
     }
 }
 
