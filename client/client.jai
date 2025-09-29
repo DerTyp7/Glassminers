@@ -453,7 +453,8 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.game_score = msg.game_over.score;
         client.previous_game_result = msg.game_over.result;
         initiate_state_transition(client, .Game_Over, 5);
-        play_sound(client, .Hud_Failure_0, .Default);
+
+        if msg.game_over.result != .Completed_Tutorial then play_sound(client, .Hud_Failure_0, .Default);
 
       case .Game_Score;
         client.game_score = msg.game_score.score;
@@ -461,9 +462,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Player_Stat;
         name := find_player_name_from_guy_pid(client, msg.player_stat.guy_pid);
         add_player_stat_message(client, name, msg.player_stat.kind, msg.player_stat.stat);
+        play_sound(client, .Hud_Success_0, .Default);
 
       case .Global_Stat;
         add_global_stat_message(client, msg.global_stat.kind, msg.global_stat.stat);
+        play_sound(client, .Hud_Success_0, .Default);
 
       case .World_Resize;
         client.world_size = msg.world_resize.new_world_size;
@@ -631,7 +634,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
           case .Active; 
             if previous_state != .Active {
                 stop_sound(client, *emitter.sound); // Stop the charging up sound
-                emitter.sound = play_sound(client, .Hud_Success_0, .Default); // Don't spatialize this sound so that everyone can hear it
             }
 
           case .Off;

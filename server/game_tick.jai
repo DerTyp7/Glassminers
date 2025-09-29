@@ -322,8 +322,12 @@ do_game_tick :: (server: *Server) {
             game_result = .Flag_Was_Destroyed;
         }
 
-        if server.game_mode == .Tutorial && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) && were_all_emitters_activated(server) {
+        if server.game_mode == .Tutorial && generate_next_section && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) {
             game_result = .Completed_Tutorial;
+        }
+
+        if server.game_mode == .Developer && generate_next_section && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) {
+            generate_next_section = false;
         }
 
         //
@@ -371,17 +375,6 @@ is_any_guy_carrying_the_flag :: (server: *Server) -> bool {
     }
 
     return found_the_flag;
-}
-
-were_all_emitters_activated :: (server: *Server) -> bool {
-    all_active := true;
-
-    for i := 0; i < server.emitters.slot_count; ++i {
-        emitter, occupied := index_bucket_array(*server.emitters, i);
-        if occupied then all_active &= emitter.state == .Active;
-    }
-
-    return all_active;
 }
 
 get_available_resources_for_guy :: (server: *Server, guy: *Guy) -> [..]Item_Kind {
