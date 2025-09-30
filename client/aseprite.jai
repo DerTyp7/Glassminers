@@ -565,18 +565,30 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
                                  aseprite_pixel_data: string) {
     BYTES_PER_RESULT_PIXEL :: 4;
     
+    clamped_source_width  := min(source_width, target_width);
+    clamped_source_height := min(source_height, target_height);
+    
     current_pixel_index: u32 = 0;
     if #complete color_depth == {
         case .RGBA;
             // Each pixel is [4]u8
             Aseprite_Pixel :: [4]u8; // Index into palette
             pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
-            for y := 0; y < source_height; ++y {
-                for x := 0; x < source_width; ++x {
-                    pixel: Aseprite_Pixel = pixels[y*source_width + x];
+            for y := 0; y < clamped_source_height; ++y {
+                for x := 0; x < clamped_source_width; ++x {
+                    pixel: Aseprite_Pixel = pixels[y*clamped_source_width + x];
 
                     target_row    := y + cel.y_position;
                     target_column := x + cel.x_position;
+
+                    // TODO(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
+                    // (so e.g. a cel with a larger height than the result image).
+                    if target_row >= target_height || target_column >= target_width {
+                        continue;
+                    }
+
+                    assert(target_row < target_height, "ROW PROBLEM");
+                    assert(target_column < target_width, "COLUMN PROBLEM");
                     destination_pixel: *u8 = *image.data[(target_row*target_height + target_column) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = pixel[0];
                     destination_pixel[1] = pixel[1];
@@ -592,13 +604,22 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
             // Each pixel is just an u8 color palette index
             Aseprite_Pixel :: u8; // Index into palette
             pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
-            for y := 0; y < source_height; ++y {
-                for x := 0; x < source_width; ++x {
-                    palette_index := pixels[y*source_width + x];
+            for y := 0; y < clamped_source_height; ++y {
+                for x := 0; x < clamped_source_width; ++x {
+                    palette_index := pixels[y*clamped_source_width + x];
                     assert(palette_index < palette.count, "Out of bounds palette index.");
 
                     target_row    := y + cel.y_position;
                     target_column := x + cel.x_position;
+                    
+                    // TODO(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
+                    // (so e.g. a cel with a larger height than the result image).
+                    if target_row >= target_height || target_column >= target_width {
+                        continue;
+                    }
+
+                    assert(target_row < target_height, "ROW PROBLEM");
+                    assert(target_column < target_width, "COLUMN PROBLEM");
                     destination_pixel: *u8 = *image.data[(target_row*target_height + target_column) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = palette[palette_index].r;
                     destination_pixel[1] = palette[palette_index].g;

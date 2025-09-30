@@ -106,9 +106,11 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     //  - and then a permanent arena for the finished atlasses
     // and then the memory management can just be clearing the arena
     
+    // TODO(Felix): We are hitting the memory limit of the arena.
+    // Use temporary memory more wisely.
     start := os_get_cpu_time();
     arena: Memory_Arena;
-    create_memory_arena(*arena, 1 * Memory_Unit.Megabytes, 1 * Memory_Unit.Megabytes, false);
+    create_memory_arena(*arena, 10 * Memory_Unit.Megabytes, 10 * Memory_Unit.Megabytes, false);
     allocator: Allocator = allocator_from_memory_arena(*arena);
     
     entries: [..]Entry;
