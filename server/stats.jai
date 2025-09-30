@@ -27,7 +27,7 @@ increment_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_
     if #complete kind == {
       case .Moves;               should_send = stat.counter % 500 == 0;
       case .Deaths;              should_send = stat.counter % 5 == 0;
-      case .Guys_Resurrected;    should_send = stat.counter % 5 == 0;
+      case .Resurrections;       should_send = stat.counter % 5 == 0;
       case .Resources_Mined;     should_send = stat.counter % 20 == 0;
       case .Mirrors_Constructed; should_send = stat.counter % 15 == 0;
       case .Coins_Spent_Total;   should_send = stat.counter % 15 == 0;
@@ -65,20 +65,99 @@ increment_global_statistic :: (server: *Server, kind: Global_Stat_Kind) {
     }
 }
 
+//
+// :StatScoring
+// I wrote an obsidian page on this topic.
+// In short, we want to find the "most interesting" stat to display, or return .Count if no stat
+// is considered interesting enough.
+// We select the most interesting stat by scoring each statistic through some defined function.
+//
+
 find_game_over_player_stat :: (server: *Server) -> Player_Stat_Kind, Pid, Statistic {
-    return .Count, ---, ---;
+    best_stat_kind: Player_Stat_Kind = .Count;
+    best_guy_pid: Pid = ---;
+    best_stat: Statistic = ---;
+    best_score := calculate_score_threshold(server);
+
+    for ci := 0; ci < server.clients.count; ++ci {
+        client := array_get_pointer(*server.clients, ci);
+        for li := 0; li < client.local_player_count; ++li {
+            local_player := *client.local_players[li];
+
+            for stat := 0; stat < Player_Stat_Kind.Count; ++stat {
+                score := calculate_player_score(server, local_player, stat);
+                if score > best_score {
+                    best_stat      = local_player.stats[stat];
+                    best_score     = score;
+                    best_guy_pid   = local_player.guy_pid;
+                    best_stat_kind = stat;
+                }
+            }
+        }
+    }
+
+    return best_stat_kind, best_guy_pid, best_stat;
 }
 
 find_game_over_global_stat :: (server: *Server) -> Global_Stat_Kind, Statistic {
-    return .Count, ---;
+    best_stat_kind: Global_Stat_Kind = .Count;
+    best_stat: Statistic = ---;
+    best_score := calculate_score_threshold(server);
+
+    for stat := 0; stat < Global_Stat_Kind.Count; ++stat {
+        score := calculate_global_score(server, stat);
+        if score > best_score {
+            best_stat      = server.global_stats[stat];
+            best_score     = score;
+            best_stat_kind = stat;
+        }
+    }
+
+    return best_stat_kind, best_stat;
 }
 
 
 
 #file_scope
 
+SCORE_RANDOMNESS: s64 : 15;
+
 increase :: (stat: *Statistic) {
     ++stat.counter;
+}
+
+calculate_score_threshold :: (server: *Server) -> s64 {
+    return max((server.current_section_index + 1) * 10, 100);
+}
+
+calculate_global_score :: (server: *Server, kind: Global_Stat_Kind) -> s64 {
+    base_score: s64 = ---;
+    counter := server.global_stats[kind].counter;
+
+    if #complete kind == {
+      case .Monsters_Killed;  base_score = counter * 2;
+      case .Sections_Reached; base_score = counter * 7;
+    }
+
+    return base_score + random_u64_in(*server.entity_random, 0, SCORE_RANDOMNESS);
+}
+
+calculate_player_score :: (server: *Server, player: *Local_Player, kind: Player_Stat_Kind) -> s64 {
+    base_score: s64 = ---;
+    counter := player.stats[kind].counter;
+
+    if #complete kind == {
+      case .Moves;               base_score = counter / 50;
+      case .Deaths;              base_score = counter * 15;
+      case .Resurrections;       base_score = counter * 10;
+      case .Resources_Mined;     base_score = counter * 1;
+      case .Mirrors_Constructed; base_score = counter * 2;
+      case .Coins_Spent_Total;   base_score = counter * 2;
+      case .Coins_Spent_Healing; base_score = counter * 3;
+      case .Damage_Taken;        base_score = counter / 2;
+    }
+
+    return base_score + random_u64_in(*server.entity_random, 0, SCORE_RANDOMNESS);
 }
 
 send_player_stat_message :: (server: *Server, stat: Player_Stat_Kind, player: *Local_Player) {

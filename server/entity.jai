@@ -595,7 +595,7 @@ update_guy :: (server: *Server, guy: *Guy) {
                 other_guy := down(other_entity, Guy);
                 switch_guy_state(server, other_guy, .Idle);
                 set_entity_health(server, other_guy, HEALTH_PER_HEART);
-                increment_player_statistic(server, guy.pid, .Guys_Resurrected);
+                increment_player_statistic(server, guy.pid, .Resurrections);
             }
 
             switch_guy_state(server, guy, .Idle);

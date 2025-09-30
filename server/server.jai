@@ -353,6 +353,7 @@ create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
     create_entity_manager(server);
     reset_all_statistics(server);
+    increment_global_statistic(server, .Sections_Reached);
 
     server.current_section_index    = 0;
     server.void_eyes_spawn_cooldown = 5;    

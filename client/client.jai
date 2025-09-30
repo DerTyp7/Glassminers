@@ -1204,15 +1204,19 @@ do_game_over_screen :: (client: *Client) {
 
         if summary.player_stat_message.count {
             ui_divider(ui, true);
+            ui_multiline_wrapped_label(ui, true, summary.player_stat_message, "", cast(s64) WIDTH, true);
         }
 
         if summary.global_stat_message.count {
             ui_divider(ui, true);
+            ui_multiline_wrapped_label(ui, true, summary.global_stat_message, "", cast(s64) WIDTH, true);
         }
     }
 
+    WIDTH: f32 : 350;
+
     ui :: *client.ui;
-    ui_push_width(ui, .Pixels, 350, 1);
+    ui_push_width(ui, .Pixels, WIDTH, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
     
     score_text := tprint("Final Score: %", client.game_score);

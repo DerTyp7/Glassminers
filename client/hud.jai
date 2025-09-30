@@ -541,7 +541,7 @@ draw_stat_hud :: (client: *Client) {
     {
         text_view := message.text;
         while text_view.count {
-            line_end := find_line_wrapping_point(*client.ui_font, text_view, xx WIDTH - 20, true);
+            line_end := find_line_wrapping_point_with_font(*client.ui_font, text_view, xx WIDTH - 20, true);
             line_view := substring_view(text_view, 0, line_end);
             array_add(*lines, line_view);
             text_view = substring_view(text_view, line_end, text_view.count);

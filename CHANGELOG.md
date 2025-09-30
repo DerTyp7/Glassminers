@@ -2,6 +2,7 @@
 
 Added tracking of statistics.
 These will sometimes be shown on a pop-up box for the players for entertainment value.
+Additionally, the most interesting stats will also be shown when the game has ended.
 
 This release also addressed some technical issues / improvements to the game, which shall not be visible to the player.
 

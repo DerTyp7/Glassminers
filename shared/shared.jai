@@ -489,7 +489,7 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
 Player_Stat_Kind :: enum {
     Moves;
     Deaths;
-    Guys_Resurrected;
+    Resurrections;
     Resources_Mined;
     Mirrors_Constructed;
     Coins_Spent_Total;
@@ -513,11 +513,11 @@ format_player_stat :: (allocator: *Allocator, player_name: string, kind: Player_
 
     if #complete kind == {
       case .Moves;               result = f(allocator, "% has walked over % tiles!", player_name, stat.counter);
-      case .Deaths;              result = f(allocator, "% has died % times! LOL", player_name, stat.counter);
-      case .Guys_Resurrected;    result = f(allocator, "% has resurrected over % players.", player_name, stat.counter);
+      case .Deaths;              result = f(allocator, "% has died % times!", player_name, stat.counter);
+      case .Resurrections;       result = f(allocator, "% has resurrected over % players!", player_name, stat.counter);
       case .Resources_Mined;     result = f(allocator, "% has mined over % resources!", player_name, stat.counter);
       case .Mirrors_Constructed; result = f(allocator, "% has built over % mirrors!", player_name, stat.counter);
-      case .Coins_Spent_Total;   result = f(allocator, "Mr. Money % has spent over % coins!", player_name, stat.counter);
+      case .Coins_Spent_Total;   result = f(allocator, "% has spent over % coins!", player_name, stat.counter);
       case .Coins_Spent_Healing; result = f(allocator, "% has spent over % coins healing themselves!", player_name, stat.counter);
       case .Damage_Taken;        result = f(allocator, "% has taken over % hearts of damage!", player_name, stat.counter / cast(s64) HEALTH_PER_HEART);
     }

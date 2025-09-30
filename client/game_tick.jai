@@ -783,7 +783,11 @@ maybe_do_developer_panel :: (client: *Client) {
 
     if client.developer_panel_state == .Open {
         {
-            ui_multiline_wrapped_label(ui, false, client.graphics.backend_version, "  ", 360);
+            ui_multiline_wrapped_label(ui, false, client.graphics.backend_version, "", 360, true);
+            ui_divider(ui, true);
+        }
+
+        {
             ui_label(ui, true, "Timings (last frame)");
             ui_label(ui, false, "Window %ms", client.window.frame_time * 1000.0);
             ui_label(ui, false, "Update %ms", client.timing_update);
