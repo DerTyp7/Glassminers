@@ -127,7 +127,7 @@ increase :: (stat: *Statistic) {
 }
 
 calculate_score_threshold :: (server: *Server) -> s64 {
-    return max((server.current_section_index + 1) * 10, 100);
+    return max((server.current_section_index + 1) * 10, 60);
 }
 
 calculate_global_score :: (server: *Server, kind: Global_Stat_Kind) -> s64 {
