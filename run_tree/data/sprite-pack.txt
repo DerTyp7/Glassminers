@@ -17,7 +17,7 @@ Hud_XBox_B                ../../aseprite/hud/Hud-XBOX.aseprite 0 B
 Hud_XBox_X                ../../aseprite/hud/Hud-XBOX.aseprite 0 X
 Hud_XBox_Y                ../../aseprite/hud/Hud-XBOX.aseprite 0 Y
 Hud_Key_C                 ../../aseprite/hud/keys.aseprite 0 C
-Hud_Key_E                 sprites/hud/Hud-Key-E.png
+Hud_Key_E                 ../../aseprite/hud/keys.aseprite 0 E
 Hud_Key_Space             ../../aseprite/hud/keys.aseprite 0 space
 Hud_Key_Shift             ../../aseprite/hud/keys.aseprite 0 shift
 Hud_Arrow                 ../../aseprite/hud/Hud-Arrow.aseprite
@@ -167,92 +167,92 @@ Frog_Damaged_Side_2        ../../aseprite/frog/frog-damaged.aseprite 2 Side
 #
 # Goblin
 #
-Goblin_Idle_Back_0       sprites/goblin/goblin-idle-back-0.png
-Goblin_Idle_Back_1       sprites/goblin/goblin-idle-back-1.png
-Goblin_Idle_Front_0      sprites/goblin/goblin-idle-front-0.png
-Goblin_Idle_Front_1      sprites/goblin/goblin-idle-front-1.png
-Goblin_Idle_Side_0       sprites/goblin/goblin-idle-side-0.png
-Goblin_Idle_Side_1       sprites/goblin/goblin-idle-side-1.png
+Goblin_Idle_Back_0          ../../aseprite/goblin/goblin.aseprite 0 Back
+Goblin_Idle_Back_1          ../../aseprite/goblin/goblin.aseprite 1 Back
+Goblin_Idle_Front_0         ../../aseprite/goblin/goblin.aseprite 0 Front
+Goblin_Idle_Front_1         ../../aseprite/goblin/goblin.aseprite 1 Front
+Goblin_Idle_Side_0          ../../aseprite/goblin/goblin.aseprite 0 Side
+Goblin_Idle_Side_1          ../../aseprite/goblin/goblin.aseprite 1 Side
 
-Goblin_Attacking_Back    sprites/goblin/goblin-attacking-back.png
-Goblin_Attacking_Front   sprites/goblin/goblin-attacking-front.png
-Goblin_Attacking_Side    sprites/goblin/goblin-attacking-side.png
+Goblin_Attacking_Back       ../../aseprite/goblin/goblin-attacking.aseprite 0 Back
+Goblin_Attacking_Front      ../../aseprite/goblin/goblin-attacking.aseprite 0 Front
+Goblin_Attacking_Side       ../../aseprite/goblin/goblin-attacking.aseprite 0 Side
 
-Goblin_Recovering_Back_0       sprites/goblin/goblin-recovering-back-0.png
-Goblin_Recovering_Back_1       sprites/goblin/goblin-recovering-back-1.png
-Goblin_Recovering_Front_0      sprites/goblin/goblin-recovering-front-0.png
-Goblin_Recovering_Front_1      sprites/goblin/goblin-recovering-front-1.png
-Goblin_Recovering_Side_0       sprites/goblin/goblin-recovering-side-0.png
-Goblin_Recovering_Side_1       sprites/goblin/goblin-recovering-side-1.png
-
-Goblin_Damaged_Back_0    sprites/goblin/goblin-damaged-back-0.png
-Goblin_Damaged_Back_1    sprites/goblin/goblin-damaged-back-1.png
-Goblin_Damaged_Back_2    sprites/goblin/goblin-damaged-back-2.png
-Goblin_Damaged_Front_0   sprites/goblin/goblin-damaged-front-0.png
-Goblin_Damaged_Front_1   sprites/goblin/goblin-damaged-front-1.png
-Goblin_Damaged_Front_2   sprites/goblin/goblin-damaged-front-2.png
-Goblin_Damaged_Side_0    sprites/goblin/goblin-damaged-side-0.png
-Goblin_Damaged_Side_1    sprites/goblin/goblin-damaged-side-1.png
-Goblin_Damaged_Side_2    sprites/goblin/goblin-damaged-side-2.png
+Goblin_Recovering_Back_0    ../../aseprite/goblin/goblin-recovering.aseprite 0 Back
+Goblin_Recovering_Back_1    ../../aseprite/goblin/goblin-recovering.aseprite 1 Back
+Goblin_Recovering_Front_0   ../../aseprite/goblin/goblin-recovering.aseprite 0 Front
+Goblin_Recovering_Front_1   ../../aseprite/goblin/goblin-recovering.aseprite 1 Front
+Goblin_Recovering_Side_0    ../../aseprite/goblin/goblin-recovering.aseprite 0 Side
+Goblin_Recovering_Side_1    ../../aseprite/goblin/goblin-recovering.aseprite 1 Side
+                          
+Goblin_Damaged_Back_0       ../../aseprite/goblin/goblin-damaged.aseprite 0 Back
+Goblin_Damaged_Back_1       ../../aseprite/goblin/goblin-damaged.aseprite 1 Back
+Goblin_Damaged_Back_2       ../../aseprite/goblin/goblin-damaged.aseprite 2 Back
+Goblin_Damaged_Front_0      ../../aseprite/goblin/goblin-damaged.aseprite 0 Front
+Goblin_Damaged_Front_1      ../../aseprite/goblin/goblin-damaged.aseprite 1 Front
+Goblin_Damaged_Front_2      ../../aseprite/goblin/goblin-damaged.aseprite 2 Front
+Goblin_Damaged_Side_0       ../../aseprite/goblin/goblin-damaged.aseprite 0 Side
+Goblin_Damaged_Side_1       ../../aseprite/goblin/goblin-damaged.aseprite 1 Side
+Goblin_Damaged_Side_2       ../../aseprite/goblin/goblin-damaged.aseprite 2 Side
 
 #
 # Slime
 #
-Slime_Idle_Back_0    sprites/slime/slime-idle-back-0.png
-Slime_Idle_Back_1    sprites/slime/slime-idle-back-1.png
-Slime_Idle_Front_0   sprites/slime/slime-idle-front-0.png
-Slime_Idle_Front_1   sprites/slime/slime-idle-front-1.png
-Slime_Idle_Side_0    sprites/slime/slime-idle-side-0.png
-Slime_Idle_Side_1    sprites/slime/slime-idle-side-1.png
+Slime_Idle_Back_0    ../../aseprite/slime/slime.aseprite 0 Back
+Slime_Idle_Back_1    ../../aseprite/slime/slime.aseprite 1 Back
+Slime_Idle_Front_0   ../../aseprite/slime/slime.aseprite 0 Front
+Slime_Idle_Front_1   ../../aseprite/slime/slime.aseprite 1 Front
+Slime_Idle_Side_0    ../../aseprite/slime/slime.aseprite 0 Side
+Slime_Idle_Side_1    ../../aseprite/slime/slime.aseprite 1 Side
 
-Slime_Walk_Back_0    sprites/slime/slime-walk-back-0.png
-Slime_Walk_Back_1    sprites/slime/slime-walk-back-1.png
-Slime_Walk_Back_2    sprites/slime/slime-walk-back-2.png
-Slime_Walk_Front_0   sprites/slime/slime-walk-front-0.png
-Slime_Walk_Front_1   sprites/slime/slime-walk-front-1.png
-Slime_Walk_Front_2   sprites/slime/slime-walk-front-2.png
-Slime_Walk_Side_0    sprites/slime/slime-walk-side-0.png
-Slime_Walk_Side_1    sprites/slime/slime-walk-side-1.png
-Slime_Walk_Side_2    sprites/slime/slime-walk-side-2.png
+Slime_Walk_Back_0    ../../aseprite/slime/slime-walk.aseprite 0 Back
+Slime_Walk_Back_1    ../../aseprite/slime/slime-walk.aseprite 1 Back
+Slime_Walk_Back_2    ../../aseprite/slime/slime-walk.aseprite 2 Back
+Slime_Walk_Front_0   ../../aseprite/slime/slime-walk.aseprite 0 Front 
+Slime_Walk_Front_1   ../../aseprite/slime/slime-walk.aseprite 1 Front 
+Slime_Walk_Front_2   ../../aseprite/slime/slime-walk.aseprite 2 Front 
+Slime_Walk_Side_0    ../../aseprite/slime/slime-walk.aseprite 0 Side
+Slime_Walk_Side_1    ../../aseprite/slime/slime-walk.aseprite 1 Side
+Slime_Walk_Side_2    ../../aseprite/slime/slime-walk.aseprite 2 Side
 
-Slime_Damaged_Back_0    sprites/slime/slime-damaged-back-0.png
-Slime_Damaged_Back_1    sprites/slime/slime-damaged-back-1.png
-Slime_Damaged_Back_2    sprites/slime/slime-damaged-back-2.png
-Slime_Damaged_Front_0   sprites/slime/slime-damaged-front-0.png
-Slime_Damaged_Front_1   sprites/slime/slime-damaged-front-1.png
-Slime_Damaged_Front_2   sprites/slime/slime-damaged-front-2.png
-Slime_Damaged_Side_0    sprites/slime/slime-damaged-side-0.png
-Slime_Damaged_Side_1    sprites/slime/slime-damaged-side-1.png
-Slime_Damaged_Side_2    sprites/slime/slime-damaged-side-2.png
+Slime_Damaged_Back_0  ../../aseprite/slime/slime-damaged.aseprite 0 Back    
+Slime_Damaged_Back_1  ../../aseprite/slime/slime-damaged.aseprite 1 Back    
+Slime_Damaged_Back_2  ../../aseprite/slime/slime-damaged.aseprite 2 Back    
+Slime_Damaged_Front_0 ../../aseprite/slime/slime-damaged.aseprite 0 Front   
+Slime_Damaged_Front_1 ../../aseprite/slime/slime-damaged.aseprite 1 Front   
+Slime_Damaged_Front_2 ../../aseprite/slime/slime-damaged.aseprite 2 Front   
+Slime_Damaged_Side_0  ../../aseprite/slime/slime-damaged.aseprite 0 Side    
+Slime_Damaged_Side_1  ../../aseprite/slime/slime-damaged.aseprite 1 Side    
+Slime_Damaged_Side_2  ../../aseprite/slime/slime-damaged.aseprite 2 Side    
 
 #
 # Void Eye
 #
 
-Void_Eye_Back_0   sprites/void_eye/void-eye-back-0.png
-Void_Eye_Back_1   sprites/void_eye/void-eye-back-1.png
-Void_Eye_Back_2   sprites/void_eye/void-eye-back-2.png
-Void_Eye_Back_3   sprites/void_eye/void-eye-back-3.png
-Void_Eye_Front_0  sprites/void_eye/void-eye-front-0.png
-Void_Eye_Front_1  sprites/void_eye/void-eye-front-1.png
-Void_Eye_Front_2  sprites/void_eye/void-eye-front-2.png
-Void_Eye_Front_3  sprites/void_eye/void-eye-front-3.png
-Void_Eye_Side_0   sprites/void_eye/void-eye-side-0.png
-Void_Eye_Side_1   sprites/void_eye/void-eye-side-1.png
-Void_Eye_Side_2   sprites/void_eye/void-eye-side-2.png
-Void_Eye_Side_3   sprites/void_eye/void-eye-side-3.png
-Void_Eye_Spawn_0   sprites/void_eye/void-eye-spawn-0.png
-Void_Eye_Spawn_1   sprites/void_eye/void-eye-spawn-1.png
-Void_Eye_Spawn_2   sprites/void_eye/void-eye-spawn-2.png
-Void_Eye_Spawn_3   sprites/void_eye/void-eye-spawn-3.png
-Void_Eye_Spawn_4   sprites/void_eye/void-eye-spawn-4.png
+Void_Eye_Back_0   ../../aseprite/void_eye/void_eye.aseprite 0 Back
+Void_Eye_Back_1   ../../aseprite/void_eye/void_eye.aseprite 1 Back
+Void_Eye_Back_2   ../../aseprite/void_eye/void_eye.aseprite 2 Back
+Void_Eye_Back_3   ../../aseprite/void_eye/void_eye.aseprite 3 Back
+Void_Eye_Front_0  ../../aseprite/void_eye/void_eye.aseprite 0 Front    
+Void_Eye_Front_1  ../../aseprite/void_eye/void_eye.aseprite 1 Front    
+Void_Eye_Front_2  ../../aseprite/void_eye/void_eye.aseprite 2 Front    
+Void_Eye_Front_3  ../../aseprite/void_eye/void_eye.aseprite 3 Front    
+Void_Eye_Side_0   ../../aseprite/void_eye/void_eye.aseprite 0 Side
+Void_Eye_Side_1   ../../aseprite/void_eye/void_eye.aseprite 1 Side
+Void_Eye_Side_2   ../../aseprite/void_eye/void_eye.aseprite 2 Side
+Void_Eye_Side_3   ../../aseprite/void_eye/void_eye.aseprite 3 Side
+Void_Eye_Spawn_0  ../../aseprite/void_eye/void_eye_spawn.aseprite 0     
+Void_Eye_Spawn_1  ../../aseprite/void_eye/void_eye_spawn.aseprite 1     
+Void_Eye_Spawn_2  ../../aseprite/void_eye/void_eye_spawn.aseprite 2     
+Void_Eye_Spawn_3  ../../aseprite/void_eye/void_eye_spawn.aseprite 3     
+Void_Eye_Spawn_4  ../../aseprite/void_eye/void_eye_spawn.aseprite 4     
 
 #
 # Trader
 #
-Trader_Idle_Back_0    sprites/trader/trader-idle-back-0.png
-Trader_Idle_Back_1    sprites/trader/trader-idle-back-1.png
-Trader_Idle_Front_0   sprites/trader/trader-idle-front-0.png
-Trader_Idle_Front_1   sprites/trader/trader-idle-front-1.png
-Trader_Idle_Side_0    sprites/trader/trader-idle-side-0.png
-Trader_Idle_Side_1    sprites/trader/trader-idle-side-1.png
+Trader_Idle_Back_0    ../../aseprite/trader/trader-idle.aseprite 0 back
+Trader_Idle_Back_1    ../../aseprite/trader/trader-idle.aseprite 1 back
+Trader_Idle_Front_0   ../../aseprite/trader/trader-idle.aseprite 0 front
+Trader_Idle_Front_1   ../../aseprite/trader/trader-idle.aseprite 1 front
+Trader_Idle_Side_0    ../../aseprite/trader/trader-idle.aseprite 0 side
+Trader_Idle_Side_1    ../../aseprite/trader/trader-idle.aseprite 1 side
