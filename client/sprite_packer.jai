@@ -261,10 +261,12 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 if strings_equal_case_insensitive(entry.filepath, previous_path) {
                     parsed_aseprite_file = previous_parsed_aseprite_file;
                 } else {
-                    success: bool = false;
-                    parsed_aseprite_file, success = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
+                    // TODO(felix): Remove assertions
                     
-                    // TODO(felix): Remove assertion
+                    file_content, success := read_entire_file(*allocator, entry.filepath);
+                    assert(success, "Could not load aseprite file!");
+                    
+                    parsed_aseprite_file, success = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
                     assert(success, "Could not parse aseprite file during texture loading!");
                 }
 

@@ -2,25 +2,25 @@
 # HUD
 #
 Hud_Heart_Full            ../../aseprite/hud/heart-full.aseprite
-Hud_Heart_Damaged_0       sprites/hud/heart-damaged-0.png
-Hud_Heart_Damaged_1       sprites/hud/heart-damaged-1.png
+Hud_Heart_Damaged_0       ../../aseprite/hud/heart-damaged.aseprite 0 
+Hud_Heart_Damaged_1       ../../aseprite/hud/heart-damaged.aseprite 1
 
-Hud_Keyboard     sprites/hud/Hud-Keyboard.png
-Hud_Gamepad      sprites/hud/Hud-Gamepad.png
-Hud_Keyboard_Gamepad      sprites/hud/Hud-Keyboard-Gamepad.png
-Hud_PS_Circle    sprites/hud/Hud-PS-Circle.png
-Hud_PS_Cross     sprites/hud/Hud-PS-Cross.png
-Hud_PS_Triangle  sprites/hud/Hud-PS-Triangle.png
-Hud_PS_Square    sprites/hud/Hud-PS-Square.png
-Hud_XBox_A       sprites/hud/Hud-XBOX-A.png
-Hud_XBox_B       sprites/hud/Hud-XBOX-B.png
-Hud_XBox_X       sprites/hud/Hud-XBOX-X.png
-Hud_XBox_Y       sprites/hud/Hud-XBOX-Y.png
-Hud_Key_C        sprites/hud/Hud-Key-C.png
-Hud_Key_E        sprites/hud/Hud-Key-E.png
-Hud_Key_Space    sprites/hud/Hud-Key-Space.png
-Hud_Key_Shift    sprites/hud/Hud-Key-Shift.png
-Hud_Arrow        sprites/hud/Hud-Arrow.png
+Hud_Keyboard              ../../aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 Keyboard
+Hud_Gamepad               ../../aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 gamepad
+Hud_Keyboard_Gamepad      ../../aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 Key/Pad
+Hud_PS_Circle             ../../aseprite/hud/Hud-PS.aseprite 0 circle
+Hud_PS_Cross              ../../aseprite/hud/Hud-PS.aseprite 0 cross
+Hud_PS_Triangle           ../../aseprite/hud/Hud-PS.aseprite 0 triangle
+Hud_PS_Square             ../../aseprite/hud/Hud-PS.aseprite 0 square
+Hud_XBox_A                ../../aseprite/hud/Hud-XBOX.aseprite 0 A
+Hud_XBox_B                ../../aseprite/hud/Hud-XBOX.aseprite 0 B
+Hud_XBox_X                ../../aseprite/hud/Hud-XBOX.aseprite 0 X
+Hud_XBox_Y                ../../aseprite/hud/Hud-XBOX.aseprite 0 Y
+Hud_Key_C                 ../../aseprite/hud/keys.aseprite 0 C
+Hud_Key_E                 sprites/hud/Hud-Key-E.png
+Hud_Key_Space             ../../aseprite/hud/keys.aseprite 0 space
+Hud_Key_Shift             ../../aseprite/hud/keys.aseprite 0 shift
+Hud_Arrow                 ../../aseprite/hud/Hud-Arrow.aseprite
 
 #
 # Items
@@ -49,34 +49,34 @@ Rock         ../../aseprite/inanimates/rock.aseprite
 Coal_Block   ../../aseprite/inanimates/coal.aseprite
 Emitter      ../../aseprite/inanimates/emitter.aseprite
 Mirror       ../../aseprite/inanimates/mirror.aseprite
-Chest_Closed sprites/inanimates/chest-closed.png
-Chest_Open   sprites/inanimates/chest-open.png
+Chest_Closed ../../aseprite/inanimates/chest.aseprite 0
+Chest_Open   ../../aseprite/inanimates/chest.aseprite 1
 
 #
 # Animates
 #
-Lava_0       sprites/animates/lava-0.png
-Lava_1       sprites/animates/lava-1.png
-Lava_2       sprites/animates/lava-2.png
-Lava_3       sprites/animates/lava-3.png
-Slab_0       sprites/animates/slab-0.png
-Slab_1       sprites/animates/slab-1.png
-Slab_2       sprites/animates/slab-2.png
-Slab_3       sprites/animates/slab-3.png
-Slab_4       sprites/animates/slab-4.png
+Lava_0       ../../aseprite/animates/lava.aseprite 0
+Lava_1       ../../aseprite/animates/lava.aseprite 1
+Lava_2       ../../aseprite/animates/lava.aseprite 2
+Lava_3       ../../aseprite/animates/lava.aseprite 3
+Slab_0       ../../aseprite/animates/slab.aseprite 0
+Slab_1       ../../aseprite/animates/slab.aseprite 1
+Slab_2       ../../aseprite/animates/slab.aseprite 2
+Slab_3       ../../aseprite/animates/slab.aseprite 3
+Slab_4       ../../aseprite/animates/slab.aseprite 4
 
-Torch_High_0     sprites/animates/torch-high-0.png
-Torch_High_1     sprites/animates/torch-high-1.png
-Torch_High_2     sprites/animates/torch-high-2.png
-Torch_High_3     sprites/animates/torch-high-3.png
-Torch_Mid_0      sprites/animates/torch-mid-0.png
-Torch_Mid_1      sprites/animates/torch-mid-1.png
-Torch_Mid_2      sprites/animates/torch-mid-2.png
-Torch_Mid_3      sprites/animates/torch-mid-3.png
-Torch_Low_0      sprites/animates/torch-low-0.png
-Torch_Low_1      sprites/animates/torch-low-1.png
-Torch_Low_2      sprites/animates/torch-low-2.png
-Torch_Low_3      sprites/animates/torch-low-3.png
+Torch_High_0     ../../aseprite/animates/torch.aseprite 0 100%
+Torch_High_1     ../../aseprite/animates/torch.aseprite 1 100%
+Torch_High_2     ../../aseprite/animates/torch.aseprite 2 100%
+Torch_High_3     ../../aseprite/animates/torch.aseprite 3 100%
+Torch_Mid_0      ../../aseprite/animates/torch.aseprite 0  50%
+Torch_Mid_1      ../../aseprite/animates/torch.aseprite 1  50%
+Torch_Mid_2      ../../aseprite/animates/torch.aseprite 2  50%
+Torch_Mid_3      ../../aseprite/animates/torch.aseprite 3  50%
+Torch_Low_0      ../../aseprite/animates/torch.aseprite 0  10%
+Torch_Low_1      ../../aseprite/animates/torch.aseprite 1  10%
+Torch_Low_2      ../../aseprite/animates/torch.aseprite 2  10%
+Torch_Low_3      ../../aseprite/animates/torch.aseprite 3  10%
 
 Flag_0       sprites/animates/flag-0.png
 Flag_1       sprites/animates/flag-1.png
