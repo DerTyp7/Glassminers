@@ -46,13 +46,65 @@ Sprite_Packing_Result :: enum {
     Partial_Failure;
 }
 
+consume_whitespace_separated_string :: (to_process: *string) -> string {
+    space_index, space_found := search_string(~to_process, #char " ");
+    if !space_found { 
+        result_string := ~to_process;
+        ~to_process = .{};
+        return result_string;
+    }
+    
+    result_string := trim_string_view(substring_view(~to_process, 0, space_index));
+    
+    while space_index < to_process.count && to_process.data[space_index] == #char " " {
+        space_index += 1;
+    }
+    
+    to_process.data += space_index;
+    to_process.count -= space_index;
+    return result_string;
+}
+
+grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, layer_name: string, frame_index: s64) -> string {
+    layer: Parsed_Aseprite_File.Layer;
+    
+    if layer_name.count > 0 {
+        found_match: bool = false;
+        for i := 0; i < file.layers.count; ++i {
+            if strings_equal_case_insensitive(layer_name, file.layers[i].name) {
+                layer = file.layers[i];
+                found_match = true;
+                break;
+            }
+        }
+        assert(found_match, "layer name could not be found in aseprite file!");
+    } else {
+        // Default to first layer
+        layer = file.layers[0];
+    }
+    
+    assert(frame_index < layer.images.count, "Access frame index to aseprite file is out of bounds!");
+    return layer.images[frame_index];
+}
+
 pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Packing_Result {
     Entry :: struct {
         ident: string;
         sprite_index: s64;
         filepath: string;
         texture: Texture_Data;
+        
+        // Optional
+        layer_name: string;
+        frame_index: s64;
     }
+    
+    // TODO(Felix)
+    // The entire memory management here is fucked
+    // The strategy should be:
+    //  - arena allocator for temporary files
+    //  - and then a permanent arena for the finished atlasses
+    // and then the memory management can just be clearing the arena
     
     start := os_get_cpu_time();
     arena: Memory_Arena;
@@ -105,16 +157,33 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 if !line.count continue;
             }
 
-            space_index, space_found := search_string(line, #char " ");
-            if !space_found {
-                logprint(.Error, "%:%: A mapping from a sprite identifier to a filepath was expected here, in the syntax '<identifier> <filepath>'.", filepath, line_number);
+            working_slice := line;
+            identifier   := consume_whitespace_separated_string(*working_slice);
+            path_to_file := consume_whitespace_separated_string(*working_slice);
+            frame_index  := consume_whitespace_separated_string(*working_slice);
+            layer_name   := consume_whitespace_separated_string(*working_slice);
+            
+            if identifier.count == 0 || path_to_file.count == 0 {
+                logprint(.Error, "%:%: A mapping from a sprite identifier to a filepath was expected here, in the syntax '<identifier> <filepath> [frame [layer]]'.", filepath, line_number);
                 result = .Complete_Failure;
                 continue;
             }
-
+            
             entry := array_push(*entries);
-            entry.ident    = trim_string_view(substring_view(line, 0, space_index));
-            entry.filepath = print_into_allocator(*allocator, "%/%", directory, trim_string_view(substring_view(line, space_index + 1, line.count)));
+            entry.ident    = identifier;
+            entry.filepath = print_into_allocator(*allocator, "%/%", directory, path_to_file);
+            
+            // fill optional frame_index & layer argument
+            if frame_index.count > 0 {
+                is_valid_number: bool;
+                entry.frame_index, is_valid_number = string_to_int(frame_index);
+                if !is_valid_number {
+                    logprint(.Error, "%:%: The string % is not a valid frame index.", filepath, line_number, frame_index);
+                    result = .Complete_Failure;
+                    continue;
+                }
+                entry.layer_name = layer_name;
+            }
 
             found_sprite_index: bool = ---;
             entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
@@ -153,26 +222,57 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
         }
     }
     
+    
+    //
+    // Sort list so we only load each file once, even if it is used multiple times
+    // 
+    {
+        compare_entries_by_path :: (a, b: *Entry) -> Sort_Comparison_Result {
+            stringA := a.filepath;
+            stringB := b.filepath;
+            min_char_count := min(stringA.count, stringB.count);
+            
+            for i := 0; i < min_char_count; ++i {
+                charA := to_lower_character(stringA[i]);
+                charB := to_lower_character(stringB[i]);
+                if charA != charB { return charA - charB; }
+            }
+            
+            return stringA.count < stringB.count;
+        }
+        
+        quick_sort([]Entry.{ entries.count, entries.data }, compare_entries_by_path);
+    }
+    
     //
     // Load all required sprite images into memory
     //
     {
+        previous_path: string;
+        previous_parsed_aseprite_file: Parsed_Aseprite_File;
+        
         for i := 0; i < entries.count; ++i {
             entry := array_get_pointer(*entries, i);
             
             found_sprite: bool = false;
             if string_ends_with(entry.filepath, ".aseprite", .Case_Insensitive) {
-                // TODO(Felix): This is my second war crime this week
-                parsed_aseprite_file, success := load_aseprite_layer_images_from_file(*allocator, entry.filepath);
-                if success {
-                    // TODO(Felix): This is just one frame for now
-                    entry.texture.width = parsed_aseprite_file.width;
-                    entry.texture.height = parsed_aseprite_file.height;
-                    entry.texture.channels = 4; // hardcoded RGBA
-                    entry.texture.pixels = parsed_aseprite_file.layers[0].images[0]; // TODO(Felix): More flexible!
-
-                    found_sprite = success;
+                parsed_aseprite_file: Parsed_Aseprite_File;
+                
+                if strings_equal_case_insensitive(entry.filepath, previous_path) {
+                    parsed_aseprite_file = previous_parsed_aseprite_file;
+                } else {
+                    success: bool = false;
+                    parsed_aseprite_file, success = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
+                    
+                    // TODO(felix): Remove assertion
+                    assert(success, "Could not parse aseprite file during texture loading!");
                 }
+
+                entry.texture.width = parsed_aseprite_file.width;
+                entry.texture.height = parsed_aseprite_file.height;
+                entry.texture.channels = 4; // hardcoded RGBA
+                entry.texture.pixels = grab_texture_pixels_from_parsed_aseprite_file(parsed_aseprite_file, entry.layer_name, entry.frame_index);
+                found_sprite = true;
             } else if string_ends_with(entry.filepath, ".png", .Case_Insensitive) {
                 entry.texture, found_sprite = load_texture_data(*allocator, entry.filepath);
             }

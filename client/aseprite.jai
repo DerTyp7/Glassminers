@@ -541,6 +541,7 @@ aseprite_get_flattened_palette_from_palette_chunk :: (allocator: *Allocator, chu
     return result;
 }
 
+// TODO(Felix): Same notes as below
 aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []Palette_Entry, color_depth: Aseprite_Color_Depth, 
                                                      target_width, target_height: u16,
                                                      cel: *Aseprite_Chunk_Cel) {
@@ -553,6 +554,10 @@ aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []
     aseprite_modify_image_pixels(image, palette, color_depth, cel, width, height, target_width, target_height, aseprite_pixel_data);
 }
 
+// TODO(Felix): This omega functions needs some cleanup.
+// Maybe it'd make sense to pass file_header here
+//  - Maybe some deduplication ("consume u16") or something
+//  - Create a helper function to translate source<->target positions
 aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color_depth: Aseprite_Color_Depth,
                                  cel: *Aseprite_Chunk_Cel, 
                                  source_width, source_height: u16,
