@@ -788,11 +788,12 @@ maybe_do_developer_panel :: (client: *Client) {
         }
 
         {
-            ui_label(ui, true, "Timings (last frame)");
-            ui_label(ui, false, "Window %ms", client.window.frame_time * 1000.0);
-            ui_label(ui, false, "Update %ms", client.timing_update);
-            ui_label(ui, false, "Draw   %ms", client.timing_draw);
-            ui_label(ui, false, "Total (no sleep) %ms", client.timing_total_no_sleep);
+            ui_label(ui, true, "Timings (previous frame)");
+            ui_label(ui, false, "Frame             %ms", client.window.frame_time * 1000.0);
+            ui_label(ui, false, "Frame (w/o sleep) %ms", client.total_frame_time_without_sleep);
+            ui_label(ui, false, "Update            %ms", client.total_update_time);
+            ui_label(ui, false, "Draw              %ms", client.total_draw_time);
+            ui_label(ui, false, "Draw (w/o UI)     %ms", client.draw_time_before_ui);
             ui_divider(ui, true);
         }
             

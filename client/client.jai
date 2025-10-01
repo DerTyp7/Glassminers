@@ -246,9 +246,10 @@ Client :: struct {
     sound_hud_enabled: bool;
     shadow_hud_enabled: bool;
 
-    timing_update: f32;
-    timing_draw: f32;
-    timing_total_no_sleep: f32;
+    total_update_time: f32;
+    total_draw_time: f32;
+    draw_time_before_ui: f32;
+    total_frame_time_without_sleep: f32;
     draw_call_count_before_ui: s64;
 
     incoming_message_history: Message_History;
@@ -1381,8 +1382,7 @@ main :: (args: []string) -> s32 {
         //
         {
 #if DEVELOPER {
-           begin := os_get_cpu_time();
-           defer client.timing_update = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
+            begin := os_get_cpu_time();
 }
             
             update_window(*client.window);
@@ -1406,6 +1406,10 @@ main :: (args: []string) -> s32 {
             }
 
             update_input_binders(*client);
+
+            #if DEVELOPER {
+                client.total_update_time = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
+            }
         }
         
         //
@@ -1414,7 +1418,6 @@ main :: (args: []string) -> s32 {
         {
 #if DEVELOPER {
            begin := os_get_cpu_time();
-           defer client.timing_draw = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
 }
 
             ge_clear_screen(*client.graphics, DARK_BLUE_COLOR);
@@ -1494,12 +1497,17 @@ main :: (args: []string) -> s32 {
             #if DEVELOPER {
                 ge_imm2d_flush(*client.graphics);
                 client.draw_call_count_before_ui = client.graphics.draw_call_count;
+                client.draw_time_before_ui = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
             }
 
             draw_ui_frame(*client.ui);
 
             ge_imm2d_flush(*client.graphics);
             ge_swap_buffers(*client.graphics);
+
+            #if DEVELOPER {
+                client.total_draw_time = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
+            }
         }
 
         //
@@ -1538,7 +1546,9 @@ main :: (args: []string) -> s32 {
         release_temp_allocator(0);
         
         frame_end := os_get_cpu_time();
-        #if DEVELOPER { client.timing_total_no_sleep = os_convert_cpu_time(frame_end - frame_start, .Milliseconds); }
+        #if DEVELOPER { 
+            client.total_frame_time_without_sleep = os_convert_cpu_time(frame_end - frame_start, .Milliseconds);
+        }
         os_sleep_to_tick_rate(frame_start, frame_end, TARGET_FRAMES_PER_SECOND);
     }
     
