@@ -92,6 +92,8 @@ EMITTER_MAX_CHARGE:  [Game_Mode.Count]f32 : .[
 ];
 
 TORCH_TIME_TO_LIVE: f32 : 30; // In seconds
+TORCH_MEDIUM_PERCENTAGE: f32 : 0.3; // This this percent of TTL left, the torch is only medium size...
+TORCH_LOW_PERCENTAGE: f32 : 0.1; // This this percent of TTL left, the torch is only low size...
 
 COIN_DROP_CHANCE: [Game_Mode.Count][2]f32 : .[
     .[ 1,    1   ], // Developer

@@ -614,12 +614,12 @@ update_torch :: (client: *Client, torch: *Torch) {
 
     desired_animation: Animation_Index = ---;
 
-    if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.1 {
+    if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * TORCH_LOW_PERCENTAGE {
         desired_animation = .Torch_Low;
         emitter.particles_per_second = 7;
         emitter.lifetime = .[ 1, 2 ];
         emitter.speed = .[ 1.2, 1.4 ];
-    } else if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.3 {
+    } else if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * TORCH_MEDIUM_PERCENTAGE {
         desired_animation = .Torch_Medium;
         emitter.particles_per_second = 5;
         emitter.lifetime = .[ 2, 4 ];

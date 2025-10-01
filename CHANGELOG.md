@@ -8,6 +8,7 @@ This release also addressed some technical issues / improvements to the game, wh
 
 - Added idle, damaged and death sound effects to the trader
 - Added a damaged sound effect to the player
+- The brightness of the torch now decreases when it runs low
 - Fixed being able to place the torch into a chest
 - Fixed the time remaining of the torch being reset when picked up by a player
 - Fixed the viewport sometimes not being calculated correctly
