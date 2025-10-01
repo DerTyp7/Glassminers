@@ -799,7 +799,8 @@ maybe_do_developer_panel :: (client: *Client) {
         {
             ui_label(ui, true, "Misc.");
             ui_label(ui, false, "Round Trip Time: %", cast(s64) client.latest_rtt);
-            ui_label(ui, false, "Draw Call Count: %", client.graphics.draw_call_count);
+            ui_label(ui, false, "Draw Call Count: %", client.draw_call_count_before_ui);
+            ui_label(ui, false, "    With UI:     %", client.graphics.draw_call_count);
             ui_label(ui, false, "World Size: %x%", client.world_size.x, client.world_size.y);
             ui_label(ui, false, "Entities: %", client.all_entities.alive_count);
             ui_label(ui, false, "Particle Systems: %", client.particle_systems.alive_count);

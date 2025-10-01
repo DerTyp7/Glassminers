@@ -241,7 +241,7 @@ Client :: struct {
 #if DEVELOPER {
     developer_panel_state: UI_Window_State;
     developer_panel_position: UI_Vector2;
-
+    
     free_camera_enabled: bool;
     sound_hud_enabled: bool;
     shadow_hud_enabled: bool;
@@ -249,6 +249,7 @@ Client :: struct {
     timing_update: f32;
     timing_draw: f32;
     timing_total_no_sleep: f32;
+    draw_call_count_before_ui: s64;
 
     incoming_message_history: Message_History;
     outgoing_message_history: Message_History;
@@ -1488,11 +1489,16 @@ main :: (args: []string) -> s32 {
                 draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ FADE_COLOR.r, FADE_COLOR.g, FADE_COLOR.b, alpha });
             }
 
+            draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
+
+            #if DEVELOPER {
+                ge_imm2d_flush(*client.graphics);
+                client.draw_call_count_before_ui = client.graphics.draw_call_count;
+            }
+
             draw_ui_frame(*client.ui);
 
-            draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
             ge_imm2d_flush(*client.graphics);
-            
             ge_swap_buffers(*client.graphics);
         }
 
