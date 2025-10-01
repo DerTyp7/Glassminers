@@ -32,7 +32,11 @@ Guy :: struct {
     target_position: v2i    = .{ 0, 0 };
 
     carrying_item: Item_Kind = .Count;
-    carrying_chest_inventory: Item_Inventory = ---; // Only used to remember the inventory when this guy is carrying a chest item
+
+    carrying_item_data: union { // Depending on the item we are carrying, we may want to remember more information
+        chest_inventory: Item_Inventory;
+        torch_time_left_in_seconds: f32;
+    } = ---;
 
     resurrection_pid: Pid = INVALID_PID;
     resurrection_t: f32   = 0; // Between 0 and 1
@@ -642,6 +646,17 @@ update_off_emitter :: (server: *Server, emitter: *Emitter) {
         sign: f32 = ifx (is_beam && incoming_direction == emitter.physical_rotation) then 1 else -1;
         set_emitter_state(server, emitter, .Off, emitter.current_charge + delta_charge * sign);
     }
+}
+
+set_torch_time_left_in_seconds :: (server: *Server, torch: *Torch, ttl: f32) {
+    // The client does a predicition on this value, but if it changes abruptly (such as when creating a new torch
+    // with a non-default TTL), then we need to inform the client about that.
+    torch.time_left_in_seconds = ttl;
+
+    msg := make_message(Torch_State_Message);
+    msg.torch_state.entity_pid = torch.pid;
+    msg.torch_state.time_left_in_seconds = ttl;
+    array_add(*server.outgoing_messages, msg);
 }
 
 update_torch :: (server: *Server, torch: *Torch) {

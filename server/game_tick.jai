@@ -68,13 +68,17 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
         
         if source_guy && source_guy.state == .Carrying && source_guy.carrying_item == .Chest {
             chest := down(chest_entity, Chest);
-            chest.inventory = source_guy.carrying_chest_inventory;
+            chest.inventory = source_guy.carrying_item_data.chest_inventory;
             broadcast_chest_inventory(server, chest);
         }
     }
 
     place_torch_on_ground :: () #macro {
-        create_entity(server, .Torch, target_position, .North);
+        torch_entity := create_entity(server, .Torch, target_position, .North);
+        if source_guy {
+            torch := down(torch_entity, Torch);
+            set_torch_time_left_in_seconds(server, torch, source_guy.carrying_item_data.torch_time_left_in_seconds);
+        }
     }
 
     internal_placing_logic :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy) -> bool {
@@ -84,7 +88,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
         //
         // vv ON GROUND || IN HAND >>	Resource	                Torch	                Flag	                Chest
         // Stack                    	If Same (Not On Ground)	    No	                    Yes	                    Yes
-        // Chest	                    Inside (Not On Ground)	    Inside (Not On Ground)	No	                    No
+        // Chest	                    Inside (Not On Ground)	    No                      No	                    No
         // Guy	                        In Hand (Not On Ground)	    In Hand (On Ground)	    In Hand (On Ground)	    In Hand (Not On Ground)
         // Hole	                        No	                        No	                    Yes	                    Yes
         // Torch	                    No	                        No	                    Yes	                    Yes
@@ -122,9 +126,9 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
             if guy.state == .Idle {
                 put_item_in_hand(server, guy, kind);
                 if source_guy {
-                    guy.carrying_chest_inventory = source_guy.carrying_chest_inventory;
+                    guy.carrying_item_data.chest_inventory = source_guy.carrying_item_data.chest_inventory;
                 } else {
-                    guy.carrying_chest_inventory.item_count = 0;
+                    guy.carrying_item_data.chest_inventory.item_count = 0;
                 }
                 return true;
             }
@@ -132,7 +136,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
         
         if chest_entity {
             chest := down(chest_entity, Chest);
-            if kind != .Flag && kind != .Chest && chest.item_count < chest.item_kinds.Capacity {
+            if kind != .Flag && kind != .Chest && kind != .Torch && chest.item_count < chest.item_kinds.Capacity {
                 chest.item_kinds[chest.item_count] = kind;
                 ++chest.item_count;
                 broadcast_chest_inventory(server, chest);
@@ -495,6 +499,8 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
                 put_item_in_hand(server, guy, take_item_from_stack(server, down(target_entity, Item_Stack)));
 
               case .Torch;
+                torch := down(target_entity, Torch);
+                guy.carrying_item_data.torch_time_left_in_seconds = torch.time_left_in_seconds;
                 put_item_in_hand(server, guy, .Torch);
                 remove_entity(server, target_entity);
 
@@ -505,7 +511,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
 
               case .Chest;
                 chest := down(target_entity, Chest);
-                guy.carrying_chest_inventory = chest.inventory;
+                guy.carrying_item_data.chest_inventory = chest.inventory;
                 put_item_in_hand(server, guy, .Chest);
                 remove_entity(server, target_entity);
 
@@ -568,7 +574,9 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
               case .Mirror;
                 create_entity(server, .Mirror, guy.target_position, .North);
                 increment_player_statistic(server, guy.pid, .Mirrors_Constructed);
-              case .Torch;  put_item_in_hand(server, guy, .Torch);
+              case .Torch;
+                put_item_in_hand(server, guy, .Torch);
+                guy.carrying_item_data.torch_time_left_in_seconds = TORCH_TIME_TO_LIVE;
               case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
               
               /* Trader Hud */              

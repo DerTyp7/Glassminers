@@ -670,6 +670,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         item_stack.item_kind = msg.item_stack_state.item_kind;
         item_stack.count     = msg.item_stack_state.count;
 
+      case .Torch_State;
+        entity := get_entity(client, msg.torch_state.entity_pid);
+        torch := down(entity, Torch);
+        torch.time_left_in_seconds = msg.torch_state.time_left_in_seconds;
+
       case .Chest_State;
         entity := get_entity(client, msg.chest_state.entity_pid);
         chest := down(entity, Chest);

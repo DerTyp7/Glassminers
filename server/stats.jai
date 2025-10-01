@@ -67,10 +67,12 @@ increment_global_statistic :: (server: *Server, kind: Global_Stat_Kind) {
 
 //
 // :StatScoring
-// I wrote an obsidian page on this topic.
 // In short, we want to find the "most interesting" stat to display, or return .Count if no stat
 // is considered interesting enough.
 // We select the most interesting stat by scoring each statistic through some defined function.
+// The different stats are balanced by defining different linear curves for them. I basically
+// solved for X (Stat Counter) when F(X) = 100 Score, to have a baseline of what the counter
+// of each stat would have to be for all of them to be equally as "interesting".
 //
 
 find_game_over_player_stat :: (server: *Server) -> Player_Stat_Kind, Pid, Statistic {
@@ -127,7 +129,7 @@ increase :: (stat: *Statistic) {
 }
 
 calculate_score_threshold :: (server: *Server) -> s64 {
-    return max((server.current_section_index + 1) * 10, 60);
+    return max((server.current_section_index + 1) * 10, 40);
 }
 
 calculate_global_score :: (server: *Server, kind: Global_Stat_Kind) -> s64 {
