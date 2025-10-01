@@ -1416,9 +1416,9 @@ main :: (args: []string) -> s32 {
         // Draw one frame
         //
         {
-#if DEVELOPER {
-           begin := os_get_cpu_time();
-}
+            #if DEVELOPER {
+                begin := os_get_cpu_time();
+            }
 
             ge_clear_screen(*client.graphics, DARK_BLUE_COLOR);
             
@@ -1471,15 +1471,15 @@ main :: (args: []string) -> s32 {
                     draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2, xx client.window.h * 0.25 }, .Center | .Median, ORANGE_COLOR, .Shadow);
                 }
 
-#if DEVELOPER {
-                if client.shadow_hud_enabled {
-                    for i := 0; i < client.local_player_count; ++i {
-                        draw_shadow_hud(*client, *client.local_players[i]);
+                #if DEVELOPER {
+                    if client.shadow_hud_enabled {
+                        for i := 0; i < client.local_player_count; ++i {
+                            draw_shadow_hud(*client, *client.local_players[i]);
+                        }
                     }
-                }
 
-                if client.sound_hud_enabled then draw_sound_hud(*client);
-}
+                    if client.sound_hud_enabled then draw_sound_hud(*client);
+                }
                 
                 ge_imm2d_flush(*client.graphics);
             }
@@ -1495,6 +1495,11 @@ main :: (args: []string) -> s32 {
             draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
 
             #if DEVELOPER {
+                ff :: (time: f32) -> Print_Format { return format_float(xx time, 0, 2); }
+
+                timings := tprint("Update: % | Draw: % | Frame: %", ff(client.total_update_time), ff(client.total_draw_time), ff(client.window.frame_time * 1000));
+                draw_text_screen_space(*client, *client.ui_font, timings, .{ xx client.window.w - 10, xx 10 }, .Right | .Top, GRAY_COLOR, .Default);
+                
                 ge_imm2d_flush(*client.graphics);
                 client.draw_call_count_before_ui = client.graphics.draw_call_count;
                 client.draw_time_before_ui = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);

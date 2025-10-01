@@ -808,7 +808,7 @@ maybe_do_developer_panel :: (client: *Client) {
             ui_divider(ui, true);
         }
 
-        {
+        #if ALLOCATOR_STATISTICS {
             allocator_string :: (allocator: *Allocator) -> string {
                 size_in_units, units := convert_to_biggest_memory_unit(allocator.stats.working_set);
                 return print_into_allocator(*temp, "% %", size_in_units, suffix_string_from_memory_unit(units));
