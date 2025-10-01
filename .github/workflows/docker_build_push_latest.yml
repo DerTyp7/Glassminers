@@ -1,4 +1,4 @@
-name: Build and push docker server image
+name: Build and push docker server latest image
 
 on:
   release:
