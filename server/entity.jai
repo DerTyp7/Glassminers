@@ -590,6 +590,14 @@ update_guy :: (server: *Server, guy: *Guy) {
             kill_entity(server, target_entity, guy);
         }
 
+      case .Carrying;
+        if guy.carrying_item == .Torch {
+            guy.carrying_item_data.torch_time_left_in_seconds -= server.tick_time;
+            if guy.carrying_item_data.torch_time_left_in_seconds <= 0 {
+                switch_guy_state(server, guy, .Idle);
+            }
+        }
+
       case .Resurrecting;
         guy.resurrection_t += server.tick_time / RESURRECTION_TIME;
 
