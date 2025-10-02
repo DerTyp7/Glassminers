@@ -272,8 +272,8 @@ do_game_tick :: (server: *Server) {
             if occupied update_void_eye(server, eye);
         }
         
-        number_of_dead_guys := 0;
-        
+        all_guys_dead := true;
+
         for i := 0; i < server.guys.slot_count; ++i {
             guy, occupied := index_bucket_array(*server.guys, i);
             if !occupied continue;
@@ -287,7 +287,7 @@ do_game_tick :: (server: *Server) {
 
             update_guy(server, guy);
 
-            if guy.state == .Dead ++number_of_dead_guys;
+            all_guys_dead &= guy.state == .Dead;
         }
 
         for i := 0; i < server.all_entities.slot_count; ++i {
@@ -309,17 +309,10 @@ do_game_tick :: (server: *Server) {
         //
         // Check for game over scenarios
         //
-        {
-            number_of_players := 0;
-            for i := 0; i < server.clients.count; ++i {
-                number_of_players += array_get(*server.clients, i).local_player_count;
-            }
-            
-            if number_of_dead_guys == number_of_players {
-                game_result = .All_Players_Died;
-            }
+        if all_guys_dead {
+            game_result = .All_Players_Died;
         }
-        
+
         if !entity_exists(server, server.flag_pid) && !is_any_guy_carrying_the_flag(server) {
             // This means that the flag is not currently carried by any player, but it no longer
             // physically exists, which can only mean it got killed (e.g. by lava or whatever).
