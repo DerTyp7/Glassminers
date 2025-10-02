@@ -52,6 +52,7 @@ Sprite_Index :: enum {
     // Inanimates
     Background;
     World_Edge;
+    World_Corner;
     Bedrock;
     Crystal;
     Rock;
@@ -736,6 +737,20 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
 //
 
 draw_world :: (client: *Client, local_player: *Local_Player) {
+    draw_vertical_world_edge :: (client: *Client, local_player: *Local_Player, x: s64, rotation: f32) {
+        if visibility_check_tile(local_player, .{ x, 0 }) {
+            for y := 0; y < client.world_size.y; ++y {
+                draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, xx y, }, .{ 1, 1, }, rotation, .{ 255, 255, 255, 255 }, .Lit);
+            }
+        }
+    }
+
+    draw_world_corner :: (client: *Client, local_player: *Local_Player, position: v2i, rotation: f32) {
+        if visibility_check_tile(local_player, position) {
+            draw_sprite_world_space(client, local_player, .World_Corner, .{ xx position.x, xx position.y }, .{ 1, 1 }, rotation, .{ 255, 255, 255, 255 }, .Lit);
+        }
+    }
+    
     draw_beam :: (client: *Client, local_player: *Local_Player, beam: *Beam_Data, color: GE_Color, intensity: f32, flags: Draw_Beam_Flags) {
         intense_color := GE_Color.{ color.r, color.g, color.b, cast(u8) (cast(f32) color.a * intensity) };
 
@@ -764,6 +779,14 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     //
     // Draw implicit background inanimates
     //
+    draw_vertical_world_edge(client, local_player, -1, 0.25);
+    draw_vertical_world_edge(client, local_player, client.world_size.x, 0.75);
+
+    draw_world_corner(client, local_player, .{ -1, -1 }, 0.25);
+    draw_world_corner(client, local_player, .{ client.world_size.x, -1 }, 0.5);
+    draw_world_corner(client, local_player, .{ client.world_size.x, client.world_size.y }, 0.75);
+    draw_world_corner(client, local_player, .{ -1, client.world_size.y }, 0.0);
+
     for x := 0; x < client.world_size.x; ++x {
         if visibility_check_tile(local_player, .{ x, -1 }) {
             draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, -1 }, .{ 1, 1 }, 0.5, .{ 255, 255, 255, 255 }, .Lit);
