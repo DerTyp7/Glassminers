@@ -1,4 +1,4 @@
-name: Build and push artifacts
+name: Build artifacts
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
           test -f run_tree/client.out && echo "Build successful: client.out created"
           ls -la run_tree/client.out
 
-      - name: Upload Linux Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-artifacts
@@ -100,7 +100,7 @@ jobs:
             exit 1
           }
 
-      - name: Upload Windows Artifacts
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
