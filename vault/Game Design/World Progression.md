@@ -33,6 +33,9 @@ Therefore, we would also like to have more ways of tuning the difficulty.
 - Increasing the cost of recipes at [[Trader]]s will increase the difficulty naturally, as more monsters need to be killed to gather crucial resources or other benefits. If the cost increases with the number of transactions done, this is a very natural difficulty progression
 - Reducing the health of players (temporarily) can increase the pressure on players as they can make fewer mistakes, or it requires more calculation and precision to execute some moves (when calculating to take damage)
 
+## Difficulty Gates
+@Incomplete
+
 # Change in Gameplay Mechanics
 Our gameplay mechanics are pretty monotonous during the game. Breaking the pattern of what you are actually expected to do to solve a section can help with that and make the game more interesting to play.
 - One way of implementing this is again through different [[biomes]]. Each biome can require a unique way of solving it, breaking away from the usual game loop and instead breaking into a puzzle or action based game for while.
