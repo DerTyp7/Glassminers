@@ -207,9 +207,9 @@ do_game_tick :: (server: *Server) {
     read_incoming_packets(server);
     handle_client_timeouts(server);
 
+    game_result: Game_Result = .Unfinished_Game;
+
     if !server.game_paused {
-        game_result: Game_Result = .Unfinished_Game;
-        
         generate_next_section: bool = false;
 
         //
@@ -335,25 +335,42 @@ do_game_tick :: (server: *Server) {
         }
 
         //
-        // Progress through the game state
+        // Progress through the world
         //
-        if game_result != .Unfinished_Game {
-            msg := make_message(Game_Over_Message);
-            msg.game_over.score  = server.game_score;
-            msg.game_over.result = game_result;
-            msg.game_over.player_stat_kind, msg.game_over.player_stat_guy_pid, msg.game_over.player_stat = find_game_over_player_stat(server);
-            msg.game_over.global_stat_kind, msg.game_over.global_stat = find_game_over_global_stat(server);
-
-            array_add(*server.outgoing_messages, msg);
-            server.next_state = .Game_Over;
-        } else if generate_next_section {
+        if generate_next_section {
             increment_global_statistic(server, .Sections_Reached);
             generate_next_world_section(server);
         }
-    } else if server.clients.count == 0 {
+    } 
+    
+    //
+    // Check if all players disconnected or forfeited
+    //
+    {
+        all_clients_forfeited := true;
+
+        for i := 0; i < server.clients.count; ++i {
+            client := array_get(*server.clients, i);
+            all_clients_forfeited &= client.requested_game_forfeit;
+        }
+
+        if all_clients_forfeited then game_result = .All_Players_Forfeited;
+    }
+
+    //
+    // If the game is over, transition the state
+    //
+    if game_result != .Unfinished_Game {
+        msg := make_message(Game_Over_Message);
+        msg.game_over.score  = server.game_score;
+        msg.game_over.result = game_result;
+        msg.game_over.player_stat_kind, msg.game_over.player_stat_guy_pid, msg.game_over.player_stat = find_game_over_player_stat(server);
+        msg.game_over.global_stat_kind, msg.game_over.global_stat = find_game_over_global_stat(server);
+
+        array_add(*server.outgoing_messages, msg);
         server.next_state = .Game_Over;
     }
-        
+
     //
     // Send all updates to clients.
     //

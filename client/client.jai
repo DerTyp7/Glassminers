@@ -217,6 +217,7 @@ Client :: struct {
     
     pause_menu_open: bool;
     server_paused_game: bool;
+    requested_game_forfeit := false;
 
     game_seed: s64;
     game_score: u64;
@@ -406,7 +407,7 @@ is_local_guy_pid :: (client: *Client, pid: Pid) -> bool {
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Request_Game_Start, .Guy_Input; // Ignore
+      case .Request_Game_Start, .Request_Game_Forfeit, .Guy_Input; // Ignore
     
       case .Client_Disconnect;
         for i := 0; i < client.remote_players.count; {
@@ -459,10 +460,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         start_the_game(client, msg.game_start);
 
       case .Game_Over;
+        client.pause_menu_open = false;
         client.game_score = msg.game_over.score;
         client.previous_game_summary.result = msg.game_over.result;
         client.previous_game_summary.score  = msg.game_over.score;
-        
+
         if msg.game_over.player_stat_kind != .Count {
             player_name := find_player_name_from_guy_pid(client, msg.game_over.player_stat_guy_pid);
             client.previous_game_summary.player_stat_message = format_player_stat(*client.engine_allocator, player_name, msg.game_over.player_stat_kind, msg.game_over.player_stat);
@@ -1238,7 +1240,12 @@ do_game_over_screen :: (client: *Client) {
         ui_label(ui, true, "All players have died!");
         ui_label(ui, true, score_text);
         display_game_stats();
-        
+
+      case .All_Players_Forfeited;
+        ui_label(ui, true, "All players have forfeited!");
+        ui_label(ui, true, score_text);
+        display_game_stats();
+
       case .Flag_Was_Destroyed;
         ui_label(ui, true, "The flag was destroyed!");
         ui_label(ui, true, score_text);

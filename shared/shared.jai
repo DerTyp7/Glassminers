@@ -282,6 +282,7 @@ Game_Result :: enum {
     Unfinished_Game;
     Completed_Tutorial;
     All_Players_Died;
+    All_Players_Forfeited;
     Flag_Was_Destroyed;
     Connection_Lost;
 }

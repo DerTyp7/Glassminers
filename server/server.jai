@@ -34,6 +34,7 @@ Remote_Client :: struct {
     connection: Virtual_Connection;
     client_pid: Pid = INVALID_PID;
     currently_requesting_pause := false;
+    requested_game_forfeit := false;
     local_players: [MAX_LOCAL_PLAYERS]Local_Player;
     local_player_count: s64;
 }
@@ -218,6 +219,10 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
       case .Request_Game_Start;
         server.game_mode = msg.request_game_start.game_mode;
         server.next_state = .Ingame;
+
+      case .Request_Game_Forfeit;
+        client := find_client_by_pid(server, msg.request_game_forfeit.client_pid);
+        client.requested_game_forfeit = true;
 
       case .Game_Pause;
         target := find_client_by_pid(server, msg.game_pause.client_pid);

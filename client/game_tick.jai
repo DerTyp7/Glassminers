@@ -100,6 +100,7 @@ crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_
 start_the_game :: (client: *Client, game_info: Game_Start_Message) {
     client.pause_menu_open    = false;
     client.server_paused_game = false;
+    client.requested_game_forfeit = false;
     client.game_seed  = game_info.seed;
     client.world_size = game_info.size;
     client.game_mode  = game_info.game_mode;
@@ -680,6 +681,18 @@ maybe_do_pause_menu_panel :: (client: *Client) -> bool {
 
     ui_divider(ui, true);
     continue_game := ui_button(ui, "Continue!");
+
+    ui_divider(ui, false);
+
+    if client.requested_game_forfeit {
+        ui_deactivated_button(ui, "Forfeit!");
+    } else if ui_button(ui, "Forfeit!") {
+        msg := make_message(Request_Game_Forfeit_Message);
+        msg.request_game_forfeit.client_pid = client.my_client_pid;
+        array_add(*client.outgoing_messages, msg);
+        client.requested_game_forfeit = true;
+    }
+
     ui_divider(ui, false);
     if ui_button(ui, "Back to Main Menu!") then initiate_state_transition(client, .Main_Menu, 0);
 

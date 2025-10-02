@@ -9,6 +9,7 @@ This release also addressed some technical issues / improvements to the game, wh
 - Added idle, damaged and death sound effects to the trader
 - Added a damaged sound effect to the player
 - Added a vertical visual world edge at the left and right so that the crafting hud never goes off-screen
+- Added a forfeit option to the pause menu
 - The brightness of the torch now decreases when it runs low
 - The torch will also disappear after 30 seconds when currently carried by a player
 - Fixed being able to place the torch into a chest
