@@ -1,4 +1,4 @@
-name: Build
+name: Build and push artifacts
 
 on:
   push:
@@ -52,8 +52,8 @@ jobs:
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-builds
-          path: run_tree/*.out
+          name: client.out
+          path: run_tree/client.out
 
   build-windows:
     runs-on: windows-latest
@@ -102,41 +102,5 @@ jobs:
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-builds
-          path: run_tree/*.exe
-
-  push-artifacts:
-    needs: [build-linux, build-windows]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout artifacts branch
-        uses: actions/checkout@v4
-        with:
-          ref: artifacts
-          sparse-checkout: .github/workflows
-
-      - name: Download Linux Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-builds
-
-      - name: Download Windows Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-builds
-
-      - name: Prepare Artifacts Branch
-        run: |
-          find . -maxdepth 1 ! -name '.' ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
-          cp linux-builds/* ./ 2>/dev/null || true
-          cp windows-builds/* ./ 2>/dev/null || true
-          rm -rf linux-builds windows-builds
-
-      - name: Commit & Push to Artifacts Branch
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: artifacts
-          force: true
+          name: client.exe
+          path: run_tree/client.exe
