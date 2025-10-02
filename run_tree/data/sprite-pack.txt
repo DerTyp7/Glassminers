@@ -43,6 +43,7 @@ Kill_Creature   sprites/developer/skull.png
 #
 Background   sprites/inanimates/background.png
 World_Edge   sprites/inanimates/world-edge.png
+World_Corner sprites/inanimates/world-corner.png
 Bedrock      sprites/inanimates/bedrock.png
 Crystal      sprites/inanimates/crystal.png
 Rock         sprites/inanimates/rock.png

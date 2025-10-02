@@ -364,14 +364,15 @@ snap_position_to_rooms :: (client: *Client, camera: *Camera, target_center_posit
         }
     }
 
-    visible_half_size := v2f.{ camera.covered_world_area.x / 2 - 0.5, camera.covered_world_area.y / 2 - 0.5 };
+    // We allow looking over the world edge for a bit, so that the crafting menu isn't cut off when standing
+    // on the edge...
+    min_distance_to_world_edge := v2f.{ camera.covered_world_area.x / 2 - 1, camera.covered_world_area.y / 2 - 1 };
 
-    room_position := v2f.{ floor(xx target_center_position.x / CAMERA_AREA_WIDTH) * CAMERA_AREA_WIDTH + CAMERA_AREA_OFFSET, 
-                           visible_half_size.y };
-    
+    room_position := v2f.{ floor(xx target_center_position.x / CAMERA_AREA_WIDTH) * CAMERA_AREA_WIDTH + CAMERA_AREA_OFFSET, min_distance_to_world_edge.y };
+
     target_position := v2f.{
-        custom_clamp(room_position.x, visible_half_size.x, xx client.world_size.x - visible_half_size.x - 1),
-        custom_clamp(room_position.y, visible_half_size.y, xx client.world_size.y - visible_half_size.y - 1) };
+        custom_clamp(room_position.x, min_distance_to_world_edge.x, cast(f32) client.world_size.x - 1 - min_distance_to_world_edge.x),
+        custom_clamp(room_position.y, min_distance_to_world_edge.y, cast(f32) client.world_size.y - 1 - min_distance_to_world_edge.y) };
     
     return target_position;
 }
