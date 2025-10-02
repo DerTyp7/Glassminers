@@ -1,22 +1,16 @@
-name: Build and push docker server image
+name: Build and push docker server latest image
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
   release:
     types: [released]
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: github.repository == 'surrealtm/Glassminers' && (github.event_name == 'push' || github.event_name == 'release')
+    if: github.repository == 'surrealtm/Glassminers'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Docker meta
         id: meta
@@ -25,10 +19,8 @@ jobs:
           images: |
             surrealtm/glassminers-server
           tags: |
-            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
-            type=raw,value={{version}},enable=${{ github.event_name == 'release' }}
-            type=sha,enable=${{ github.event_name == 'push' }}
-            type=raw,value=nightly,enable=${{ github.event_name == 'push' }}
+            type=raw,value=latest
+            type=raw,value={{version}}
           flavor: |
             latest=false
             prefix=
@@ -38,7 +30,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
