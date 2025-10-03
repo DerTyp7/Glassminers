@@ -1,6 +1,21 @@
 ## 0.4.2 (unreleased)
 
-- Fixed the viewport being wrong for the local player on the right in fullscreen mode
+Added tracking of statistics.
+These will sometimes be shown on a pop-up box for the players for entertainment value.
+Additionally, the most interesting stats will also be shown when the game has ended.
+
+This release also addressed some technical issues / improvements to the game, which shall not be visible to the player.
+
+- Added idle, damaged and death sound effects to the trader
+- Added a damaged sound effect to the player
+- Added a vertical visual world edge at the left and right so that the crafting hud never goes off-screen
+- Added a forfeit option to the pause menu
+- The brightness of the torch now decreases when it runs low
+- The torch will also disappear after 30 seconds when currently carried by a player
+- Fixed being able to place the torch into a chest
+- Fixed the time remaining of the torch being reset when picked up by a player
+- Fixed the viewport sometimes not being calculated correctly
+- Fixed the particles for the strength effect starting late
 
 ## 0.4.1 (26.09.2025)
 

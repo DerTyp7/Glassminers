@@ -32,7 +32,11 @@ Guy :: struct {
     target_position: v2i    = .{ 0, 0 };
 
     carrying_item: Item_Kind = .Count;
-    carrying_chest_inventory: Item_Inventory = ---; // Only used to remember the inventory when this guy is carrying a chest item
+
+    carrying_item_data: union { // Depending on the item we are carrying, we may want to remember more information
+        chest_inventory: Item_Inventory;
+        torch_time_left_in_seconds: f32;
+    } = ---;
 
     resurrection_pid: Pid = INVALID_PID;
     resurrection_t: f32   = 0; // Between 0 and 1
@@ -292,7 +296,11 @@ damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bo
     // side effects, like the controller vibrating on "damage" when the guy is already dead...)
     //
     if entity.health <= 0 return false;
-    
+
+    if entity.entity_kind == .Guy {
+        increase_player_statistic(server, entity.pid, .Damage_Taken, cast(s64) min(entity.health, immediate_damage));
+    }
+
     entity.damaged_this_frame = true;
     entity.health = max(entity.health - immediate_damage, 0);
     has_died := entity.health <= 0;
@@ -319,14 +327,17 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
       case .Rock;
         remove_entity(server, entity);
         item_drop = .Stone;
+        increment_player_statistic(server, killer.pid, .Resources_Mined);
 
       case .Coal;
         remove_entity(server, entity);
         item_drop = .Coal;
+        increment_player_statistic(server, killer.pid, .Resources_Mined);
 
       case .Crystal;
         remove_entity(server, entity);
         item_drop = .Shard;
+        increment_player_statistic(server, killer.pid, .Resources_Mined);
 
       case .Guy;
         guy := down(entity, Guy);
@@ -334,6 +345,8 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         switch_guy_state(server, guy, .Dead);
 
         if was_carrying then try_to_place_item(server, guy.physical_position, guy.carrying_item, guy, null);
+
+        increment_player_statistic(server, guy.pid, .Deaths);
 
       case .Frog, .Goblin, .Slime;
         remove_entity(server, entity);
@@ -346,6 +359,8 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
         if random < chance {
             item_drop = .Coin;
         }
+
+        increment_global_statistic(server, .Monsters_Killed);
         
       case;
         remove_entity(server, entity);
@@ -542,6 +557,11 @@ put_item_in_hand :: (server: *Server, guy: *Guy, kind: Item_Kind) {
     broadcast_guy_state(server, guy);    
 }
 
+start_strength_effect :: (server: *Server, guy: *Guy) {
+    guy.strength_t = STRENGTH_POTION_TIME;
+    broadcast_guy_state(server, guy);
+}
+
 update_guy :: (server: *Server, guy: *Guy) {
     previous_target_position := guy.target_position;
     look_vector := vector_from_direction(guy.physical_rotation);
@@ -570,6 +590,14 @@ update_guy :: (server: *Server, guy: *Guy) {
             kill_entity(server, target_entity, guy);
         }
 
+      case .Carrying;
+        if guy.carrying_item == .Torch {
+            guy.carrying_item_data.torch_time_left_in_seconds -= server.tick_time;
+            if guy.carrying_item_data.torch_time_left_in_seconds <= 0 {
+                switch_guy_state(server, guy, .Idle);
+            }
+        }
+
       case .Resurrecting;
         guy.resurrection_t += server.tick_time / RESURRECTION_TIME;
 
@@ -579,6 +607,7 @@ update_guy :: (server: *Server, guy: *Guy) {
                 other_guy := down(other_entity, Guy);
                 switch_guy_state(server, other_guy, .Idle);
                 set_entity_health(server, other_guy, HEALTH_PER_HEART);
+                increment_player_statistic(server, guy.pid, .Resurrections);
             }
 
             switch_guy_state(server, guy, .Idle);
@@ -625,6 +654,17 @@ update_off_emitter :: (server: *Server, emitter: *Emitter) {
         sign: f32 = ifx (is_beam && incoming_direction == emitter.physical_rotation) then 1 else -1;
         set_emitter_state(server, emitter, .Off, emitter.current_charge + delta_charge * sign);
     }
+}
+
+set_torch_time_left_in_seconds :: (server: *Server, torch: *Torch, ttl: f32) {
+    // The client does a predicition on this value, but if it changes abruptly (such as when creating a new torch
+    // with a non-default TTL), then we need to inform the client about that.
+    torch.time_left_in_seconds = ttl;
+
+    msg := make_message(Torch_State_Message);
+    msg.torch_state.entity_pid = torch.pid;
+    msg.torch_state.time_left_in_seconds = ttl;
+    array_add(*server.outgoing_messages, msg);
 }
 
 update_torch :: (server: *Server, torch: *Torch) {

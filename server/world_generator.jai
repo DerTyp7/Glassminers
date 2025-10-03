@@ -133,7 +133,7 @@ setup_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count]f32 {
     // Set up the easy difficulty
     {
         modify_default(.Easy, .Slime_Hole, 0.75);
-        modify_default(.Easy, .Trader,      2.0);
+        modify_default(.Easy, .Trader,     1.34);
         modify_default(.Easy, .Lava,        1.0);
         modify_default(.Easy, .Bedrock,     1.0);
         modify_default(.Easy, .Coal,        1.1);

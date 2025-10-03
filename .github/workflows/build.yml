@@ -1,4 +1,4 @@
-name: Build
+name: Build artifacts
 
 on:
   push:
@@ -49,6 +49,13 @@ jobs:
           test -f run_tree/client.out && echo "Build successful: client.out created"
           ls -la run_tree/client.out
 
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: run_tree/*.out
+          compression-level: 9
+
   build-windows:
     runs-on: windows-latest
     steps:
@@ -92,3 +99,10 @@ jobs:
             Write-Host "ERROR: client.exe was not created"
             exit 1
           }
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: run_tree/*.exe
+          compression-level: 9

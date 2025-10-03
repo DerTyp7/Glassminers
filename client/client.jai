@@ -36,6 +36,8 @@
 // TODO(Felix)
 #load "aseprite.jai";
 
+GE_ACTIVE_BACKEND :: GE_Backend.GL_Modern;
+
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 MEMORY_DEBUGGING :: false;
 BAKE_ASSETS :: !DEVELOPER;
@@ -110,6 +112,13 @@ UI_Scale :: enum {
 
 UI_SCALING_VALUES: [UI_Scale.Count]f32 : .[ 0.75, 1, 2, 4 ];
 
+Game_Summary :: struct {
+    result: Game_Result;
+    score: u64;
+    player_stat_message: string;
+    global_stat_message: string;
+}
+
 Client :: struct {
     //
     // Engine structure
@@ -132,7 +141,7 @@ Client :: struct {
     state_transition_duration: f32;
     random: Random_Generator;
 
-    previous_game_result: Game_Result;
+    previous_game_summary: Game_Summary;
     info_text: string;
     info_text_t: f32;
     vibration_enabled := true;
@@ -211,6 +220,7 @@ Client :: struct {
     
     pause_menu_open: bool;
     server_paused_game: bool;
+    requested_game_forfeit := false;
 
     game_seed: s64;
     game_score: u64;
@@ -227,6 +237,7 @@ Client :: struct {
     #using pm: Particle_Manager;
     lightmap: Lightmap;
     global_particle_system: Pid;
+    stat_hud: Stat_Hud;
     
     //
     // Debugging
@@ -234,14 +245,16 @@ Client :: struct {
 #if DEVELOPER {
     developer_panel_state: UI_Window_State;
     developer_panel_position: UI_Vector2;
-
+    
     free_camera_enabled: bool;
     sound_hud_enabled: bool;
     shadow_hud_enabled: bool;
 
-    timing_update: f32;
-    timing_draw: f32;
-    timing_total_no_sleep: f32;
+    total_update_time: f32;
+    total_draw_time: f32;
+    draw_time_before_ui: f32;
+    total_frame_time_without_sleep: f32;
+    draw_call_count_before_ui: s64;
 
     incoming_message_history: Message_History;
     outgoing_message_history: Message_History;
@@ -397,7 +410,7 @@ is_local_guy_pid :: (client: *Client, pid: Pid) -> bool {
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Request_Game_Start, .Guy_Input; // Ignore
+      case .Request_Game_Start, .Request_Game_Forfeit, .Guy_Input; // Ignore
     
       case .Client_Disconnect;
         for i := 0; i < client.remote_players.count; {
@@ -447,63 +460,38 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         toggle_all_game_sounds(client, client.server_paused_game);
         
       case .Game_Start;
-        client.pause_menu_open = false;
-        client.server_paused_game = false;
-        client.game_seed  = msg.game_start.seed;
-        client.world_size = msg.game_start.size;
-        client.game_mode  = msg.game_start.game_mode;
-        initiate_state_transition(client, .Ingame, 0);
+        start_the_game(client, msg.game_start);
 
-#if DEVELOPER  clear_message_histories(client);
-
-        seed_random_generator(*client.random, client.game_seed, client.game_seed, client.game_seed, client.game_seed);
-        initialize_random_sounds(client);
-        create_entity_manager(client);
-        create_particle_manager(client);
-        create_lightmap(*client.lightmap, *client.world_allocator, client.world_size);
-
-        for i := 0; i < client.local_player_count; ++i {
-            create_hud(client, i);
-            client.local_players[i].guy_pid = INVALID_PID;
-        }
-        
-        // Create the dust particles
-        {
-            system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
-            emitter := create_particle_emitter(system, 0, client.world_size.x * 10);
-            emitter.shape = .Box;
-            emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
-            emitter.random_initial_velocity = true;
-            emitter.turbulence = 0.001;
-            emitter.fadein     = 1;
-            emitter.fadeout    = 3;
-            emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
-            emitter.speed      = .[ 0.05, 0.2 ];
-            emitter.lifetime   = .[ 2, 10 ];
-            emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
-            emitter.particles_per_second = xx client.world_size.x;
-            
-            prewarm_particle_system(system, 5, 0.1);
-
-            client.global_particle_system = system.pid;
-        }
-
-        request_tutorial_panel(client, .About_Tutorial_Panels);
-        
-        // Reset debug settings
-        #if DEVELOPER {
-            client.developer_panel_state = .Closed;
-            client.free_camera_enabled = false;
-        }
-        
       case .Game_Over;
+        client.pause_menu_open = false;
         client.game_score = msg.game_over.score;
-        client.previous_game_result = msg.game_over.result;
+        client.previous_game_summary.result = msg.game_over.result;
+        client.previous_game_summary.score  = msg.game_over.score;
+
+        if msg.game_over.player_stat_kind != .Count {
+            player_name := find_player_name_from_guy_pid(client, msg.game_over.player_stat_guy_pid);
+            client.previous_game_summary.player_stat_message = format_player_stat(*client.engine_allocator, player_name, msg.game_over.player_stat_kind, msg.game_over.player_stat);
+        }
+        
+        if msg.game_over.global_stat_kind != .Count {
+            client.previous_game_summary.global_stat_message = format_global_stat(*client.engine_allocator, msg.game_over.global_stat_kind, msg.game_over.global_stat);
+        }
+
         initiate_state_transition(client, .Game_Over, 5);
-        play_sound(client, .Hud_Failure_0, .Default);
+
+        if msg.game_over.result != .Completed_Tutorial then play_sound(client, .Hud_Failure_0, .Default);
 
       case .Game_Score;
         client.game_score = msg.game_score.score;
+
+      case .Player_Stat;
+        name := find_player_name_from_guy_pid(client, msg.player_stat.guy_pid);
+        add_player_stat_message(client, name, msg.player_stat.kind, msg.player_stat.stat);
+        play_sound(client, .Hud_Success_0, .Default);
+
+      case .Global_Stat;
+        add_global_stat_message(client, msg.global_stat.kind, msg.global_stat.stat);
+        play_sound(client, .Hud_Success_0, .Default);
 
       case .World_Resize;
         client.world_size = msg.world_resize.new_world_size;
@@ -529,18 +517,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
           case .Frog;   play_sound_on_entity(client, .Frog_Death_0,   entity, .Once_Per_Frame);
           case .Goblin; play_sound_on_entity(client, .Goblin_Death_0, entity, .Once_Per_Frame);
           case .Slime;  play_sound_on_entity(client, .Slime_Death_0,  entity, .Once_Per_Frame);
+          case .Trader; play_sound_on_entity(client, .Trader_Death_0, entity, .Once_Per_Frame);
         }
 
         maybe_remove_blocker(*client.lightmap, entity);
-
-        // edge-case: Update hole entity in case slime got killed in hole
-        // (currently only possible with cheat)
-        if entity.entity_kind == .Slime {
-            hole_entity := find_entity_of_kind_at_position(client, .Slime_Hole, entity.physical_position);
-            if hole_entity != null {
-                update_slime_hole(client, hole_entity);
-            }
-        }
         
       case .Move_Entity;
         entity := get_entity(client, msg.move_entity.entity_pid);
@@ -569,25 +549,28 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
       case .Entity_Health;
         entity := get_entity(client, msg.entity_health.entity_pid);
 
-        // Play damage sounds
-        sound_index: Sound_Index = .Count;
-        
-        if entity.entity_kind == {
-          case .Frog;   sound_index = .Frog_Hurt_0;
-          case .Goblin; sound_index = .Goblin_Hurt_0;
-          case .Slime;  sound_index = .Slime_Hurt_0;
-        }
-
         dropped_heart := floor(msg.entity_health.new_health / HEALTH_PER_HEART) < floor(entity.health / HEALTH_PER_HEART);
         gained_heart  := floor(msg.entity_health.new_health / HEALTH_PER_HEART) > floor(entity.health / HEALTH_PER_HEART);
-        
-        if sound_index != .Count && entity.sound_cooldown <= 0 && !sound_active(client, entity.sound) {
-            entity.sound          = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
-            entity.sound_cooldown = get_sound_length_in_seconds(client, sound_index) * 2;
-        }
 
-        // Play a potential damage animation
         if msg.entity_health.new_health < entity.health {
+            // Play a damaged sound
+            if dropped_heart && msg.entity_health.new_health > 0 {
+                sound_index: Sound_Index = .Count;
+                if entity.entity_kind == {
+                  case .Guy;    sound_index = .Guy_Damaged_0;
+                  case .Frog;   sound_index = .Frog_Damaged_0;
+                  case .Goblin; sound_index = .Goblin_Damaged_0;
+                  case .Slime;  sound_index = .Slime_Damaged_0;
+                  case .Trader; sound_index = .Trader_Damaged_0;
+                }
+        
+                if sound_index != .Count {
+                    play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
+                    get_sound_length_in_seconds(client, sound_index) * 2;
+                }
+            }
+        
+            // Play a damaged animation
             if entity.entity_kind == {
               case .Guy; maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Damaged);
               case .Goblin; maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Goblin_Damaged);
@@ -676,7 +659,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
           case .Active; 
             if previous_state != .Active {
                 stop_sound(client, *emitter.sound); // Stop the charging up sound
-                emitter.sound = play_sound(client, .Hud_Success_0, .Default); // Don't spatialize this sound so that everyone can hear it
             }
 
           case .Off;
@@ -694,6 +676,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         item_stack := down(entity, Item_Stack);
         item_stack.item_kind = msg.item_stack_state.item_kind;
         item_stack.count     = msg.item_stack_state.count;
+
+      case .Torch_State;
+        entity := get_entity(client, msg.torch_state.entity_pid);
+        torch := down(entity, Torch);
+        torch.time_left_in_seconds = msg.torch_state.time_left_in_seconds;
 
       case .Chest_State;
         entity := get_entity(client, msg.chest_state.entity_pid);
@@ -818,7 +805,7 @@ read_incoming_packets :: (client: *Client) {
             }
           
           case Packet_Type.Connection_Closed;
-            client.previous_game_result = .Connection_Lost;
+            client.previous_game_summary.result = .Connection_Lost;
             initiate_state_transition(client, .Game_Over, 0);
             
           case Packet_Type.Ping;
@@ -837,7 +824,7 @@ read_incoming_packets :: (client: *Client) {
 
 handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: string) {
     if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
-        client.previous_game_result = .Connection_Lost;
+        client.previous_game_summary.result = .Connection_Lost;
         initiate_state_transition(client, next_screen, 0);
         set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
     } else if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
@@ -865,7 +852,7 @@ maybe_transition_to_next_state :: (client: *Client) {
     // logprint(.Debug, "Switching from '%' to '%'...", client.current_state, client.next_state);
 
     if #complete client.current_state == {
-      case .Main_Menu, .Game_Over;
+      case .Main_Menu;
 
       case .Connecting;
         if client.next_state != .Lobby {
@@ -896,6 +883,10 @@ maybe_transition_to_next_state :: (client: *Client) {
             local_player := *client.local_players[i];
             set_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, 0, 0, 255, 255, 255);
         }
+
+      case .Game_Over;
+        deallocate_string(*client.engine_allocator, *client.previous_game_summary.player_stat_message);
+        deallocate_string(*client.engine_allocator, *client.previous_game_summary.global_stat_message);
     }
 
     client.current_state = client.next_state;
@@ -978,7 +969,7 @@ do_main_menu :: (client: *Client) {
         ui_divider(ui, true);
 
         if client.server_data.state == .Closed && ui_button(ui, "Play!") && host_server(client, DEFAULT_PORT) {
-            join_server(client, "YOU", "localhost", DEFAULT_PORT);
+            join_server(client, client.ui_state.account_name, "localhost", DEFAULT_PORT);
             client.immediately_start_game = true;
         }
         
@@ -1220,13 +1211,29 @@ do_lobby_screen :: (client: *Client) {
 }
 
 do_game_over_screen :: (client: *Client) {
+    display_game_stats :: () #macro {
+        summary := client.previous_game_summary;
+
+        if summary.player_stat_message.count {
+            ui_divider(ui, true);
+            ui_multiline_wrapped_label(ui, true, summary.player_stat_message, "", cast(s64) WIDTH, true);
+        }
+
+        if summary.global_stat_message.count {
+            ui_divider(ui, true);
+            ui_multiline_wrapped_label(ui, true, summary.global_stat_message, "", cast(s64) WIDTH, true);
+        }
+    }
+
+    WIDTH: f32 : 350;
+
     ui :: *client.ui;
-    ui_push_width(ui, .Pixels, 350, 1);
+    ui_push_width(ui, .Pixels, WIDTH, 1);
     ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
     
     score_text := tprint("Final Score: %", client.game_score);
     
-    if #complete client.previous_game_result == {
+    if #complete client.previous_game_summary.result == {
       case .Unfinished_Game; // Should never happen, this value is just used on the server side
           
       case .Completed_Tutorial;
@@ -1235,10 +1242,17 @@ do_game_over_screen :: (client: *Client) {
       case .All_Players_Died; 
         ui_label(ui, true, "All players have died!");
         ui_label(ui, true, score_text);
-        
+        display_game_stats();
+
+      case .All_Players_Forfeited;
+        ui_label(ui, true, "All players have forfeited!");
+        ui_label(ui, true, score_text);
+        display_game_stats();
+
       case .Flag_Was_Destroyed;
         ui_label(ui, true, "The flag was destroyed!");
         ui_label(ui, true, score_text);
+        display_game_stats();
 
       case .Connection_Lost;
         ui_label(ui, true, "Connection died!");
@@ -1378,8 +1392,7 @@ main :: (args: []string) -> s32 {
         //
         {
 #if DEVELOPER {
-           begin := os_get_cpu_time();
-           defer client.timing_update = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
+            begin := os_get_cpu_time();
 }
             
             update_window(*client.window);
@@ -1403,18 +1416,21 @@ main :: (args: []string) -> s32 {
             }
 
             update_input_binders(*client);
+
+            #if DEVELOPER {
+                client.total_update_time = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
+            }
         }
         
         //
         // Draw one frame
         //
         {
-#if DEVELOPER {
-           begin := os_get_cpu_time();
-           defer client.timing_draw = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
-}
+            #if DEVELOPER {
+                begin := os_get_cpu_time();
+            }
 
-            ge_clear_screen(*client.graphics, .{ 40, 40, 50, 255 });
+            ge_clear_screen(*client.graphics, DARK_BLUE_COLOR);
             
             if #complete client.current_state == {
               case .Lobby #through;
@@ -1457,6 +1473,7 @@ main :: (args: []string) -> s32 {
 
                 draw_viewport_information(*client);
                 draw_score_hud(*client);
+                draw_stat_hud(*client);
 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
@@ -1464,15 +1481,15 @@ main :: (args: []string) -> s32 {
                     draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2, xx client.window.h * 0.25 }, .Center | .Median, ORANGE_COLOR, .Shadow);
                 }
 
-#if DEVELOPER {
-                if client.shadow_hud_enabled {
-                    for i := 0; i < client.local_player_count; ++i {
-                        draw_shadow_hud(*client, *client.local_players[i]);
+                #if DEVELOPER {
+                    if client.shadow_hud_enabled {
+                        for i := 0; i < client.local_player_count; ++i {
+                            draw_shadow_hud(*client, *client.local_players[i]);
+                        }
                     }
-                }
 
-                if client.sound_hud_enabled then draw_sound_hud(*client);
-}
+                    if client.sound_hud_enabled then draw_sound_hud(*client);
+                }
                 
                 ge_imm2d_flush(*client.graphics);
             }
@@ -1485,12 +1502,27 @@ main :: (args: []string) -> s32 {
                 draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ FADE_COLOR.r, FADE_COLOR.g, FADE_COLOR.b, alpha });
             }
 
+            draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
+
+            #if DEVELOPER {
+                ff :: (time: f32) -> Print_Format { return format_float(xx time, 0, 2); }
+
+                timings := tprint("Update: % | Draw: % | Frame: %", ff(client.total_update_time), ff(client.total_draw_time), ff(client.window.frame_time * 1000));
+                draw_text_screen_space(*client, *client.ui_font, timings, .{ xx client.window.w - 10, xx 10 }, .Right | .Top, GRAY_COLOR, .Default);
+                
+                ge_imm2d_flush(*client.graphics);
+                client.draw_call_count_before_ui = client.graphics.draw_call_count;
+                client.draw_time_before_ui = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
+            }
+
             draw_ui_frame(*client.ui);
 
-            draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
             ge_imm2d_flush(*client.graphics);
-            
             ge_swap_buffers(*client.graphics);
+
+            #if DEVELOPER {
+                client.total_draw_time = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
+            }
         }
 
         //
@@ -1529,7 +1561,9 @@ main :: (args: []string) -> s32 {
         release_temp_allocator(0);
         
         frame_end := os_get_cpu_time();
-        #if DEVELOPER { client.timing_total_no_sleep = os_convert_cpu_time(frame_end - frame_start, .Milliseconds); }
+        #if DEVELOPER { 
+            client.total_frame_time_without_sleep = os_convert_cpu_time(frame_end - frame_start, .Milliseconds);
+        }
         os_sleep_to_tick_rate(frame_start, frame_end, TARGET_FRAMES_PER_SECOND);
     }
     

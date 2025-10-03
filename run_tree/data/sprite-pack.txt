@@ -43,6 +43,7 @@ Kill_Creature   ../../aseprite/developer/skull.aseprite
 #
 Background   ../../aseprite/inanimates/background.aseprite
 World_Edge   ../../aseprite/inanimates/world-edge.aseprite
+World_Corner sprites/inanimates/world-corner.png
 Bedrock      ../../aseprite/inanimates/bedrock.aseprite
 Crystal      ../../aseprite/inanimates/crystal.aseprite
 Rock         ../../aseprite/inanimates/rock.aseprite

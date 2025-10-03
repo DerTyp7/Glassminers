@@ -27,7 +27,6 @@ Entity :: struct {
     visual_size: v2f;
 
     sound: Sound_Pid = INVALID_SOUND_PID;
-    sound_cooldown: f32;
     
     derived: *void;
     
@@ -381,10 +380,6 @@ interpolate_visuals_and_play_sounds :: (client: *Client, entity: *Entity) {
             entity.sound = play_sound_on_entity(client, sound_index, entity, .Once_Per_Frame);
         }
     }
-
-    if entity.sound_cooldown > 0 {
-        entity.sound_cooldown -= client.tick_time;
-    }
 }
 
 disable_animation :: (entity: *Entity) {
@@ -619,12 +614,12 @@ update_torch :: (client: *Client, torch: *Torch) {
 
     desired_animation: Animation_Index = ---;
 
-    if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.1 {
+    if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * TORCH_LOW_PERCENTAGE {
         desired_animation = .Torch_Low;
         emitter.particles_per_second = 7;
         emitter.lifetime = .[ 1, 2 ];
         emitter.speed = .[ 1.2, 1.4 ];
-    } else if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * 0.3 {
+    } else if torch.time_left_in_seconds <= TORCH_TIME_TO_LIVE * TORCH_MEDIUM_PERCENTAGE {
         desired_animation = .Torch_Medium;
         emitter.particles_per_second = 5;
         emitter.lifetime = .[ 2, 4 ];

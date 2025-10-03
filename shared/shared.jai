@@ -1,100 +1,5 @@
 #load "math/Vector.jai";
 
-
-
-/* ---------------------------------------------- Build Helpers ---------------------------------------------- */
-
-// This turns a file path relative to the project root into an absolute file path on the current file system.
-// This makes the build robust against when building in a different directory than the project root.
-ASSET_FILE_PATH :: (root_path: string) -> string {
-    current_directory := compiler_get_current_source_directory(); // This includes the 'shared' directory
-    end_of_shared, found_directory := search_file_path_for_directory_delimiter_reverse(current_directory);
-    assert(found_directory, "Whoops, can't make an absolute asset file path...");
-    return print_into_allocator(Default_Allocator, "%/%", substring_view(current_directory, 0, end_of_shared), root_path);
-}
-
-
-
-/* ------------------------------------------------- Typedefs ------------------------------------------------- */
-
-v2i :: Vector2_Base(s32);
-v2f :: Vector2_Base(f32);
-Pid :: u32;
-INVALID_PID: Pid : -1;
-
-MAX_LOCAL_PLAYERS :: 4;
-
-LOG_MESSAGES :: false;
-
-Game_Mode :: enum {
-    // Developer
-    Developer;
-
-    // Campaigns
-    Tutorial;
-
-    // Random Generations
-    Easy;
-    Medium;
-    Hard;
-}
-
-pid_hash :: (pid: Pid) -> u64 {
-    hash: u32 = ---;
-    hash = ((pid >> 16) ^ pid) *% 0x45d9f3b;
-    hash = ((pid >> 16) ^ pid) *% 0x45d9f3b;
-    hash = ((pid >> 16) ^ pid);
-    return hash;
-}
-
-pids_equal :: (lhs, rhs: Pid) -> bool {
-    return lhs == rhs;
-}
-
-lerp_with_wrap_and_snap :: (from, to, speed: $T/float, low, high: T) -> T {
-    result := lerp_with_wrap(from, to, speed, low, high);
-    if abs(result - to) < 0.001 result = to;
-    return result;
-}
-
-lerp_with_snap :: (from: $T, to: T, speed: f32) -> T {
-    result := lerp(from, to, speed);
-    if abs(result - to) < 0.001 result = to;
-    return result;
-}
-
-find_nearest_point_on_line_segment :: (point: v2f, line: [2]v2f) -> v2f, f32, f32 {
-    A := v2f.{ line[1].x - line[0].x, line[1].y - line[0].y };
-    B := v2f.{ point.x   - line[0].x, point.y   - line[0].y };
-
-    line_length := A.x * A.x + A.y * A.y;
-    dot := A.x * B.x + A.y * B.y;
-    t := clamp(dot / line_length, 0, 1);
-    point_on_line := v2f.{ line[0].x + t * A.x, line[0].y + t * A.y };
-    point_to_line := v2f.{ point_on_line.x - point.x, point_on_line.y - point.y };
-    
-    return point_on_line, sqrt(point_to_line.x * point_to_line.x + point_to_line.y * point_to_line.y), t;
-}
-
-
-
-/* ----------------------------------------------- Shared Data ----------------------------------------------- */
-
-Server_State :: enum {
-    Closed;
-    Starting;
-    Running;
-    Closing;
-}
-
-Shared_Server_Data :: struct {
-    state: Server_State;
-    requested_port: u16;
-    startup_error: Socket_Error;
-}
-
-
-
 /* ------------------------------------------------ Networking ------------------------------------------------ */
 
 //
@@ -135,7 +40,32 @@ NETWORK_DIE_TIME: f32 : 3;
 
 
 
-/* ------------------------------------------------- Constants ------------------------------------------------- */
+/* ----------------------------------------------- Shared Data ----------------------------------------------- */
+
+Server_State :: enum {
+    Closed;
+    Starting;
+    Running;
+    Closing;
+}
+
+Shared_Server_Data :: struct {
+    state: Server_State;
+    requested_port: u16;
+    startup_error: Socket_Error;
+}
+
+
+
+/* ------------------------------------------------ Constants ------------------------------------------------ */
+
+v2i :: Vector2_Base(s32);
+v2f :: Vector2_Base(f32);
+Pid :: u32;
+INVALID_PID: Pid : -1;
+
+MAX_LOCAL_PLAYERS :: 4;
+LOG_MESSAGES :: false;
 
 SECTION_WIDTH: s32 : 18; // The world is extended when the players have activated the latest checkpoint. The world is grown by this number of tiles.
 SECTION_HEIGHT: s32 : 5; // The height of the world for randomly generated worlds
@@ -162,6 +92,8 @@ EMITTER_MAX_CHARGE:  [Game_Mode.Count]f32 : .[
 ];
 
 TORCH_TIME_TO_LIVE: f32 : 30; // In seconds
+TORCH_MEDIUM_PERCENTAGE: f32 : 0.3; // This this percent of TTL left, the torch is only medium size...
+TORCH_LOW_PERCENTAGE: f32 : 0.1; // This this percent of TTL left, the torch is only low size...
 
 COIN_DROP_CHANCE: [Game_Mode.Count][2]f32 : .[
     .[ 1,    1   ], // Developer
@@ -210,7 +142,20 @@ VOID_EYE_TRACKING_DISTANCE: s64 : 5;
 VOID_EYE_SPAWN_TIME: f32 : 1.5; // Time before the void eye actually starts behaving. Should match the duration of the spawn animation
 
 
-/* --------------------------------------------------- Enums --------------------------------------------------- */
+/* -------------------------------------------------- Enums -------------------------------------------------- */
+
+Game_Mode :: enum {
+    // Developer
+    Developer;
+
+    // Campaigns
+    Tutorial;
+
+    // Random Generations
+    Easy;
+    Medium;
+    Hard;
+}
 
 Entity_Flags :: enum bitfield {
     Inanimate :: 0;
@@ -337,6 +282,7 @@ Game_Result :: enum {
     Unfinished_Game;
     Completed_Tutorial;
     All_Players_Died;
+    All_Players_Forfeited;
     Flag_Was_Destroyed;
     Connection_Lost;
 }
@@ -365,7 +311,7 @@ Item_Inventory :: struct {
 
 
 
-/* --------------------------------------------- Entity Properties --------------------------------------------- */
+/* -------------------------------------------- Entity Properties -------------------------------------------- */
 
 DEFAULT_ENTITY_FLAGS: [Entity_Kind.Count]Entity_Flags : .[
     // Beams
@@ -541,7 +487,87 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
 
 
 
+/* --------------------------------------------------- Stats -------------------------------------------------- */
+
+Player_Stat_Kind :: enum {
+    Moves;
+    Deaths;
+    Resurrections;
+    Resources_Mined;
+    Mirrors_Constructed;
+    Coins_Spent_Total;
+    Coins_Spent_Healing;
+    Damage_Taken;
+}
+
+Global_Stat_Kind :: enum {
+    Monsters_Killed;
+    Sections_Reached;
+}
+
+Statistic :: struct {
+    counter: s64;
+}
+
+format_player_stat :: (allocator: *Allocator, player_name: string, kind: Player_Stat_Kind, stat: Statistic) -> string {
+    result: string = ---;
+
+    f :: print_into_allocator;
+
+    if #complete kind == {
+      case .Moves;               result = f(allocator, "% has walked over % tiles!", player_name, stat.counter);
+      case .Deaths;              result = f(allocator, "% has died % times!", player_name, stat.counter);
+      case .Resurrections;       result = f(allocator, "% has resurrected over % players!", player_name, stat.counter);
+      case .Resources_Mined;     result = f(allocator, "% has mined over % resources!", player_name, stat.counter);
+      case .Mirrors_Constructed; result = f(allocator, "% has built over % mirrors!", player_name, stat.counter);
+      case .Coins_Spent_Total;   result = f(allocator, "% has spent over % coins!", player_name, stat.counter);
+      case .Coins_Spent_Healing; result = f(allocator, "% has spent over % coins healing themselves!", player_name, stat.counter);
+      case .Damage_Taken;        result = f(allocator, "% has taken over % hearts of damage!", player_name, stat.counter / cast(s64) HEALTH_PER_HEART);
+    }
+
+    return result;
+}
+
+format_global_stat :: (allocator: *Allocator, kind: Global_Stat_Kind, stat: Statistic) -> string {
+    result: string = ---;
+
+    f :: print_into_allocator;
+
+    if #complete kind == {
+      case .Monsters_Killed;  result = f(allocator, "Over % monsters have been slain!", stat.counter);
+      case .Sections_Reached; result = f(allocator, "Section % was reached!", stat.counter);
+    }
+
+    return result;
+}
+
+
+
 /* -------------------------------------------------- Helpers ------------------------------------------------- */
+
+pid_hash :: (pid: Pid) -> u64 {
+    hash: u32 = ---;
+    hash = ((pid >> 16) ^ pid) *% 0x45d9f3b;
+    hash = ((pid >> 16) ^ pid) *% 0x45d9f3b;
+    hash = ((pid >> 16) ^ pid);
+    return hash;
+}
+
+pids_equal :: (lhs, rhs: Pid) -> bool {
+    return lhs == rhs;
+}
+
+lerp_with_wrap_and_snap :: (from, to, speed: $T/float, low, high: T) -> T {
+    result := lerp_with_wrap(from, to, speed, low, high);
+    if abs(result - to) < 0.001 result = to;
+    return result;
+}
+
+lerp_with_snap :: (from: $T, to: T, speed: f32) -> T {
+    result := lerp(from, to, speed);
+    if abs(result - to) < 0.001 result = to;
+    return result;
+}
 
 direction_from_vector :: (vector: v2i) -> Direction {
     if vector.x == 0 && vector.y == 0 {
@@ -641,4 +667,13 @@ bake_raw_file :: (filepath: string) -> string {
     }
 
     return file_content;
+}
+
+// This turns a file path relative to the project root into an absolute file path on the current file system.
+// This makes the build robust against when building in a different directory than the project root.
+ASSET_FILE_PATH :: (root_path: string) -> string {
+    current_directory := compiler_get_current_source_directory(); // This includes the 'shared' directory
+    end_of_shared, found_directory := search_file_path_for_directory_delimiter_reverse(current_directory);
+    assert(found_directory, "Whoops, can't make an absolute asset file path...");
+    return print_into_allocator(Default_Allocator, "%/%", substring_view(current_directory, 0, end_of_shared), root_path);
 }

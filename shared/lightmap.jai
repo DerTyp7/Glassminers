@@ -78,7 +78,11 @@ update_lightmap :: (map: *Lightmap, em: *Entity_Manager, dt: f32) {
             if entity.entity_kind == {
               case .Guy;
                 guy := down(entity, Guy);
-                if guy.state == .Carrying && guy.carrying_item == .Torch then fill_lightmap_tile(map, guy.physical_position, TORCH_BRIGHTNESS);
+                if guy.state == .Carrying && guy.carrying_item == .Torch {
+                    // The client doesn't know about the carried torch's time-to-live so we just use full
+                    // brightness here...
+                    fill_lightmap_tile(map, guy.physical_position, TORCH_BRIGHTNESS);
+                }
 
               case .Emitter;
                 emitter := down(entity, Emitter);
@@ -89,7 +93,8 @@ update_lightmap :: (map: *Lightmap, em: *Entity_Manager, dt: f32) {
                 if frog.state == .Attacking then fill_lightmap_with_beam(map, *frog.beam_data, 1);
 
               case .Torch;
-                fill_lightmap_tile(map, entity.physical_position, TORCH_BRIGHTNESS);
+                torch := down(entity, Torch);
+                fill_lightmap_tile(map, entity.physical_position, smoothstep(torch.time_left_in_seconds / TORCH_TIME_TO_LIVE, 0, TORCH_LOW_PERCENTAGE));
                 
               case .Lava, .Slab;
                 fill_lightmap_tile(map, entity.physical_position, LAVA_BRIGHTNESS);

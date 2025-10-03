@@ -27,30 +27,38 @@ Sound_Index :: enum {
     Emitter_Dying;
     Rock_Sliding_0;
 
+    Guy_Damaged_0;
     Guy_Digging_0;
+    Guy_Death_0;
     Guy_Walk_0;
     Guy_Walk_1;
-    Guy_Death_0;
         
     Frog_Attack_0;
-    Frog_Hurt_0;
+    Frog_Damaged_0;
     Frog_Death_0;
     Frog_Idle_0;
+    
     Goblin_Attack_0;
-    Goblin_Hurt_0;
+    Goblin_Damaged_0;
     Goblin_Death_0;
     Goblin_Idle_0;
-    Slime_Hurt_0;
+    
+    Slime_Damaged_0;
     Slime_Death_0;
     Slime_Scared_0;
     Slime_Walk_0;
     Slime_Walk_1;
+
     Void_Eye_Idle_0;
     Void_Eye_Idle_1;
     Void_Eye_Move_0;
     Void_Eye_Move_1;
     Void_Eye_Move_2;
     Void_Eye_Attack_0;
+
+    Trader_Damaged_0;
+    Trader_Death_0;
+    Trader_Idle_0;
 }
 
 SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
@@ -68,30 +76,38 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "emitter-dying",
     "rock-sliding-0",
 
+    "guy-damaged-0",
     "guy-digging-0",
+    "guy-death-0",
     "guy-walk-0",
     "guy-walk-1",
-    "guy-death-0",
 
     "frog-attack-0",
-    "frog-hurt-0",
+    "frog-damaged-0",
     "frog-death-0",
     "frog-idle-0",
+
     "goblin-attack-0",
-    "goblin-hurt-0",
+    "goblin-damaged-0",
     "goblin-death-0",
     "goblin-idle-0",
-    "slime-hurt-0",
+
+    "slime-damaged-0",
     "slime-death-0",
     "slime-scared-0",
     "slime-walk-0",
     "slime-walk-1",
+
     "void-eye-idle-0",
     "void-eye-idle-1",
     "void-eye-move-0",
     "void-eye-move-1",
     "void-eye-move-2",
     "void-eye-attack-0",
+
+    "trader-damaged-0",
+    "trader-death-0",
+    "trader-idle-0",
 ];
 
 create_sound_data :: (client: *Client) -> bool {
@@ -343,19 +359,20 @@ Random_Sound :: struct {
     seconds_till_next_play: f32;
 }
 
-random_sounds: [7]Random_Sound = .[
-    .{ .Ambient_Lava_0,  11, 1, .Count,  .Fade_In | .Fade_Out, --- },
-    .{ .Ambient_Scare_0, 60, 7, .Count,  .Default, --- },
-    .{ .Ambient_Scare_1, 60, 7, .Count,  .Default, --- },
-    .{ .Frog_Idle_0,      7, 2, .Frog,   .Default, --- },
-    .{ .Goblin_Idle_0,    7, 2, .Goblin, .Default, --- },
-    .{ .Void_Eye_Idle_0,  15, 4, .Void_Eye, .Default, --- },
-    .{ .Void_Eye_Idle_1,  20, 6, .Void_Eye, .Default, --- },
+random_sounds: [8]Random_Sound = .[
+    .{ .Ambient_Lava_0,  11, 1, .Count,    .Fade_In | .Fade_Out, --- },
+    .{ .Ambient_Scare_0, 60, 7, .Count,    .Default, --- },
+    .{ .Ambient_Scare_1, 60, 7, .Count,    .Default, --- },
+    .{ .Frog_Idle_0,      7, 2, .Frog,     .Default, --- },
+    .{ .Goblin_Idle_0,    7, 2, .Goblin,   .Default, --- },
+    .{ .Void_Eye_Idle_0, 15, 4, .Void_Eye, .Default, --- },
+    .{ .Void_Eye_Idle_1, 20, 6, .Void_Eye, .Default, --- },
+    .{ .Trader_Idle_0,   15, 4, .Trader,   .Default, --- },
 ];
 
 find_entity_to_play_random_sound :: (client: *Client, sound: *Random_Sound) -> *Entity {
     random_player_index := rdtsc() % client.local_player_count;
     target_guy := get_entity(client, client.local_players[random_player_index].guy_pid);
     entity, distance := find_nearest_entity_of_kind(client, sound.play_on_entity_kind, target_guy.physical_position);
-    return entity;
+    return ifx entity != null && !sound_active(client, entity.sound) then entity else null;
 }

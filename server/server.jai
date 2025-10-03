@@ -18,6 +18,7 @@
 #load "game_tick.jai";
 #load "entity.jai";
 #load "pathfinder.jai";
+#load "stats.jai";
 
 TICK_RATE: f32 : 60;
 DEVELOPER   :: #run compiler_is_user_option_present("Developer");
@@ -26,12 +27,14 @@ BAKE_ASSETS :: !DEVELOPER;
 Local_Player :: struct {
     guy_pid: Pid = INVALID_PID;
     name := "";
+    stats: [Player_Stat_Kind.Count]Statistic;
 }
 
 Remote_Client :: struct {
     connection: Virtual_Connection;
     client_pid: Pid = INVALID_PID;
     currently_requesting_pause := false;
+    requested_game_forfeit := false;
     local_players: [MAX_LOCAL_PLAYERS]Local_Player;
     local_player_count: s64;
 }
@@ -73,6 +76,7 @@ Server :: struct {
     tick_time: f32;
     world_size: v2i;
     current_section_index: u64; // keeps track of how often the world was expanded & next section generation
+    global_stats: [Global_Stat_Kind.Count]Statistic;
     flag_pid: Pid;
     latest_emitter: Pid = INVALID_PID;
     lightmap: Lightmap;
@@ -102,6 +106,17 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
     print_into_buffer(*buffer, format, ..args);
     print_into_buffer(*buffer, "\n");
     flush_print_buffer(*buffer);
+}
+
+find_local_player_by_guy_pid :: (server: *Server, guy_pid: Pid) -> *Local_Player {
+    for i := 0; i < server.clients.count; ++i {
+        client := array_get_pointer(*server.clients, i);
+        for j := 0; j < client.local_player_count; ++j {
+            if client.local_players[j].guy_pid == guy_pid then return *client.local_players[j];
+        }
+    }
+
+    return null;
 }
 
 find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
@@ -152,7 +167,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Frog_State, .Goblin_State, .Slime_State, .Void_Eye_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .Player_Stat, .Global_Stat, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Torch_State, .Frog_State, .Goblin_State, .Slime_State, .Void_Eye_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -204,6 +219,10 @@ handle_incoming_message :: (server: *Server, msg: *Message) {
       case .Request_Game_Start;
         server.game_mode = msg.request_game_start.game_mode;
         server.next_state = .Ingame;
+
+      case .Request_Game_Forfeit;
+        client := find_client_by_pid(server, msg.request_game_forfeit.client_pid);
+        client.requested_game_forfeit = true;
 
       case .Game_Pause;
         target := find_client_by_pid(server, msg.game_pause.client_pid);
@@ -338,6 +357,8 @@ switch_to_next_state :: (server: *Server) {
 create_the_game :: (server: *Server) {
     reset_allocator(*server.world_allocator);
     create_entity_manager(server);
+    reset_all_statistics(server);
+    increment_global_statistic(server, .Sections_Reached);
 
     server.current_section_index    = 0;
     server.void_eyes_spawn_cooldown = 5;    

@@ -68,13 +68,17 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
         
         if source_guy && source_guy.state == .Carrying && source_guy.carrying_item == .Chest {
             chest := down(chest_entity, Chest);
-            chest.inventory = source_guy.carrying_chest_inventory;
+            chest.inventory = source_guy.carrying_item_data.chest_inventory;
             broadcast_chest_inventory(server, chest);
         }
     }
 
     place_torch_on_ground :: () #macro {
-        create_entity(server, .Torch, target_position, .North);
+        torch_entity := create_entity(server, .Torch, target_position, .North);
+        if source_guy {
+            torch := down(torch_entity, Torch);
+            set_torch_time_left_in_seconds(server, torch, source_guy.carrying_item_data.torch_time_left_in_seconds);
+        }
     }
 
     internal_placing_logic :: (server: *Server, target_position: v2i, kind: Item_Kind, source_guy: *Guy) -> bool {
@@ -84,7 +88,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
         //
         // vv ON GROUND || IN HAND >>	Resource	                Torch	                Flag	                Chest
         // Stack                    	If Same (Not On Ground)	    No	                    Yes	                    Yes
-        // Chest	                    Inside (Not On Ground)	    Inside (Not On Ground)	No	                    No
+        // Chest	                    Inside (Not On Ground)	    No                      No	                    No
         // Guy	                        In Hand (Not On Ground)	    In Hand (On Ground)	    In Hand (On Ground)	    In Hand (Not On Ground)
         // Hole	                        No	                        No	                    Yes	                    Yes
         // Torch	                    No	                        No	                    Yes	                    Yes
@@ -122,9 +126,9 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
             if guy.state == .Idle {
                 put_item_in_hand(server, guy, kind);
                 if source_guy {
-                    guy.carrying_chest_inventory = source_guy.carrying_chest_inventory;
+                    guy.carrying_item_data.chest_inventory = source_guy.carrying_item_data.chest_inventory;
                 } else {
-                    guy.carrying_chest_inventory.item_count = 0;
+                    guy.carrying_item_data.chest_inventory.item_count = 0;
                 }
                 return true;
             }
@@ -132,7 +136,7 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
         
         if chest_entity {
             chest := down(chest_entity, Chest);
-            if kind != .Flag && kind != .Chest && chest.item_count < chest.item_kinds.Capacity {
+            if kind != .Flag && kind != .Chest && kind != .Torch && chest.item_count < chest.item_kinds.Capacity {
                 chest.item_kinds[chest.item_count] = kind;
                 ++chest.item_count;
                 broadcast_chest_inventory(server, chest);
@@ -203,9 +207,9 @@ do_game_tick :: (server: *Server) {
     read_incoming_packets(server);
     handle_client_timeouts(server);
 
+    game_result: Game_Result = .Unfinished_Game;
+
     if !server.game_paused {
-        game_result: Game_Result = .Unfinished_Game;
-        
         generate_next_section: bool = false;
 
         //
@@ -268,8 +272,8 @@ do_game_tick :: (server: *Server) {
             if occupied update_void_eye(server, eye);
         }
         
-        number_of_dead_guys := 0;
-        
+        all_guys_dead := true;
+
         for i := 0; i < server.guys.slot_count; ++i {
             guy, occupied := index_bucket_array(*server.guys, i);
             if !occupied continue;
@@ -283,7 +287,7 @@ do_game_tick :: (server: *Server) {
 
             update_guy(server, guy);
 
-            if guy.state == .Dead ++number_of_dead_guys;
+            all_guys_dead &= guy.state == .Dead;
         }
 
         for i := 0; i < server.all_entities.slot_count; ++i {
@@ -305,44 +309,61 @@ do_game_tick :: (server: *Server) {
         //
         // Check for game over scenarios
         //
-        {
-            number_of_players := 0;
-            for i := 0; i < server.clients.count; ++i {
-                number_of_players += array_get(*server.clients, i).local_player_count;
-            }
-            
-            if number_of_dead_guys == number_of_players {
-                game_result = .All_Players_Died;
-            }
+        if all_guys_dead {
+            game_result = .All_Players_Died;
         }
-        
+
         if !entity_exists(server, server.flag_pid) && !is_any_guy_carrying_the_flag(server) {
             // This means that the flag is not currently carried by any player, but it no longer
             // physically exists, which can only mean it got killed (e.g. by lava or whatever).
             game_result = .Flag_Was_Destroyed;
         }
 
-        if server.game_mode == .Tutorial && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) && were_all_emitters_activated(server) {
+        if server.game_mode == .Tutorial && generate_next_section && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) {
             game_result = .Completed_Tutorial;
         }
 
+        if server.game_mode == .Developer && generate_next_section && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) {
+            generate_next_section = false;
+        }
+
         //
-        // Progress through the game state
+        // Progress through the world
         //
-        if game_result != .Unfinished_Game {
-            msg := make_message(Game_Over_Message);
-            msg.game_over.score  = server.game_score;
-            msg.game_over.result = game_result;
-            
-            array_add(*server.outgoing_messages, msg);
-            server.next_state = .Game_Over;
-        } else if generate_next_section {
+        if generate_next_section {
+            increment_global_statistic(server, .Sections_Reached);
             generate_next_world_section(server);
         }
-    } else if server.clients.count == 0 {
+    } 
+    
+    //
+    // Check if all players disconnected or forfeited
+    //
+    {
+        all_clients_forfeited := true;
+
+        for i := 0; i < server.clients.count; ++i {
+            client := array_get(*server.clients, i);
+            all_clients_forfeited &= client.requested_game_forfeit;
+        }
+
+        if all_clients_forfeited then game_result = .All_Players_Forfeited;
+    }
+
+    //
+    // If the game is over, transition the state
+    //
+    if game_result != .Unfinished_Game {
+        msg := make_message(Game_Over_Message);
+        msg.game_over.score  = server.game_score;
+        msg.game_over.result = game_result;
+        msg.game_over.player_stat_kind, msg.game_over.player_stat_guy_pid, msg.game_over.player_stat = find_game_over_player_stat(server);
+        msg.game_over.global_stat_kind, msg.game_over.global_stat = find_game_over_global_stat(server);
+
+        array_add(*server.outgoing_messages, msg);
         server.next_state = .Game_Over;
     }
-        
+
     //
     // Send all updates to clients.
     //
@@ -370,17 +391,6 @@ is_any_guy_carrying_the_flag :: (server: *Server) -> bool {
     }
 
     return found_the_flag;
-}
-
-were_all_emitters_activated :: (server: *Server) -> bool {
-    all_active := true;
-
-    for i := 0; i < server.emitters.slot_count; ++i {
-        emitter, occupied := index_bucket_array(*server.emitters, i);
-        if occupied then all_active &= emitter.state == .Active;
-    }
-
-    return all_active;
 }
 
 get_available_resources_for_guy :: (server: *Server, guy: *Guy) -> [..]Item_Kind {
@@ -463,6 +473,7 @@ handle_guy_movement :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
         // Rotate and move to the target position by recursively pushing things
         guy.physical_rotation = input.aim_direction;
         move_to_position(server, guy, input.position);
+        increment_player_statistic(server, guy.pid, .Moves);
     } else {
         // If we can't move to the position then at least update the rotation
         update_physical_location(server, guy, guy.physical_position, input.aim_direction);
@@ -498,6 +509,8 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
                 put_item_in_hand(server, guy, take_item_from_stack(server, down(target_entity, Item_Stack)));
 
               case .Torch;
+                torch := down(target_entity, Torch);
+                guy.carrying_item_data.torch_time_left_in_seconds = torch.time_left_in_seconds;
                 put_item_in_hand(server, guy, .Torch);
                 remove_entity(server, target_entity);
 
@@ -508,7 +521,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
 
               case .Chest;
                 chest := down(target_entity, Chest);
-                guy.carrying_chest_inventory = chest.inventory;
+                guy.carrying_item_data.chest_inventory = chest.inventory;
                 put_item_in_hand(server, guy, .Chest);
                 remove_entity(server, target_entity);
 
@@ -562,17 +575,34 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
     //
     if input.crafting_recipe != .Count {
         if try_to_fulfill_recipe(server, guy, input.crafting_recipe) {
+            // @Cleanup: We're currently manually tracking the stats for the coins here when interacting with
+            // the trader. I would like to read that out from the crafting recipe basically to make it
+            // more robust.
+
             if #complete input.crafting_recipe == {
               /* Crafting Hud */
-              case .Mirror; create_entity(server, .Mirror, guy.target_position, .North);
-              case .Torch;  put_item_in_hand(server, guy, .Torch);
+              case .Mirror;
+                create_entity(server, .Mirror, guy.target_position, .North);
+                increment_player_statistic(server, guy.pid, .Mirrors_Constructed);
+              case .Torch;
+                put_item_in_hand(server, guy, .Torch);
+                guy.carrying_item_data.torch_time_left_in_seconds = TORCH_TIME_TO_LIVE;
               case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
               
               /* Trader Hud */              
-              case .Health_Potion;   set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
-              case .Strength_Potion; guy.strength_t = STRENGTH_POTION_TIME;
-              case .Shard;           put_item_in_hand(server, guy, .Shard);
-              case .Coal;            put_item_in_hand(server, guy, .Coal);
+              case .Health_Potion;
+                set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Healing);
+              case .Strength_Potion;
+                start_strength_effect(server, guy);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+              case .Shard;
+                put_item_in_hand(server, guy, .Shard);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+              case .Coal;
+                put_item_in_hand(server, guy, .Coal);
+                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
             }
         }
     }
@@ -606,7 +636,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
       case .Give_Shard; try_to_give_item(server, guy, .Shard);
       case .Give_Stone; try_to_give_item(server, guy, .Stone);
       case .Give_Health; set_entity_health(server, guy, DEFAULT_ENTITY_HEALTH[.Guy]);
-      case .Give_Strength; guy.strength_t = STRENGTH_POTION_TIME;
+      case .Give_Strength; start_strength_effect(server, guy);
       case .Spawn_Goblin; spawn_creature_with_cheat(server, guy, .Goblin);
       case .Spawn_Frog; spawn_creature_with_cheat(server, guy, .Frog);
       case .Spawn_Slime; spawn_creature_with_cheat(server, guy, .Slime);
