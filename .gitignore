@@ -26,3 +26,7 @@ run_tree/data/sprite_atlas_*.png
 # Generated source files
 
 shared/VERSION_STRING.jai
+
+# Tweak files
+
+run_tree/*.tweak

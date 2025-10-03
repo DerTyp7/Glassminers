@@ -2,6 +2,7 @@ WHITE_COLOR     :: GE_Color.{ 255, 255, 255, 255 };
 GRAY_COLOR      :: GE_Color.{ 100, 100, 100, 255 };
 DARK_GRAY_COLOR :: GE_Color.{  40,  40,  40, 255 };
 ORANGE_COLOR    :: GE_Color.{ 255, 166,   0, 255 };
+RED_COLOR       :: GE_Color.{ 250,  85, 116, 255 };
 YELLOW_COLOR    :: GE_Color.{ 252, 238,  28, 255 };
 DARK_BLUE_COLOR :: GE_Color.{  40,  40,  50, 255 };
 DARK_CYAN_COLOR :: GE_Color.{   6,  58,  68, 255 };
@@ -312,7 +313,7 @@ create_draw_data :: (client: *Client) -> bool {
 
 create_ui_scaled_draw_data :: (client: *Client) {
     ge_destroy_font(*client.graphics, *client.ui_font);
-    ui_font_size: s16 = cast(s16) ceil(cast(f32) DEFAULT_UI_FONT_SIZE * UI_SCALING_VALUES[client.current_ui_scale]);
+    ui_font_size: s16 = cast(s16) ceil(cast(f32) DEFAULT_UI_FONT_SIZE * UI_SCALING_VALUES[client.config.ui_scale]);
 
 #if BAKE_ASSETS {
     ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, ui_font_size, .Ascii);

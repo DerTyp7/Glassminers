@@ -670,11 +670,11 @@ maybe_do_pause_menu_panel :: (client: *Client) -> bool {
     ui_label(ui, true, "Seed: %", client.game_seed);
     ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
     ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
-    ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.desired_ui_scale);
-    ui_check_box(ui, "Gamepad Vibration", *client.vibration_enabled);
+    ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.config.ui_scale);
+    ui_check_box(ui, "Gamepad Vibration", *client.config.gamepad_vibration);
     
     if client.game_mode == .Tutorial {
-        ui_check_box(ui, "Tutorial Panels", *client.enable_tutorial_panels);
+        ui_check_box(ui, "Tutorial Panels", *client.config.tutorial_panels);
     }
 
     ui_toggle_button_with_pointer(ui, "Input Bindings", cast(*bool) *client.input_bindings_panel_state);
@@ -729,7 +729,7 @@ maybe_do_input_bindings_panel :: (client: *Client) {
 }
 
 maybe_do_tutorial_panel :: (client: *Client) {
-    if client.game_mode != .Tutorial || !client.enable_tutorial_panels || client.server_paused_game || client.current_tutorial_panel >= client.requested_tutorial_panels.count {
+    if client.game_mode != .Tutorial || !client.config.tutorial_panels || client.server_paused_game || client.current_tutorial_panel >= client.requested_tutorial_panels.count {
         // No more requested panel to show...
         return;    
     }

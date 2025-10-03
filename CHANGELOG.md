@@ -1,4 +1,4 @@
-## 0.4.2 (unreleased)
+## 0.4.2 (03.10.2025)
 
 Added tracking of statistics.
 These will sometimes be shown on a pop-up box for the players for entertainment value.
@@ -10,8 +10,11 @@ This release also addressed some technical issues / improvements to the game, wh
 - Added a damaged sound effect to the player
 - Added a vertical visual world edge at the left and right so that the crafting hud never goes off-screen
 - Added a forfeit option to the pause menu
+- Added permanent storage of configuration parameters such as the audio volume and the window state
+- Improved the visuals of the lava animation
 - The brightness of the torch now decreases when it runs low
 - The torch will also disappear after 30 seconds when currently carried by a player
+- The tutorial panels are now automatically disabled after beating the tutorial once
 - Fixed being able to place the torch into a chest
 - Fixed the time remaining of the torch being reset when picked up by a player
 - Fixed the viewport sometimes not being calculated correctly
