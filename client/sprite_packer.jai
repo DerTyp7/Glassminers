@@ -94,7 +94,7 @@ grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, la
     }
     
     if frame_index >= layer.images.count {
-        logprint(.Error, "Access frame index %/% in aseprite file is out of bounds!", frame_index, layer.images.count);
+        logprint(.Error, "Access frame index %/% out of % frames is an out-of-bounds access!", frame_index, layer.images.count);
         passed_checks = false;
     }
     
@@ -303,7 +303,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                     }
                 }
             } else if string_ends_with(entry.filepath, ".png", .Case_Insensitive) {
-                entry.texture, found_sprite = load_texture_data(*allocator, entry.filepath);
+                entry.texture, found_sprite = load_png_texture_data(*allocator, entry.filepath);
                 entry.source_type = .Png;
             }
             
@@ -346,6 +346,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
         //
         for i := 0; i < entries.count; ++i {
             entry := array_get_pointer(*entries, i);
+            
             atlas_index := entry.sprite_index / SPRITES_PER_ATLAS;
             index_in_atlas := entry.sprite_index % SPRITES_PER_ATLAS;
 
@@ -391,7 +392,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     return result;
 }
 
-load_texture_data :: (allocator: *Allocator, filepath: string) -> Texture_Data, bool {
+load_png_texture_data :: (allocator: *Allocator, filepath: string) -> Texture_Data, bool {
     file_content, success := read_entire_file(allocator, filepath);
     if !success {
         return .{ }, false;
@@ -422,7 +423,7 @@ bake_all_sprite_atlases :: (directory: string) -> [SPRITE_ATLAS_COUNT]Texture_Da
         filepath := print_into_allocator(Default_Allocator, "%/sprite_atlas_%.png", directory, i);
 
         success: bool = ---;
-        sprites[i], success = load_texture_data(Default_Allocator, filepath);
+        sprites[i], success = load_png_texture_data(Default_Allocator, filepath);
 
         if !success {
             compiler_report_error(print_into_allocator(Default_Allocator, "[ASSET BAKE]: Failed to bake the texture '%': The file does not exist.\n", filepath));
