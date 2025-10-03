@@ -48,7 +48,7 @@ Bedrock      ../../aseprite/inanimates/bedrock.aseprite
 Crystal      ../../aseprite/inanimates/crystal.aseprite
 Rock         ../../aseprite/inanimates/rock.aseprite
 Coal_Block   ../../aseprite/inanimates/coal.aseprite
-Emitter      ../../aseprite/inanimates/emitter.aseprite
+Emitter      ../../aseprite/inanimates/receiver_emitter.aseprite
 Mirror       ../../aseprite/inanimates/mirror.aseprite
 Chest_Closed ../../aseprite/inanimates/chest.aseprite 0
 Chest_Open   ../../aseprite/inanimates/chest.aseprite 1
