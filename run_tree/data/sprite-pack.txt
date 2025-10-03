@@ -56,10 +56,10 @@ Chest_Open   ../../aseprite/inanimates/chest.aseprite 1
 #
 # Animates
 #
-Lava_0       ../../aseprite/animates/lava.aseprite 0
-Lava_1       ../../aseprite/animates/lava.aseprite 1
-Lava_2       ../../aseprite/animates/lava.aseprite 2
-Lava_3       ../../aseprite/animates/lava.aseprite 3
+Lava_0       sprites/animates/lava-0.png
+Lava_1       sprites/animates/lava-1.png
+Lava_2       sprites/animates/lava-2.png
+Lava_3       sprites/animates/lava-3.png
 Slab_0       ../../aseprite/animates/slab.aseprite 0
 Slab_1       ../../aseprite/animates/slab.aseprite 1
 Slab_2       ../../aseprite/animates/slab.aseprite 2
