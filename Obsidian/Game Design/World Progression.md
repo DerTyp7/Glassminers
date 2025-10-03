@@ -14,6 +14,7 @@ Finally, increasing the difficulty is important for a natural end of the game, a
 
 The change in difficulty also breaks up the repetitiveness of the game. If the game gets a lot harder over a couple of sections, and then drops in difficulty again, that breaks a pattern and leads to a more interesting progression. It can lead to the players tensing up for a while and then relaxing for a few sections afterwards, leading to a feeling of progression and reward.
 
+![[DesiredDifficultyGraph.png]]
 ## How to implement difficulty progression
 There's some knobs we can turn for tuning the difficulty, mostly related to world generation:
 - The spawn rate of monsters / lava / bedrock
@@ -34,7 +35,13 @@ Therefore, we would also like to have more ways of tuning the difficulty.
 - Reducing the health of players (temporarily) can increase the pressure on players as they can make fewer mistakes, or it requires more calculation and precision to execute some moves (when calculating to take damage)
 
 ## Difficulty Gates
-@Incomplete
+A difficulty gate is a challenge presented to the player that is supposed to end runs. At this gate, players need to prove that they are "worthy" of passing this gate to keep going.
+These gates provide a natural end to the game ("this is where we need to learn", "we weren't good enough yet") instead of just being unlucky with the world generation or slowly running out of stuff and feeling like the game is unbalanced.
+These gates also provide a feeling of progress when you start beating them, as you recognize you got better at the game.
+They also provide a strong feeling of progression as it is easier to compare different runs (how far I got), and it provides variety to the gameplay.
+It also gives the run a stronger structure (kind of like chapters in the book).
+
+Gates can be implemented in different ways, but the most common will probably be through specific [[Biomes]].
 
 # Change in Gameplay Mechanics
 Our gameplay mechanics are pretty monotonous during the game. Breaking the pattern of what you are actually expected to do to solve a section can help with that and make the game more interesting to play.
@@ -45,3 +52,4 @@ Another way of breaking the repetitiveness is just changing the visuals and the 
 By simply changing the surroundings from a mine to some fantasy world or some other thing, the player might get a fresh start to how the game feels.
 They will also be interested in what has changed (even if just visual) and therefore have a motivation to keep playing.
 This change in visuals can also act as a progression point - for example it can be a reward to reach the "cloud part" of the game.
+One easy way of implementing some changing visuals would just be to tint the background (and maybe bedrock) textures drawn in different sections.

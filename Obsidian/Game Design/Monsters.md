@@ -1,3 +1,6 @@
+This list will shortly introduce the different monsters that are in the game.
+Each monster shall be unique in its own way, providing a different mechanic and challenge to the game.
+We may also think about only spawning some monsters in specific [[Biomes]] or make them act as [[World Progression#Difficulty Gates]].
 ## Frog
 The Frog Monster is stationary with a slow attack but high range.
 It blocks tight areas like tunnels and requires the player to constantly think about where they are and where they can go.
