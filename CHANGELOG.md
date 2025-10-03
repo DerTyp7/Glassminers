@@ -1,3 +1,7 @@
+## 0.5.0 (unreleased)
+
+- The tutorial panels are now automatically disabled after beating the tutorial once
+
 ## 0.4.2 (03.10.2025)
 
 Added tracking of statistics.

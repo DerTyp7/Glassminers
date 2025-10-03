@@ -464,7 +464,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
         initiate_state_transition(client, .Game_Over, 5);
 
-        if msg.game_over.result != .Completed_Tutorial then play_sound(client, .Hud_Failure_0, .Default);
+        if msg.game_over.result == .Completed_Tutorial {
+            client.config.tutorial_panels = false;   
+        } else {
+            play_sound(client, .Hud_Failure_0, .Default);
+        }
 
       case .Game_Score;
         client.game_score = msg.game_score.score;
