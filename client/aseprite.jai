@@ -101,7 +101,7 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
 
             while current_byte_location < start_of_frame_location + frame_header.bytes_in_this_frame {
                 chunk_header: *Aseprite_Chunk_Header = xx (memory.data + current_byte_location);
-                chunk_data: *void = xx (memory.data + current_byte_location + ASEPRITE_OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT);
+                chunk_data: *void = xx pointer_after_struct(chunk_header);
                 if chunk_header.chunk_type == {
                     case .Old_Palette_1;
                         old_palette: *Aseprite_Chunk_Palette_Old = xx chunk_data;
@@ -120,7 +120,7 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                         layer: *Aseprite_Chunk_Layer = xx chunk_data;
 
                         // Get string of layer
-                        layer_name := aseprite_read_string(allocator, *layer.__reserved_0[2] + 1);
+                        layer_name := aseprite_read_string(allocator, pointer_after_struct(layer));
                         result.layers[layer_index].name = layer_name;
                         layer_index += 1;
                         
@@ -137,14 +137,12 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                                 
                             case .Compressed_Image;
                                 // TODO(Felix): Can we determine the uncompressed size? That should be doable
-                                
-                                start_of_content: *u8 = (*cel.__reserved_0[4] + 1);
-                                width:  u16 = ~cast(*u16)(start_of_content + 0);
-                                height: u16 = ~cast(*u16)(start_of_content + 2);
-                                start_of_compressed_content: *u8 = xx (start_of_content + 4);
+                                content: *u8 = pointer_after_struct(cel);
+                                width:  u16 = consume_and_move(*content, u16);
+                                height: u16 = consume_and_move(*content, u16);
                                 compressed_content_size := chunk_header.chunk_size - size_of(~cel) - 2*size_of(u16);
                                 
-                                compressed_content: string = .{compressed_content_size, start_of_compressed_content};
+                                compressed_content: string = .{compressed_content_size, content };
                                 uncompressed_content: string = zlib_decode(compressed_content);
                                 
                                 aseprite_modify_image_pixels(image, color_palette, file_header.color_depth, cel, 
@@ -206,6 +204,9 @@ aseprite_print_file_structure :: (file_data: string) {
     print("Done.\n");
 }
 
+
+#file_scope
+
 // -------------------------- Start of internals ---------------------------- //
 
 // File documentation
@@ -215,7 +216,6 @@ aseprite_print_file_structure :: (file_data: string) {
 
 ASEPRITE_MAGIC_NUMBER_FILE_HEADER  :: 0xA5E0;
 ASEPRITE_MAGIC_NUMBER_FRAME_HEADER :: 0xF1FA;
-ASEPRITE_OFFSET_FROM_CHUNK_HEADER_TO_CHUNK_CONTENT :: size_of(u32) + size_of(u16);
 
 
 // -------------------------- Types ---------------------------- //
@@ -420,7 +420,7 @@ Aseprite_Chunk_Layer :: struct #packed {
     
     // ASEPRITE_STRING layer name
     // if type == .Tilemap:  tileset_index: u16
-    // TODO: there is one more member here if some file_header flag is set
+    // there is one more member here if some file_header flag is set
 }
 
 
@@ -443,7 +443,7 @@ Aseprite_Chunk_Cel :: struct #packed {
     z_index: s16;
     
     __reserved_0: [5]u8;
-    // TODO(Felix): There is a bunch of stuff following depending on the cell type
+    // There is a bunch of stuff following depending on the cell type
 }
 
 
@@ -459,16 +459,15 @@ Aseprite_Color_Depth :: enum(u16) {
 
 aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator, chunk: *Aseprite_Chunk_Palette_Old) -> []Palette_Entry {
     SIZE_OF_COLOR_ENTRY   :: 3;
-    SIZE_OF_PACKET_HEADER :: 2;
     
     // First pass: Count colors
     color_count: u32;
     {
-        current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx ((cast(*u8)chunk) + size_of(~chunk));
+        current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx pointer_after_struct(chunk);
         for packet_index := 0; packet_index < chunk.number_of_packets; ++packet_index {
             colors_in_packet := ifx current_packet.number_of_colors == 0 then 256 else current_packet.number_of_colors;
             color_count += colors_in_packet;
-            offset_to_next_packet := SIZE_OF_PACKET_HEADER + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
+            offset_to_next_packet := size_of(~current_packet) + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
             current_packet = xx ((cast(*u8)current_packet) + offset_to_next_packet);
         }
     }
@@ -479,13 +478,13 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
     // Second pass: Fill colors
     {
         current_color_index: u32 = 0;
-        current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx ((cast(*u8)chunk) + size_of(~chunk));
+        current_packet: *Aseprite_Chunk_Palette_Old_Packet = xx pointer_after_struct(chunk);
         assert(current_packet.to_skip_count == 0, "Skipping over palette indices not handled.");
         for packet_index := 0; packet_index < chunk.number_of_packets; ++packet_index {
             colors_in_packet := ifx current_packet.number_of_colors == 0 then 256 else current_packet.number_of_colors;
-            offset_to_next_packet := SIZE_OF_PACKET_HEADER + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
+            offset_to_next_packet := size_of(~current_packet) + (colors_in_packet * SIZE_OF_COLOR_ENTRY);
 
-            colors: *Aseprite_Chunk_Palette_Old_Packet_Color = xx ((cast(*u8)current_packet) + SIZE_OF_PACKET_HEADER);
+            colors: *Aseprite_Chunk_Palette_Old_Packet_Color = xx pointer_after_struct(current_packet);
             for i := 0; i < colors_in_packet; ++i {
                 to_fill: *Palette_Entry = *result[current_color_index];
                 current_color_index += 1;
@@ -535,44 +534,39 @@ aseprite_get_flattened_palette_from_palette_chunk :: (allocator: *Allocator, chu
     // I think this is for combining multiple palettes - I'm not doing this for now
     assert(chunk.first_color_index == 0, "Unexpected first color index");
    
-    start_of_data: *u8 = (cast(*u8)chunk) + size_of(~chunk);
+    content: *u8 = pointer_after_struct(chunk);
     color_count := chunk.palette_size;
     
     result: []Palette_Entry = allocate_array(allocator, Palette_Entry, color_count);
     
-    // TODO(Felix): This iteration needs some cleaning up.
-    
-    start_of_entry: *u8 = start_of_data;
     for i := 0; i < result.count; ++i {
         to_fill: *Palette_Entry = *result[i];
-        has_name: bool = ~cast(*u16)(start_of_entry + 0);
-        to_fill.r = ~cast(*u8)(start_of_entry + 2);
-        to_fill.g = ~cast(*u8)(start_of_entry + 3);
-        to_fill.b = ~cast(*u8)(start_of_entry + 4);
-        to_fill.a = ~cast(*u8)(start_of_entry + 5);
+        flags: u16 = consume_and_move(*content, u16);
+        to_fill.r = consume_and_move(*content, u8);
+        to_fill.g = consume_and_move(*content, u8);
+        to_fill.b = consume_and_move(*content, u8);
+        to_fill.a = consume_and_move(*content, u8);
         
-        SIZE_OF_ENTRY_WITHOUT_NAME :: 6;
-        start_of_entry += SIZE_OF_ENTRY_WITHOUT_NAME;
+        has_name := flags & 1;
         if has_name {
-            string_length: u16 = ~cast(*u16)start_of_entry;
-            start_of_entry += size_of(string_length);
-            start_of_entry += string_length;
+            string_length: u16 = consume_and_move(*content, u16);
+            content += string_length;
         }    
     }
     
     return result;
 }
 
-// TODO(Felix): Same notes as below
+
 aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []Palette_Entry, color_depth: Aseprite_Color_Depth, 
                                                      target_width, target_height: u16,
                                                      cel: *Aseprite_Chunk_Cel) {
-    start_of_content: *u8 = (*cel.__reserved_0[4] + 1);
-    width:  u16 = ~cast(*u16)(start_of_content + 0);
-    height: u16 = ~cast(*u16)(start_of_content + 2);
+    content: *u8 = pointer_after_struct(cel);
+    width:  u16 = consume_and_move(*content, u16);
+    height: u16 = consume_and_move(*content, u16);
     
     aseprite_pixel_size := color_depth / 8;
-    aseprite_pixel_data: string = .{ xx (start_of_content + 4), width*height * aseprite_pixel_size };
+    aseprite_pixel_data: string = .{ width*height * aseprite_pixel_size, content };
     aseprite_modify_image_pixels(image, palette, color_depth, cel, width, height, target_width, target_height, aseprite_pixel_data);
 }
 
@@ -647,8 +641,9 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
 }
 
 aseprite_read_string :: (allocator: *Allocator, aseprite_string: *void) -> string {
-    string_length:   u16 = ~cast(*u16)aseprite_string;
-    string_content: *u8  = xx (aseprite_string + 2);
+    content: *u8 = aseprite_string;
+    string_length:   u16 = consume_and_move(*content, u16);
+    string_content: *u8  = content;
     
     result := allocate_string(allocator, string_length);
     copy_memory(result.data, string_content, string_length);
@@ -667,3 +662,16 @@ aseprite_chunk_type_to_name :: (chunk_type: Aseprite_Chunk_Type) -> string {
     return "INVALID_CHUNK_TYPE";
 }
 
+
+// Pointer helpers
+
+consume_and_move :: (pointer: **u8, $T: Type) -> T {
+    value_pointer: *T = xx ~pointer;
+    ~pointer += size_of(T);
+    return ~value_pointer;
+}
+
+pointer_after_struct :: (pointer: *$T) -> *u8 {
+    bytes_to_skip := size_of(~pointer);
+    return (cast(*u8)pointer) + bytes_to_skip;
+}
