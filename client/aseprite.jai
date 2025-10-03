@@ -25,7 +25,6 @@ Parsed_Aseprite_File :: struct {
 // TODO(Felix): Ideally, this would take two separate allocators:
 // - one for the temporary data, and
 // - one for the "permanent" / result data.
-// Too bad!
 
 load_aseprite_layer_images_from_file :: (allocator: *Allocator, path_to_file: string) -> Parsed_Aseprite_File, bool {
     file_content, success := read_entire_file(allocator, path_to_file);
@@ -447,11 +446,6 @@ Aseprite_Chunk_Cel :: struct #packed {
     // TODO(Felix): There is a bunch of stuff following depending on the cell type
 }
 
-// TODO(Felix): This is temporary code to see which chunks 
-// we actually need to implement for parsing Glassminers Aseprite files.
-// Ideally we'd implement everything, but I'll implement stuff
-// as needed.
-
 
 // -------------------------- Helpers  ---------------------------- //
 
@@ -582,19 +576,26 @@ aseprite_modify_image_from_raw_indexed_cel_chunk :: (image: *string, palette: []
     aseprite_modify_image_pixels(image, palette, color_depth, cel, width, height, target_width, target_height, aseprite_pixel_data);
 }
 
-// TODO(Felix): This omega functions needs some cleanup.
-// Maybe it'd make sense to pass file_header here
-//  - Maybe some deduplication ("consume u16") or something
-//  - Create a helper function to translate source<->target positions
 aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color_depth: Aseprite_Color_Depth,
                                  cel: *Aseprite_Chunk_Cel, 
                                  source_width, source_height: u16,
                                  target_width, target_height: u16,
                                  aseprite_pixel_data: string) {
+    // NOTE(Felix): 
+    // Some sprite frames only store part of the entire target texture (e.g. skipping out
+    // an entire transparent row of pixels by setting cel.y_position & source_height accordingly).
+    // 
+    // Some sprite frames also store _more_ pixels than the target texture (??? why).
+    // (so e.g. a cel with a larger height than the result image).
+    // Sometimes the col.[]_position is also negative.
+    // Maybe this is for compression purposes? Not quite sure, but simply ignoring those pixels
+    // seems to be the way to go.
+    target_out_of_bounds :: (x, y, target_width, target_height: s16) -> bool {
+        return x < 0 || x >= target_width || y < 0 || y >= target_height;
+    }
+
+
     BYTES_PER_RESULT_PIXEL :: 4;
-    
-    clamped_source_width  := min(source_width, target_width);
-    clamped_source_height := min(source_height, target_height);
     
     current_pixel_index: u32 = 0;
     if #complete color_depth == {
@@ -602,19 +603,14 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
             // Each pixel is [4]u8
             Aseprite_Pixel :: [4]u8; // Index into palette
             pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
-            for y := 0; y < clamped_source_height; ++y {
-                for x := 0; x < clamped_source_width; ++x {
-                    pixel: Aseprite_Pixel = pixels[y*clamped_source_width + x];
+            for y := 0; y < source_height; ++y {
+                for x := 0; x < source_width; ++x {
+                    pixel: Aseprite_Pixel = pixels[y*source_width + x];
 
                     target_row    := y + cel.y_position;
                     target_column := x + cel.x_position;
-
-                    // NOTE(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
-                    // (so e.g. a cel with a larger height than the result image).
-                    if target_row >= target_height || target_column >= target_width {
-                        continue;
-                    }
-
+                    if target_out_of_bounds(target_row, target_column, target_width, target_height) { continue; }
+                    
                     destination_pixel: *u8 = *image.data[(target_row*target_height + target_column) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = pixel[0];
                     destination_pixel[1] = pixel[1];
@@ -623,6 +619,7 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
                 }
             }
 
+
         case .Grayscale;
             assert(false, "Grayscale color depth is not implemented!");
             
@@ -630,19 +627,14 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
             // Each pixel is just an u8 color palette index
             Aseprite_Pixel :: u8; // Index into palette
             pixels: *Aseprite_Pixel = xx aseprite_pixel_data.data;
-            for y := 0; y < clamped_source_height; ++y {
-                for x := 0; x < clamped_source_width; ++x {
-                    palette_index := pixels[y*clamped_source_width + x];
+            for y := 0; y < source_height; ++y {
+                for x := 0; x < source_width; ++x {
+                    palette_index := pixels[y*source_width + x];
                     assert(palette_index < palette.count, "Out of bounds palette index.");
 
                     target_row    := y + cel.y_position;
                     target_column := x + cel.x_position;
-                    
-                    // NOTE(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
-                    // (so e.g. a cel with a larger height than the result image).
-                    if target_row >= target_height || target_column >= target_width {
-                        continue;
-                    }
+                    if target_out_of_bounds(target_row, target_column, target_width, target_height) { continue; }
 
                     destination_pixel: *u8 = *image.data[(target_row*target_height + target_column) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = palette[palette_index].r;
