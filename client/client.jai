@@ -9,6 +9,7 @@
 #load "threads.jai";
 #load "random.jai";
 #load "virtual_connection.jai";
+#load "tweak_file.jai";
 #load "graphics_engine/graphics_engine.jai";
 
 #load "stb/stb_image_write.jai";
@@ -23,6 +24,7 @@
 #load "../shared/VERSION_STRING.jai";
 
 // Client
+#load "config.jai";
 #load "game_tick.jai";
 #load "input_bindings.jai";
 #load "entity.jai";
@@ -93,13 +95,6 @@ Tutorial_Panel :: enum {
     }
 }
 
-UI_State :: struct {
-    account_name: string;
-    local_player_name: string = ""; // So that we can clear the text input when a player was added
-    network_host: string;
-    network_port := 9876;
-}
-
 UI_Scale :: enum {
     Small;
     Normal;
@@ -124,13 +119,10 @@ Client :: struct {
     graphics: Graphics_Engine;
     ui: UI;
     mixer: Mixer;
+    config: Config;
     
     engine_pool: Memory_Pool;
     engine_allocator: Allocator;
-
-    ui_state: UI_State;
-    desired_ui_scale: UI_Scale = .Normal; // We can't really provide a slider for a floating point value here as the actual slider would glitch around too hard...
-    current_ui_scale: UI_Scale = .Normal;
     
     current_state: Game_State;
     next_state: Game_State;
@@ -891,12 +883,11 @@ maybe_transition_to_next_state :: (client: *Client) {
 
 
 maybe_update_ui_scale :: (client: *Client) {
-    if client.current_ui_scale == client.desired_ui_scale then return;
-
-    client.current_ui_scale = client.desired_ui_scale;
-    client.ui.pixel_scaling = UI_SCALING_VALUES[client.current_ui_scale];
-    create_ui_scaled_draw_data(client);
-    change_ui_font(*client.ui, *client.ui_font); // Force-update all cached label sizes
+    if client.ui.pixel_scaling != UI_SCALING_VALUES[client.config.ui_scale] {
+        client.ui.pixel_scaling = UI_SCALING_VALUES[client.config.ui_scale];
+        create_ui_scaled_draw_data(client);
+        change_ui_font(*client.ui, *client.ui_font); // Force-update all cached label sizes
+    }
 }
 
 do_game_mode_selector :: (client: *Client) {
@@ -942,15 +933,15 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Host", .Default, window_position(client, -1));
         ui_label(ui, false, "Name");
-        ui_text_input_with_string_pointer(ui, "Enter your name", *client.ui_state.account_name, true, *client.engine_allocator);
+        ui_text_input_with_string_pointer(ui, "Enter your name", *client.config.account_name, true, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Port");
-        ui_text_input_with_int_pointer(ui, "Enter the port", *client.ui_state.network_port, true);
+        ui_text_input_with_int_pointer(ui, "Enter the port", *client.config.network_port, true);
         ui_divider(ui, true);
         
         if client.server_data.state == .Closed && ui_button(ui, "Host!") {
-            if client.ui_state.account_name && host_server(client, client.ui_state.network_port) {
-                join_server(client, client.ui_state.account_name, "localhost", client.ui_state.network_port);
+            if client.config.account_name && host_server(client, client.config.network_port) {
+                join_server(client, client.config.account_name, "localhost", client.config.network_port);
                 client.immediately_start_game = false;
             }
         }
@@ -966,7 +957,7 @@ do_main_menu :: (client: *Client) {
         ui_divider(ui, true);
 
         if client.server_data.state == .Closed && ui_button(ui, "Play!") && host_server(client, DEFAULT_PORT) {
-            join_server(client, client.ui_state.account_name, "localhost", DEFAULT_PORT);
+            join_server(client, client.config.account_name, "localhost", DEFAULT_PORT);
             client.immediately_start_game = true;
         }
         
@@ -977,17 +968,17 @@ do_main_menu :: (client: *Client) {
     {
         ui_push_window(ui, "Join", .Default, window_position(client, +1));
         ui_label(ui, false, "Name");
-        ui_text_input_with_string_pointer(ui, "Enter your name", *client.ui_state.account_name, true, *client.engine_allocator);
+        ui_text_input_with_string_pointer(ui, "Enter your name", *client.config.account_name, true, *client.engine_allocator);
         ui_divider(ui, true);
         ui_label(ui, false, "Host");
-        ui_text_input_with_string_pointer(ui, "Enter the address", *client.ui_state.network_host, true, *client.engine_allocator);
+        ui_text_input_with_string_pointer(ui, "Enter the address", *client.config.network_host, true, *client.engine_allocator);
         ui_label(ui, false, "Port");
-        ui_text_input_with_int_pointer(ui, "Enter the port", *client.ui_state.network_port, true);
+        ui_text_input_with_int_pointer(ui, "Enter the port", *client.config.network_port, true);
         ui_divider(ui, true);
         
         if client.server_data.state == .Closed && ui_button(ui, "Join!") {
-            if client.ui_state.account_name && client.ui_state.network_host {
-                join_server(client, client.ui_state.account_name, client.ui_state.network_host, client.ui_state.network_port);
+            if client.config.account_name && client.config.network_host {
+                join_server(client, client.config.account_name, client.config.network_host, client.config.network_port);
                 client.immediately_start_game = false;
             }
         }
@@ -1028,18 +1019,16 @@ do_connecting_screen :: (client: *Client) {
     }    
 }
 
-maybe_add_local_player :: (client: *Client) {
-    if client.local_player_count >= MAX_LOCAL_PLAYERS || client.ui_state.local_player_name.count == 0 return;
+maybe_add_local_player :: (client: *Client, local_player_name: string) {
+    if client.local_player_count >= MAX_LOCAL_PLAYERS || local_player_name.count == 0 return;
 
-    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, client.ui_state.local_player_name);
+    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, local_player_name);
     client.local_players[client.local_player_count].input_binder.allowed_input_devices = .Gamepad;
     ++client.local_player_count;
 
     if client.local_players[0].input_binder.allowed_input_devices == .ALL then client.local_players[0].input_binder.allowed_input_devices = .Keyboard;
 
     send_player_information_message(client, client.local_player_count - 1);
-
-    deallocate_string(*client.engine_allocator, *client.ui_state.local_player_name);
 }
 
 do_lobby_screen :: (client: *Client) {
@@ -1126,7 +1115,9 @@ do_lobby_screen :: (client: *Client) {
         }
 
         ui_divider(ui, true);
-        
+
+        local_player_name_data: UI_Text_Input_Data;
+
         {
             ui_label(ui, true, "Local Players");
 
@@ -1134,10 +1125,10 @@ do_lobby_screen :: (client: *Client) {
                 ui_push_container(ui, .Horizontal);
                 ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
 
-                entered_name := ui_text_input_with_string_pointer(ui, "Name", *client.ui_state.local_player_name, true, *client.engine_allocator);
+                local_player_name_data = ui_text_input(ui, "Name", .Everything);
 
-                if ui_button(ui, "Add!") || entered_name {
-                    maybe_add_local_player(client);
+                if ui_button(ui, "Add!") || local_player_name_data.confirmed {
+                    maybe_add_local_player(client, local_player_name_data._string);
                 }
 
                 ui_pop_width(ui);
@@ -1158,7 +1149,7 @@ do_lobby_screen :: (client: *Client) {
         do_game_mode_selector(client);
         
         if ui_button(ui, "Start!") {
-            maybe_add_local_player(client); // Add a new local player when somebody typed in the name but forgot to press "Add!"
+            if local_player_name_data.valid maybe_add_local_player(client, local_player_name_data._string); // Add a new local player when somebody typed in the name but forgot to press "Add!"
             start_lobby(client);
         }
         
@@ -1279,15 +1270,8 @@ main :: (args: []string) -> s32 {
     client.world_allocator = allocator_from_memory_pool(*client.world_pool);
     create_memory_arena(*client.tick_arena, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes, false);
     client.tick_allocator = allocator_from_memory_arena(*client.tick_arena);
-    
-    client.ui_state.account_name = os_get_user_name(*client.engine_allocator);
-    client.ui_state.network_port = 9876;
 
-#if DEVELOPER {
-    client.ui_state.network_host = copy_string(*client.engine_allocator, "localhost");
-} #else {
-    client.ui_state.network_host = copy_string(*client.engine_allocator, "tealfire.de");
-}
+    create_config(*client.config, *client.engine_allocator);
 
 #if MEMORY_DEBUGGING {
     create_file_printer(*client.memory_debug_printer, *temp, "memory.log");
@@ -1342,39 +1326,41 @@ main :: (args: []string) -> s32 {
         // Check for hot-reloading
         //
 #if DEVELOPER {
-    changed_sprites := update_file_watcher(*client.sprite_watchdog, *temp);
-    if changed_sprites.count {
-        reload_sprite_atlases_from_disk(*client);
-    }
-
-    changed_sounds := update_file_watcher(*client.sound_watchdog, *temp);
-    for i := 0; i < changed_sounds.count; ++i {
-        filepath := array_get(*changed_sounds, i);
-        sound_index := find_sound_index_from_filepath(filepath);
-        if sound_index != .Count {
-            destroy_sound_data(*client.mixer, *client.sounds[i]);
-            status: Sound_File_Status = ---;
-            client.sounds[sound_index], status = create_sound_data_from_file(*client.engine_allocator, filepath);
-            if status == .Success {
-                logprint(.Debug, "Hot-loaded the sound '%'.", sound_index);
-            } else {
-                logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
-            }
-        } else {
-            logprint(.Warning, "Registered a non-cataloged sound change: '%'.", filepath);
-        }
-    }
-
-    changed_packs := update_file_watcher(*client.pack_watchdog, *temp);
-    for i := 0; i < changed_packs.count; ++i {
-        filepath := array_get(*changed_packs, i);
-        if filepath == "data/animation-pack.txt" {
-            destroy_animation_data(*client);
-            create_animation_data(*client);
-        } else if filepath == "data/sprite-pack.txt" {
+        changed_sprites := update_file_watcher(*client.sprite_watchdog, *temp);
+        if changed_sprites.count {
             reload_sprite_atlases_from_disk(*client);
         }
-    }
+
+        changed_sounds := update_file_watcher(*client.sound_watchdog, *temp);
+        for i := 0; i < changed_sounds.count; ++i {
+            filepath := array_get(*changed_sounds, i);
+            sound_index := find_sound_index_from_filepath(filepath);
+            if sound_index != .Count {
+                destroy_sound_data(*client.mixer, *client.sounds[i]);
+                status: Sound_File_Status = ---;
+                client.sounds[sound_index], status = create_sound_data_from_file(*client.engine_allocator, filepath);
+                if status == .Success {
+                    logprint(.Debug, "Hot-loaded the sound '%'.", sound_index);
+                } else {
+                    logprint(.Error, "Failed to load the sound '%': %.", filepath, status);
+                }
+            } else {
+                logprint(.Warning, "Registered a non-cataloged sound change: '%'.", filepath);
+            }
+        }
+
+        changed_packs := update_file_watcher(*client.pack_watchdog, *temp);
+        for i := 0; i < changed_packs.count; ++i {
+            filepath := array_get(*changed_packs, i);
+            if filepath == "data/animation-pack.txt" {
+                destroy_animation_data(*client);
+                create_animation_data(*client);
+            } else if filepath == "data/sprite-pack.txt" {
+                reload_sprite_atlases_from_disk(*client);
+            }
+        }
+
+        maybe_reload_config(*client.config);
 }
         
         //
@@ -1568,11 +1554,13 @@ main :: (args: []string) -> s32 {
     
     // Shut down all resources that might currently be in use
     initiate_state_transition(*client, .Count, 0);
+    save_config(*client.config);
     maybe_transition_to_next_state(*client);
-    
+
     //
     // Destroy the engine
     //
+    destroy_config(*client.config);
     destroy_all_sounds(*client);
     destroy_mixer(*client.mixer);
     destroy_ui(*client.ui);

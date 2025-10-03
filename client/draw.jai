@@ -313,7 +313,7 @@ create_draw_data :: (client: *Client) -> bool {
 
 create_ui_scaled_draw_data :: (client: *Client) {
     ge_destroy_font(*client.graphics, *client.ui_font);
-    ui_font_size: s16 = cast(s16) ceil(cast(f32) DEFAULT_UI_FONT_SIZE * UI_SCALING_VALUES[client.current_ui_scale]);
+    ui_font_size: s16 = cast(s16) ceil(cast(f32) DEFAULT_UI_FONT_SIZE * UI_SCALING_VALUES[client.config.ui_scale]);
 
 #if BAKE_ASSETS {
     ge_create_font_from_buffer(*client.graphics, *client.ui_font, BAKED_FONT, ui_font_size, .Ascii);

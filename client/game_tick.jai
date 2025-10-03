@@ -670,7 +670,7 @@ maybe_do_pause_menu_panel :: (client: *Client) -> bool {
     ui_label(ui, true, "Seed: %", client.game_seed);
     ui_slider(ui, "Audio", *client.mixer.volumes[.Master], 0, 1);
     ui_slider(ui, "Gamma", *client.lightmap.gamma, 1, 4);
-    ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.desired_ui_scale);
+    ui_selector_box_with_enum_pointer(ui, "UI Scale", *client.config.ui_scale);
     ui_check_box(ui, "Gamepad Vibration", *client.vibration_enabled);
     
     if client.game_mode == .Tutorial {
