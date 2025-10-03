@@ -50,7 +50,7 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     {
         current_byte_location   := size_of(~file_header); 
         start_of_frame_location := current_byte_location;
-        frame_header: *Aseprite_Frame_Header = xx (memory.data + current_byte_location);
+        frame_header: *Aseprite_Frame_Header = xx pointer_after_struct(file_header);
 
         if frame_header.magic_number != ASEPRITE_MAGIC_NUMBER_FRAME_HEADER { return .{}, false; }
         current_byte_location += size_of(~frame_header);
@@ -140,7 +140,9 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                                 content: *u8 = pointer_after_struct(cel);
                                 width:  u16 = consume_and_move(*content, u16);
                                 height: u16 = consume_and_move(*content, u16);
-                                compressed_content_size := chunk_header.chunk_size - size_of(~cel) - 2*size_of(u16);
+                                
+                                bytes_read_within_chunk: s64 = cast(s64)(content - cast(*u8)cel);
+                                compressed_content_size := chunk_header.chunk_size - bytes_read_within_chunk;
                                 
                                 compressed_content: string = .{compressed_content_size, content };
                                 uncompressed_content: string = zlib_decode(compressed_content);
@@ -175,6 +177,8 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     return result, true;
 }
 
+
+// Used for debugging / inspecting files which are not parsed properly
 aseprite_print_file_structure :: (file_data: string) {
     file_header: *Aseprite_File_Header = xx file_data.data;
     if file_header.magic_number != ASEPRITE_MAGIC_NUMBER_FILE_HEADER {

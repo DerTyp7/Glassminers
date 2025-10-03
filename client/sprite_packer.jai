@@ -46,6 +46,11 @@ Sprite_Packing_Result :: enum {
     Partial_Failure;
 }
 
+Sprite_Source :: enum {
+    Png;
+    Aseprite;
+}
+
 consume_whitespace_separated_string :: (to_process: *string) -> string {
     space_index, space_found := search_string(~to_process, #char " ");
     if !space_found { 
@@ -65,8 +70,9 @@ consume_whitespace_separated_string :: (to_process: *string) -> string {
     return result_string;
 }
 
-grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, layer_name: string, frame_index: s64) -> string {
+grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, layer_name: string, frame_index: s64) -> string, bool {
     layer: Parsed_Aseprite_File.Layer;
+    passed_checks: bool = true;
     
     if layer_name.count > 0 {
         found_match: bool = false;
@@ -77,37 +83,46 @@ grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, la
                 break;
             }
         }
-        assert(found_match, "layer name could not be found in aseprite file!");
+        
+        if !found_match {
+            logprint(.Error, "Layer name % could not be found in aseprite file!", layer_name);
+            passed_checks = false;
+        }
     } else {
         // Default to first layer
         layer = file.layers[0];
     }
     
-    assert(frame_index < layer.images.count, "Access frame index to aseprite file is out of bounds!");
-    return layer.images[frame_index];
+    if frame_index >= layer.images.count {
+        logprint(.Error, "Access frame index %/% in aseprite file is out of bounds!", frame_index, layer.images.count);
+        passed_checks = false;
+    }
+    
+    result_image_data: string = ifx passed_checks then layer.images[frame_index] else .{};
+    return result_image_data, passed_checks;
 }
 
 pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Packing_Result {
     Entry :: struct {
         ident: string;
+        source_type: Sprite_Source;
         sprite_index: s64;
         filepath: string;
         texture: Texture_Data;
         
-        // Optional
+        // Optional (for aseprite)
         layer_name: string;
         frame_index: s64;
     }
     
-    // TODO(Felix)
-    // The entire memory management here is fucked
-    // The strategy should be:
-    //  - arena allocator for temporary files
-    //  - and then a permanent arena for the finished atlasses
-    // and then the memory management can just be clearing the arena
+    // TODO(Felix):
+    // Especially the aseprite code is using more temporary memory than actually required.
+    // If we want to optimize the memory usage we should probably use two temporary 
+    // arenas to juggle the temporaries more efficiently.
+    // (Parsed file in arena A, convert to raw images in arena B, which creates 
+    // the atlas in arena A or permanent allocator).
+    // But this is debug code, so that's fine for now.
     
-    // TODO(Felix): We are hitting the memory limit of the arena.
-    // Use temporary memory more wisely.
     start := os_get_cpu_time();
     arena: Memory_Arena;
     create_memory_arena(*arena, 10 * Memory_Unit.Megabytes, 10 * Memory_Unit.Megabytes, false);
@@ -118,9 +133,11 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     
     defer {
         for i := 0; i < entries.count; ++i { 
-            // TODO(Felix): Clean this up
-            if string_ends_with(array_get(*entries, i).filepath, ".png", .Case_Insensitive) {
-                free_texture_data(*array_get(*entries, i).texture);
+            source_type: Sprite_Source = array_get(*entries, i).source_type;
+            if source_type == .Png {
+                free_png_texture_data(*array_get(*entries, i).texture);
+            } else if source_type == .Aseprite {
+                // noop; is allocated on the arena
             }
         }
         destroy_memory_arena(*arena);
@@ -263,22 +280,31 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 if strings_equal_case_insensitive(entry.filepath, previous_path) {
                     parsed_aseprite_file = previous_parsed_aseprite_file;
                 } else {
-                    // TODO(felix): Remove assertions
-                    
                     file_content, success := read_entire_file(*allocator, entry.filepath);
-                    assert(success, "Could not load aseprite file!");
+                    found_sprite = success;
                     
-                    parsed_aseprite_file, success = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
-                    assert(success, "Could not parse aseprite file during texture loading!");
+                    if found_sprite {
+                        parsed_aseprite_file, success = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
+                        assert(success, "Could not parse aseprite file during texture loading!");
+                    }
                 }
 
-                entry.texture.width = parsed_aseprite_file.width;
-                entry.texture.height = parsed_aseprite_file.height;
-                entry.texture.channels = 4; // hardcoded RGBA
-                entry.texture.pixels = grab_texture_pixels_from_parsed_aseprite_file(parsed_aseprite_file, entry.layer_name, entry.frame_index);
-                found_sprite = true;
+                if found_sprite {
+                    pixel_data, passed_aseprite_checks := grab_texture_pixels_from_parsed_aseprite_file(parsed_aseprite_file, entry.layer_name, entry.frame_index);
+                    entry.texture.width = parsed_aseprite_file.width;
+                    entry.texture.height = parsed_aseprite_file.height;
+                    entry.texture.channels = 4; // hardcoded RGBA
+                    entry.texture.pixels = pixel_data;
+                    entry.source_type = .Aseprite;
+                    
+                    if !passed_aseprite_checks {
+                        logprint(.Error, "Problems detected with aseprite file %", entry.filepath);
+                        result = .Complete_Failure;
+                    }
+                }
             } else if string_ends_with(entry.filepath, ".png", .Case_Insensitive) {
                 entry.texture, found_sprite = load_texture_data(*allocator, entry.filepath);
+                entry.source_type = .Png;
             }
             
             if !found_sprite {
@@ -378,7 +404,7 @@ load_texture_data :: (allocator: *Allocator, filepath: string) -> Texture_Data, 
     return .{ width, height, channels_in_file, .{ buffer_size_in_bytes, buffer } }, true;
 }
 
-free_texture_data :: (data: *Texture_Data) {
+free_png_texture_data :: (data: *Texture_Data) {
     stbi_image_free(data.pixels.data);
     ~data = .{};
 }
