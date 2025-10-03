@@ -7,7 +7,7 @@ Lightmap :: struct {
     tiles:    []f32;
     shadows:  []Shadow;
     size: v2i;
-    gamma: f32;
+    gamma: f32 = 1;
 
     intermediate: []f32;
     shadow_sizes: [..]s64;
@@ -27,8 +27,6 @@ create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
     clear_slice(map.tiles);
     clear_slice(map.blockers);
     clear_slice(map.shadows);    
-
-    map.gamma = 1;
 
 #if DEVELOPER {
     map.disabled = false;

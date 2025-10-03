@@ -41,7 +41,6 @@ DEVELOPER :: #run compiler_is_user_option_present("Developer");
 MEMORY_DEBUGGING :: false;
 BAKE_ASSETS :: !DEVELOPER;
 DEFAULT_INFO_TEXT_TIMER: f32 : 5;
-TARGET_FRAMES_PER_SECOND: f32 : 144;
 
 Game_State :: enum {
     Main_Menu;
@@ -133,8 +132,7 @@ Client :: struct {
     previous_game_summary: Game_Summary;
     info_text: string;
     info_text_t: f32;
-    vibration_enabled := true;
-
+    
     //
     // Assets
     //
@@ -182,7 +180,6 @@ Client :: struct {
     //
     // Lobby Screen
     //
-    requested_game_mode: Game_Mode = .Tutorial; // Lobby screen
     immediately_start_game: bool = false; // Lobby screen, after pressing "single player" in the main menu
     test_inputs: [..]Test_Input;
 
@@ -197,7 +194,6 @@ Client :: struct {
     //
     requested_tutorial_panels: [..]Tutorial_Panel;
     current_tutorial_panel := 0;
-    enable_tutorial_panels := !DEVELOPER;
 
     //
     // Game Data
@@ -357,7 +353,7 @@ disconnect_from_server :: (client: *Client) {
 
 start_lobby :: (client: *Client) {
     msg := make_message(Request_Game_Start_Message);
-    msg.request_game_start.game_mode = client.requested_game_mode;
+    msg.request_game_start.game_mode = client.config.requested_game_mode;
     send_reliable_message(*client.connection, *msg);
 }
 
@@ -893,12 +889,12 @@ maybe_update_ui_scale :: (client: *Client) {
 do_game_mode_selector :: (client: *Client) {
     ui :: *client.ui;
 
-    if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Game_Mode)[client.requested_game_mode]) {
+    if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Game_Mode)[client.config.requested_game_mode]) {
         for i := 0; i < Game_Mode.Count; ++i {
             if !DEVELOPER && i == Game_Mode.Developer continue;
 
             if ui_button(ui, enum_names(Game_Mode)[i]) {
-                client.requested_game_mode = i;
+                client.config.requested_game_mode = i;
             }
         }
     }
@@ -1271,7 +1267,7 @@ main :: (args: []string) -> s32 {
     create_memory_arena(*client.tick_arena, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes, false);
     client.tick_allocator = allocator_from_memory_arena(*client.tick_arena);
 
-    create_config(*client.config, *client.engine_allocator);
+    create_config(*client);
 
 #if MEMORY_DEBUGGING {
     create_file_printer(*client.memory_debug_printer, *temp, "memory.log");
@@ -1286,11 +1282,7 @@ main :: (args: []string) -> s32 {
     add_file_to_watch(*client.pack_watchdog, "data/sprite-pack.txt");
 }
 
-    window_mode: Window_Style_Flags = ifx !DEVELOPER then (.Fullscreen | .Maximized) else .Default;
-    window_width: s32 = ifx DEVELOPER then cast(s32) (720 * 1.8) else cast(s32) WINDOW_DONT_CARE;
-    window_height: s32 = ifx DEVELOPER then 720 else cast(s32) WINDOW_DONT_CARE;
-
-    create_window(*client.window, "Glassminers", WINDOW_DONT_CARE, WINDOW_DONT_CARE, window_width, window_height, window_mode);
+    create_window(*client.window, "Glassminers", client.window.x, client.window.y, client.window.w, client.window.h, desired_window_style(*client));
 
 #if OS == .Windows {
     set_window_icon_from_resource_name(*client.window, "IDI_ICON1");
@@ -1310,11 +1302,6 @@ main :: (args: []string) -> s32 {
     client.current_state = .Count;
     initiate_state_transition(*client, .Main_Menu, 0);
     maybe_transition_to_next_state(*client);
-
-#if DEVELOPER {
-    client.mixer.volumes[.Master] = 0.0;
-    client.requested_game_mode = .Developer;
-}
     
     //
     // Main loop
@@ -1360,7 +1347,7 @@ main :: (args: []string) -> s32 {
             }
         }
 
-        maybe_reload_config(*client.config);
+        maybe_reload_config(*client);
 }
         
         //
@@ -1523,7 +1510,7 @@ main :: (args: []string) -> s32 {
                     digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
                     damage_vibration:  f32 = clamp(1 - guy.time_since_last_damage * 2, 0, 1); // When taking damage once, vibrate of 0.5 seconds
                     
-                    applied_vibration := ifx !client.server_paused_game && client.vibration_enabled then max(damage_vibration, digging_vibration) else 0;
+                    applied_vibration := ifx !client.server_paused_game && client.config.gamepad_vibration then max(damage_vibration, digging_vibration) else 0;
 
                     health := (entity.health - HEALTH_PER_HEART) / (DEFAULT_ENTITY_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
                     color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
@@ -1549,18 +1536,18 @@ main :: (args: []string) -> s32 {
         #if DEVELOPER { 
             client.total_frame_time_without_sleep = os_convert_cpu_time(frame_end - frame_start, .Milliseconds);
         }
-        os_sleep_to_tick_rate(frame_start, frame_end, TARGET_FRAMES_PER_SECOND);
+        os_sleep_to_tick_rate(frame_start, frame_end, client.config.desired_fps);
     }
     
     // Shut down all resources that might currently be in use
     initiate_state_transition(*client, .Count, 0);
-    save_config(*client.config);
+    save_config(*client);
     maybe_transition_to_next_state(*client);
 
     //
     // Destroy the engine
     //
-    destroy_config(*client.config);
+    destroy_config(*client);
     destroy_all_sounds(*client);
     destroy_mixer(*client.mixer);
     destroy_ui(*client.ui);
