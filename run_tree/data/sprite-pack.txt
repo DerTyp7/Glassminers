@@ -84,9 +84,9 @@ Flag_1       ../../aseprite/animates/flag.aseprite 1
 Flag_2       ../../aseprite/animates/flag.aseprite 2
 Flag_3       ../../aseprite/animates/flag.aseprite 3
 Flag_4       ../../aseprite/animates/flag.aseprite 4
-Slime_Hole_Empty     ../../aseprite/slime/slime-hole.aseprite 0 hole
-Slime_Hole_Filled_0  ../../aseprite/slime/slime-hole.aseprite 0 slime
-Slime_Hole_Filled_1  ../../aseprite/slime/slime-hole.aseprite 1 slime
+Slime_Hole_Empty     ../../aseprite/slime/slime-hole.aseprite 0 
+Slime_Hole_Filled_0  ../../aseprite/slime/slime-hole.aseprite 1 
+Slime_Hole_Filled_1  ../../aseprite/slime/slime-hole.aseprite 2
 
 #
 # Guy

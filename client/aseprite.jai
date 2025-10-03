@@ -506,6 +506,34 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
         }
     }
     
+    // NOTE(Felix): There is a rare behavior, which is very weird:
+    // Some files seem to have a dedicated "transparent" palette entry, 
+    // which seems to be completely indistinguishable from a pitch-black color entry.
+    // This is especially confusing because this old palette chunk is not storing transparency at all.
+    // 
+    // So far the only successfull strategy I found is
+    //  - see if there are two pitch black palette entries
+    //  - see if one of them is at index 0
+    //  - If all of the above is true, the one at index 0 is actually completely transparent.
+    {
+        palette_entry_is_completely_black :: (entry: Palette_Entry) -> bool {
+            return entry.r == 0 && entry.g == 0 && entry.b == 0;
+        }
+
+        pitch_black_index: s32 = 0;
+        for i: s32 = 1; i < xx result.count; ++i {
+            if palette_entry_is_completely_black(result[i]) {
+                pitch_black_index = i;
+                break;
+            }
+        }
+        
+        if palette_entry_is_completely_black(result[0]) && pitch_black_index != 0 {
+            // The first color entry is completely transparent, actually.
+            result[0].a = 0;
+        }
+    }
+    
     return result;
 }
 
@@ -581,14 +609,12 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
                     target_row    := y + cel.y_position;
                     target_column := x + cel.x_position;
 
-                    // TODO(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
+                    // NOTE(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
                     // (so e.g. a cel with a larger height than the result image).
                     if target_row >= target_height || target_column >= target_width {
                         continue;
                     }
 
-                    assert(target_row < target_height, "ROW PROBLEM");
-                    assert(target_column < target_width, "COLUMN PROBLEM");
                     destination_pixel: *u8 = *image.data[(target_row*target_height + target_column) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = pixel[0];
                     destination_pixel[1] = pixel[1];
@@ -612,19 +638,17 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
                     target_row    := y + cel.y_position;
                     target_column := x + cel.x_position;
                     
-                    // TODO(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
+                    // NOTE(Felix): I have no idea why, but some files have source_dimension larger than the target_dimension
                     // (so e.g. a cel with a larger height than the result image).
                     if target_row >= target_height || target_column >= target_width {
                         continue;
                     }
 
-                    assert(target_row < target_height, "ROW PROBLEM");
-                    assert(target_column < target_width, "COLUMN PROBLEM");
                     destination_pixel: *u8 = *image.data[(target_row*target_height + target_column) * BYTES_PER_RESULT_PIXEL];
                     destination_pixel[0] = palette[palette_index].r;
                     destination_pixel[1] = palette[palette_index].g;
                     destination_pixel[2] = palette[palette_index].b;
-                    destination_pixel[3] = cel.opacity_level;
+                    destination_pixel[3] = palette[palette_index].a;
                 }
             }
     }
