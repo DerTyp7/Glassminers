@@ -1,4 +1,4 @@
-// TODO(Felix): This should probably be a compiler module or something
+// TODO(Felix): Consider making this a compiler module
 
 // Aseprite stores some data in a zlib compressed format
 #load "zlib.jai";

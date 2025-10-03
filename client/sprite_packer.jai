@@ -187,7 +187,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 result = .Complete_Failure;
                 continue;
             }
-            
+
             entry := array_push(*entries);
             entry.ident    = identifier;
             entry.filepath = print_into_allocator(*allocator, "%/%", directory, path_to_file);
@@ -275,6 +275,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
             
             found_sprite: bool = false;
             if string_ends_with(entry.filepath, ".aseprite", .Case_Insensitive) {
+                entry.source_type = .Aseprite;
                 parsed_aseprite_file: Parsed_Aseprite_File;
                 
                 if strings_equal_case_insensitive(entry.filepath, previous_path) {
@@ -295,7 +296,6 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                     entry.texture.height = parsed_aseprite_file.height;
                     entry.texture.channels = 4; // hardcoded RGBA
                     entry.texture.pixels = pixel_data;
-                    entry.source_type = .Aseprite;
                     
                     if !passed_aseprite_checks {
                         logprint(.Error, "Problems detected with aseprite file %", entry.filepath);
@@ -346,7 +346,6 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
         //
         for i := 0; i < entries.count; ++i {
             entry := array_get_pointer(*entries, i);
-            
             atlas_index := entry.sprite_index / SPRITES_PER_ATLAS;
             index_in_atlas := entry.sprite_index % SPRITES_PER_ATLAS;
 
