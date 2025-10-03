@@ -1432,7 +1432,7 @@ main :: (args: []string) -> s32 {
             if #complete client.current_state == {
               case .Lobby #through;
                 y: f32 = xx client.window.h - 34;
-                x: f32 = xx client.window.w * 0.8;
+                x: f32 = xx client.window.w * 0.9;
                 
                 now := os_get_cpu_time();
 
@@ -1452,7 +1452,9 @@ main :: (args: []string) -> s32 {
                 }
 
                 if !client.test_inputs.count {
-                    draw_text_screen_space(*client, *client.ui_font, "Press some buttons...", .{ x + 32, y }, .Right | .Median, GRAY_COLOR, .Default);
+                    text := tprint("Try pressing %...", input_bindings_string(*client, .Interact_Primary));
+                    draw_text_screen_space(*client, *client.ui_font, text, .{ x + 32, y }, .Right | .Median, GRAY_COLOR, .Default);
+
                 }
                 
               case .Main_Menu, .Connecting, .Game_Over;
@@ -1469,8 +1471,8 @@ main :: (args: []string) -> s32 {
                 }
 
                 draw_viewport_information(*client);
-                draw_score_hud(*client);
                 draw_stat_hud(*client);
+                draw_global_hud(*client);
 
                 if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 

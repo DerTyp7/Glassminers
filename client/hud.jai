@@ -318,12 +318,18 @@ draw_player_hud :: (client: *Client, local_player: *Local_Player) {
     }
 }
 
-draw_score_hud :: (client: *Client) {
+draw_global_hud :: (client: *Client) {
     // Game Score
     {
         text := tprint("Score: %", client.game_score);
         position: v2f = .{ round(cast(f32) client.window.w * 0.95), round(cast(f32) client.window.h * 0.05) };
         draw_text_screen_space(client, *client.hud_font, text, position, .Right | .Top, ORANGE_COLOR, .Shadow);
+    }
+
+    // Forfeit Information
+    if client.requested_game_forfeit {
+        position: v2f = .{ round(cast(f32) client.window.w * 0.5), round(cast(f32) client.window.h * 0.9) };
+        draw_text_screen_space(client, *client.hud_font, "Voted to Forfeit...", position, .Center | .Bottom, RED_COLOR, .Shadow);
     }
 }
 
