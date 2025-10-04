@@ -52,22 +52,16 @@ Sprite_Source :: enum {
 }
 
 consume_whitespace_separated_string :: (to_process: *string) -> string {
-    space_index, space_found := search_string(~to_process, #char " ");
-    if !space_found { 
-        result_string := ~to_process;
+    result: string;
+    space, found_space := search_string(~to_process, #char " ");
+    if found_space {
+        result = trim_string_view(substring_view(~to_process, 0, space));
+        ~to_process = trim_string_view_left(substring_view(~to_process, space + 1, to_process.count));
+    } else {
+        result = ~to_process;
         ~to_process = .{};
-        return result_string;
     }
-    
-    result_string := trim_string_view(substring_view(~to_process, 0, space_index));
-    
-    while space_index < to_process.count && to_process.data[space_index] == #char " " {
-        space_index += 1;
-    }
-    
-    to_process.data += space_index;
-    to_process.count -= space_index;
-    return result_string;
+    return result;
 }
 
 grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, layer_name: string, frame_index: s64) -> string, bool {
