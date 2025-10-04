@@ -134,21 +134,28 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                                                                                  result.width, result.height, cel);
                                 
                             case .Compressed_Image;
-                                // TODO(Felix): Can we determine the uncompressed size? That should be doable
                                 content: *u8 = pointer_after_struct(cel);
                                 width:  u16 = consume_and_move(*content, u16);
                                 height: u16 = consume_and_move(*content, u16);
                                 
+                                bytes_per_aseprite_pixel := 0;
+                                if #complete file_header.color_depth == {
+                                    case .RGBA;      bytes_per_aseprite_pixel = 4;
+                                    case .Grayscale; panic("Grayscale color depth not implemented.");
+                                    case .Indexed;   bytes_per_aseprite_pixel = 1;
+                                }
+                                
                                 bytes_read_within_chunk: s64 = cast(s64)(content - cast(*u8)cel);
                                 compressed_content_size := chunk_header.chunk_size - bytes_read_within_chunk;
+                                uncompressed_content_size := width * height * bytes_per_aseprite_pixel;
                                 
                                 compressed_content: string = .{compressed_content_size, content };
-                                uncompressed_content: string = zlib_decode(compressed_content);
+                                uncompressed_content: string = zlib_decode_known_output_size_into_allocator(allocator, compressed_content, uncompressed_content_size);
+                                if uncompressed_content.count == 0 { panic("Aseprite zlib decoding failed!"); }
                                 
                                 aseprite_modify_image_pixels(image, color_palette, file_header.color_depth, cel, 
                                                              width, height, result.width, result.height,
                                                              uncompressed_content);
-                                zlib_free_malloc_decoded(uncompressed_content);
                                 
                             case .Linked_Cel;
                                 panic("Aseprite Cel Type \"Linked Cel\" is not implemented.");
