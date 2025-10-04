@@ -34,6 +34,7 @@
 #load "animation.jai";
 #load "hud.jai";
 #load "draw.jai";
+#load "aseprite.jai";
 
 GE_ACTIVE_BACKEND :: GE_Backend.GL_Modern;
 
