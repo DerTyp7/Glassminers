@@ -663,7 +663,6 @@ aseprite_read_string :: (allocator: *Allocator, aseprite_string: *void) -> strin
 aseprite_chunk_type_to_name :: (chunk_type: Aseprite_Chunk_Type) -> string {
     enum_info := cast(*Type_Info_Enum) type_info(Aseprite_Chunk_Type);
     for i := 0; i < enum_info.members.count; ++i {
-        chunk_type_value := cast(s64) chunk_type;
         if chunk_type == enum_info.members[i].integral_value {
             return enum_info.members[i].display_name;
         } 
