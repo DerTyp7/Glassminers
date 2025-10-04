@@ -151,11 +151,11 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
                                 zlib_free_malloc_decoded(uncompressed_content);
                                 
                             case .Linked_Cel;
-                                assert(false, "Aseprite Cel Type \"Linked Cel\" is not implemented.");
+                                panic("Aseprite Cel Type \"Linked Cel\" is not implemented.");
                                 return .{}, false;
                                 
                             case .Compressed_Tilemap;
-                                assert(false, "Aseprite Cel Type \"Compressed Tilemap\" is not implemented.");
+                                panic("Aseprite Cel Type \"Compressed Tilemap\" is not implemented.");
                                 return .{}, false;
                         }
                         
@@ -617,7 +617,7 @@ aseprite_modify_image_pixels :: (image: *string, palette: []Palette_Entry, color
 
 
         case .Grayscale;
-            assert(false, "Grayscale color depth is not implemented!");
+            panic("Grayscale color depth is not implemented!");
             
         case .Indexed;
             // Each pixel is just an u8 color palette index
