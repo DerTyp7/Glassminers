@@ -281,13 +281,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 if strings_equal_case_insensitive(entry.filepath, previous_path) {
                     parsed_aseprite_file = previous_parsed_aseprite_file;
                 } else {
-                    file_content, success := read_entire_file(*allocator, entry.filepath);
-                    found_sprite = success;
-                    
-                    if found_sprite {
-                        parsed_aseprite_file, success = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
-                        assert(success, "Could not parse aseprite file during texture loading!");
-                    }
+                    parsed_aseprite_file, found_sprite = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
                 }
 
                 if found_sprite {
@@ -301,6 +295,9 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                         logprint(.Error, "Problems detected with aseprite file %", entry.filepath);
                         result = .Complete_Failure;
                     }
+                } else {
+                    logprint(.Error, "Could not find aseprite file %", entry.filepath);
+                    result = .Complete_Failure;
                 }
             } else if string_ends_with(entry.filepath, ".png", .Case_Insensitive) {
                 entry.texture, found_sprite = load_png_texture_data(*allocator, entry.filepath);
