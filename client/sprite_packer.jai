@@ -280,6 +280,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 
                 if strings_equal_case_insensitive(entry.filepath, previous_path) {
                     parsed_aseprite_file = previous_parsed_aseprite_file;
+                    found_sprite = true;
                 } else {
                     parsed_aseprite_file, found_sprite = load_aseprite_layer_images_from_file(*allocator, entry.filepath);
                 }
@@ -290,6 +291,9 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                     entry.texture.height = parsed_aseprite_file.height;
                     entry.texture.channels = 4; // hardcoded RGBA
                     entry.texture.pixels = pixel_data;
+                    
+                    previous_path = entry.filepath;
+                    previous_parsed_aseprite_file = parsed_aseprite_file;
                     
                     if !passed_aseprite_checks {
                         logprint(.Error, "Problems detected with aseprite file %", entry.filepath);
