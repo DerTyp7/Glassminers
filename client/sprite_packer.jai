@@ -79,7 +79,7 @@ grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, la
         }
         
         if !found_match {
-            logprint(.Error, "Layer name % could not be found in aseprite file!", layer_name);
+            logprint(.Error, "The layer '%' could not be found in aseprite file '%'!", layer_name, file.debug_name);
             passed_checks = false;
         }
     } else {
@@ -87,8 +87,8 @@ grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, la
         layer = file.layers[0];
     }
     
-    if frame_index >= layer.images.count {
-        logprint(.Error, "Access frame index %/% out of % frames is an out-of-bounds access!", frame_index, layer.images.count);
+    if passed_checks && frame_index >= layer.images.count {
+        logprint(.Error, "The layer '%' of the aseprite file '%' only has % frames, but frame index % was referenced!", layer_name, file.debug_name, layer.images.count, frame_index);
         passed_checks = false;
     }
     
@@ -99,6 +99,7 @@ grab_texture_pixels_from_parsed_aseprite_file :: (file: Parsed_Aseprite_File, la
 pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Packing_Result {
     Entry :: struct {
         ident: string;
+        valid: bool; // If this is false, something went wrong trying to load it, so skip this in the atlas building...
         source_type: Sprite_Source;
         sprite_index: s64;
         filepath: string;
@@ -119,7 +120,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
     
     start := os_get_cpu_time();
     arena: Memory_Arena;
-    create_memory_arena(*arena, 10 * Memory_Unit.Megabytes, 10 * Memory_Unit.Megabytes, false);
+    create_memory_arena(*arena, 128 * Memory_Unit.Megabytes, 128 * Memory_Unit.Megabytes, false);
     allocator: Allocator = allocator_from_memory_arena(*arena);
     
     entries: [..]Entry;
@@ -182,9 +183,11 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 continue;
             }
 
+            file_exists: bool = ---;
+
             entry := array_push(*entries);
             entry.ident    = identifier;
-            entry.filepath = print_into_allocator(*allocator, "%/%", directory, path_to_file);
+            entry.filepath, file_exists = absolute_file_path(*allocator, print_into_allocator(*allocator, "%/%", directory, path_to_file));
             
             // fill optional frame_index & layer argument
             if frame_index.count > 0 {
@@ -201,7 +204,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
             found_sprite_index: bool = ---;
             entry.sprite_index, found_sprite_index = find_sprite_index_from_name(entry.ident);
             if !found_sprite_index {
-                logprint(.Error, "%: %: '%' is not known in the system.", filepath, line_number, entry.ident);
+                logprint(.Error, "%: %: The sprite identifier '%' is not known in the system.", filepath, line_number, entry.ident);
                 entry.sprite_index = -1;
                 result = .Complete_Failure;
                 continue;
@@ -268,6 +271,8 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
             entry := array_get_pointer(*entries, i);
             
             found_sprite: bool = false;
+            passed_aseprite_checks := true;
+
             if string_ends_with(entry.filepath, ".aseprite", .Case_Insensitive) {
                 entry.source_type = .Aseprite;
                 parsed_aseprite_file: Parsed_Aseprite_File;
@@ -280,7 +285,8 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                 }
 
                 if found_sprite {
-                    pixel_data, passed_aseprite_checks := grab_texture_pixels_from_parsed_aseprite_file(parsed_aseprite_file, entry.layer_name, entry.frame_index);
+                    pixel_data: string = ---;
+                    pixel_data, passed_aseprite_checks = grab_texture_pixels_from_parsed_aseprite_file(parsed_aseprite_file, entry.layer_name, entry.frame_index);
                     entry.texture.width = parsed_aseprite_file.width;
                     entry.texture.height = parsed_aseprite_file.height;
                     entry.texture.channels = 4; // hardcoded RGBA
@@ -290,24 +296,24 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
                     previous_parsed_aseprite_file = parsed_aseprite_file;
                     
                     if !passed_aseprite_checks {
-                        logprint(.Error, "Problems detected with aseprite file %", entry.filepath);
-                        result = .Complete_Failure;
+                        result = .Partial_Failure;
                     }
-                } else {
-                    logprint(.Error, "Could not find aseprite file %", entry.filepath);
-                    result = .Complete_Failure;
                 }
             } else if string_ends_with(entry.filepath, ".png", .Case_Insensitive) {
                 entry.texture, found_sprite = load_png_texture_data(*allocator, entry.filepath);
                 entry.source_type = .Png;
             }
-            
-            if !found_sprite {
+
+            if !passed_aseprite_checks {
+                result = .Partial_Failure;
+            } else if !found_sprite {
                 logprint(.Error, "The source sprite file '%' does not exist!", entry.filepath);
-                result = .Complete_Failure;
+                result = .Partial_Failure;
             } else if entry.texture.channels != SPRITE_ATLAS_CHANNELS || entry.texture.width != SPRITE_WIDTH || entry.texture.height != SPRITE_HEIGHT {
                 logprint(.Error, "Each source sprite file was expected to be %x% with % channels, but '%' was %x% with % channels.", SPRITE_WIDTH, SPRITE_HEIGHT, SPRITE_ATLAS_CHANNELS, entry.filepath, entry.texture.width, entry.texture.height, entry.texture.channels);
-                result = .Complete_Failure;
+                result = .Partial_Failure;
+            } else {
+                entry.valid = true;
             }
         }
     }
@@ -341,6 +347,8 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
         //
         for i := 0; i < entries.count; ++i {
             entry := array_get_pointer(*entries, i);
+            if !entry.valid continue;
+
             atlas_index := entry.sprite_index / SPRITES_PER_ATLAS;
             index_in_atlas := entry.sprite_index % SPRITES_PER_ATLAS;
 

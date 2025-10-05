@@ -9,6 +9,7 @@
 
 // Returns in RGBA
 Parsed_Aseprite_File :: struct {
+    debug_name: string;
     width:  u16;
     height: u16;
 
@@ -28,12 +29,13 @@ load_aseprite_layer_images_from_file :: (allocator: *Allocator, path_to_file: st
     file_content, success := read_entire_file(allocator, path_to_file);
     if !success { return .{}, false; }
     
-    return load_aseprite_layer_images_from_memory(allocator, file_content);
+    return load_aseprite_layer_images_from_memory(allocator, file_content, path_to_file);
 }
 
-load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string) -> Parsed_Aseprite_File, bool {
+load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string, debug_name: string) -> Parsed_Aseprite_File, bool {
     result: Parsed_Aseprite_File;
-    
+    result.debug_name = copy_string(allocator, debug_name);
+
     // File Header parsing & checks
     file_header: *Aseprite_File_Header = xx memory.data;
     if file_header.magic_number != ASEPRITE_MAGIC_NUMBER_FILE_HEADER { return .{}, false; }
