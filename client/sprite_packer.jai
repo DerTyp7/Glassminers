@@ -326,7 +326,7 @@ pack_sprite_atlases :: (directory: string, filepaths: *[..]string) -> Sprite_Pac
             result = .Complete_Failure;
         }
 
-        atlases := allocate_array(*allocator, Texture_Data, atlas_count);
+        atlases := allocate_slice(*allocator, Texture_Data, atlas_count);
 
         for i := 0; i < atlases.count; ++i {
             atlas := *atlases[i];

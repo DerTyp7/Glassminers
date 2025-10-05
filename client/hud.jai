@@ -610,17 +610,17 @@ close_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy) {
     if #complete hud.state == {
       case .Disabled, .Cheat_Menu;
       case .Crafting_Menu;
-        deallocate_array(*client.world_allocator, *hud.crafting_menu.recipes);
+        deallocate_slice(*client.world_allocator, *hud.crafting_menu.recipes);
       case .Chest_Menu;
         if entity_exists(client, hud.hud_providing_entity) {
             visually_close_chest(client, down(get_entity(client, hud.hud_providing_entity), Chest));  
         }
 
-        deallocate_array(*client.world_allocator, *hud.chest_menu.item_kinds);
-        deallocate_array(*client.world_allocator, *hud.chest_menu.item_count);
+        deallocate_slice(*client.world_allocator, *hud.chest_menu.item_kinds);
+        deallocate_slice(*client.world_allocator, *hud.chest_menu.item_count);
     }
 
-    deallocate_array(*client.world_allocator, *hud.animation_t);
+    deallocate_slice(*client.world_allocator, *hud.animation_t);
     hud.available_options = 0;
     hud.state = .Disabled;
 }
@@ -634,7 +634,7 @@ switch_to_hud_state :: (client: *Client, hud: *Hud, state: Hud_State, options: s
 
     hud.state = state;
     hud.available_options = options;
-    hud.animation_t = allocate_array(*client.world_allocator, f32, options);
+    hud.animation_t = allocate_slice(*client.world_allocator, f32, options);
     clear_memory(hud.animation_t.data, hud.animation_t.count * size_of(f32));
     hud.previously_opened_state = state;
 }
@@ -663,7 +663,7 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
         if recipe_count == 0 break;
 
         // Allocate the actual recipe options
-        hud.crafting_menu.recipes = allocate_array(*client.world_allocator, Crafting_Recipe, recipe_count);
+        hud.crafting_menu.recipes = allocate_slice(*client.world_allocator, Crafting_Recipe, recipe_count);
 
         recipe_index := 0;
         for i := 0; i < Crafting_Recipe.Count; ++i {
@@ -696,8 +696,8 @@ maybe_open_hud :: (client: *Client, local_player: *Local_Player, guy: *Guy, stat
         if separate_item_count == 0 break;
         
         // Allocate the actual item options
-        hud.chest_menu.item_kinds = allocate_array(*client.world_allocator, Item_Kind, separate_item_count);
-        hud.chest_menu.item_count = allocate_array(*client.world_allocator, s64, separate_item_count);
+        hud.chest_menu.item_kinds = allocate_slice(*client.world_allocator, Item_Kind, separate_item_count);
+        hud.chest_menu.item_count = allocate_slice(*client.world_allocator, s64, separate_item_count);
 
         index := 0;
         for i := 0; i < base_item_array.Capacity; ++i {

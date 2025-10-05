@@ -20,9 +20,9 @@ Lightmap :: struct {
 create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
     map.allocator = allocator;
     map.size      = size;
-    map.tiles     = allocate_array(map.allocator, f32,    map.size.x * map.size.y);
-    map.blockers  = allocate_array(map.allocator, u8,     map.size.x * map.size.y);
-    map.shadows   = allocate_array(map.allocator, Shadow, map.size.x * map.size.y);
+    map.tiles     = allocate_slice(map.allocator, f32,    map.size.x * map.size.y);
+    map.blockers  = allocate_slice(map.allocator, u8,     map.size.x * map.size.y);
+    map.shadows   = allocate_slice(map.allocator, Shadow, map.size.x * map.size.y);
 
     clear_slice(map.tiles);
     clear_slice(map.blockers);
@@ -34,13 +34,13 @@ create_lightmap :: (map: *Lightmap, allocator: *Allocator, size: v2i) {
 }
 
 destroy_lightmap :: (map: *Lightmap) {
-    deallocate_array(map.allocator, *map.tiles);
+    deallocate_slice(map.allocator, *map.tiles);
     map.size = .{ };
 }
 
 resize_lightmap :: (map: *Lightmap, new_size: v2i) {
-    new_tiles    := allocate_array(map.allocator, f32, new_size.x * new_size.y);
-    new_blockers := allocate_array(map.allocator, u8, new_size.x * new_size.y);
+    new_tiles    := allocate_slice(map.allocator, f32, new_size.x * new_size.y);
+    new_blockers := allocate_slice(map.allocator, u8, new_size.x * new_size.y);
 
     clear_slice(new_tiles);
     clear_slice(new_blockers);
@@ -54,13 +54,13 @@ resize_lightmap :: (map: *Lightmap, new_size: v2i) {
         }
     }
 
-    deallocate_array(map.allocator, *map.tiles);
-    deallocate_array(map.allocator, *map.blockers);
-    deallocate_array(map.allocator, *map.shadows);
+    deallocate_slice(map.allocator, *map.tiles);
+    deallocate_slice(map.allocator, *map.blockers);
+    deallocate_slice(map.allocator, *map.shadows);
 
     map.tiles    = new_tiles;
     map.blockers = new_blockers;
-    map.shadows  = allocate_array(map.allocator, Shadow, new_size.x * new_size.y);
+    map.shadows  = allocate_slice(map.allocator, Shadow, new_size.x * new_size.y);
     map.size     = new_size;
 }
 
@@ -104,7 +104,7 @@ update_lightmap :: (map: *Lightmap, em: *Entity_Manager, dt: f32) {
     //
     // Now propagate and fade the light values for each tile...
     //
-    map.intermediate = copy_array(*temp, map.tiles);
+    map.intermediate = copy_slice(*temp, map.tiles);
     
     for y := 0; y < map.size.y; ++y {
         for x := 0; x < map.size.x; ++x {

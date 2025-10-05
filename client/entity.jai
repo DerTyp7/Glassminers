@@ -552,7 +552,7 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
             fields_with_particles_count := emitter.beam_data.fields.count - emitter.beam_ends_in_other_emitter;
             
             particle_emitter := *particles.emitters[0];
-            particle_emitter.line_strings = allocate_array(*client.tick_allocator, Line_String, fields_with_particles_count);
+            particle_emitter.line_strings = allocate_slice(*client.tick_allocator, Line_String, fields_with_particles_count);
 
             WIDTH: f32 : 0.9;
             

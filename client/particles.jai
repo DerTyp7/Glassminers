@@ -97,7 +97,7 @@ create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitt
     system.time_to_live   = ttl;
     system.world_position = world_position;
     system.global_alpha   = 1;
-    system.emitters       = allocate_array(system.allocator, Particle_Emitter, emitter_count);
+    system.emitters       = allocate_slice(system.allocator, Particle_Emitter, emitter_count);
 
     seed_random_generator(*system.random, os_get_cpu_time(), system.random.DEFAULT_Y, system.random.DEFAULT_Z, system.random.DEFAULT_C);
 
@@ -152,7 +152,7 @@ create_halo_particles :: (client: *Client, entity: *Entity, ttl: f32) -> *Partic
 create_particle_emitter :: (#using system: *Particle_System, emitter_index: s64, particle_count: s64) -> *Particle_Emitter {
     emitter := *emitters[emitter_index];
     ~emitter = Particle_Emitter.{};
-    emitter.particles = allocate_array(allocator, Particle, particle_count);
+    emitter.particles = allocate_slice(allocator, Particle, particle_count);
 
     for i := 0; i < emitter.particles.count; ++i {
         emitter.particles[i].elapsed = 0;
@@ -186,9 +186,9 @@ prewarm_particle_system :: (#using system: *Particle_System, total_time: f32, st
 
 destroy_particle_system :: (#using system: *Particle_System) {
     for i := 0; i < emitters.count; ++i {
-        deallocate_array(allocator, *emitters[i].particles);
+        deallocate_slice(allocator, *emitters[i].particles);
     }
-    deallocate_array(allocator, *emitters);
+    deallocate_slice(allocator, *emitters);
 }
 
 update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle_Emitter, dt: f32) {

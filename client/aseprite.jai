@@ -67,10 +67,10 @@ load_aseprite_layer_images_from_memory :: (allocator: *Allocator, memory: string
     {
         BYTES_PER_PIXEL :: 4;
         bytes_per_image := BYTES_PER_PIXEL * result.width * result.height;
-        result.layers = allocate_array(allocator, Parsed_Aseprite_File.Layer, layer_count);
+        result.layers = allocate_slice(allocator, Parsed_Aseprite_File.Layer, layer_count);
         for layer_index := 0; layer_index < layer_count; ++layer_index {
             layer: *Parsed_Aseprite_File.Layer = *result.layers[layer_index];
-            layer.images = allocate_array(allocator, string, frames_count);
+            layer.images = allocate_slice(allocator, string, frames_count);
             for frame_index := 0; frame_index < frames_count; ++frame_index {
                 image_data := allocate_string(allocator, bytes_per_image);
                 clear_memory(image_data.data, image_data.count); // Ensure that the images are completely transparent at first
@@ -482,7 +482,7 @@ aseprite_get_flattened_palette_from_old_palette_chunk :: (allocator: *Allocator,
     }
     
     // Prepare memory
-    result: []Palette_Entry = allocate_array(allocator, Palette_Entry, color_count);
+    result: []Palette_Entry = allocate_slice(allocator, Palette_Entry, color_count);
     
     // Second pass: Fill colors
     {
@@ -546,7 +546,7 @@ aseprite_get_flattened_palette_from_palette_chunk :: (allocator: *Allocator, chu
     content: *u8 = pointer_after_struct(chunk);
     color_count := chunk.palette_size;
     
-    result: []Palette_Entry = allocate_array(allocator, Palette_Entry, color_count);
+    result: []Palette_Entry = allocate_slice(allocator, Palette_Entry, color_count);
     
     for i := 0; i < result.count; ++i {
         to_fill: *Palette_Entry = *result[i];

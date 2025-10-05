@@ -14,7 +14,7 @@ find_path :: (server: *Server, flags: Pathfinding_Flags, beam_tile_cost: s32, fr
     //
     {
         grid.size  = server.world_size;
-        grid.nodes = allocate_array(*temp, Node, grid.size.x * grid.size.y);
+        grid.nodes = allocate_slice(*temp, Node, grid.size.x * grid.size.y);
         for i := 0; i < grid.nodes.count; ++i grid.nodes[i] = .{};
 
         if flags & .Avoid_Collisions {
@@ -167,7 +167,7 @@ dijkstra :: (grid: *Grid, from, to: v2i) -> []v2i {
             }
         }
             
-        result: []v2i = allocate_array(*temp, v2i, path_length);
+        result: []v2i = allocate_slice(*temp, v2i, path_length);
 
         {
             traveller := node;

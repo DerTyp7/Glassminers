@@ -664,7 +664,7 @@ manage_void_eye_lifetimes :: (server: *Server) {
     //
     // Remove all void eyes that are outside a shadow, and count how many void eyes are in each shadow
     //
-    void_eyes_per_shadow := allocate_array(*temp, s64, server.lightmap.shadow_sizes.count);
+    void_eyes_per_shadow := allocate_slice(*temp, s64, server.lightmap.shadow_sizes.count);
     clear_slice(void_eyes_per_shadow); // @Cleanup: Apparently the temp allocator isn't guaranteed to zero-initialize?
 
     for i := 0; i < server.void_eyes.slot_count; ++i {

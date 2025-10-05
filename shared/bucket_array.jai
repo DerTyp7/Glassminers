@@ -29,7 +29,7 @@ create_bucket_array :: (array: *Bucket_Array($T), allocator: *Allocator) {
 }
 
 destroy_bucket_array :: (array: *Bucket_Array($T)) {
-    deallocate_array(array.allocator, *array.buckets);
+    deallocate_slice(array.allocator, *array.buckets);
     array.first_free_bucket_index = MAX_U64;
     array.alive_count = 0;
     array.slot_count  = 0;
@@ -103,7 +103,7 @@ grow_bucket_array :: (array: *Bucket_Array($T), reserved_bucket_count: s64) {
 
     while new_bucket_count < reserved_bucket_count new_bucket_count *= 2;
     
-    array.buckets = reallocate_array(array.allocator, array.buckets, new_bucket_count);
+    array.buckets = reallocate_slice(array.allocator, array.buckets, new_bucket_count);
     for i := previous_bucket_count; i < array.buckets.count; ++i {
         array.buckets[i] = new(array.allocator, array.Bucket);
     }
@@ -127,7 +127,7 @@ maybe_shrink_bucket_array :: (array: *Bucket_Array($T), bucket_index: u64) {
                 deallocate(array.allocator, array.buckets[i]);
             }
 
-            array.buckets = reallocate_array(array.allocator, array.buckets, first_shrink_index);
+            array.buckets = reallocate_slice(array.allocator, array.buckets, first_shrink_index);
             array.slot_count = array.buckets.count * array.BUCKET_SIZE; // @Speed: This slot count can probably be set to something lower...
         }
 

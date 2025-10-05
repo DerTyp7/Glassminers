@@ -133,7 +133,7 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Checkerboard_Texture_Toggle]  = .[ keycode(.F9) ];
 
     for i := 0; i < ib.Capacity; ++i {
-        client.input_bindings[i] = copy_array(*client.engine_allocator, ib[i]);
+        client.input_bindings[i] = copy_slice(*client.engine_allocator, ib[i]);
     }
 
     MOVE_INTERVAL: f32 : 0.33;
