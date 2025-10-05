@@ -1,259 +1,263 @@
 #
 # HUD
 #
-Hud_Heart_Full            ../../aseprite/hud/heart-full.aseprite
-Hud_Heart_Damaged_0       ../../aseprite/hud/heart-damaged.aseprite 0 
-Hud_Heart_Damaged_1       ../../aseprite/hud/heart-damaged.aseprite 1
+Hud_Heart_Full            aseprite/hud/heart-full.aseprite
+Hud_Heart_Damaged_0       aseprite/hud/heart-damaged.aseprite 0 
+Hud_Heart_Damaged_1       aseprite/hud/heart-damaged.aseprite 1
 
-Hud_Keyboard              ../../aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 Keyboard
-Hud_Gamepad               ../../aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 gamepad
-Hud_Keyboard_Gamepad      ../../aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 Key/Pad
-Hud_PS_Circle             ../../aseprite/hud/Hud-PS.aseprite 0 circle
-Hud_PS_Cross              ../../aseprite/hud/Hud-PS.aseprite 0 cross
-Hud_PS_Triangle           ../../aseprite/hud/Hud-PS.aseprite 0 triangle
-Hud_PS_Square             ../../aseprite/hud/Hud-PS.aseprite 0 square
-Hud_XBox_A                ../../aseprite/hud/Hud-XBOX.aseprite 0 A
-Hud_XBox_B                ../../aseprite/hud/Hud-XBOX.aseprite 0 B
-Hud_XBox_X                ../../aseprite/hud/Hud-XBOX.aseprite 0 X
-Hud_XBox_Y                ../../aseprite/hud/Hud-XBOX.aseprite 0 Y
-Hud_Key_C                 ../../aseprite/hud/keys.aseprite 0 C
-Hud_Key_E                 ../../aseprite/hud/keys.aseprite 0 E
-Hud_Key_Space             ../../aseprite/hud/keys.aseprite 0 space
-Hud_Key_Shift             ../../aseprite/hud/keys.aseprite 0 shift
-Hud_Arrow                 ../../aseprite/hud/Hud-Arrow.aseprite
+Hud_Keyboard              aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 Keyboard
+Hud_Gamepad               aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 gamepad
+Hud_Keyboard_Gamepad      aseprite/hud/Hud-Keyboard-Gamepad.aseprite 0 Key/Pad
+Hud_PS_Circle             aseprite/hud/Hud-PS.aseprite 0 circle
+Hud_PS_Cross              aseprite/hud/Hud-PS.aseprite 0 cross
+Hud_PS_Triangle           aseprite/hud/Hud-PS.aseprite 0 triangle
+Hud_PS_Square             aseprite/hud/Hud-PS.aseprite 0 square
+Hud_XBox_A                aseprite/hud/Hud-XBOX.aseprite 0 A
+Hud_XBox_B                aseprite/hud/Hud-XBOX.aseprite 0 B
+Hud_XBox_X                aseprite/hud/Hud-XBOX.aseprite 0 X
+Hud_XBox_Y                aseprite/hud/Hud-XBOX.aseprite 0 Y
+Hud_Key_C                 aseprite/hud/keys.aseprite 0 C
+Hud_Key_E                 aseprite/hud/keys.aseprite 0 E
+Hud_Key_Space             aseprite/hud/keys.aseprite 0 space
+Hud_Key_Shift             aseprite/hud/keys.aseprite 0 shift
+Hud_Arrow                 aseprite/hud/Hud-Arrow.aseprite
 
 #
 # Items
 #
-Coal_Item       ../../aseprite/items/coal.aseprite
-Shard           ../../aseprite/items/shard.aseprite
-Stone           ../../aseprite/items/stone.aseprite
-Coin            ../../aseprite/items/coin.aseprite
-Health_Potion   ../../aseprite/items/health-potion.aseprite
-Strength_Potion ../../aseprite/items/strength-potion.aseprite
+Coal_Item       aseprite/items/coal.aseprite
+Shard           aseprite/items/shard.aseprite
+Stone           aseprite/items/stone.aseprite
+Coin            aseprite/items/coin.aseprite
+Health_Potion   aseprite/items/health-potion.aseprite
+Strength_Potion aseprite/items/strength-potion.aseprite
 
 #
 # Debug Icons
 #
-Ghost_Mode      ../../aseprite/developer/ghost-mode.aseprite
-Kill_Creature   ../../aseprite/developer/skull.aseprite
+Ghost_Mode      aseprite/developer/ghost-mode.aseprite
+Kill_Creature   aseprite/developer/skull.aseprite
 
 #
 # Inanimates
 #
-Background   ../../aseprite/inanimates/background.aseprite
-World_Edge   ../../aseprite/inanimates/world-border.aseprite 0 edge
-World_Corner ../../aseprite/inanimates/world-border.aseprite 0 corner
-Bedrock      ../../aseprite/inanimates/bedrock.aseprite
-Crystal      ../../aseprite/inanimates/crystal.aseprite
-Rock         ../../aseprite/inanimates/rock.aseprite
-Coal_Block   ../../aseprite/inanimates/coal.aseprite
-Emitter      ../../aseprite/inanimates/receiver_emitter.aseprite
-Mirror       ../../aseprite/inanimates/mirror.aseprite
-Chest_Closed ../../aseprite/inanimates/chest.aseprite 0
-Chest_Open   ../../aseprite/inanimates/chest.aseprite 1
+Background   aseprite/inanimates/background.aseprite
+World_Edge   aseprite/inanimates/world-border.aseprite 0 edge
+World_Corner aseprite/inanimates/world-border.aseprite 0 corner
+Bedrock      aseprite/inanimates/bedrock.aseprite
+Crystal      aseprite/inanimates/crystal.aseprite
+Rock         aseprite/inanimates/rock.aseprite
+Coal_Block   aseprite/inanimates/coal.aseprite
+Emitter      aseprite/inanimates/receiver_emitter.aseprite
+Mirror       aseprite/inanimates/mirror.aseprite
+Chest_Closed aseprite/inanimates/chest.aseprite 0
+Chest_Open   aseprite/inanimates/chest.aseprite 1
 
 #
 # Animates
 #
-Lava_0       sprites/animates/lava-0.png
-Lava_1       sprites/animates/lava-1.png
-Lava_2       sprites/animates/lava-2.png
-Lava_3       sprites/animates/lava-3.png
-Slab_0       ../../aseprite/animates/slab.aseprite 0
-Slab_1       ../../aseprite/animates/slab.aseprite 1
-Slab_2       ../../aseprite/animates/slab.aseprite 2
-Slab_3       ../../aseprite/animates/slab.aseprite 3
-Slab_4       ../../aseprite/animates/slab.aseprite 4
 
-Torch_High_0     ../../aseprite/animates/torch.aseprite 0 100%
-Torch_High_1     ../../aseprite/animates/torch.aseprite 1 100%
-Torch_High_2     ../../aseprite/animates/torch.aseprite 2 100%
-Torch_High_3     ../../aseprite/animates/torch.aseprite 3 100%
-Torch_Mid_0      ../../aseprite/animates/torch.aseprite 0  50%
-Torch_Mid_1      ../../aseprite/animates/torch.aseprite 1  50%
-Torch_Mid_2      ../../aseprite/animates/torch.aseprite 2  50%
-Torch_Mid_3      ../../aseprite/animates/torch.aseprite 3  50%
-Torch_Low_0      ../../aseprite/animates/torch.aseprite 0  10%
-Torch_Low_1      ../../aseprite/animates/torch.aseprite 1  10%
-Torch_Low_2      ../../aseprite/animates/torch.aseprite 2  10%
-Torch_Low_3      ../../aseprite/animates/torch.aseprite 3  10%
+# The lava aseprite file has multiple layers for convenience, but our importer isn't handling those correctly.
+# Therefore, we're still manually exporting them as PNGs.
+Lava_0       pngs/animates/lava-0.png
+Lava_1       pngs/animates/lava-1.png
+Lava_2       pngs/animates/lava-2.png
+Lava_3       pngs/animates/lava-3.png
 
-Flag_0       ../../aseprite/animates/flag.aseprite 0
-Flag_1       ../../aseprite/animates/flag.aseprite 1
-Flag_2       ../../aseprite/animates/flag.aseprite 2
-Flag_3       ../../aseprite/animates/flag.aseprite 3
-Flag_4       ../../aseprite/animates/flag.aseprite 4
-Slime_Hole_Empty     ../../aseprite/slime/slime-hole.aseprite 0 
-Slime_Hole_Filled_0  ../../aseprite/slime/slime-hole.aseprite 1 
-Slime_Hole_Filled_1  ../../aseprite/slime/slime-hole.aseprite 2
+Slab_0       aseprite/animates/slab.aseprite 0
+Slab_1       aseprite/animates/slab.aseprite 1
+Slab_2       aseprite/animates/slab.aseprite 2
+Slab_3       aseprite/animates/slab.aseprite 3
+Slab_4       aseprite/animates/slab.aseprite 4
+
+Torch_High_0     aseprite/animates/torch.aseprite 0 100%
+Torch_High_1     aseprite/animates/torch.aseprite 1 100%
+Torch_High_2     aseprite/animates/torch.aseprite 2 100%
+Torch_High_3     aseprite/animates/torch.aseprite 3 100%
+Torch_Mid_0      aseprite/animates/torch.aseprite 0  50%
+Torch_Mid_1      aseprite/animates/torch.aseprite 1  50%
+Torch_Mid_2      aseprite/animates/torch.aseprite 2  50%
+Torch_Mid_3      aseprite/animates/torch.aseprite 3  50%
+Torch_Low_0      aseprite/animates/torch.aseprite 0  10%
+Torch_Low_1      aseprite/animates/torch.aseprite 1  10%
+Torch_Low_2      aseprite/animates/torch.aseprite 2  10%
+Torch_Low_3      aseprite/animates/torch.aseprite 3  10%
+
+Flag_0       aseprite/animates/flag.aseprite 0
+Flag_1       aseprite/animates/flag.aseprite 1
+Flag_2       aseprite/animates/flag.aseprite 2
+Flag_3       aseprite/animates/flag.aseprite 3
+Flag_4       aseprite/animates/flag.aseprite 4
+Slime_Hole_Empty     aseprite/slime/slime-hole.aseprite 0 
+Slime_Hole_Filled_0  aseprite/slime/slime-hole.aseprite 1 
+Slime_Hole_Filled_1  aseprite/slime/slime-hole.aseprite 2
 
 #
 # Guy
 #
-Guy_Idle_Back_0   ../../aseprite/guy/guy-idle.aseprite 0 Back
-Guy_Idle_Back_1   ../../aseprite/guy/guy-idle.aseprite 1 Back
-Guy_Idle_Front_0  ../../aseprite/guy/guy-idle.aseprite 0 Front
-Guy_Idle_Front_1  ../../aseprite/guy/guy-idle.aseprite 1 Front
-Guy_Idle_Side_0   ../../aseprite/guy/guy-idle.aseprite 0 Side
-Guy_Idle_Side_1   ../../aseprite/guy/guy-idle.aseprite 1 Side
+Guy_Idle_Back_0   aseprite/guy/guy-idle.aseprite 0 Back
+Guy_Idle_Back_1   aseprite/guy/guy-idle.aseprite 1 Back
+Guy_Idle_Front_0  aseprite/guy/guy-idle.aseprite 0 Front
+Guy_Idle_Front_1  aseprite/guy/guy-idle.aseprite 1 Front
+Guy_Idle_Side_0   aseprite/guy/guy-idle.aseprite 0 Side
+Guy_Idle_Side_1   aseprite/guy/guy-idle.aseprite 1 Side
 
-Guy_Walk_Back_0   ../../aseprite/guy/guy-walking.aseprite 0 Back
-Guy_Walk_Back_1   ../../aseprite/guy/guy-walking.aseprite 1 Back
-Guy_Walk_Back_2   ../../aseprite/guy/guy-walking.aseprite 2 Back
-Guy_Walk_Front_0  ../../aseprite/guy/guy-walking.aseprite 0 Front
-Guy_Walk_Front_1  ../../aseprite/guy/guy-walking.aseprite 1 Front
-Guy_Walk_Front_2  ../../aseprite/guy/guy-walking.aseprite 2 Front
-Guy_Walk_Side_0   ../../aseprite/guy/guy-walking.aseprite 0 Side
-Guy_Walk_Side_1   ../../aseprite/guy/guy-walking.aseprite 1 Side
-Guy_Walk_Side_2   ../../aseprite/guy/guy-walking.aseprite 2 Side
+Guy_Walk_Back_0   aseprite/guy/guy-walking.aseprite 0 Back
+Guy_Walk_Back_1   aseprite/guy/guy-walking.aseprite 1 Back
+Guy_Walk_Back_2   aseprite/guy/guy-walking.aseprite 2 Back
+Guy_Walk_Front_0  aseprite/guy/guy-walking.aseprite 0 Front
+Guy_Walk_Front_1  aseprite/guy/guy-walking.aseprite 1 Front
+Guy_Walk_Front_2  aseprite/guy/guy-walking.aseprite 2 Front
+Guy_Walk_Side_0   aseprite/guy/guy-walking.aseprite 0 Side
+Guy_Walk_Side_1   aseprite/guy/guy-walking.aseprite 1 Side
+Guy_Walk_Side_2   aseprite/guy/guy-walking.aseprite 2 Side
 
-Guy_Damaged_Back_0    ../../aseprite/guy/guy-damaged.aseprite 0 Back
-Guy_Damaged_Back_1    ../../aseprite/guy/guy-damaged.aseprite 1 Back
-Guy_Damaged_Back_2    ../../aseprite/guy/guy-damaged.aseprite 2 Back
-Guy_Damaged_Front_0   ../../aseprite/guy/guy-damaged.aseprite 0 Front
-Guy_Damaged_Front_1   ../../aseprite/guy/guy-damaged.aseprite 1 Front
-Guy_Damaged_Front_2   ../../aseprite/guy/guy-damaged.aseprite 2 Front
-Guy_Damaged_Side_0    ../../aseprite/guy/guy-damaged.aseprite 0 Side
-Guy_Damaged_Side_1    ../../aseprite/guy/guy-damaged.aseprite 1 Side
-Guy_Damaged_Side_2    ../../aseprite/guy/guy-damaged.aseprite 2 Side
+Guy_Damaged_Back_0    aseprite/guy/guy-damaged.aseprite 0 Back
+Guy_Damaged_Back_1    aseprite/guy/guy-damaged.aseprite 1 Back
+Guy_Damaged_Back_2    aseprite/guy/guy-damaged.aseprite 2 Back
+Guy_Damaged_Front_0   aseprite/guy/guy-damaged.aseprite 0 Front
+Guy_Damaged_Front_1   aseprite/guy/guy-damaged.aseprite 1 Front
+Guy_Damaged_Front_2   aseprite/guy/guy-damaged.aseprite 2 Front
+Guy_Damaged_Side_0    aseprite/guy/guy-damaged.aseprite 0 Side
+Guy_Damaged_Side_1    aseprite/guy/guy-damaged.aseprite 1 Side
+Guy_Damaged_Side_2    aseprite/guy/guy-damaged.aseprite 2 Side
 
-Guy_Dead_Back     ../../aseprite/guy/guy-dead.aseprite 0 Back
-Guy_Dead_Front    ../../aseprite/guy/guy-dead.aseprite 0 Front
-Guy_Dead_Side     ../../aseprite/guy/guy-dead.aseprite 0 Side
+Guy_Dead_Back     aseprite/guy/guy-dead.aseprite 0 Back
+Guy_Dead_Front    aseprite/guy/guy-dead.aseprite 0 Front
+Guy_Dead_Side     aseprite/guy/guy-dead.aseprite 0 Side
 
 #
 # Frog
 #
-Frog_Idle_Back_0           ../../aseprite/frog/frog-idle.aseprite 0 Back
-Frog_Idle_Back_1           ../../aseprite/frog/frog-idle.aseprite 1 Back
-Frog_Idle_Back_2           ../../aseprite/frog/frog-idle.aseprite 2 Back
-Frog_Idle_Back_3           ../../aseprite/frog/frog-idle.aseprite 3 Back
-Frog_Idle_Front_0          ../../aseprite/frog/frog-idle.aseprite 0 Front
-Frog_Idle_Front_1          ../../aseprite/frog/frog-idle.aseprite 1 Front
-Frog_Idle_Front_2          ../../aseprite/frog/frog-idle.aseprite 2 Front
-Frog_Idle_Front_3          ../../aseprite/frog/frog-idle.aseprite 3 Front
-Frog_Idle_Side_0           ../../aseprite/frog/frog-idle.aseprite 0 Side
-Frog_Idle_Side_1           ../../aseprite/frog/frog-idle.aseprite 1 Side
-Frog_Idle_Side_2           ../../aseprite/frog/frog-idle.aseprite 2 Side
-Frog_Idle_Side_3           ../../aseprite/frog/frog-idle.aseprite 3 Side
+Frog_Idle_Back_0           aseprite/frog/frog-idle.aseprite 0 Back
+Frog_Idle_Back_1           aseprite/frog/frog-idle.aseprite 1 Back
+Frog_Idle_Back_2           aseprite/frog/frog-idle.aseprite 2 Back
+Frog_Idle_Back_3           aseprite/frog/frog-idle.aseprite 3 Back
+Frog_Idle_Front_0          aseprite/frog/frog-idle.aseprite 0 Front
+Frog_Idle_Front_1          aseprite/frog/frog-idle.aseprite 1 Front
+Frog_Idle_Front_2          aseprite/frog/frog-idle.aseprite 2 Front
+Frog_Idle_Front_3          aseprite/frog/frog-idle.aseprite 3 Front
+Frog_Idle_Side_0           aseprite/frog/frog-idle.aseprite 0 Side
+Frog_Idle_Side_1           aseprite/frog/frog-idle.aseprite 1 Side
+Frog_Idle_Side_2           aseprite/frog/frog-idle.aseprite 2 Side
+Frog_Idle_Side_3           aseprite/frog/frog-idle.aseprite 3 Side
 
-Frog_Attacking_Back_0      ../../aseprite/frog/frog-attacking.aseprite 0 Back
-Frog_Attacking_Back_1      ../../aseprite/frog/frog-attacking.aseprite 1 Back
-Frog_Attacking_Back_2      ../../aseprite/frog/frog-attacking.aseprite 2 Back
-Frog_Attacking_Front_0     ../../aseprite/frog/frog-attacking.aseprite 0 Front
-Frog_Attacking_Front_1     ../../aseprite/frog/frog-attacking.aseprite 1 Front
-Frog_Attacking_Front_2     ../../aseprite/frog/frog-attacking.aseprite 2 Front
-Frog_Attacking_Side_0      ../../aseprite/frog/frog-attacking.aseprite 0 Side
-Frog_Attacking_Side_1      ../../aseprite/frog/frog-attacking.aseprite 1 Side
-Frog_Attacking_Side_2      ../../aseprite/frog/frog-attacking.aseprite 2 Side
+Frog_Attacking_Back_0      aseprite/frog/frog-attacking.aseprite 0 Back
+Frog_Attacking_Back_1      aseprite/frog/frog-attacking.aseprite 1 Back
+Frog_Attacking_Back_2      aseprite/frog/frog-attacking.aseprite 2 Back
+Frog_Attacking_Front_0     aseprite/frog/frog-attacking.aseprite 0 Front
+Frog_Attacking_Front_1     aseprite/frog/frog-attacking.aseprite 1 Front
+Frog_Attacking_Front_2     aseprite/frog/frog-attacking.aseprite 2 Front
+Frog_Attacking_Side_0      aseprite/frog/frog-attacking.aseprite 0 Side
+Frog_Attacking_Side_1      aseprite/frog/frog-attacking.aseprite 1 Side
+Frog_Attacking_Side_2      aseprite/frog/frog-attacking.aseprite 2 Side
 
-Frog_Recovering_Back_0     ../../aseprite/frog/frog-recovering.aseprite 0 Back
-Frog_Recovering_Back_1     ../../aseprite/frog/frog-recovering.aseprite 1 Back
-Frog_Recovering_Front_0    ../../aseprite/frog/frog-recovering.aseprite 0 Front
-Frog_Recovering_Front_1    ../../aseprite/frog/frog-recovering.aseprite 1 Front
-Frog_Recovering_Side_0     ../../aseprite/frog/frog-recovering.aseprite 0 Side
-Frog_Recovering_Side_1     ../../aseprite/frog/frog-recovering.aseprite 1 Side
+Frog_Recovering_Back_0     aseprite/frog/frog-recovering.aseprite 0 Back
+Frog_Recovering_Back_1     aseprite/frog/frog-recovering.aseprite 1 Back
+Frog_Recovering_Front_0    aseprite/frog/frog-recovering.aseprite 0 Front
+Frog_Recovering_Front_1    aseprite/frog/frog-recovering.aseprite 1 Front
+Frog_Recovering_Side_0     aseprite/frog/frog-recovering.aseprite 0 Side
+Frog_Recovering_Side_1     aseprite/frog/frog-recovering.aseprite 1 Side
 
-Frog_Damaged_Back_0        ../../aseprite/frog/frog-damaged.aseprite 0 Back
-Frog_Damaged_Back_1        ../../aseprite/frog/frog-damaged.aseprite 1 Back
-Frog_Damaged_Back_2        ../../aseprite/frog/frog-damaged.aseprite 2 Back
-Frog_Damaged_Front_0       ../../aseprite/frog/frog-damaged.aseprite 0 Front
-Frog_Damaged_Front_1       ../../aseprite/frog/frog-damaged.aseprite 1 Front
-Frog_Damaged_Front_2       ../../aseprite/frog/frog-damaged.aseprite 2 Front
-Frog_Damaged_Side_0        ../../aseprite/frog/frog-damaged.aseprite 0 Side
-Frog_Damaged_Side_1        ../../aseprite/frog/frog-damaged.aseprite 1 Side
-Frog_Damaged_Side_2        ../../aseprite/frog/frog-damaged.aseprite 2 Side
+Frog_Damaged_Back_0        aseprite/frog/frog-damaged.aseprite 0 Back
+Frog_Damaged_Back_1        aseprite/frog/frog-damaged.aseprite 1 Back
+Frog_Damaged_Back_2        aseprite/frog/frog-damaged.aseprite 2 Back
+Frog_Damaged_Front_0       aseprite/frog/frog-damaged.aseprite 0 Front
+Frog_Damaged_Front_1       aseprite/frog/frog-damaged.aseprite 1 Front
+Frog_Damaged_Front_2       aseprite/frog/frog-damaged.aseprite 2 Front
+Frog_Damaged_Side_0        aseprite/frog/frog-damaged.aseprite 0 Side
+Frog_Damaged_Side_1        aseprite/frog/frog-damaged.aseprite 1 Side
+Frog_Damaged_Side_2        aseprite/frog/frog-damaged.aseprite 2 Side
 
 #
 # Goblin
 #
-Goblin_Idle_Back_0          ../../aseprite/goblin/goblin.aseprite 0 Back
-Goblin_Idle_Back_1          ../../aseprite/goblin/goblin.aseprite 1 Back
-Goblin_Idle_Front_0         ../../aseprite/goblin/goblin.aseprite 0 Front
-Goblin_Idle_Front_1         ../../aseprite/goblin/goblin.aseprite 1 Front
-Goblin_Idle_Side_0          ../../aseprite/goblin/goblin.aseprite 0 Side
-Goblin_Idle_Side_1          ../../aseprite/goblin/goblin.aseprite 1 Side
+Goblin_Idle_Back_0          aseprite/goblin/goblin.aseprite 0 Back
+Goblin_Idle_Back_1          aseprite/goblin/goblin.aseprite 1 Back
+Goblin_Idle_Front_0         aseprite/goblin/goblin.aseprite 0 Front
+Goblin_Idle_Front_1         aseprite/goblin/goblin.aseprite 1 Front
+Goblin_Idle_Side_0          aseprite/goblin/goblin.aseprite 0 Side
+Goblin_Idle_Side_1          aseprite/goblin/goblin.aseprite 1 Side
 
-Goblin_Attacking_Back       ../../aseprite/goblin/goblin-attacking.aseprite 0 Back
-Goblin_Attacking_Front      ../../aseprite/goblin/goblin-attacking.aseprite 0 Front
-Goblin_Attacking_Side       ../../aseprite/goblin/goblin-attacking.aseprite 0 Side
+Goblin_Attacking_Back       aseprite/goblin/goblin-attacking.aseprite 0 Back
+Goblin_Attacking_Front      aseprite/goblin/goblin-attacking.aseprite 0 Front
+Goblin_Attacking_Side       aseprite/goblin/goblin-attacking.aseprite 0 Side
 
-Goblin_Recovering_Back_0    ../../aseprite/goblin/goblin-recovering.aseprite 0 Back
-Goblin_Recovering_Back_1    ../../aseprite/goblin/goblin-recovering.aseprite 1 Back
-Goblin_Recovering_Front_0   ../../aseprite/goblin/goblin-recovering.aseprite 0 Front
-Goblin_Recovering_Front_1   ../../aseprite/goblin/goblin-recovering.aseprite 1 Front
-Goblin_Recovering_Side_0    ../../aseprite/goblin/goblin-recovering.aseprite 0 Side
-Goblin_Recovering_Side_1    ../../aseprite/goblin/goblin-recovering.aseprite 1 Side
+Goblin_Recovering_Back_0    aseprite/goblin/goblin-recovering.aseprite 0 Back
+Goblin_Recovering_Back_1    aseprite/goblin/goblin-recovering.aseprite 1 Back
+Goblin_Recovering_Front_0   aseprite/goblin/goblin-recovering.aseprite 0 Front
+Goblin_Recovering_Front_1   aseprite/goblin/goblin-recovering.aseprite 1 Front
+Goblin_Recovering_Side_0    aseprite/goblin/goblin-recovering.aseprite 0 Side
+Goblin_Recovering_Side_1    aseprite/goblin/goblin-recovering.aseprite 1 Side
                           
-Goblin_Damaged_Back_0       ../../aseprite/goblin/goblin-damaged.aseprite 0 Back
-Goblin_Damaged_Back_1       ../../aseprite/goblin/goblin-damaged.aseprite 1 Back
-Goblin_Damaged_Back_2       ../../aseprite/goblin/goblin-damaged.aseprite 2 Back
-Goblin_Damaged_Front_0      ../../aseprite/goblin/goblin-damaged.aseprite 0 Front
-Goblin_Damaged_Front_1      ../../aseprite/goblin/goblin-damaged.aseprite 1 Front
-Goblin_Damaged_Front_2      ../../aseprite/goblin/goblin-damaged.aseprite 2 Front
-Goblin_Damaged_Side_0       ../../aseprite/goblin/goblin-damaged.aseprite 0 Side
-Goblin_Damaged_Side_1       ../../aseprite/goblin/goblin-damaged.aseprite 1 Side
-Goblin_Damaged_Side_2       ../../aseprite/goblin/goblin-damaged.aseprite 2 Side
+Goblin_Damaged_Back_0       aseprite/goblin/goblin-damaged.aseprite 0 Back
+Goblin_Damaged_Back_1       aseprite/goblin/goblin-damaged.aseprite 1 Back
+Goblin_Damaged_Back_2       aseprite/goblin/goblin-damaged.aseprite 2 Back
+Goblin_Damaged_Front_0      aseprite/goblin/goblin-damaged.aseprite 0 Front
+Goblin_Damaged_Front_1      aseprite/goblin/goblin-damaged.aseprite 1 Front
+Goblin_Damaged_Front_2      aseprite/goblin/goblin-damaged.aseprite 2 Front
+Goblin_Damaged_Side_0       aseprite/goblin/goblin-damaged.aseprite 0 Side
+Goblin_Damaged_Side_1       aseprite/goblin/goblin-damaged.aseprite 1 Side
+Goblin_Damaged_Side_2       aseprite/goblin/goblin-damaged.aseprite 2 Side
 
 #
 # Slime
 #
-Slime_Idle_Back_0    ../../aseprite/slime/slime.aseprite 0 Back
-Slime_Idle_Back_1    ../../aseprite/slime/slime.aseprite 1 Back
-Slime_Idle_Front_0   ../../aseprite/slime/slime.aseprite 0 Front
-Slime_Idle_Front_1   ../../aseprite/slime/slime.aseprite 1 Front
-Slime_Idle_Side_0    ../../aseprite/slime/slime.aseprite 0 Side
-Slime_Idle_Side_1    ../../aseprite/slime/slime.aseprite 1 Side
+Slime_Idle_Back_0    aseprite/slime/slime.aseprite 0 Back
+Slime_Idle_Back_1    aseprite/slime/slime.aseprite 1 Back
+Slime_Idle_Front_0   aseprite/slime/slime.aseprite 0 Front
+Slime_Idle_Front_1   aseprite/slime/slime.aseprite 1 Front
+Slime_Idle_Side_0    aseprite/slime/slime.aseprite 0 Side
+Slime_Idle_Side_1    aseprite/slime/slime.aseprite 1 Side
 
-Slime_Walk_Back_0    ../../aseprite/slime/slime-walk.aseprite 0 Back
-Slime_Walk_Back_1    ../../aseprite/slime/slime-walk.aseprite 1 Back
-Slime_Walk_Back_2    ../../aseprite/slime/slime-walk.aseprite 2 Back
-Slime_Walk_Front_0   ../../aseprite/slime/slime-walk.aseprite 0 Front 
-Slime_Walk_Front_1   ../../aseprite/slime/slime-walk.aseprite 1 Front 
-Slime_Walk_Front_2   ../../aseprite/slime/slime-walk.aseprite 2 Front 
-Slime_Walk_Side_0    ../../aseprite/slime/slime-walk.aseprite 0 Side
-Slime_Walk_Side_1    ../../aseprite/slime/slime-walk.aseprite 1 Side
-Slime_Walk_Side_2    ../../aseprite/slime/slime-walk.aseprite 2 Side
+Slime_Walk_Back_0    aseprite/slime/slime-walk.aseprite 0 Back
+Slime_Walk_Back_1    aseprite/slime/slime-walk.aseprite 1 Back
+Slime_Walk_Back_2    aseprite/slime/slime-walk.aseprite 2 Back
+Slime_Walk_Front_0   aseprite/slime/slime-walk.aseprite 0 Front 
+Slime_Walk_Front_1   aseprite/slime/slime-walk.aseprite 1 Front 
+Slime_Walk_Front_2   aseprite/slime/slime-walk.aseprite 2 Front 
+Slime_Walk_Side_0    aseprite/slime/slime-walk.aseprite 0 Side
+Slime_Walk_Side_1    aseprite/slime/slime-walk.aseprite 1 Side
+Slime_Walk_Side_2    aseprite/slime/slime-walk.aseprite 2 Side
 
-Slime_Damaged_Back_0  ../../aseprite/slime/slime-damaged.aseprite 0 Back    
-Slime_Damaged_Back_1  ../../aseprite/slime/slime-damaged.aseprite 1 Back    
-Slime_Damaged_Back_2  ../../aseprite/slime/slime-damaged.aseprite 2 Back    
-Slime_Damaged_Front_0 ../../aseprite/slime/slime-damaged.aseprite 0 Front   
-Slime_Damaged_Front_1 ../../aseprite/slime/slime-damaged.aseprite 1 Front   
-Slime_Damaged_Front_2 ../../aseprite/slime/slime-damaged.aseprite 2 Front   
-Slime_Damaged_Side_0  ../../aseprite/slime/slime-damaged.aseprite 0 Side    
-Slime_Damaged_Side_1  ../../aseprite/slime/slime-damaged.aseprite 1 Side    
-Slime_Damaged_Side_2  ../../aseprite/slime/slime-damaged.aseprite 2 Side    
+Slime_Damaged_Back_0  aseprite/slime/slime-damaged.aseprite 0 Back    
+Slime_Damaged_Back_1  aseprite/slime/slime-damaged.aseprite 1 Back    
+Slime_Damaged_Back_2  aseprite/slime/slime-damaged.aseprite 2 Back    
+Slime_Damaged_Front_0 aseprite/slime/slime-damaged.aseprite 0 Front   
+Slime_Damaged_Front_1 aseprite/slime/slime-damaged.aseprite 1 Front   
+Slime_Damaged_Front_2 aseprite/slime/slime-damaged.aseprite 2 Front   
+Slime_Damaged_Side_0  aseprite/slime/slime-damaged.aseprite 0 Side    
+Slime_Damaged_Side_1  aseprite/slime/slime-damaged.aseprite 1 Side    
+Slime_Damaged_Side_2  aseprite/slime/slime-damaged.aseprite 2 Side    
 
 #
 # Void Eye
 #
 
-Void_Eye_Back_0   ../../aseprite/void_eye/void_eye.aseprite 0 Back
-Void_Eye_Back_1   ../../aseprite/void_eye/void_eye.aseprite 1 Back
-Void_Eye_Back_2   ../../aseprite/void_eye/void_eye.aseprite 2 Back
-Void_Eye_Back_3   ../../aseprite/void_eye/void_eye.aseprite 3 Back
-Void_Eye_Front_0  ../../aseprite/void_eye/void_eye.aseprite 0 Front    
-Void_Eye_Front_1  ../../aseprite/void_eye/void_eye.aseprite 1 Front    
-Void_Eye_Front_2  ../../aseprite/void_eye/void_eye.aseprite 2 Front    
-Void_Eye_Front_3  ../../aseprite/void_eye/void_eye.aseprite 3 Front    
-Void_Eye_Side_0   ../../aseprite/void_eye/void_eye.aseprite 0 Side
-Void_Eye_Side_1   ../../aseprite/void_eye/void_eye.aseprite 1 Side
-Void_Eye_Side_2   ../../aseprite/void_eye/void_eye.aseprite 2 Side
-Void_Eye_Side_3   ../../aseprite/void_eye/void_eye.aseprite 3 Side
-Void_Eye_Spawn_0  ../../aseprite/void_eye/void_eye_spawn.aseprite 0     
-Void_Eye_Spawn_1  ../../aseprite/void_eye/void_eye_spawn.aseprite 1     
-Void_Eye_Spawn_2  ../../aseprite/void_eye/void_eye_spawn.aseprite 2     
-Void_Eye_Spawn_3  ../../aseprite/void_eye/void_eye_spawn.aseprite 3     
-Void_Eye_Spawn_4  ../../aseprite/void_eye/void_eye_spawn.aseprite 4     
+Void_Eye_Back_0   aseprite/void_eye/void_eye.aseprite 0 Back
+Void_Eye_Back_1   aseprite/void_eye/void_eye.aseprite 1 Back
+Void_Eye_Back_2   aseprite/void_eye/void_eye.aseprite 2 Back
+Void_Eye_Back_3   aseprite/void_eye/void_eye.aseprite 3 Back
+Void_Eye_Front_0  aseprite/void_eye/void_eye.aseprite 0 Front    
+Void_Eye_Front_1  aseprite/void_eye/void_eye.aseprite 1 Front    
+Void_Eye_Front_2  aseprite/void_eye/void_eye.aseprite 2 Front    
+Void_Eye_Front_3  aseprite/void_eye/void_eye.aseprite 3 Front    
+Void_Eye_Side_0   aseprite/void_eye/void_eye.aseprite 0 Side
+Void_Eye_Side_1   aseprite/void_eye/void_eye.aseprite 1 Side
+Void_Eye_Side_2   aseprite/void_eye/void_eye.aseprite 2 Side
+Void_Eye_Side_3   aseprite/void_eye/void_eye.aseprite 3 Side
+Void_Eye_Spawn_0  aseprite/void_eye/void_eye_spawn.aseprite 0     
+Void_Eye_Spawn_1  aseprite/void_eye/void_eye_spawn.aseprite 1     
+Void_Eye_Spawn_2  aseprite/void_eye/void_eye_spawn.aseprite 2     
+Void_Eye_Spawn_3  aseprite/void_eye/void_eye_spawn.aseprite 3     
+Void_Eye_Spawn_4  aseprite/void_eye/void_eye_spawn.aseprite 4     
 
 #
 # Trader
 #
-Trader_Idle_Back_0    ../../aseprite/trader/trader-idle.aseprite 0 back
-Trader_Idle_Back_1    ../../aseprite/trader/trader-idle.aseprite 1 back
-Trader_Idle_Front_0   ../../aseprite/trader/trader-idle.aseprite 0 front
-Trader_Idle_Front_1   ../../aseprite/trader/trader-idle.aseprite 1 front
-Trader_Idle_Side_0    ../../aseprite/trader/trader-idle.aseprite 0 side
-Trader_Idle_Side_1    ../../aseprite/trader/trader-idle.aseprite 1 side
+Trader_Idle_Back_0    aseprite/trader/trader-idle.aseprite 0 back
+Trader_Idle_Back_1    aseprite/trader/trader-idle.aseprite 1 back
+Trader_Idle_Front_0   aseprite/trader/trader-idle.aseprite 0 front
+Trader_Idle_Front_1   aseprite/trader/trader-idle.aseprite 1 front
+Trader_Idle_Side_0    aseprite/trader/trader-idle.aseprite 0 side
+Trader_Idle_Side_1    aseprite/trader/trader-idle.aseprite 1 side
