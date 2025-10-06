@@ -39,7 +39,7 @@ generate_initial_world_section :: (server: *Server) {
         chest.inventory = setup_initial_chest_inventory(server);
         broadcast_chest_inventory(server, chest);
 
-        fill_world_section_randomly(server, .[ 0, server.world_size.x - 1]);
+        fill_random_biome(server, .[ 0, server.world_size.x - 1], 0);
     } else {
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
     }
@@ -60,7 +60,7 @@ generate_next_world_section :: (server: *Server) {
         array_add(*server.outgoing_messages, msg);
 
         resize_lightmap(*server.lightmap, server.world_size);
-        fill_world_section_randomly(server, .[ previous_width, server.world_size.x - 1 ]);
+        fill_random_biome(server, .[ previous_width, server.world_size.x - 1 ], server.current_section_index);
     } else {
         server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
 
@@ -77,8 +77,18 @@ generate_next_world_section :: (server: *Server) {
 
 #file_scope
 
+LAVA_BIOME_OCCURANCE :: 5;
+
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
-SPAWN_PROBABILITY_TABLE :: #run setup_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
+MINESHAFT_SPAWN_PROBABILITY_TABLE :: #run setup_mineshaft_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
+
+use_random_world_generation :: (server: *Server) -> bool {
+    return !(server.game_mode == .Tutorial || server.game_mode == .Developer);
+}
+
+
+
+/* --------------------------------------------- Predefined World --------------------------------------------- */
 
 #if BAKE_ASSETS {
     GAME_MODE_WORLD_STRINGS :: [Game_Mode.Count]string.[
@@ -98,65 +108,32 @@ SPAWN_PROBABILITY_TABLE :: #run setup_probabilities_table(); // This table conta
     ];
 }
 
-use_random_world_generation :: (server: *Server) -> bool {
-    return !(server.game_mode == .Tutorial || server.game_mode == .Developer);
+load_predefined_world_data :: (game_mode: Game_Mode) -> [..]string, bool {
+#if !BAKE_ASSETS {
+    data, success := read_entire_file(*temp, GAME_MODE_WORLD_FILE_PATHS[game_mode]);
+    if !success {
+        logprint(.Error, "Failed to load the predefined world file '%' from disk.", GAME_MODE_WORLD_FILE_PATHS[game_mode]);
+        return ---, false;
+    }
+} #else {
+    data := GAME_MODE_WORLD_STRINGS[game_mode];
 }
 
-setup_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count]f32 {
-    desired_per_section :: (x: f32) -> f32 { // On average I expect X entities in one section
-        return cast(f32) x / cast(f32) (SECTION_WIDTH * SECTION_HEIGHT);
+    lines := string_split(data, #char "\n", false, *temp);
+
+    for i := 0; i < lines.count; {
+        line := array_get(*lines, i);
+        if line.count && line[0] == #char "#" {
+            array_remove_index(*lines, i);
+        } else if line.count && line[line.count - 1] == #char "\r" {
+            array_put(*lines, i, substring_view(line, 0, line.count - 1));
+            ++i;
+        } else {
+            ++i;
+        }
     }
-
-    desired_coverage :: (p: f32) -> f32 { // On average I expect p % of the tiles to be this entity
-        return p;
-    }
-
-    modify_default :: (target: Game_Mode, kind: Entity_Kind, modifier: f32) #macro {
-        result[target][kind] = result[.Medium][kind] * modifier;
-    }
-
-    result: [Game_Mode.Count][Entity_Kind.Count]f32;
-
-    // Set up the default difficulty
-    {
-        result[.Medium][.Slime_Hole] = desired_per_section(1);
-        result[.Medium][.Trader]     = desired_per_section(0.75);
-        result[.Medium][.Lava]       = desired_coverage(0.085);
-        result[.Medium][.Bedrock]    = desired_coverage(0.17);
-        result[.Medium][.Coal]       = desired_per_section(4);
-        result[.Medium][.Rock]       = desired_per_section(4);
-        result[.Medium][.Crystal]    = desired_per_section(3);
-        result[.Medium][.Frog]       = desired_per_section(3);
-        result[.Medium][.Goblin]     = desired_per_section(4);
-    }
-
-    // Set up the easy difficulty
-    {
-        modify_default(.Easy, .Slime_Hole, 0.75);
-        modify_default(.Easy, .Trader,     1.34);
-        modify_default(.Easy, .Lava,        1.0);
-        modify_default(.Easy, .Bedrock,     1.0);
-        modify_default(.Easy, .Coal,        1.1);
-        modify_default(.Easy, .Rock,        1.1);
-        modify_default(.Easy, .Crystal,     1.1);
-        modify_default(.Easy, .Frog,       0.75);
-        modify_default(.Easy, .Goblin,     0.75);
-    }    
-
-    // Set up the hard difficulty
-    {
-        modify_default(.Hard, .Slime_Hole, 1.2);
-        modify_default(.Hard, .Trader,     1.1);
-        modify_default(.Hard, .Lava,       1.2);
-        modify_default(.Hard, .Bedrock,    1.0);
-        modify_default(.Hard, .Coal,       0.75);
-        modify_default(.Hard, .Rock,       0.75);
-        modify_default(.Hard, .Crystal,    0.75);
-        modify_default(.Hard, .Frog,       1.2);
-        modify_default(.Hard, .Goblin,     1.2);
-    }
-
-    return result;
+    
+    return lines, true;
 }
 
 get_current_predefined_world_size :: (game_mode: Game_Mode, current_section_index: s64) -> v2i {
@@ -266,93 +243,169 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
     return true;
 }
 
-fill_world_section_randomly :: (server: *Server, section: [2]s32) {
-    is_reserved_position :: (server: *Server, position: v2i, helper: *Helper) -> bool {
-        // We want to free up space around the spawn positions of the player (so that players don't spawn on
-        // top of monsters, etc) and the emitters.
-        if (position.y >= 1 && position.y <= 3 && position.x >= 0 && position.x <= 2 + server.clients.count + 1) return true;
-        if helper.previous_emitter {
-            if position.x == helper.previous_emitter.physical_position.x + 1 && position.y == helper.previous_emitter.physical_position.y return true;
-        }
-        return false;
+
+
+/* --------------------------------------------- Probability Table -------------------------------------------- */
+
+setup_mineshaft_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count]f32 {
+    desired_per_section :: (x: f32) -> f32 { // On average I expect X entities in one section
+        return cast(f32) x / cast(f32) (SECTION_WIDTH * SECTION_HEIGHT);
     }
 
-    random_position :: (server: *Server, helper: *Helper, retry_on_reserved: bool) -> v2i, bool {
-        position := v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
-                          random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
-
-        success := true;
-        
-        iteration := 0;
-        while find_any_entity_at_position(server, position) || (retry_on_reserved && is_reserved_position(server, position, helper)) {
-            position = v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
-                             random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
-
-            if iteration > 10 {
-                logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
-                success = false;
-                break;
-            }
-
-            ++iteration;
-        }
-
-        if !retry_on_reserved {
-            success = success && !is_reserved_position(server, position, helper);
-        }
-
-        return position, success;
+    desired_coverage :: (p: f32) -> f32 { // On average I expect p % of the tiles to be this entity
+        return p;
     }
 
-    generate_random_count :: (server: *Server, helper: *Helper, kind: Entity_Kind, modifier: f32) -> s32 {
-        t := SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
+    modify_default :: (target: Game_Mode, kind: Entity_Kind, modifier: f32) #macro {
+        result[target][kind] = result[.Medium][kind] * modifier;
+    }
+
+    result: [Game_Mode.Count][Entity_Kind.Count]f32;
+
+    // Set up the default difficulty
+    {
+        result[.Medium][.Slime_Hole] = desired_per_section(1);
+        result[.Medium][.Trader]     = desired_per_section(0.75);
+        result[.Medium][.Lava]       = desired_coverage(0.085);
+        result[.Medium][.Bedrock]    = desired_coverage(0.17);
+        result[.Medium][.Coal]       = desired_per_section(4);
+        result[.Medium][.Rock]       = desired_per_section(4);
+        result[.Medium][.Crystal]    = desired_per_section(3);
+        result[.Medium][.Frog]       = desired_per_section(3);
+        result[.Medium][.Goblin]     = desired_per_section(4);
+    }
+
+    // Set up the easy difficulty
+    {
+        modify_default(.Easy, .Slime_Hole, 0.75);
+        modify_default(.Easy, .Trader,     1.34);
+        modify_default(.Easy, .Lava,        1.0);
+        modify_default(.Easy, .Bedrock,     1.0);
+        modify_default(.Easy, .Coal,        1.1);
+        modify_default(.Easy, .Rock,        1.1);
+        modify_default(.Easy, .Crystal,     1.1);
+        modify_default(.Easy, .Frog,       0.75);
+        modify_default(.Easy, .Goblin,     0.75);
+    }    
+
+    // Set up the hard difficulty
+    {
+        modify_default(.Hard, .Slime_Hole, 1.2);
+        modify_default(.Hard, .Trader,     1.1);
+        modify_default(.Hard, .Lava,       1.2);
+        modify_default(.Hard, .Bedrock,    1.0);
+        modify_default(.Hard, .Coal,       0.75);
+        modify_default(.Hard, .Rock,       0.75);
+        modify_default(.Hard, .Crystal,    0.75);
+        modify_default(.Hard, .Frog,       1.2);
+        modify_default(.Hard, .Goblin,     1.2);
+    }
+
+    return result;
+}
+
+
+
+/* ------------------------------------------ Random World Generation ----------------------------------------- */
+
+Biome_Helper :: struct {
+    section: [2]s32;
+    previous_emitter: *Entity;
+}
+
+make_biome_helper :: (server: *Server, section: [2]s32) -> Biome_Helper {
+    helper: Biome_Helper = ---;
+    helper.section = section;
+    helper.previous_emitter = ifx server.latest_emitter != INVALID_PID then get_entity(server, server.latest_emitter) else null;
+    return helper;
+}
+
+is_reserved_position :: (server: *Server, position: v2i, helper: *Biome_Helper) -> bool {
+    // We want to free up space around the spawn positions of the player (so that players don't spawn on
+    // top of monsters, etc) and the emitters.
+    if (position.y >= 1 && position.y <= 3 && position.x >= 0 && position.x <= 2 + server.clients.count + 1)
+        return true;
+    
+    if helper.previous_emitter {
+        if position.x == helper.previous_emitter.physical_position.x + 1 && position.y == helper.previous_emitter.physical_position.y return true;
+    }
+    
+    return false;
+}
+
+random_position :: (server: *Server, helper: *Biome_Helper, retry_on_reserved: bool) -> v2i, bool {
+    position := v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
+                        random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
+
+    success := true;
+    
+    iteration := 0;
+    while find_any_entity_at_position(server, position) || (retry_on_reserved && is_reserved_position(server, position, helper)) {
+        position = v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
+                            random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
+
+        if iteration > 10 {
+            logprint(.Warning, "Failed to find a suitable spawn position while generating the world...");
+            success = false;
+            break;
+        }
+
+        ++iteration;
+    }
+
+    if !retry_on_reserved {
+        success = success && !is_reserved_position(server, position, helper);
+    }
+
+    return position, success;
+}
+
+//
+// When filling the world randomly, we want to block certain tiles to ensure they remain empty. Otherwise,
+// the game can be really annoying to play.
+// At the same time, we want to ensure that we generate enough resources on the available space of the
+// section, while not overcrowding the section with other entity kinds (such as bedrock or monsters).
+// In short, the retry_on_reserved flag tries to ensure that we actually generate 'count' entities of
+// that kind. If it is false, we accept generating fewer entities to ensure we're not overloading the
+// section (since the SPAWN_PROBABILITIY_TABLE assumes the entire section space as available, but that's
+// not actually true).
+//
+generate_n_random_entities :: (server: *Server, helper: *Biome_Helper, kind: Entity_Kind, count: s64, retry_on_reserved: bool) -> [..]*Entity {
+    result: [..]*Entity;
+    result.allocator = *temp;
+
+    for i := 0; i < count; ++i {
+        position, success := random_position(server, helper, retry_on_reserved);
+        if success {
+            entity := create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
+            array_add(*result, entity);
+        }
+    }
+
+    return result;
+}
+
+fill_mineshaft_biome :: (server: *Server, section: [2]s32) {
+    generate_random_count :: (server: *Server, helper: *Biome_Helper, kind: Entity_Kind, modifier: f32) -> s32 {
+        t := MINESHAFT_SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
         area := (helper.section[1] - helper.section[0] + 1) * SECTION_HEIGHT;
         mean := t * cast(f32) area;
         stddev: f32 : 0.25;
         return cast(s32) round(random_f32_normal_distribution(*server.world_random, mean, stddev * mean));
     }
 
-    //
-    // When filling the world randomly, we want to block certain tiles to ensure they remain empty. Otherwise,
-    // the game can be really annoying to play.
-    // At the same time, we want to ensure that we generate enough resources on the available space of the
-    // section, while not overcrowding the section with other entity kinds (such as bedrock or monsters).
-    // In short, the retry_on_reserved flag tries to ensure that we actually generate 'count' entities of
-    // that kind. If it is false, we accept generating fewer entities to ensure we're not overloading the
-    // section (since the SPAWN_PROBABILITIY_TABLE assumes the entire section space as available, but that's
-    // not actually true).
-    //
-    generate_randomly :: (server: *Server, helper: *Helper, kind: Entity_Kind, modifier: f32, retry_on_reserved: bool) -> [..]*Entity {
-        result: [..]*Entity;
-        result.allocator = *temp;
-
+    generate_randomly :: (server: *Server, helper: *Biome_Helper, kind: Entity_Kind, modifier: f32, retry_on_reserved: bool) -> [..]*Entity {
         count := generate_random_count(server, helper, kind, modifier);
-
-        for i := 0; i < count; ++i {
-            position, success := random_position(server, helper, retry_on_reserved);
-            if success {
-                entity := create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
-                array_add(*result, entity);
-            }
-        }
-
-        return result;
+        return generate_n_random_entities(server, helper, kind, count, retry_on_reserved);
     }
 
-    Helper :: struct {
-        section: [2]s32;
-        previous_emitter: *Entity;
-    }
+    helper := make_biome_helper(server, section);
 
-    helper: Helper = ---;
-    helper.section = section;
-    helper.previous_emitter = ifx server.latest_emitter != INVALID_PID then get_entity(server, server.latest_emitter) else null;
+    // Generate a new emitter at the end of this section
+    latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
+    server.latest_emitter = latest_emitter.pid;
 
-    {
-        latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
-        server.latest_emitter = latest_emitter.pid;
-    }
-    
+    // Generate all kinds of entities randomly    
     x: f32 = xx (server.current_section_index + 1);
     friendly_modifier:   f32 = 1 / powf(x, 0.5); // The longer a game goes, the less friendly things we want to happen...
     neutral_modifier:    f32 = 1.0; // These things shouldn't really change with the duration of the game...
@@ -374,30 +427,58 @@ fill_world_section_randomly :: (server: *Server, section: [2]s32) {
     }
 }
 
-load_predefined_world_data :: (game_mode: Game_Mode) -> [..]string, bool {
-#if !BAKE_ASSETS {
-    data, success := read_entire_file(*temp, GAME_MODE_WORLD_FILE_PATHS[game_mode]);
-    if !success {
-        logprint(.Error, "Failed to load the predefined world file '%' from disk.", GAME_MODE_WORLD_FILE_PATHS[game_mode]);
-        return ---, false;
+fill_lava_biome :: (server: *Server, section: [2]s32) {
+    // Generate a new emitter at the end of this section
+    latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
+    server.latest_emitter = latest_emitter.pid;
+
+    LEFT_OFFSET:  s32 = 3;
+    RIGHT_OFFSET: s32 = 1;
+
+    // Generate some rocks on the left
+    {
+        helper := make_biome_helper(server, .[ section[0], section[0] + LEFT_OFFSET]);
+        rock_count := random_u64_in(*server.world_random, 3, 5);
+        generate_n_random_entities(server, *helper, .Rock, rock_count, true);
+        crystal_count := random_u64_in(*server.world_random, 1, 2);
+        generate_n_random_entities(server, *helper, .Crystal, crystal_count, true);
     }
-} #else {
-    data := GAME_MODE_WORLD_STRINGS[game_mode];
-}
 
-    lines := string_split(data, #char "\n", false, *temp);
+    spawn_table: []struct { weight: s64; kind: Entity_Kind; } = .[
+        .{ 100, .Lava },
+        .{  80, .Count },
+        .{  20, .Goblin },
+        .{  10, .Rock },
+        .{   2, .Crystal },
+    ];
 
-    for i := 0; i < lines.count; {
-        line := array_get(*lines, i);
-        if line.count && line[0] == #char "#" {
-            array_remove_index(*lines, i);
-        } else if line.count && line[line.count - 1] == #char "\r" {
-            array_put(*lines, i, substring_view(line, 0, line.count - 1));
-            ++i;
-        } else {
-            ++i;
+    total_weight := 0;
+    for i := 0; i < spawn_table.count; ++i total_weight += spawn_table[i].weight;
+
+    // Generate the actual lava lake including islands
+    for x := section[0] + LEFT_OFFSET; x < section[1] - RIGHT_OFFSET; ++x {
+        for y := 0; y < SECTION_HEIGHT; ++y {
+            target_weight := random_u64_in(*server.world_random, 0, total_weight);
+            entity_kind: Entity_Kind = ---;
+
+            for i := 0; i < spawn_table.count; ++i {
+                if target_weight < spawn_table[i].weight {
+                    entity_kind = spawn_table[i].kind;
+                    break;
+                } else {
+                    target_weight -= spawn_table[i].weight;
+                }
+            }
+
+            if entity_kind != .Count then create_entity(server, entity_kind, .{ x, y }, DEFAULT_ENTITY_ROTATION[entity_kind]);
         }
     }
-    
-    return lines, true;
+}
+
+fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
+    if (section_index + 1) % LAVA_BIOME_OCCURANCE == 0 {
+        fill_lava_biome(server, section);
+    } else {
+        fill_mineshaft_biome(server, section);
+    }
 }

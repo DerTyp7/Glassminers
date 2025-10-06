@@ -4,6 +4,7 @@
 #load "virtual_connection.jai";
 #load "threads.jai";
 #load "random.jai";
+#load "noise.jai";
 #load "hash_table.jai";
 
 // Shared
