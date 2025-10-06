@@ -1255,6 +1255,8 @@ do_game_over_screen :: (client: *Client) {
 }
 
 main :: (args: []string) -> s32 {
+    install_crash_handler();
+
     //
     // Start up the engine
     //

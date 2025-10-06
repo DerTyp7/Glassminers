@@ -655,6 +655,15 @@ random_one_of :: (random: *Random_Generator, elements: []$T) -> T {
     return elements[index];
 }
 
+install_crash_handler :: () {
+#if OS == .Windows {
+    AddVectoredExceptionHandler(1, win32_vectored_exception_handler);
+} #else #if OS == .Linux {
+    signal(SIGFPE, linux_exception_handler);
+    signal(SIGSEGV, linux_exception_handler);
+}
+}
+
 
 
 /* ------------------------------------------------ File Baking ----------------------------------------------- */
@@ -676,4 +685,50 @@ ASSET_FILE_PATH :: (root_path: string) -> string {
     end_of_shared, found_directory := search_file_path_for_directory_delimiter_reverse(current_directory);
     assert(found_directory, "Whoops, can't make an absolute asset file path...");
     return print_into_allocator(Default_Allocator, "%/%", substring_view(current_directory, 0, end_of_shared), root_path);
+}
+
+
+
+#file_scope
+
+inside_crash_handler := false;
+
+crash_handler :: (reason: string) {
+    print_stack_trace(reason);
+
+    file_printer: File_Printer;
+    create_file_printer(*file_printer, Default_Allocator, "crash.log");
+    print_stack_trace_into_printer(*file_printer, reason);
+    destroy_file_printer(*file_printer);
+}
+
+#if OS == .Windows {
+    win32_vectored_exception_handler :: (exceptions: *EXCEPTION_POINTERS) -> s32 {
+        // Debug Breaks are issued at points where we already reported an error, so don't handle those here...
+        if exceptions.ExceptionRecord.ExceptionCode == EXCEPTION_BREAKPOINT return EXCEPTION_CONTINUE_SEARCH;
+
+        if inside_crash_handler {
+            print("Crashed inside the crash handler...");
+            return EXCEPTION_CONTINUE_SEARCH;
+        }
+
+        inside_crash_handler = true;
+
+        reason: string = ---;
+
+        if exceptions.ExceptionRecord.ExceptionCode == {
+          case EXCEPTION_ACCESS_VIOLATION;   reason = "Access Violation";
+          case EXCEPTION_FLT_DIVIDE_BY_ZERO; reason = "Float Division By Zero";
+          case EXCEPTION_INT_DIVIDE_BY_ZERO; reason = "Integer Division By Zero";
+          case STATUS_HEAP_CORRUPTION;       reason = "Heap Corruption";
+          case; reason = print_into_allocator(Default_Allocator, "Unknown Exception (%)", exceptions.ExceptionRecord.ExceptionCode);
+        }
+
+        crash_handler(reason);
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+} #else #if OS == .Linux {
+    linux_exception_handler :: (signal: s32) {
+        // @Incomplete
+    }
 }
