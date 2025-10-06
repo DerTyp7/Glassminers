@@ -729,6 +729,22 @@ crash_handler :: (reason: string) {
     }
 } #else #if OS == .Linux {
     linux_exception_handler :: (signal: s32) {
-        // @Incomplete
+        if inside_crash_handler {
+            print("Crashed inside the crash handler...");
+            return;
+        }
+
+        inside_crash_handler = true;
+
+        reason: string = ---;
+
+        if signal == {
+          case SIGSEGV; reason = "Segmentation Fault";
+          case SIGFPE;  reason = "Arithmetic Error";
+          case; reason = print_into_allocator(Default_Allocator, "Unknown Signal (%)", signal);
+        }
+        
+        crash_handler(reason);
+        os_exit(-1);
     }
 }
