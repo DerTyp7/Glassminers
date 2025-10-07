@@ -1,5 +1,6 @@
 ## 0.5.0 (unreleased)
 
+- Added a new statistic tracking the number of times a player charged an emitter
 - Added a crash handler in play-testing builds that prints out a `crash.log` file
 
 ## 0.4.2 (03.10.2025)

@@ -497,6 +497,7 @@ Player_Stat_Kind :: enum {
     Mirrors_Constructed;
     Coins_Spent_Total;
     Coins_Spent_Healing;
+    Emitter_Charges;
     Damage_Taken;
 }
 
@@ -522,6 +523,7 @@ format_player_stat :: (allocator: *Allocator, player_name: string, kind: Player_
       case .Mirrors_Constructed; result = f(allocator, "% has built over % mirrors!", player_name, stat.counter);
       case .Coins_Spent_Total;   result = f(allocator, "% has spent over % coins!", player_name, stat.counter);
       case .Coins_Spent_Healing; result = f(allocator, "% has spent over % coins healing themselves!", player_name, stat.counter);
+      case .Emitter_Charges;     result = f(allocator, "% has charged emitters over % times!", player_name, stat.counter);
       case .Damage_Taken;        result = f(allocator, "% has taken over % hearts of damage!", player_name, stat.counter / cast(s64) HEALTH_PER_HEART);
     }
 

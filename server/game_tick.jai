@@ -538,6 +538,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
                 if emitter.state == .Active {
                     set_emitter_state(server, emitter, .Active, emitter.current_charge + COAL_EMITTER_CHARGE);
                     switch_guy_state(server, guy, .Idle);
+                    increment_player_statistic(server, guy.pid, .Emitter_Charges);
                 }
             } else if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Flag {
                 // Edge-Case: Activate the emitter using the flag

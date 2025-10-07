@@ -32,6 +32,7 @@ increment_player_statistic :: (server: *Server, guy_pid: Pid, kind: Player_Stat_
       case .Mirrors_Constructed; should_send = stat.counter % 15 == 0;
       case .Coins_Spent_Total;   should_send = stat.counter % 15 == 0;
       case .Coins_Spent_Healing; should_send = stat.counter % 10 == 0;
+      case .Emitter_Charges;     should_send = stat.counter % 10 == 0;
       case .Damage_Taken;        should_send = stat.counter % (cast(s64) HEALTH_PER_HEART * 20) == 0;
     }
 
@@ -156,6 +157,7 @@ calculate_player_score :: (server: *Server, player: *Local_Player, kind: Player_
       case .Mirrors_Constructed; base_score = counter * 2;
       case .Coins_Spent_Total;   base_score = counter * 2;
       case .Coins_Spent_Healing; base_score = counter * 3;
+      case .Emitter_Charges;     base_score = counter * 5;
       case .Damage_Taken;        base_score = counter / 2;
     }
 
