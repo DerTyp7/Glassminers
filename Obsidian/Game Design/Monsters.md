@@ -20,3 +20,7 @@ This also breaks the pattern of existing monsters as this monster actually chase
 ## Knight
 The Knight Monster is a stationary monster that is invulnerable from one side through a shield. It has a slow, medium range attack using a lance. The attack will actually build up for a short while, giving the player time to react to an incoming attack. The attack however deals a lot of damage.
 As the shield blocks the light beam, players will need to bait this knight when trying to kill it, thus creating a big, time consuming challenge for them.
+
+## Fire Bug
+This monster will sometimes appear on lava tiles and attack players adjacent to their tile. They will also disappear after a very short while back into their lava pool. 
+This monster makes lava tiles interesting and different to other blocking tiles (such as simple bedrock). This also makes lava lake biomes more interesting, as the players cannot stay close to a single lava tile for too long. It also puts some pressure on the player to keep moving, making the game more stressful and interesting and keeping the players on their toes.
