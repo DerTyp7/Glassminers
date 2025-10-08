@@ -30,11 +30,12 @@ Nevertheless it should also be possible to merge multiple files in the Sprite Pa
 I imagine the following syntax for the sprite pack file, just giving an example:
 ```
 #
-# Sprite List
+# HAND WRITTEN ENTRIES
 #
 
 # SPRITE <Sprite Identifier>   <Source File Path>   [Frame Index [Layer Name]];
 
+SPRITE Lava pngs/animates/lava-0.png;
 SPRITE Guy_Idle_Back_0   aseprite/guy/guy-idle.aseprite 0 Back;
 SPRITE Guy_Idle_Back_1   aseprite/guy/guy-idle.aseprite 1 Back;
 SPRITE Guy_Idle_Front_0  aseprite/guy/guy-idle.aseprite 0 Front;
@@ -42,30 +43,43 @@ SPRITE Guy_Idle_Front_1  aseprite/guy/guy-idle.aseprite 1 Front;
 SPRITE Guy_Idle_Side_0   aseprite/guy/guy-idle.aseprite 0 Side;
 SPRITE Guy_Idle_Side_1   aseprite/guy/guy-idle.aseprite 1 Side;
 
-SPRITE Lava pngs/animates/lava-0.png;
-
-#
-# Animation List
-#
-
-# ANIMATION <Animation Identifier> <Frame Time> <Flags...> FRAMES <Sprite Ident List...>;
-ANIMATION Guy_Idle_Back 0.15 loop is_idle FRAMES
+# ANIMATION FRAMES <Animation Identifier> <Frame Time> <Flags...> FRAMES <Sprite Ident List...>;
+ANIMATION FRAMES Guy_Idle_Back 0.15 loop is_idle FRAMES
 	Guy_Idle_Back_0
 	Guy_Idle_Back_1;
 	
-ANIMATION Guy_Idle_Front 0.15 loop flip is_idle FRAMES
+ANIMATION FRAMES Guy_Idle_Front 0.15 loop flip is_idle FRAMES
 	Guy_Idle_Front_0
 	Guy_Idle_Front_1;
 	
-ANIMATION Guy_Idle_Side 0.15 loop is_idle FRAMES
+ANIMATION FRAMES Guy_Idle_Side 0.15 loop is_idle FRAMES
 	Guy_Idle_Side_0
 	Guy_Idle_Side_1;
-	
+
+# GROUP ANIMATIONS <Group Identifier> [(<Direction> <Animation Ident>)...];
+
+GROUP ANIMATIONS Guy_Idle 
+	NORTH Guy_Idle_Back 
+	SOUTH Guy_Idle_Front 
+	EAST Guy_Idle_Side 
+	WEST Guy_Idle_Side;
+
+
 #
-# Animation Group List
+# SEMI AUTOMATED IMPORT
 #
 
-# GROUP <Group Identifier> [(<Direction> <Animation Ident>)...];
+# ANIMATION FILE <Animation Identifier> <Aseprite File> <Layer Name>;
+# This also registers the sprite identifiers, by appending the frame indices
+#    as ``_N`` after the animation identifier.
 
-GROUP Guy_Idle NORTH Guy_Idle_Back SOUTH Guy_Idle_Front EAST Guy_Idle_Side WEST Guy_Idle_Side;
+ANIMATION FILE Guy_Walk_Back aseprite/guy/guy-walking.aseprite Back;
+
+# GROUP FILE <Group Identifier> <Aseprite File>;
+# This also registers the animation identifiers, by appending _Back, _Front and
+#    _Side after the group identifier. This therefore also recursively registers
+#    the sprite identifiers.
+
+GROUP FILE Guy_Damanged;
+
 ```
