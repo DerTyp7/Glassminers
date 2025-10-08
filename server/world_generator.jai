@@ -327,7 +327,16 @@ is_reserved_position :: (server: *Server, position: v2i, helper: *Biome_Helper) 
         return true;
     
     if helper.previous_emitter {
-        if position.x == helper.previous_emitter.physical_position.x + 1 && position.y == helper.previous_emitter.physical_position.y return true;
+        distance_to_emitter := abs(position.x - helper.previous_emitter.physical_position.x) + abs(position.y - helper.previous_emitter.physical_position.y);
+
+        // We want to make sure the players can actually reach the emitter, e.g. to recharge it
+        // and to use the lightbeam to kill monsters. Otherwise, this could be pretty annoying.
+        // 
+        //  B   | '<' represents the emitter
+        // <BB  | 'B' represents a reserved position
+        //  B   |
+
+        if distance_to_emitter <= 2 return true;
     }
     
     return false;

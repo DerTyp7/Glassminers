@@ -2,6 +2,7 @@
 
 - Added a new statistic tracking the number of times a player charged an emitter
 - Added a crash handler in play-testing builds that prints out a `crash.log` file
+- Fixed entities generated at positions where they block access to the emitter
 
 ## 0.4.2 (03.10.2025)
 
