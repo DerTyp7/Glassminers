@@ -443,6 +443,8 @@ fill_lava_biome :: (server: *Server, section: [2]s32) {
 
     LEFT_OFFSET:  s32 = 3;
     RIGHT_OFFSET: s32 = 1;
+    first_lake_x    := section[0] + LEFT_OFFSET;
+    lake_half_width := ((section[1] - section[0]) - (RIGHT_OFFSET + LEFT_OFFSET)) / 2;
 
     // Generate some rocks on the left
     {
@@ -453,29 +455,36 @@ fill_lava_biome :: (server: *Server, section: [2]s32) {
         generate_n_random_entities(server, *helper, .Crystal, crystal_count, true);
     }
 
-    spawn_table: []struct { weight: s64; kind: Entity_Kind; } = .[
-        .{ 100, .Lava },
-        .{  80, .Count },
-        .{  20, .Goblin },
-        .{  10, .Rock },
-        .{   2, .Crystal },
-    ];
-
-    total_weight := 0;
-    for i := 0; i < spawn_table.count; ++i total_weight += spawn_table[i].weight;
-
     // Generate the actual lava lake including islands
     for x := section[0] + LEFT_OFFSET; x < section[1] - RIGHT_OFFSET; ++x {
+        // Set up the spawn weights. These weights indicate the chances of different entities
+        // spawning at this position.
+        // We want to generate a little bridge in the middle of the lava lake to make it a
+        // little easier to survive...
+        lava_weight: s64 = min(abs((x - first_lake_x - lake_half_width)) * 50, 100);
+
+        spawn_weights: []struct { weight: s64; kind: Entity_Kind; } = .[
+            .{ lava_weight, .Lava },
+            .{  50, .Count },
+            .{  10, .Rock },
+            .{   5, .Goblin },
+            .{   2, .Crystal },
+        ];
+        
+        total_weight := 0;
+        for i := 0; i < spawn_weights.count; ++i total_weight += spawn_weights[i].weight;
+
+        // Spawn random entities in this column based on the weight table
         for y := 0; y < SECTION_HEIGHT; ++y {
             target_weight := random_u64_in(*server.world_random, 0, total_weight);
             entity_kind: Entity_Kind = ---;
 
-            for i := 0; i < spawn_table.count; ++i {
-                if target_weight < spawn_table[i].weight {
-                    entity_kind = spawn_table[i].kind;
+            for i := 0; i < spawn_weights.count; ++i {
+                if target_weight < spawn_weights[i].weight {
+                    entity_kind = spawn_weights[i].kind;
                     break;
                 } else {
-                    target_weight -= spawn_table[i].weight;
+                    target_weight -= spawn_weights[i].weight;
                 }
             }
 
