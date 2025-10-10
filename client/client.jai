@@ -355,7 +355,7 @@ disconnect_from_server :: (client: *Client) {
 start_lobby :: (client: *Client) {
     msg := make_message(Request_Game_Start_Message);
     msg.request_game_start.game_mode = client.config.requested_game_mode;
-    send_reliable_message(*client.connection, *msg);
+    array_add(*client.outgoing_messages, msg);
 }
 
 maybe_shutdown_server :: (client: *Client) {
@@ -757,12 +757,27 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
     }
 }
 
+send_outgoing_messages :: (client: *Client) {
+#if DEVELOPER {
+    now := os_get_cpu_time();
+}
+
+    for i := 0; i < client.outgoing_messages.count; ++i {
+        message := array_get_pointer(*client.outgoing_messages, i);
+        send_reliable_message(*client.connection, message);
+
+#if DEVELOPER   register_message_history(client, *client.outgoing_message_history, message);
+    }
+
+    array_clear(*client.outgoing_messages);
+}
+
 send_player_information_message :: (client: *Client, local_player_index: s64) {
     msg := make_message(Player_Information_Message);
     msg.player_information.local_player_index = local_player_index;
     msg.player_information.client_pid = client.my_client_pid;
     msg.player_information.name = client.local_players[local_player_index].name;
-    send_reliable_message(*client.connection, *msg);
+    array_add(*client.outgoing_messages, msg);
 }
 
 read_incoming_packets :: (client: *Client) {
@@ -1141,7 +1156,7 @@ do_lobby_screen :: (client: *Client) {
                 msg := make_message(Remove_Local_Player_Message);
                 msg.remove_local_player.client_pid = client.my_client_pid;
                 msg.remove_local_player.local_player_index = client.local_player_count - 1;
-                send_reliable_message(*client.connection, *msg);
+                array_add(*client.outgoing_messages, msg);
                 --client.local_player_count;
             }
         }
@@ -1266,7 +1281,9 @@ main :: (args: []string) -> s32 {
 
     logprint(.Info, "Starting the client...");
     
-    client: Client;
+    underlying_client: Client;
+    client := *underlying_client;
+
     create_memory_pool(*client.engine_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
     client.engine_allocator = allocator_from_memory_pool(*client.engine_pool);
     create_memory_pool(*client.world_pool, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes);
@@ -1274,12 +1291,12 @@ main :: (args: []string) -> s32 {
     create_memory_arena(*client.tick_arena, 32 * Memory_Unit.Megabytes, 128 * Memory_Unit.Kilobytes, false);
     client.tick_allocator = allocator_from_memory_arena(*client.tick_arena);
 
-    create_config(*client);
+    create_config(client);
 
 #if MEMORY_DEBUGGING {
     create_file_printer(*client.memory_debug_printer, *temp, "memory.log");
     //create_stdio_printer(*client.memory_debug_printer, *temp);
-    callback: Allocator_Callback = .{ ---, allocator_callback_procedure, *client };
+    callback: Allocator_Callback = .{ ---, allocator_callback_procedure, client };
     install_allocator_callback(*callback);
 }
     
@@ -1289,17 +1306,17 @@ main :: (args: []string) -> s32 {
     add_file_to_watch(*client.pack_watchdog, "data/sprite-pack.txt");
 }
 
-    create_window(*client.window, "Glassminers", client.window.x, client.window.y, client.window.w, client.window.h, desired_window_style(*client));
+    create_window(*client.window, "Glassminers", client.window.x, client.window.y, client.window.w, client.window.h, desired_window_style(client));
 
 #if OS == .Windows {
     set_window_icon_from_resource_name(*client.window, "IDI_ICON1");
 }
     
-    create_ui(*client.ui, 1024, draw_ui_callbacks(*client), UI_Dark_Theme, *client.window, *client.ui_font);
+    create_ui(*client.ui, 1024, draw_ui_callbacks(client), UI_Dark_Theme, *client.window, *client.ui_font);
     create_mixer(*client.mixer, *client.engine_allocator, 16);
-    register_all_input_bindings(*client);
+    register_all_input_bindings(client);
 
-    startup_success := create_draw_data(*client) && create_animation_data(*client) && create_sound_data(*client);
+    startup_success := create_draw_data(client) && create_animation_data(client) && create_sound_data(client);
     if !startup_success return -1;
         
     client.remote_players.allocator = *client.engine_allocator;
@@ -1307,8 +1324,8 @@ main :: (args: []string) -> s32 {
     client.requested_tutorial_panels.allocator = *client.engine_allocator;
     client.outgoing_messages.allocator = *temp;
     client.current_state = .Count;
-    initiate_state_transition(*client, .Main_Menu, 0);
-    maybe_transition_to_next_state(*client);
+    initiate_state_transition(client, .Main_Menu, 0);
+    maybe_transition_to_next_state(client);
     
     //
     // Main loop
@@ -1322,7 +1339,7 @@ main :: (args: []string) -> s32 {
 #if DEVELOPER {
         changed_sprites := update_file_watcher(*client.sprite_watchdog, *temp);
         if changed_sprites.count {
-            reload_sprite_atlases_from_disk(*client);
+            reload_sprite_atlases_from_disk(client);
         }
 
         changed_sounds := update_file_watcher(*client.sound_watchdog, *temp);
@@ -1347,22 +1364,22 @@ main :: (args: []string) -> s32 {
         for i := 0; i < changed_packs.count; ++i {
             filepath := array_get(*changed_packs, i);
             if filepath == "data/animation-pack.txt" {
-                destroy_animation_data(*client);
-                create_animation_data(*client);
+                destroy_animation_data(client);
+                create_animation_data(client);
             } else if filepath == "data/sprite-pack.txt" {
-                reload_sprite_atlases_from_disk(*client);
+                reload_sprite_atlases_from_disk(client);
             }
         }
 
-        maybe_reload_config(*client);
+        maybe_reload_config(client);
 }
         
         //
         // Handle transitions
         //
         client.tick_time = client.window.frame_time;
-        maybe_transition_to_next_state(*client);
-        maybe_update_ui_scale(*client);
+        maybe_transition_to_next_state(client);
+        maybe_update_ui_scale(client);
         
         //
         // Do one frame
@@ -1374,9 +1391,9 @@ main :: (args: []string) -> s32 {
             
             update_window(*client.window);
             begin_ui_frame(*client.ui, .{ 128, 24 });
-            reset_input_binding_tracker(*client);
+            reset_input_binding_tracker(client);
 
-            if input_action_fired_globally(*client, .Toggle_Fullscreen, .Pressed) {
+            if input_action_fired_globally(client, .Toggle_Fullscreen, .Pressed) {
                 if client.window.fullscreen {
                     set_window_style(*client.window, .Maximized);
                 } else {
@@ -1385,14 +1402,15 @@ main :: (args: []string) -> s32 {
             }
             
             if #complete client.current_state == {
-              case .Main_Menu;  do_main_menu(*client);
-              case .Connecting; do_connecting_screen(*client);
-              case .Lobby;      do_lobby_screen(*client);
-              case .Ingame;     do_game_tick(*client);
-              case .Game_Over;  do_game_over_screen(*client);
+              case .Main_Menu;  do_main_menu(client);
+              case .Connecting; do_connecting_screen(client);
+              case .Lobby;      do_lobby_screen(client);
+              case .Ingame;     do_game_tick(client);
+              case .Game_Over;  do_game_over_screen(client);
             }
 
-            update_input_binders(*client);
+            send_outgoing_messages(client);
+            update_input_binders(client);
 
             #if DEVELOPER {
                 client.total_update_time = os_convert_cpu_time(os_get_cpu_time() - begin, .Milliseconds);
@@ -1425,49 +1443,49 @@ main :: (args: []string) -> s32 {
                     color := GE_Color.{ 200, 200, 200, cast(u8) (alpha * 255) };
 
                     text := tprint("%: ", client.local_players[input.local_player_index].name);
-                    draw_text_screen_space(*client, *client.ui_font, text, .{ x, y }, .Right | .Median, color, .Default);
-                    draw_sprite_screen_space(*client, input.sprite_index, .{ x + 16, y }, .{ 32, 32 }, 0, color, false);
+                    draw_text_screen_space(client, *client.ui_font, text, .{ x, y }, .Right | .Median, color, .Default);
+                    draw_sprite_screen_space(client, input.sprite_index, .{ x + 16, y }, .{ 32, 32 }, 0, color, false);
                     
                     y -= 34;
                 }
 
                 if !client.test_inputs.count {
-                    text := tprint("Try pressing %...", input_bindings_string(*client, .Interact_Primary));
-                    draw_text_screen_space(*client, *client.ui_font, text, .{ x + 32, y }, .Right | .Median, GRAY_COLOR, .Default);
+                    text := tprint("Try pressing %...", input_bindings_string(client, .Interact_Primary));
+                    draw_text_screen_space(client, *client.ui_font, text, .{ x + 32, y }, .Right | .Median, GRAY_COLOR, .Default);
 
                 }
                 
               case .Main_Menu, .Connecting, .Game_Over;
-                draw_text_screen_space(*client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, WHITE_COLOR, .Default);
+                draw_text_screen_space(client, *client.title_font, "GlassMiners", .{ xx client.window.w / 2, xx client.window.h / 4 }, .Center | .Median, WHITE_COLOR, .Default);
                 if client.info_text_t >= 0 {
-                    draw_text_screen_space(*client, *client.ui_font, client.info_text, .{ xx client.window.w / 2, xx (client.window.h / 4 + client.title_font.line_height) }, .Center | .Median, YELLOW_COLOR, .Default);
+                    draw_text_screen_space(client, *client.ui_font, client.info_text, .{ xx client.window.w / 2, xx (client.window.h / 4 + client.title_font.line_height) }, .Center | .Median, YELLOW_COLOR, .Default);
                     client.info_text_t -= client.tick_time;
                 }
                 
               case .Ingame;
                 for i := 0; i < client.local_player_count; ++i {
-                    draw_world(*client, *client.local_players[i]);
-                    draw_player_hud(*client, *client.local_players[i]);
+                    draw_world(client, *client.local_players[i]);
+                    draw_player_hud(client, *client.local_players[i]);
                 }
 
-                draw_viewport_information(*client);
-                draw_stat_hud(*client);
-                draw_global_hud(*client);
+                draw_viewport_information(client);
+                draw_stat_hud(client);
+                draw_global_hud(client);
 
-                if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
+                if client.pause_menu_open || client.server_paused_game draw_rect_screen_space(client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ 0, 0, 0, 160 });
 
                 if client.server_paused_game {
-                    draw_text_screen_space(*client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2, xx client.window.h * 0.25 }, .Center | .Median, ORANGE_COLOR, .Shadow);
+                    draw_text_screen_space(client, *client.title_font, "Game Paused!", .{ xx client.window.w / 2, xx client.window.h * 0.25 }, .Center | .Median, ORANGE_COLOR, .Shadow);
                 }
 
                 #if DEVELOPER {
                     if client.shadow_hud_enabled {
                         for i := 0; i < client.local_player_count; ++i {
-                            draw_shadow_hud(*client, *client.local_players[i]);
+                            draw_shadow_hud(client, *client.local_players[i]);
                         }
                     }
 
-                    if client.sound_hud_enabled then draw_sound_hud(*client);
+                    if client.sound_hud_enabled then draw_sound_hud(client);
                 }
                 
                 ge_imm2d_flush(*client.graphics);
@@ -1478,16 +1496,16 @@ main :: (args: []string) -> s32 {
                 alpha := cast(u8) (clamp(1 - client.state_transition_t / client.state_transition_duration, 0, 1) * 255);
 
                 FADE_COLOR: GE_Color : .{ 0, 0, 0, 255 };
-                draw_rect_screen_space(*client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ FADE_COLOR.r, FADE_COLOR.g, FADE_COLOR.b, alpha });
+                draw_rect_screen_space(client, .{ 0, 0 }, .{ xx client.window.w, xx client.window.h }, .{ FADE_COLOR.r, FADE_COLOR.g, FADE_COLOR.b, alpha });
             }
 
-            draw_text_screen_space(*client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
+            draw_text_screen_space(client, *client.ui_font, VERSION_STRING, .{ 10, xx client.window.h - 10 }, .Left | .Bottom, GRAY_COLOR, .Default);
 
             #if DEVELOPER {
                 ff :: (time: f32) -> Print_Format { return format_float(xx time, 0, 2); }
 
                 timings := tprint("Update: % | Draw: % | Frame: %", ff(client.total_update_time), ff(client.total_draw_time), ff(client.window.frame_time * 1000));
-                draw_text_screen_space(*client, *client.ui_font, timings, .{ xx client.window.w - 10, xx 10 }, .Right | .Top, GRAY_COLOR, .Default);
+                draw_text_screen_space(client, *client.ui_font, timings, .{ xx client.window.w - 10, xx 10 }, .Right | .Top, GRAY_COLOR, .Default);
                 
                 ge_imm2d_flush(*client.graphics);
                 client.draw_call_count_before_ui = client.graphics.draw_call_count;
@@ -1511,7 +1529,7 @@ main :: (args: []string) -> s32 {
             for i := 0; i < client.local_player_count; ++i {
                 local_player := *client.local_players[i];
                 if local_player.input_binder.active_input_device == .Gamepad {
-                    entity := get_entity(*client, local_player.guy_pid);
+                    entity := get_entity(client, local_player.guy_pid);
                     guy := down(entity, Guy);
                     
                     digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
@@ -1531,7 +1549,7 @@ main :: (args: []string) -> s32 {
         // Render one audio frame
         //
         {
-            update_sound_players(*client);
+            update_sound_players(client);
             update_mixer(*client.mixer);
 
             client.sounds_played_this_frame = .[ false ];
@@ -1547,18 +1565,18 @@ main :: (args: []string) -> s32 {
     }
     
     // Shut down all resources that might currently be in use
-    initiate_state_transition(*client, .Count, 0);
-    save_config(*client);
-    maybe_transition_to_next_state(*client);
+    initiate_state_transition(client, .Count, 0);
+    save_config(client);
+    maybe_transition_to_next_state(client);
 
     //
     // Destroy the engine
     //
-    destroy_config(*client);
-    destroy_all_sounds(*client);
+    destroy_config(client);
+    destroy_all_sounds(client);
     destroy_mixer(*client.mixer);
     destroy_ui(*client.ui);
-    destroy_draw_data(*client);
+    destroy_draw_data(client);
     destroy_window(*client.window);
     destroy_memory_arena(*client.tick_arena);
     destroy_memory_pool(*client.world_pool);

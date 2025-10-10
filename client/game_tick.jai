@@ -306,22 +306,6 @@ do_game_tick :: (client: *Client) {
             array_add(*client.outgoing_messages, msg);
         }
     }
-    
-    // Send all outgoing messages
-    {
-#if DEVELOPER {
-        now := os_get_cpu_time();
-}
-
-        for i := 0; i < client.outgoing_messages.count; ++i {
-            message := array_get_pointer(*client.outgoing_messages, i);
-            send_reliable_message(*client.connection, message);
-
-#if DEVELOPER   register_message_history(client, *client.outgoing_message_history, message);
-        }
-
-        array_clear(*client.outgoing_messages);
-    }
 
     physically_remove_dead_particle_systems(client);
     physically_remove_dead_entities(client);
