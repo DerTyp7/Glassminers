@@ -16,7 +16,7 @@
 
 // Server
 #load "world_generator.jai";
-#load "game_tick.jai";
+#load "tick.jai";
 #load "entity.jai";
 #load "pathfinder.jai";
 #load "stats.jai";
@@ -24,6 +24,13 @@
 TICK_RATE: f32 : 60;
 DEVELOPER   :: #run compiler_is_user_option_present("Developer");
 BAKE_ASSETS :: !DEVELOPER;
+
+Log_Level :: enum {
+    Debug;
+    Info;
+    Warning;
+    Error;
+}
 
 Local_Player :: struct {
     guy_pid: Pid = INVALID_PID;
@@ -86,13 +93,6 @@ Server :: struct {
     #using em: Entity_Manager;
 }
 
-Log_Level :: enum {
-    Debug;
-    Info;
-    Warning;
-    Error;
-}
-
 logprint :: (level: Log_Level, format: string, args: ..Any) {
     ff :: (value: s64) -> Print_Format {
         return format_int(value, .Decimal, true, false, 2);
@@ -129,211 +129,6 @@ find_client_by_pid :: (server: *Server, pid: Pid) -> *Remote_Client {
     return null;
 }
 
-handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
-    logprint(.Debug, "Disconnected from client '%'.", client.client_pid);
-
-    if server.current_state == .Ingame {
-        for i := 0; i < client.local_player_count; ++i {
-            entity := get_entity(server, client.local_players[i].guy_pid);
-            
-            // Drop items carried by player
-            guy := down(entity, Guy);
-            if guy.carrying_item != .Count {
-                try_to_place_item(server, guy.physical_position, guy.carrying_item, guy, null);
-            }
-            
-            remove_entity(server, entity);
-        }
-    }
-        
-    msg := make_message(Client_Disconnect_Message);
-    msg.client_disconnect.client_pid = client.client_pid;
-    array_add(*server.outgoing_messages, msg);
-    
-    for i := 0; i < client.local_player_count; ++i {
-        if client.local_players[i].name deallocate_string(*server.engine_allocator, *client.local_players[i].name);
-    }
-    
-    array_remove_value_pointer(*server.clients, client);
-}
-
-send_all_outgoing_messages :: (server: *Server) {
-    for j := 0; j < server.clients.count; ++j {
-        client := array_get_pointer(*server.clients, j);
-        send_reliable_messages(*client.connection, *server.outgoing_messages);
-    }
-    
-    array_clear_without_deallocation(*server.outgoing_messages);    
-}
-
-handle_incoming_message :: (server: *Server, msg: *Message) {
-    if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .Player_Stat, .Global_Stat, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Torch_State, .Frog_State, .Goblin_State, .Slime_State, .Void_Eye_State; // Ignore
-
-      case .Player_Information;
-        // Respond to this specific player by sending all other already-connected clients
-        local_client := find_client_by_pid(server, msg.player_information.client_pid);
-        for i := 0; i < server.clients.count; ++i {
-            other_client := array_get_pointer(*server.clients, i);
-
-            for j := 0; j < other_client.local_player_count; ++j {
-                other_player := *other_client.local_players[j];
-                
-                target_msg := make_message(Player_Information_Message);
-                target_msg.player_information.local_player_index = j;
-                target_msg.player_information.client_pid = other_client.client_pid;
-                target_msg.player_information.name       = other_player.name;
-                target_msg.player_information.guy_pid    = other_player.guy_pid;
-                send_reliable_message(*local_client.connection, *target_msg);
-            }
-        }
-        
-        // Store the information locally
-        local_client.local_player_count = max(local_client.local_player_count, msg.player_information.local_player_index + 1);
-        local_player := *local_client.local_players[msg.player_information.local_player_index];
-        if local_player.name deallocate_string(*server.engine_allocator, *local_player.name);
-        local_player.name = copy_string(*server.engine_allocator, msg.player_information.name);
-        
-        logprint(.Debug, "Client '%' set their '%'th name to '%'.", local_client.client_pid, msg.player_information.local_player_index, local_player.name);
-        
-        // Broadcast the message along
-        broadcasted_msg := make_message(Player_Information_Message);
-        broadcasted_msg.player_information.local_player_index = msg.player_information.local_player_index;
-        broadcasted_msg.player_information.client_pid = local_client.client_pid;
-        broadcasted_msg.player_information.guy_pid    = local_player.guy_pid;
-        broadcasted_msg.player_information.name       = local_player.name;
-        array_add(*server.outgoing_messages, broadcasted_msg);
-
-      case .Remove_Local_Player;
-        local_client := find_client_by_pid(server, msg.remove_local_player.client_pid);
-        if msg.remove_local_player.local_player_index + 1 < local_client.local_player_count {
-            copy_memory(*local_client.local_players[msg.remove_local_player.local_player_index], *local_client.local_players[msg.remove_local_player.local_player_index + 1], (local_client.local_player_count - msg.remove_local_player.local_player_index - 1) * size_of(Local_Player));
-        }
-        --local_client.local_player_count;
-
-        // Broadcast the message along
-        broadcasted_msg := make_message(Remove_Local_Player_Message);
-        broadcasted_msg.remove_local_player.local_player_index = msg.remove_local_player.local_player_index;
-        broadcasted_msg.remove_local_player.client_pid = local_client.client_pid;
-        array_add(*server.outgoing_messages, broadcasted_msg);
-        
-      case .Request_Game_Start;
-        server.game_mode = msg.request_game_start.game_mode;
-        server.next_state = .Ingame;
-
-      case .Request_Game_Forfeit;
-        client := find_client_by_pid(server, msg.request_game_forfeit.client_pid);
-        client.requested_game_forfeit = true;
-
-      case .Game_Pause;
-        target := find_client_by_pid(server, msg.game_pause.client_pid);
-        target.currently_requesting_pause = msg.game_pause.should_pause;
-
-        paused_before := server.game_paused;
-        server.game_paused = false;
-
-        for i := 0; i < server.clients.count; ++i {
-            if array_get_pointer(*server.clients, i).currently_requesting_pause {
-                server.game_paused = true;
-            }
-        }
-
-        if paused_before != server.game_paused {
-            msg := make_message(Game_Pause_Message);
-            msg.game_pause.client_pid = INVALID_PID;
-            msg.game_pause.should_pause = server.game_paused;
-            array_add(*server.outgoing_messages, msg);
-        }
-        
-      case .Guy_Input;
-        entity := get_entity(server, msg.guy_input.guy_pid);
-        guy := down(entity, Guy);
-
-        // We want to ensure a deterministic order in which entities are updated on the server.
-        // Guys are just normal entities that are updated at a specific time during the tick,
-        // so just remember the player input for later.
-        if guy.received_inputs_count < guy.received_inputs.Capacity {
-            guy.received_inputs[guy.received_inputs_count] = msg.guy_input;
-            guy.received_inputs_count += 1;
-        } else {
-            logprint(.Warning, "Too many inputs for guy this tick, dropping input!");
-        }
-
-      case .Chest_State;
-        entity := get_entity(server, msg.chest_state.entity_pid);
-        chest := down(entity, Chest);
-        update_visual_chest_state(server, chest, msg.chest_state.visually_open);
-    }
-}    
-
-read_incoming_packets :: (server: *Server) {
-    if server.current_state == .Lobby {
-        client_connection, valid_connection := accept_tcp_remote_client_connection(*server.connection);
-
-        while valid_connection {
-            client := array_push(*server.clients);
-            client.connection   = client_connection;
-            client.client_pid   = server.client_pid_counter;
-            client.local_player_count = 0;
-            client.connection.info.client_id = client.client_pid;
-            ++server.client_pid_counter;
-            
-            logprint(.Debug, "Connected to client '%'.", client.client_pid);
-
-            client_connection, valid_connection = accept_tcp_remote_client_connection(*server.connection);
-        }
-    }
-    
-    for i := 0; i < server.clients.count; ++i {
-        client := array_get_pointer(*server.clients, i);
-
-        while read_packet(*client.connection) {
-            packet :: *client.connection.incoming_packet;
-            
-            if packet.header.packet_type == {
-              case Packet_Type.Connection_Request;
-                send_connection_established_packet(*client.connection, 1, VERSION_STRING);
-                
-              case Packet_Type.Connection_Closed;
-                client := find_client_by_pid(server, packet.header.sender_client_id);
-                if client then handle_client_disconnect(server, client);
-                
-              case Packet_Type.Ping;
-                client := find_client_by_pid(server, packet.header.sender_client_id);
-                if client {
-                    update_virtual_connection_information_for_packet(*client.connection, *packet.header);
-                    send_ping_packet(*client.connection, .{ packet.body_size, packet.body });
-                }
-                
-              case Packet_Type.Message;
-                client := find_client_by_pid(server, packet.header.sender_client_id);
-                if client {
-                    update_virtual_connection_information_for_packet(*client.connection, *packet.header);
-                    
-                    msg: Message = ---;
-                    while read_message(packet, *msg) {
-                        handle_incoming_message(server, *msg);
-                    }
-                }
-            }
-        }    
-    }
-}
-    
-handle_client_timeouts :: (server: *Server) {
-    now := os_get_cpu_time();
-
-    for i := 0; i < server.clients.count; {
-        client := array_get_pointer(*server.clients, i);
-
-        if os_convert_cpu_time(now - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
-            handle_client_disconnect(server, client);
-        } else {
-            ++i;
-        }
-    }
-}
-
 switch_to_next_state :: (server: *Server) {
     // logprint(.Debug, "Switching from '%' to '%'...", server.current_state, server.next_state);
 
@@ -353,67 +148,6 @@ switch_to_next_state :: (server: *Server) {
       case .Ingame;
         create_the_game(server);
     }
-}
-
-create_the_game :: (server: *Server) {
-    reset_allocator(*server.world_allocator);
-    create_entity_manager(server);
-    reset_all_statistics(server);
-    increment_global_statistic(server, .Sections_Reached);
-
-    server.current_section_index    = 0;
-    server.void_eyes_spawn_cooldown = 5;    
-    server.flag_pid   = INVALID_PID;
-    server.world_size = get_initial_world_size(server);
-    server.game_seed  = os_get_cpu_time();
-    seed_random_generator(*server.world_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
-    seed_random_generator(*server.entity_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
-
-    create_lightmap(*server.lightmap, *server.world_allocator, server.world_size);
-    
-    //
-    // Notify the clients about the game seed
-    //
-    game_start := make_message(Game_Start_Message);
-    game_start.game_start.seed = server.game_seed;
-    game_start.game_start.size = server.world_size;
-    game_start.game_start.game_mode = server.game_mode;
-    array_add(*server.outgoing_messages, game_start);
-
-    //
-    // Generate one entity for each player and attach it to the player
-    //
-    total_index := 0;
-    for i := 0; i < server.clients.count; ++i {
-        client := array_get_pointer(*server.clients, i);
-
-        for j := 0; j < client.local_player_count; ++j {
-            player := *client.local_players[j];
-
-            entity := create_entity(server, .Guy, .{ 2 + total_index, 2 }, .North);
-            player.guy_pid = entity.pid;
-            
-            msg := make_message(Player_Information_Message);
-            msg.player_information.local_player_index = j;
-            msg.player_information.client_pid = client.client_pid;
-            msg.player_information.guy_pid    = player.guy_pid;
-            msg.player_information.name       = player.name;
-            array_add(*server.outgoing_messages, msg);
-
-            ++total_index;
-        }
-    }
-
-    //
-    // Generate the first section
-    //
-    generate_initial_world_section(server);
-}
-
-do_lobby_tick :: (server: *Server) {
-    read_incoming_packets(server);
-    handle_client_timeouts(server);
-    send_all_outgoing_messages(server);
 }
 
 server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
@@ -456,7 +190,6 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
         tick_start := os_get_cpu_time();
 
         server.tick_time = 1 / TICK_RATE;
-
         if server.current_state != server.next_state switch_to_next_state(*server);
         
         //
@@ -470,6 +203,7 @@ server_entry_point :: (data: *Shared_Server_Data) -> u32 #export {
             server.next_state = .Count;
         }
 
+        send_all_outgoing_messages(*server);
         release_temp_allocator(0);
         
         tick_end := os_get_cpu_time();
