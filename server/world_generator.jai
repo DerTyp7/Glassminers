@@ -77,7 +77,7 @@ generate_next_world_section :: (server: *Server) {
 
 #file_scope
 
-LAVA_BIOME_OCCURANCE :: 5;
+LAVA_BIOME_OCCURANCE :: 1;
 
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 MINESHAFT_SPAWN_PROBABILITY_TABLE :: #run setup_mineshaft_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
@@ -465,9 +465,9 @@ fill_lava_biome :: (server: *Server, section: [2]s32) {
 
         spawn_weights: []struct { weight: s64; kind: Entity_Kind; } = .[
             .{ lava_weight, .Lava },
-            .{  50, .Count },
-            .{  10, .Rock },
-            .{   5, .Goblin },
+            .{  48, .Count },
+            .{   8, .Rock },
+            .{   7, .Frog },
             .{   2, .Crystal },
         ];
         
