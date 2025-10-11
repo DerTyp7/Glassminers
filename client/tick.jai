@@ -753,8 +753,6 @@ do_lobby_screen :: (client: *Client) {
 
         ui_divider(ui, true);
 
-        local_player_name_data: UI_Text_Input_Data;
-
         {
             ui_label(ui, true, "Local Players");
 
@@ -762,10 +760,10 @@ do_lobby_screen :: (client: *Client) {
                 ui_push_container(ui, .Horizontal);
                 ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
 
-                local_player_name_data = ui_text_input(ui, "Name", .Everything);
+                confirmed := ui_text_input_with_string_pointer(ui, "Name", *client.new_local_player_name, true, *client.engine_allocator);
 
-                if ui_button(ui, "Add!") || local_player_name_data.confirmed {
-                    maybe_add_local_player(client, local_player_name_data._string);
+                if ui_button(ui, "Add!") || confirmed {
+                    maybe_add_local_player(client);
                 }
 
                 ui_pop_width(ui);
@@ -786,7 +784,7 @@ do_lobby_screen :: (client: *Client) {
         do_game_mode_selector(client);
         
         if ui_button(ui, "Start!") {
-            if local_player_name_data.valid maybe_add_local_player(client, local_player_name_data._string); // Add a new local player when somebody typed in the name but forgot to press "Add!"
+            maybe_add_local_player(client); // Add a new local player when somebody typed in the name but forgot to press "Add!"
             send_game_start_request_message(client);
         }
         

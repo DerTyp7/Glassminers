@@ -189,6 +189,7 @@ Client :: struct {
     // Lobby Screen
     //
     immediately_start_game: bool = false; // Lobby screen, after pressing "single player" in the main menu
+    new_local_player_name: string = "";
     test_inputs: [..]Test_Input;
 
     //
@@ -448,16 +449,17 @@ maybe_update_ui_scale :: (client: *Client) {
     }
 }
 
-maybe_add_local_player :: (client: *Client, local_player_name: string) {
-    if client.local_player_count >= MAX_LOCAL_PLAYERS || local_player_name.count == 0 return;
+maybe_add_local_player :: (client: *Client) {
+    if client.local_player_count >= MAX_LOCAL_PLAYERS || client.new_local_player_name.count == 0 return;
 
-    client.local_players[client.local_player_count].name = copy_string(*client.engine_allocator, local_player_name);
+    client.local_players[client.local_player_count].name = client.new_local_player_name;
     client.local_players[client.local_player_count].input_binder.allowed_input_devices = .Gamepad;
     ++client.local_player_count;
 
     if client.local_players[0].input_binder.allowed_input_devices == .ALL then client.local_players[0].input_binder.allowed_input_devices = .Keyboard;
 
     send_player_information_message(client, client.local_player_count - 1);
+    client.new_local_player_name = .{};
 }
 
 main :: (args: []string) -> s32 {
