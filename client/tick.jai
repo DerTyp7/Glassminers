@@ -265,7 +265,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             if #complete msg.guy_state.state == {
               case .Digging;      guy.sound = play_sound_on_entity(client, .Guy_Digging_0, entity, .Looping);
               case .Carrying;     guy.sound = play_sound_on_entity(client, .Hud_Pickup_0, entity, .Default);
-              case .Resurrecting; guy.resurrection_t = 0;
+              case .Resurrecting; 
+                guy.sound = play_sound_on_entity(client, .Guy_Resurrecting_0, entity, .Default);
+                guy.resurrection_t = 0;
               case .Dead;
                 guy.sound = play_sound_on_entity(client, .Guy_Death_0, entity, .Default);
                 play_animation_from_group(client, guy, .Guy_Dead);

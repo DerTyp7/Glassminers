@@ -30,6 +30,7 @@ Sound_Index :: enum {
     Guy_Damaged_0;
     Guy_Digging_0;
     Guy_Death_0;
+    Guy_Resurrecting_0;
     Guy_Walk_0;
     Guy_Walk_1;
         
@@ -79,6 +80,7 @@ SOUND_FILEPATH_MAP: [Sound_Index.Count]string : .[
     "guy-damaged-0",
     "guy-digging-0",
     "guy-death-0",
+    "guy-resurrecting-0",
     "guy-walk-0",
     "guy-walk-1",
 
