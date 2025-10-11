@@ -6,13 +6,6 @@ handle_client_disconnect :: (server: *Server, client: *Remote_Client) {
     if server.current_state == .Ingame {
         for i := 0; i < client.local_player_count; ++i {
             entity := get_entity(server, client.local_players[i].guy_pid);
-            
-            // Drop items carried by player
-            guy := down(entity, Guy);
-            if guy.carrying_item != .Count {
-                try_to_place_item(server, guy.physical_position, guy.carrying_item, guy, null);
-            }
-            
             remove_entity(server, entity);
         }
     }
@@ -695,7 +688,7 @@ consume_resources_from_guy :: (server: *Server, guy: *Guy, resources: []Item_Kin
         resource := resources[i];
 
         if guy.state == .Carrying && guy.carrying_item == resource {
-            switch_guy_state(server, guy, .Idle);
+            take_item_from_hand(server, guy);
         } else if item_stack && item_stack.item_kind == resource && item_stack.count {
             take_item_from_stack(server, item_stack);            
         } else {
@@ -807,7 +800,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
                 emitter := down(target_entity, Emitter);
                 if emitter.state == .Active {
                     set_emitter_state(server, emitter, .Active, emitter.current_charge + COAL_EMITTER_CHARGE);
-                    switch_guy_state(server, guy, .Idle);
+                    take_item_from_hand(server, guy);
                     increment_player_statistic(server, guy.pid, .Emitter_Charges);
                 }
             } else if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Flag {
@@ -820,10 +813,10 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
                 // Edge-Case: Create a slab on lava
                 remove_entity(server, target_entity);
                 create_entity(server, .Slab, guy.target_position, .North);
-                switch_guy_state(server, guy, .Idle);
+                take_item_from_hand(server, guy);
             } else if try_to_place_item(server, guy.target_position, guy.carrying_item, guy, null) {
                 // Try to place down the item that is currently being held.
-                switch_guy_state(server, guy, .Idle);
+                take_item_from_hand(server, guy);
             }
         }
 

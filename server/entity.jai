@@ -341,11 +341,7 @@ kill_entity :: (server: *Server, entity: *Entity, killer: *Guy) {
 
       case .Guy;
         guy := down(entity, Guy);
-        was_carrying := guy.state == .Carrying;
         switch_guy_state(server, guy, .Dead);
-
-        if was_carrying then try_to_place_item(server, guy.physical_position, guy.carrying_item, guy, null);
-
         increment_player_statistic(server, guy.pid, .Deaths);
 
       case .Frog, .Goblin, .Slime;
@@ -498,7 +494,7 @@ update_physical_location :: (server: *Server, entity: *Entity, position: v2i, ro
             
             if #complete guy.state == {
               case .Dead, .Idle, .Carrying;
-              case .Digging, .Resurrecting; guy.state = .Idle;
+              case .Digging, .Resurrecting; switch_guy_state(server, guy, .Idle);
             }
         }
 
@@ -550,8 +546,15 @@ switch_guy_state :: (server: *Server, guy: *Guy, state: Guy_State) {
     }
 }
 
+take_item_from_hand :: (server: *Server, guy: *Guy) {
+    assert(guy.state == .Carrying && guy.carrying_item != .Count, "You shouldn't call take_item_from_hand if a guy isn't carrying anything.");
+    guy.state = .Idle;
+    guy.carrying_item = .Count;
+    broadcast_guy_state(server, guy);
+}
+
 put_item_in_hand :: (server: *Server, guy: *Guy, kind: Item_Kind) {
-    assert(guy.state != .Carrying, "You shouldn't call put_item_in_hand if a player already holds an item.");
+    assert(guy.state != .Carrying && guy.carrying_item == .Count, "You shouldn't call put_item_in_hand if a player already holds an item.");
     guy.state = .Carrying;
     guy.carrying_item = kind;
     broadcast_guy_state(server, guy);    
@@ -594,7 +597,7 @@ update_guy :: (server: *Server, guy: *Guy) {
         if guy.carrying_item == .Torch {
             guy.carrying_item_data.torch_time_left_in_seconds -= server.tick_time;
             if guy.carrying_item_data.torch_time_left_in_seconds <= 0 {
-                switch_guy_state(server, guy, .Idle);
+                take_item_from_hand(server, guy);
             }
         }
 
@@ -605,7 +608,14 @@ update_guy :: (server: *Server, guy: *Guy) {
             other_entity := get_entity(server, guy.resurrection_pid);
             if other_entity {
                 other_guy := down(other_entity, Guy);
-                switch_guy_state(server, other_guy, .Idle);
+
+                if other_guy.carrying_item != .Count {
+                    put_item_in_hand(server, other_guy, other_guy.carrying_item);
+                } else {
+                    switch_guy_state(server, other_guy, .Idle);
+                }
+
+
                 set_entity_health(server, other_guy, HEALTH_PER_HEART);
                 increment_player_statistic(server, guy.pid, .Resurrections);
             }

@@ -2,8 +2,9 @@
 
 - Added a new statistic tracking the number of times a player charged an emitter
 - Added a crash handler in play-testing builds that prints out a `crash.log` file
-- Fixed entities generated at positions where they block access to the emitter
 - Increased the lifetime of a slab to 20 seconds
+- The players now respawn with their carried item (or chest) in hand after being resurrected
+- Fixed entities generated at positions where they block access to the emitter
 
 ## 0.4.2 (03.10.2025)
 
