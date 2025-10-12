@@ -1,5 +1,5 @@
-gggcccssb G|   bbFbb     bbb 
-           |         bFb bF e
+gggcccssb G|   bbGbb     bbb 
+           |         bGb bG e
 e          |   bb b bb      b
-          e|      F bb bFb  F
+          e|      G bb bGb  G
            |   bbbb        bb

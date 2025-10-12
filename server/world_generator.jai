@@ -77,7 +77,13 @@ generate_next_world_section :: (server: *Server) {
 
 #file_scope
 
-LAVA_BIOME_OCCURANCE :: 1;
+Biome_Type :: enum {
+    Mineshaft; // Default biome
+    Lava_Lake;
+    Goblin_Nest;
+}
+
+SPECIAL_BIOME_OCCURANCE :: 1; // @Cleanup
 
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 MINESHAFT_SPAWN_PROBABILITY_TABLE :: #run setup_mineshaft_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
@@ -313,6 +319,11 @@ Biome_Helper :: struct {
     previous_emitter: *Entity;
 }
 
+create_latest_emitter :: (server: *Server, helper: *Biome_Helper) {
+    latest_emitter := create_entity(server, .Emitter, .{ helper.section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
+    server.latest_emitter = latest_emitter.pid;
+}
+
 make_biome_helper :: (server: *Server, section: [2]s32) -> Biome_Helper {
     helper: Biome_Helper = ---;
     helper.section = section;
@@ -394,7 +405,7 @@ generate_n_random_entities :: (server: *Server, helper: *Biome_Helper, kind: Ent
     return result;
 }
 
-fill_mineshaft_biome :: (server: *Server, section: [2]s32) {
+fill_mineshaft_biome :: (server: *Server, helper: *Biome_Helper) {
     generate_random_count :: (server: *Server, helper: *Biome_Helper, kind: Entity_Kind, modifier: f32) -> s32 {
         t := MINESHAFT_SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
         area := (helper.section[1] - helper.section[0] + 1) * SECTION_HEIGHT;
@@ -408,11 +419,8 @@ fill_mineshaft_biome :: (server: *Server, section: [2]s32) {
         return generate_n_random_entities(server, helper, kind, count, retry_on_reserved);
     }
 
-    helper := make_biome_helper(server, section);
-
     // Generate a new emitter at the end of this section
-    latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
-    server.latest_emitter = latest_emitter.pid;
+    create_latest_emitter(server, helper);
 
     // Generate all kinds of entities randomly    
     x: f32 = xx (server.current_section_index + 1);
@@ -420,15 +428,15 @@ fill_mineshaft_biome :: (server: *Server, section: [2]s32) {
     neutral_modifier:    f32 = 1.0; // These things shouldn't really change with the duration of the game...
     unfriendly_modifier: f32 = -1 / powf(x, 0.5) + 2; // The longer a game goes, the more unfriendly things we want to happen
 
-    generate_randomly(server, *helper, .Lava,    neutral_modifier,    false);
-    generate_randomly(server, *helper, .Bedrock, neutral_modifier,    false);
-    generate_randomly(server, *helper, .Rock,    friendly_modifier,   false);
-    generate_randomly(server, *helper, .Crystal, friendly_modifier,   true);
-    generate_randomly(server, *helper, .Coal,    neutral_modifier,    true);
-    generate_randomly(server, *helper, .Frog,    unfriendly_modifier, false);
-    generate_randomly(server, *helper, .Goblin,  unfriendly_modifier, false);
-    generate_randomly(server, *helper, .Trader,  neutral_modifier,    true);
-    holes := generate_randomly(server, *helper, .Slime_Hole, neutral_modifier, false);
+    generate_randomly(server, helper, .Lava,    neutral_modifier,    false);
+    generate_randomly(server, helper, .Bedrock, neutral_modifier,    false);
+    generate_randomly(server, helper, .Rock,    friendly_modifier,   false);
+    generate_randomly(server, helper, .Crystal, friendly_modifier,   true);
+    generate_randomly(server, helper, .Coal,    neutral_modifier,    true);
+    generate_randomly(server, helper, .Frog,    unfriendly_modifier, false);
+    generate_randomly(server, helper, .Goblin,  unfriendly_modifier, false);
+    generate_randomly(server, helper, .Trader,  neutral_modifier,    true);
+    holes := generate_randomly(server, helper, .Slime_Hole, neutral_modifier, false);
     
     for i := 0; i < holes.count; ++i {
         hole := array_get(*holes, i);
@@ -436,27 +444,25 @@ fill_mineshaft_biome :: (server: *Server, section: [2]s32) {
     }
 }
 
-fill_lava_biome :: (server: *Server, section: [2]s32) {
-    // Generate a new emitter at the end of this section
-    latest_emitter := create_entity(server, .Emitter, .{ section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
-    server.latest_emitter = latest_emitter.pid;
+fill_lava_lake_biome :: (server: *Server, helper: *Biome_Helper) {
+    create_latest_emitter(server, helper);
 
+    // Calculate the area of the lake
     LEFT_OFFSET:  s32 = 3;
     RIGHT_OFFSET: s32 = 1;
-    first_lake_x    := section[0] + LEFT_OFFSET;
-    lake_half_width := ((section[1] - section[0]) - (RIGHT_OFFSET + LEFT_OFFSET)) / 2;
+    first_lake_x    := helper.section[0] + LEFT_OFFSET;
+    lake_half_width := ((helper.section[1] - helper.section[0]) - (RIGHT_OFFSET + LEFT_OFFSET)) / 2;
 
     // Generate some rocks on the left
     {
-        helper := make_biome_helper(server, .[ section[0], section[0] + LEFT_OFFSET]);
         rock_count := random_u64_in(*server.world_random, 3, 5);
-        generate_n_random_entities(server, *helper, .Rock, rock_count, true);
+        generate_n_random_entities(server, helper, .Rock, rock_count, true);
         crystal_count := random_u64_in(*server.world_random, 1, 2);
-        generate_n_random_entities(server, *helper, .Crystal, crystal_count, true);
+        generate_n_random_entities(server, helper, .Crystal, crystal_count, true);
     }
 
     // Generate the actual lava lake including islands
-    for x := section[0] + LEFT_OFFSET; x < section[1] - RIGHT_OFFSET; ++x {
+    for x := helper.section[0] + LEFT_OFFSET; x < helper.section[1] - RIGHT_OFFSET; ++x {
         // Set up the spawn weights. These weights indicate the chances of different entities
         // spawning at this position.
         // We want to generate a little bridge in the middle of the lava lake to make it a
@@ -493,10 +499,20 @@ fill_lava_biome :: (server: *Server, section: [2]s32) {
     }
 }
 
+fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
+    create_latest_emitter(server, helper);
+
+}
+
 fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
-    if (section_index + 1) % LAVA_BIOME_OCCURANCE == 0 {
-        fill_lava_biome(server, section);
-    } else {
-        fill_mineshaft_biome(server, section);
+    special_biome := (section_index + 1) % SPECIAL_BIOME_OCCURANCE == 0;
+    biome_type: Biome_Type = ifx special_biome then cast(Biome_Type) random_u64_in(*server.world_random, 1, Biome_Type.Count) else .Mineshaft;
+
+    helper := make_biome_helper(server, section);
+
+    if #complete biome_type == {
+      case .Mineshaft;   fill_mineshaft_biome(server, *helper);
+      case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
+      case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
     }
 }

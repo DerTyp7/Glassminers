@@ -652,6 +652,10 @@ available_resources_fulfill :: (available: [..]Item_Kind, required: []Item_Kind)
     return all_requirements_met;
 }
 
+random_enum_member :: (random: *Random_Generator, $T: Type) -> T {
+    return random_u64_in(random, 0, T.Count);
+}
+
 random_one_of :: (random: *Random_Generator, elements: []$T) -> T {
     index := random_u64_in(random, 0, elements.count);
     return elements[index];
