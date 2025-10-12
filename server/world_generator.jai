@@ -79,7 +79,7 @@ generate_next_world_section :: (server: *Server) {
 
 Biome_Type :: enum {
     Mineshaft; // Default biome
-    Lava_Lake;
+    //Lava_Lake; // @Cleanup
     Goblin_Nest;
 }
 
@@ -445,11 +445,12 @@ fill_mineshaft_biome :: (server: *Server, helper: *Biome_Helper) {
 }
 
 fill_lava_lake_biome :: (server: *Server, helper: *Biome_Helper) {
+    LEFT_OFFSET:  s32 : 3;
+    RIGHT_OFFSET: s32 : 1;
+
     create_latest_emitter(server, helper);
 
     // Calculate the area of the lake
-    LEFT_OFFSET:  s32 = 3;
-    RIGHT_OFFSET: s32 = 1;
     first_lake_x    := helper.section[0] + LEFT_OFFSET;
     lake_half_width := ((helper.section[1] - helper.section[0]) - (RIGHT_OFFSET + LEFT_OFFSET)) / 2;
 
@@ -500,8 +501,78 @@ fill_lava_lake_biome :: (server: *Server, helper: *Biome_Helper) {
 }
 
 fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
+    Maze :: [][SECTION_HEIGHT]Entity_Kind;
+    LEFT_OFFSET:  s32 : 2;
+    RIGHT_OFFSET: s32 : 2;
+
+    cut_out_path_recursively :: (server: *Server, maze: Maze, head: v2i, previous: v2i) -> bool {
+        check_tile_neighbor :: (maze: Maze, neighbor: v2i, head: v2i) -> bool {
+            return (neighbor.x == head.x && neighbor.y == head.y) ||
+                    neighbor.x < 0 || neighbor.x >= maze.count || 
+                    neighbor.y < 0 || neighbor.y >= SECTION_HEIGHT ||
+                    maze[neighbor.x][neighbor.y] == .Bedrock;
+        }
+
+        is_tile_possible :: (maze: Maze, target: v2i, head: v2i) -> bool {
+            return (target.x >= 0 && target.x < maze.count && target.y >= 0 && target.y < SECTION_HEIGHT) &&
+                    check_tile_neighbor(maze, .{ target.x + 1, target.y }, head) &&
+                    check_tile_neighbor(maze, .{ target.x - 1, target.y }, head) && 
+                    check_tile_neighbor(maze, .{ target.x, target.y + 1 }, head) && 
+                    check_tile_neighbor(maze, .{ target.x, target.y - 1 }, head);
+        }
+
+        maze[head.x][head.y] = .Count;
+
+        if head.x + 1 == maze.count return true;
+
+        neighbor_tiles: [4]v2i = .[ .{ head.x - 1, head.y }, .{ head.x + 1, head.y }, 
+                                    .{ head.x, head.y - 1 }, .{ head.x, head.y + 1 } ];
+        
+        neighbor_possible: [4]bool = ---;
+        for i := 0; i < neighbor_possible.Capacity; ++i {
+            neighbor_possible[i] = is_tile_possible(maze, neighbor_tiles[i], head);
+        }
+
+        start_idx := random_u64_in(*server.world_random, 0, neighbor_tiles.Capacity);
+        success := false;
+
+        for i := 0; i < 4; ++i {
+            neighbor_idx := (i + start_idx) % neighbor_tiles.Capacity;
+            if neighbor_possible[neighbor_idx] && cut_out_path_recursively(server, maze, neighbor_tiles[neighbor_idx], head) {
+                success = true;
+                break;
+            }
+        }
+
+        if !success {
+            maze[head.x][head.y] = .Bedrock; // We need to back track here...
+        }
+
+        return success;
+    }
+
+    cut_out_path :: (server: *Server, maze: Maze) {
+        path_head: v2i = .{ 0, random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
+        cut_out_path_recursively(server, maze, path_head, .{ -1, path_head.y });
+    }
+    
     create_latest_emitter(server, helper);
 
+    // Prepare the maze
+    maze_width := (helper.section[1] - helper.section[0] + 1) - (LEFT_OFFSET + RIGHT_OFFSET);
+    maze: Maze = allocate_slice(*temp, [SECTION_HEIGHT]Entity_Kind, maze_width);
+    for x := 0; x < maze_width; ++x   maze[x] = .[ .Bedrock ];
+
+    // Cut out a path through the maze
+    cut_out_path(server, maze);
+
+    // Actually create the entities based on the maze
+    for x := 0; x < maze.count; ++x {
+        column := maze[x];
+        for y := 0; y < column.Capacity; ++y {
+            if column[y] != .Count then create_entity(server, column[y], .{ x + helper.section[0] + LEFT_OFFSET, y }, DEFAULT_ENTITY_ROTATION[column[y]]);
+        }
+    }
 }
 
 fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
@@ -512,7 +583,7 @@ fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
 
     if #complete biome_type == {
       case .Mineshaft;   fill_mineshaft_biome(server, *helper);
-      case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
+      //case .Lava_Lake;   fill_lava_lake_biome(server, *helper); // @Cleanup
       case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
     }
 }
