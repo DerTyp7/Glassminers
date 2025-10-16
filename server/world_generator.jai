@@ -502,6 +502,12 @@ fill_lava_lake_biome :: (server: *Server, helper: *Biome_Helper) {
 
 fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
     Tilemap :: []Entity_Kind;
+    Path :: [..]v2i;
+
+    Path_Condition :: enum {
+        End_Of_Maze;
+        Other_Path;
+    }
 
     put :: (tilemap: Tilemap, tile: v2i, entity: Entity_Kind) {
         tilemap[tile.x * SECTION_HEIGHT + tile.y] = entity;
@@ -511,66 +517,106 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
         return tilemap[tile.x * SECTION_HEIGHT + tile.y];
     }
 
-    generate_path_recursively :: (server: *Server, tilemap: Tilemap, head: v2i) -> bool {
-        check_tile_neighbor :: (tilemap: Tilemap, neighbor: v2i) -> bool {
+    generate_path_recursively :: (server: *Server, tilemap: Tilemap, path: *Path, head: v2i, condition: Path_Condition) -> bool {
+        check_tile_neighbor :: (tilemap: Tilemap, path: *Path, neighbor: v2i, head: v2i, condition: Path_Condition) -> bool {
             if neighbor.x < 0 then return false;
             if neighbor.x >= tilemap.count / SECTION_HEIGHT then return true;
             if neighbor.y < 0 || neighbor.y >= SECTION_HEIGHT then return true;
-            return get(tilemap, neighbor) == .Bedrock;
+            if neighbor.x == head.x && neighbor.y == head.y then return true;
+
+            valid := get(tilemap, neighbor) == .Bedrock;
+
+            if condition == .Other_Path {
+                for i := 0; i < path.count; ++i {
+                    if array_get(path, i).x == neighbor.x && array_get(path, i).y == neighbor.y {
+                        valid = false;
+                        break;
+                    }
+                }   
+            }
+
+            return valid;
         }
 
-        is_tile_available :: (tilemap: Tilemap, target: v2i) -> bool {
+        is_tile_available :: (tilemap: Tilemap, path: *Path, target: v2i, head: v2i, condition: Path_Condition) -> bool {
             return (target.x >= 0 && target.x < tilemap.count &&
                     target.y >= 0 && target.y < SECTION_HEIGHT) &&
-                    check_tile_neighbor(tilemap, .{ target.x + 1, target.y }) &&
-                    check_tile_neighbor(tilemap, .{ target.x - 1, target.y }) && 
-                    check_tile_neighbor(tilemap, .{ target.x, target.y + 1 }) && 
-                    check_tile_neighbor(tilemap, .{ target.x, target.y - 1 });
+                    check_tile_neighbor(tilemap, path, .{ target.x + 1, target.y }, head, condition) &&
+                    check_tile_neighbor(tilemap, path, .{ target.x - 1, target.y }, head, condition) && 
+                    check_tile_neighbor(tilemap, path, .{ target.x, target.y + 1 }, head, condition) && 
+                    check_tile_neighbor(tilemap, path, .{ target.x, target.y - 1 }, head, condition);
         }
 
-        if head.x + 1 == tilemap.count / SECTION_HEIGHT {
-            put(tilemap, head, .Count);
-            return true;
-        }    
-
-        neighbor_tiles: [4]v2i = .[ .{ head.x - 1, head.y }, .{ head.x + 1, head.y }, 
-                                    .{ head.x, head.y - 1 }, .{ head.x, head.y + 1 } ];
-        
-        neighbor_possible: [4]bool = ---;
-        for i := 0; i < neighbor_possible.Capacity; ++i {
-            neighbor_possible[i] = is_tile_available(tilemap, neighbor_tiles[i]);
+        // Determine if we've already reached the end
+        reached_end: bool = head.x + 1 == tilemap.count / SECTION_HEIGHT;
+        if condition == .Other_Path {
+            reached_end |= path.count > 5 || (path.count > 2 && get(tilemap, head) == .Count);
         }
 
+        // Add the current tile to the head
+        previous_tile := get(tilemap, head);
+        previous_path_length := path.count;
         put(tilemap, head, .Count);
+        array_add(path, head);
 
-        start_idx := random_u64_in(*server.world_random, 0, neighbor_tiles.Capacity);
-        success := false;
+        if !reached_end {
+            neighbor_tiles: [4]v2i = .[ .{ head.x - 1, head.y }, .{ head.x + 1, head.y }, 
+                                        .{ head.x, head.y - 1 }, .{ head.x, head.y + 1 } ];
+            
+            neighbor_possible: [4]bool = ---;
+            for i := 0; i < neighbor_possible.Capacity; ++i {
+                neighbor_possible[i] = is_tile_available(tilemap, path, neighbor_tiles[i], head, condition);
+            }
 
-        for i := 0; i < 4; ++i {
-            neighbor_idx := (i + start_idx) % neighbor_tiles.Capacity;
-            if neighbor_possible[neighbor_idx] && generate_path_recursively(server, tilemap, neighbor_tiles[neighbor_idx]) {
-                success = true;
-                break;
+            start_idx := random_u64_in(*server.world_random, 0, neighbor_tiles.Capacity);
+
+            for i := 0; i < 4; ++i {
+                neighbor_idx := (i + start_idx) % neighbor_tiles.Capacity;
+                if neighbor_possible[neighbor_idx] && generate_path_recursively(server, tilemap, path, neighbor_tiles[neighbor_idx], condition) {
+                    reached_end = true;
+                    break;
+                }
             }
         }
 
-        if !success {
-            put(tilemap, head, .Bedrock);
+        if !reached_end {
+            put(tilemap, head, previous_tile);
+            array_remove_range(path, previous_path_length, path.count - 1);
         }
 
-        return success;
+        return reached_end;
+    }
+
+    generate_path :: (server: *Server, tilemap: Tilemap, head: v2i, condition: Path_Condition) -> Path {
+        path: Path;
+        path.allocator = *temp;
+        generate_path_recursively(server, tilemap, *path, head, condition);
+        return path;
     }
 
     // Set up the tilemap representing the maze
     LEFT_OFFSET: s32 : 2;
     RIGHT_OFFSET: s32 : 2;
+    DESIRED_SUBPATH_COUNT: s32 : 3;
+    MAX_SUBPATH_ATTEMPTS: s32 : 10;
+    LEAST_SUBPATH_DISTANCE: s32 : 3;
     maze_width := (helper.section[1] - helper.section[0] + 1) - LEFT_OFFSET - RIGHT_OFFSET;
 
     tilemap := allocate_slice(*temp, Entity_Kind, maze_width * SECTION_HEIGHT);
     for i := 0; i < tilemap.count; ++i tilemap[i] = .Bedrock;
 
     // Set up paths through the maze
-    success := generate_path_recursively(server, tilemap, .{ 0, random_u64_in(*server.world_random, 0, SECTION_HEIGHT) });
+    main_path := generate_path(server, tilemap, .{ 0, random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .End_Of_Maze);
+
+    subpath_offset   := random_u64_in(*server.world_random, LEAST_SUBPATH_DISTANCE, main_path.count / DESIRED_SUBPATH_COUNT);
+    valid_subpaths   := 0;
+    subpath_attempts := 0;
+    while valid_subpaths < DESIRED_SUBPATH_COUNT  && subpath_attempts < MAX_SUBPATH_ATTEMPTS {
+        valid := generate_path(server, tilemap, array_get(*main_path, subpath_offset), .Other_Path).count > 0;
+        if valid then ++valid_subpaths;
+        ++subpath_attempts;
+        subpath_offset = (subpath_offset + random_u64_in(*server.world_random, LEAST_SUBPATH_DISTANCE, main_path.count / DESIRED_SUBPATH_COUNT)) % main_path.count;
+    }
 
     // Actually create the entities from the tilemap
     create_latest_emitter(server, helper);
