@@ -79,11 +79,11 @@ generate_next_world_section :: (server: *Server) {
 
 Biome_Type :: enum {
     Mineshaft; // Default biome
-    //Lava_Lake; // @Cleanup
+    Lava_Lake;
     Goblin_Nest;
 }
 
-SPECIAL_BIOME_OCCURANCE :: 1; // @Cleanup
+SPECIAL_BIOME_OCCURANCE :: 3; // @Cleanup
 
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 MINESHAFT_SPAWN_PROBABILITY_TABLE :: #run setup_mineshaft_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
@@ -554,7 +554,7 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
         // Determine if we've already reached the end
         reached_end: bool = head.x + 1 == tilemap.count / SECTION_HEIGHT;
         if kind == .Sub_Path {
-            reached_end |= path.count > 6 || (path.count > 2 && get(tilemap, head) == .Count);
+            reached_end |= path.count > 5 || (path.count > 2 && get(tilemap, head) == .Count);
         }
 
         // Add the current tile to the head
@@ -597,28 +597,24 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
         generate_path_recursively(server, tilemap, *path, head, kind);
 
         if path.count {
-            goblin_count := ifx kind == .Main_Path then 2 else 1;
+            field_index := random_u64_in(*server.world_random, 0, path.count);
+            direction_offset := random_u64_in(*server.world_random, 0, 5);
+            placed_goblin := false;
 
-            for i := 0; i < goblin_count; ++i {
-                field_index := random_u64_in(*server.world_random, 0, path.count);
-                direction_offset := random_u64_in(*server.world_random, 0, 5);
-                placed_goblin := false;
-
-                for j := 0; !placed_goblin && j < 5; ++j {
-                    field := array_get(*path, field_index);
-                    direction_index := (j + direction_offset) % 5;
-                    
-                    if direction_index == {
-                      case 5; 
-                        put(tilemap, field, .Goblin);
+            for j := 0; !placed_goblin && j < 5; ++j {
+                field := array_get(*path, field_index);
+                direction_index := (j + direction_offset) % 5;
+                
+                if direction_index == {
+                    case 4; 
+                    put(tilemap, field, .Goblin);
+                    placed_goblin = true;
+                    case;
+                    offset_vector := vector_from_direction(direction_index);
+                    target_position := v2i.{ field.x + offset_vector.x, field.y + offset_vector.y };
+                    if target_position.x >= 0 && target_position.x < tilemap.count / SECTION_HEIGHT && target_position.y >= 0 && target_position.y < SECTION_HEIGHT {
+                        put(tilemap, target_position, .Goblin);
                         placed_goblin = true;
-                      case;
-                        offset_vector := vector_from_direction(direction_index);
-                        target_position := v2i.{ field.x + offset_vector.x, field.y + offset_vector.y };
-                        if target_position.x >= 0 && target_position.x <= tilemap.count / SECTION_HEIGHT && target_position.y >= 0 && target_position.y < SECTION_HEIGHT {
-                            put(tilemap, target_position, .Goblin);
-                            placed_goblin = true;
-                        }
                     }
                 }
             }
@@ -627,34 +623,46 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
         return path;
     }
 
-    // Set up the tilemap representing the maze
-    LEFT_OFFSET: s32 : 2;
-    RIGHT_OFFSET: s32 : 2;
-    DESIRED_SUBPATH_COUNT: s32 : 3;
-    MAX_SUBPATH_ATTEMPTS: s32 : 14;
+    LEFT_OFFSET:            s32 : 2;
+    RIGHT_OFFSET:           s32 : 2;
+    DESIRED_SUBPATH_COUNT:  s32 : 5;
+    MAX_SUBPATH_ATTEMPTS:   s32 : 20;
     LEAST_SUBPATH_DISTANCE: s32 : 3;
+
+    // Set up the tilemap representing the maze
     maze_width := (helper.section[1] - helper.section[0] + 1) - LEFT_OFFSET - RIGHT_OFFSET;
 
     tilemap := allocate_slice(*temp, Entity_Kind, maze_width * SECTION_HEIGHT);
     for i := 0; i < tilemap.count; ++i tilemap[i] = .Bedrock;
 
     // Set up paths through the maze
-    main_path := generate_path(server, tilemap, .{ 0, random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .Main_Path);
+    main_path: Path = ---;
 
-    subpath_offset   := random_u64_in(*server.world_random, LEAST_SUBPATH_DISTANCE, main_path.count / DESIRED_SUBPATH_COUNT);
-    valid_subpaths   := 0;
-    subpath_attempts := 0;
-    while valid_subpaths < DESIRED_SUBPATH_COUNT  && subpath_attempts < MAX_SUBPATH_ATTEMPTS {
-        valid := generate_path(server, tilemap, array_get(*main_path, subpath_offset), .Sub_Path).count > 0;
-        if valid then ++valid_subpaths;
-        ++subpath_attempts;
-        subpath_offset = (subpath_offset + random_u64_in(*server.world_random, LEAST_SUBPATH_DISTANCE, main_path.count / DESIRED_SUBPATH_COUNT)) % main_path.count;
+    {
+        main_path = generate_path(server, tilemap, .{ 0, random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .Main_Path);
+        if main_path.count == 0 {
+            panic("Failed to generate a main path for the next goblin next section.");
+        }
+
+        max_subpath_distance := max(main_path.count / DESIRED_SUBPATH_COUNT, LEAST_SUBPATH_DISTANCE + 1);
+        subpath_offset   := 0;
+        valid_subpaths   := 0;
+        subpath_attempts := 0;
+        while valid_subpaths < DESIRED_SUBPATH_COUNT  && subpath_attempts < MAX_SUBPATH_ATTEMPTS {
+            subpath_offset = (subpath_offset + random_u64_in(*server.world_random, LEAST_SUBPATH_DISTANCE, max_subpath_distance)) % main_path.count;
+            valid := generate_path(server, tilemap, array_get(*main_path, subpath_offset), .Sub_Path).count > 0;
+            if valid then ++valid_subpaths;
+            ++subpath_attempts;
+        }
+
+        if valid_subpaths < DESIRED_SUBPATH_COUNT {
+            logprint(.Warning, "Only managed to generate % of % desired subpaths for the section [%-%].", valid_subpaths, DESIRED_SUBPATH_COUNT, helper.section[0], helper.section[1]);
+        }
     }
-
-    if valid_subpaths < DESIRED_SUBPATH_COUNT then logprint(.Warning, "Only managed to generate % of % desired subpaths for the section [%-%].", valid_subpaths, DESIRED_SUBPATH_COUNT, helper.section[0], helper.section[1]);
 
     // Actually create the entities from the tilemap
     create_latest_emitter(server, helper);
+    create_entity(server, .Trader, .{ helper.section[0] + 1, (array_get(*main_path, 0).y + 2) % SECTION_HEIGHT }, DEFAULT_ENTITY_ROTATION[.Trader]);
 
     maze_x0 := helper.section[0] + LEFT_OFFSET;
 
@@ -674,7 +682,7 @@ fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
 
     if #complete biome_type == {
       case .Mineshaft;   fill_mineshaft_biome(server, *helper);
-      //case .Lava_Lake;   fill_lava_lake_biome(server, *helper); // @Cleanup
+      case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
       case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
     }
 }
