@@ -595,6 +595,35 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
         path: Path;
         path.allocator = *temp;
         generate_path_recursively(server, tilemap, *path, head, kind);
+
+        if path.count {
+            goblin_count := ifx kind == .Main_Path then 2 else 1;
+
+            for i := 0; i < goblin_count; ++i {
+                field_index := random_u64_in(*server.world_random, 0, path.count);
+                direction_offset := random_u64_in(*server.world_random, 0, 5);
+                placed_goblin := false;
+
+                for j := 0; !placed_goblin && j < 5; ++j {
+                    field := array_get(*path, field_index);
+                    direction_index := (j + direction_offset) % 5;
+                    
+                    if direction_index == {
+                      case 5; 
+                        put(tilemap, field, .Goblin);
+                        placed_goblin = true;
+                      case;
+                        offset_vector := vector_from_direction(direction_index);
+                        target_position := v2i.{ field.x + offset_vector.x, field.y + offset_vector.y };
+                        if target_position.x >= 0 && target_position.x <= tilemap.count / SECTION_HEIGHT && target_position.y >= 0 && target_position.y < SECTION_HEIGHT {
+                            put(tilemap, target_position, .Goblin);
+                            placed_goblin = true;
+                        }
+                    }
+                }
+            }
+        }
+
         return path;
     }
 
