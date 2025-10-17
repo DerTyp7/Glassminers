@@ -454,12 +454,12 @@ fill_lava_lake_biome :: (server: *Server, helper: *Biome_Helper) {
     first_lake_x    := helper.section[0] + LEFT_OFFSET;
     lake_half_width := ((helper.section[1] - helper.section[0]) - (RIGHT_OFFSET + LEFT_OFFSET)) / 2;
 
-    // Generate some rocks on the left
+    // Generate some resources
     {
-        rock_count := random_u64_in(*server.world_random, 3, 5);
-        generate_n_random_entities(server, helper, .Rock, rock_count, true);
-        crystal_count := random_u64_in(*server.world_random, 1, 2);
-        generate_n_random_entities(server, helper, .Crystal, crystal_count, true);
+        left_helper: Biome_Helper = ~helper;
+        left_helper.section[1] = left_helper.section[0] + LEFT_OFFSET - 2;
+        generate_n_random_entities(server, *left_helper, .Rock, random_u64_in(*server.world_random, 3, 5), true);
+        generate_n_random_entities(server, *left_helper, .Crystal, random_u64_in(*server.world_random, 1, 2), true);
     }
 
     // Generate the actual lava lake including islands
