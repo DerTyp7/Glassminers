@@ -1195,7 +1195,7 @@ update_camera :: (client: *Client, local_player: *Local_Player, target_center_in
 
 #if DEVELOPER {
     desired_zoom := powf(camera.zoom_step, 1.5) + 1;
-    camera.zoom += (desired_zoom - camera.zoom) * interpolation;
+    camera.zoom += (desired_zoom - camera.zoom) * min(client.tick_time * 20, 1); // Also interpolate while in free-camera mode...
     zoomed_visible_tiles: f32 = visible_tiles * camera.zoom;
 } #else {
     zoomed_visible_tiles: f32 = visible_tiles;
