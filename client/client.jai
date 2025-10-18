@@ -36,7 +36,7 @@
 #load "draw.jai";
 #load "aseprite.jai";
 
-GE_ACTIVE_BACKEND :: GE_Backend.GL_Modern;
+GE_ACTIVE_BACKEND :: GE_Backend.GL_Fixed;
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 MEMORY_DEBUGGING :: false;

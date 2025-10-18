@@ -806,7 +806,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
             } else if target_entity && target_entity.entity_kind == .Emitter && guy.carrying_item == .Flag {
                 // Edge-Case: Activate the emitter using the flag
                 target_emitter := down(target_entity, Emitter);
-                if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_CHARGE[server.game_mode] {
+                if target_emitter.state == .Off && target_emitter.current_charge >= EMITTER_MAX_DEFAULT_CHARGE[server.game_mode] {
                     set_emitter_state(server, target_emitter, .Active, target_emitter.current_charge);
                 }
             } else if target_entity && target_entity.entity_kind == .Lava && guy.carrying_item == .Stone {
@@ -917,7 +917,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
         for i := 0; i < server.emitters.slot_count; ++i {
             emitter, occupied := index_bucket_array(*server.emitters, i);
             if occupied && emitter.state == .Off {
-                set_emitter_state(server, emitter, .Active, EMITTER_MAX_CHARGE[server.game_mode]);
+                set_emitter_state(server, emitter, .Active, EMITTER_MAX_DEFAULT_CHARGE[server.game_mode]);
             }
         }
     }

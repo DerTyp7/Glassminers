@@ -4,6 +4,7 @@ DARK_GRAY_COLOR :: GE_Color.{  40,  40,  40, 255 };
 ORANGE_COLOR    :: GE_Color.{ 255, 166,   0, 255 };
 RED_COLOR       :: GE_Color.{ 250,  85, 116, 255 };
 YELLOW_COLOR    :: GE_Color.{ 252, 238,  28, 255 };
+GREEN_COLOR     :: GE_Color.{ 100, 240, 150, 200  };
 DARK_BLUE_COLOR :: GE_Color.{  40,  40,  50, 255 };
 DARK_CYAN_COLOR :: GE_Color.{   6,  58,  68, 255 };
 
@@ -473,7 +474,7 @@ draw_text_screen_space :: (client: *Client, font: *Font, text: string, position:
     ge_draw_text(*client.graphics, font, text, position.x, position.y, alignment, foreground);
 }
 
-draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_count: s64, box_size: f32, percentage: f32, foreground: GE_Color) {
+draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_size: f32, box_count: s64, percentage: f32, foreground: GE_Color) {
     background :: GE_Color.{ 100, 100, 100, 200 };
 
     gap_size := ceil(cast(f32) box_size * 0.1);
@@ -576,10 +577,11 @@ draw_circle_screen_space :: (client: *Client, center: v2f, inner_radius, outer_r
     draw_circle_segment_screen_space(client, center, inner_radius, outer_radius, 0, 1, color);
 }
 
-draw_progress_bar_screen_space :: (client: *Client, center: v2f, box_size: f32, percentage: f32) {
+draw_progress_bar_screen_space :: (client: *Client, center: v2f, percentage: f32, foreground: GE_Color) -> f32 {
     box_count :: 6;
-    foreground :: GE_Color.{ 100, 240, 150, 200 };
-    draw_filling_boxes_screen_space(client, center, box_count, box_size, percentage, foreground);
+    size: f32 = 20 * UI_SCALING_VALUES[client.config.ui_scale];
+    draw_filling_boxes_screen_space(client, center, size, box_count, percentage, foreground);
+    return size;
 }
 
 draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
@@ -646,15 +648,14 @@ draw_circle_world_space :: (client: *Client, local_player: *Local_Player, world_
     draw_circle_screen_space(client, screen_center, inner_screen_radius, outer_screen_radius, color);
 }
 
-draw_progress_bar_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, world_size: f32, percentage: f32) {
+draw_progress_bar_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, percentage: f32, foreground: GE_Color) {
     screen_center := screen_from_world_position(*local_player.camera, world_center);
-    screen_size   := screen_from_world_height(*local_player.camera, world_size);
-    draw_progress_bar_screen_space(client, screen_center, screen_size, percentage);
+    draw_progress_bar_screen_space(client, screen_center, percentage, foreground);
 }
 
-draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, entity: *Entity, world_size: f32) {
+draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, entity: *Entity) {
     screen_center := screen_from_world_position(*local_player.camera, .{ entity.visual_position.x, entity.visual_position.y + 0.35 });
-    screen_size   := screen_from_world_height(*local_player.camera, world_size);
+    screen_size   := 32 * UI_SCALING_VALUES[client.config.ui_scale];
 
     heart_count: s64 = cast(s64) ceil(DEFAULT_ENTITY_HEALTH[entity.entity_kind] / HEALTH_PER_HEART);
 
@@ -772,8 +773,6 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         }
     }
 
-    PROGRESS_BAR_WORLD_SIZE: f32 : 0.9 * 0.13333;
-
     ge_set_scissors(*client.graphics, local_player.viewport);
     ge_set_pipeline(*client.graphics, client.entity_pipeline);
     
@@ -881,13 +880,17 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
             flags: Draw_Beam_Flags = .First_As_V;
             if emitter.beam_ends_in_other_emitter then flags |= .Last_As_V;
             draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, flags);
-        } else if emitter.current_charge >= EMITTER_MAX_CHARGE[client.game_mode] {
+        } else if emitter.current_charge >= EMITTER_MAX_DEFAULT_CHARGE[client.game_mode] {
             world_size := calculate_pulsating_icon_size(client);
             draw_sprite_world_space(client, local_player, .Flag_0, .{ emitter.visual_position.x, emitter.visual_position.y + 0.25 }, world_size, 0, .{ 255, 255, 255, 255 }, .None);
         }
-            
-        if emitter.current_charge > 0 {
-            draw_progress_bar_world_space(client, local_player, emitter.visual_position, PROGRESS_BAR_WORLD_SIZE, emitter.current_charge / EMITTER_MAX_CHARGE[client.game_mode]);
+        
+        if emitter.current_charge > EMITTER_MAX_DEFAULT_CHARGE[client.game_mode] {
+            overcharge := (emitter.current_charge - EMITTER_MAX_DEFAULT_CHARGE[client.game_mode]) / EMITTER_MAX_OVERCHARGE;
+            draw_progress_bar_world_space(client, local_player, emitter.visual_position, overcharge, ORANGE_COLOR);
+        } else if emitter.current_charge > 0 {
+            default_charge := emitter.current_charge / EMITTER_MAX_DEFAULT_CHARGE[client.game_mode];
+            draw_progress_bar_world_space(client, local_player, emitter.visual_position, default_charge, GREEN_COLOR);
         }
     }
 
@@ -937,14 +940,14 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
           case .Digging;
             target_entity := find_entity_with_flags_at_position(client, .Diggable, guy.target_position);
             if target_entity {
-                draw_progress_bar_world_space(client, local_player, target_entity.visual_position, PROGRESS_BAR_WORLD_SIZE, 1 - target_entity.health / DEFAULT_ENTITY_HEALTH[target_entity.entity_kind]);
+                draw_progress_bar_world_space(client, local_player, target_entity.visual_position, 1 - target_entity.health / DEFAULT_ENTITY_HEALTH[target_entity.entity_kind], GREEN_COLOR);
             }
 
           case .Carrying;
             // This happened before, so that the items appear under the beams...
             
           case .Resurrecting;
-            draw_progress_bar_world_space(client, local_player, .{ xx guy.target_position.x, xx guy.target_position.y }, PROGRESS_BAR_WORLD_SIZE, guy.resurrection_t);
+            draw_progress_bar_world_space(client, local_player, .{ xx guy.target_position.x, xx guy.target_position.y }, guy.resurrection_t, GREEN_COLOR);
         }
 
         if guy.pid == local_player.guy_pid then draw_input_hints_for_guy(client, local_player, guy);
@@ -969,7 +972,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         }
         
         if draw_health {
-            draw_health_bar_world_space(client, local_player, entity, PROGRESS_BAR_WORLD_SIZE * 2);
+            draw_health_bar_world_space(client, local_player, entity);
         }
     }
     
