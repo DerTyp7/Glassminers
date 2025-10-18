@@ -475,7 +475,7 @@ draw_text_screen_space :: (client: *Client, font: *Font, text: string, position:
 }
 
 draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_size: f32, box_count: s64, percentage: f32, foreground: GE_Color) {
-    background :: GE_Color.{ 100, 100, 100, 200 };
+    background :: GE_Color.{ GRAY_COLOR.r, GRAY_COLOR.g, GRAY_COLOR.b, 200 };
 
     gap_size := ceil(cast(f32) box_size * 0.1);
     
@@ -546,11 +546,10 @@ draw_outlined_circle_segment_screen_space :: (client: *Client, center: v2f, oute
     }
 }
 
-draw_filling_circle_screen_space :: (client: *Client, center: v2f, outer_radius: f32, percentage: f32) {
-    segments :: 6;
-    background :: GE_Color.{ 100, 100, 100, 200 };
-    foreground :: GE_Color.{ 100, 240, 150, 200 };
-    gap_size :: cast(f32) 0.03; // Percentage of the entire circle
+draw_filling_circle_screen_space :: (client: *Client, center: v2f, outer_radius: f32, percentage: f32, foreground: GE_Color) {
+    segments :: 8;
+    background :: GE_Color.{ GRAY_COLOR.r, GRAY_COLOR.g, GRAY_COLOR.b, 200 };
+    gap_size :: cast(f32) 0.02; // Percentage of the entire circle
     inner_radius: f32 = outer_radius * 0.35;
     
     //
@@ -644,8 +643,10 @@ draw_circle_world_space :: (client: *Client, local_player: *Local_Player, world_
 draw_progress_bar_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, percentage: f32, foreground: GE_Color) {
     box_count :: 6;
     screen_center := screen_from_world_position(*local_player.camera, world_center);
-    screen_size: f32 = screen_from_world_height(*local_player.camera, 0.1);
-    draw_filling_boxes_screen_space(client, screen_center, screen_size, box_count, percentage, foreground);
+    //screen_size: f32 = screen_from_world_height(*local_player.camera, 0.1);
+    //draw_filling_boxes_screen_space(client, screen_center, screen_size, box_count, percentage, foreground);
+    outer_radius: f32 = screen_from_world_height(*local_player.camera, 0.25);
+    draw_filling_circle_screen_space(client, screen_center, outer_radius, percentage, foreground);
 }
 
 draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, entity: *Entity) {

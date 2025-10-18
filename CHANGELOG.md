@@ -6,6 +6,7 @@
 - Added overloading the emitter with more charge for up to 45 seconds - at double the coal price
 - Increased the lifetime of a slab to 20 seconds
 - The players now respawn with their carried item (or chest) in hand after being resurrected
+- Made the progress bars a circle instead of some boxes
 - Fixed entities generated at positions where they block access to the emitter
 - Fixed not clearing the "add local player" text box in the lobby, leading to adding the same player twice
 - Fixed Linux stutters due repeated controller detection checks for incompatible devices
