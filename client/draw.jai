@@ -577,13 +577,6 @@ draw_circle_screen_space :: (client: *Client, center: v2f, inner_radius, outer_r
     draw_circle_segment_screen_space(client, center, inner_radius, outer_radius, 0, 1, color);
 }
 
-draw_progress_bar_screen_space :: (client: *Client, center: v2f, percentage: f32, foreground: GE_Color) -> f32 {
-    box_count :: 6;
-    size: f32 = 20 * UI_SCALING_VALUES[client.config.ui_scale];
-    draw_filling_boxes_screen_space(client, center, size, box_count, percentage, foreground);
-    return size;
-}
-
 draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
     if sprite_index == .Count return; // This makes it more convenient when drawing input action hints, because we might not have sprites for every input binding...
 
@@ -649,8 +642,10 @@ draw_circle_world_space :: (client: *Client, local_player: *Local_Player, world_
 }
 
 draw_progress_bar_world_space :: (client: *Client, local_player: *Local_Player, world_center: v2f, percentage: f32, foreground: GE_Color) {
+    box_count :: 6;
     screen_center := screen_from_world_position(*local_player.camera, world_center);
-    draw_progress_bar_screen_space(client, screen_center, percentage, foreground);
+    screen_size: f32 = screen_from_world_height(*local_player.camera, 0.1);
+    draw_filling_boxes_screen_space(client, screen_center, screen_size, box_count, percentage, foreground);
 }
 
 draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, entity: *Entity) {

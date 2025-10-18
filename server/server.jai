@@ -83,7 +83,7 @@ Server :: struct {
     game_paused := false;
     tick_time: f32;
     world_size: v2i;
-    current_section_index: u64; // keeps track of how often the world was expanded & next section generation
+    current_section_index: u64;
     global_stats: [Global_Stat_Kind.Count]Statistic;
     flag_pid: Pid;
     latest_emitter: Pid = INVALID_PID;

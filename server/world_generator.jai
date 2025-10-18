@@ -1,3 +1,8 @@
+Biome_Type :: enum {
+    Lava_Lake;
+    Goblin_Nest;
+}
+
 count_sections_in_predefined_world :: (game_mode: Game_Mode) -> s64 {
     lines, success := load_predefined_world_data(game_mode);
     if !success return 0;
@@ -77,13 +82,7 @@ generate_next_world_section :: (server: *Server) {
 
 #file_scope
 
-Biome_Type :: enum {
-    Mineshaft; // Default biome
-    Lava_Lake;
-    Goblin_Nest;
-}
-
-SPECIAL_BIOME_OCCURANCE :: 3; // @Cleanup
+SPECIAL_BIOME_OCCURANCE :: 5;
 
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 MINESHAFT_SPAWN_PROBABILITY_TABLE :: #run setup_mineshaft_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
@@ -405,7 +404,7 @@ generate_n_random_entities :: (server: *Server, helper: *Biome_Helper, kind: Ent
     return result;
 }
 
-fill_mineshaft_biome :: (server: *Server, helper: *Biome_Helper) {
+fill_randomly_generated_section :: (server: *Server, helper: *Biome_Helper) {
     generate_random_count :: (server: *Server, helper: *Biome_Helper, kind: Entity_Kind, modifier: f32) -> s32 {
         t := MINESHAFT_SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
         area := (helper.section[1] - helper.section[0] + 1) * SECTION_HEIGHT;
@@ -675,14 +674,17 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
 }
 
 fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
-    special_biome := (section_index + 1) % SPECIAL_BIOME_OCCURANCE == 0;
-    biome_type: Biome_Type = ifx special_biome then cast(Biome_Type) random_u64_in(*server.world_random, 1, Biome_Type.Count) else .Mineshaft;
-
     helper := make_biome_helper(server, section);
 
-    if #complete biome_type == {
-      case .Mineshaft;   fill_mineshaft_biome(server, *helper);
-      case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
-      case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
+    section_number := section_index + 1;
+    if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
+        biome_type: Biome_Type = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % Biome_Type.Count;
+
+        if #complete biome_type == {
+          case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
+          case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
+        }
+    } else {
+        fill_randomly_generated_section(server, *helper);
     }
 }
