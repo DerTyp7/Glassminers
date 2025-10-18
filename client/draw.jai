@@ -880,16 +880,16 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
             flags: Draw_Beam_Flags = .First_As_V;
             if emitter.beam_ends_in_other_emitter then flags |= .Last_As_V;
             draw_beam(client, local_player, *emitter.beam_data, .{ 255, 229, 167, 180 }, emitter.beam_intensity, flags);
-        } else if emitter.current_charge >= EMITTER_MAX_DEFAULT_CHARGE[client.game_mode] {
+        } else if emitter.current_charge >= EMITTER_MAX_BASE_CHARGE[client.game_mode] {
             world_size := calculate_pulsating_icon_size(client);
             draw_sprite_world_space(client, local_player, .Flag_0, .{ emitter.visual_position.x, emitter.visual_position.y + 0.25 }, world_size, 0, .{ 255, 255, 255, 255 }, .None);
         }
         
-        if emitter.current_charge > EMITTER_MAX_DEFAULT_CHARGE[client.game_mode] {
-            overcharge := (emitter.current_charge - EMITTER_MAX_DEFAULT_CHARGE[client.game_mode]) / EMITTER_MAX_OVERCHARGE;
+        if emitter.current_charge > EMITTER_MAX_BASE_CHARGE[client.game_mode] {
+            overcharge := (emitter.current_charge - EMITTER_MAX_BASE_CHARGE[client.game_mode]) / EMITTER_MAX_OVER_CHARGE;
             draw_progress_bar_world_space(client, local_player, emitter.visual_position, overcharge, ORANGE_COLOR);
         } else if emitter.current_charge > 0 {
-            default_charge := emitter.current_charge / EMITTER_MAX_DEFAULT_CHARGE[client.game_mode];
+            default_charge := emitter.current_charge / EMITTER_MAX_BASE_CHARGE[client.game_mode];
             draw_progress_bar_world_space(client, local_player, emitter.visual_position, default_charge, GREEN_COLOR);
         }
     }

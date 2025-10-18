@@ -630,8 +630,8 @@ update_guy :: (server: *Server, guy: *Guy) {
 }
 
 set_emitter_state :: (server: *Server, emitter: *Emitter, state: Emitter_State, charge: f32) {
-    default_charge := clamp(charge, 0, EMITTER_MAX_DEFAULT_CHARGE[server.game_mode]);
-    overcharge := max(charge - EMITTER_MAX_DEFAULT_CHARGE[server.game_mode], 0) * 0.5;
+    default_charge := clamp(charge, 0, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
+    overcharge := max(charge - EMITTER_MAX_BASE_CHARGE[server.game_mode], 0) * 0.5;
     new_charge := default_charge + overcharge;
 
     something_changed := emitter.state != state || emitter.current_charge != new_charge;
@@ -662,7 +662,7 @@ update_off_emitter :: (server: *Server, emitter: *Emitter) {
     if emitter.state == .Off {
         is_beam, other_emitter, incoming_direction := is_emitter_beam_at(server, emitter.physical_position);
 
-        delta_charge := server.tick_time * (EMITTER_MAX_DEFAULT_CHARGE[server.game_mode] / EMITTER_TIME_TO_POWER_UP);
+        delta_charge := server.tick_time * (EMITTER_MAX_BASE_CHARGE[server.game_mode] / EMITTER_TIME_TO_POWER_UP);
         sign: f32 = ifx (is_beam && incoming_direction == emitter.physical_rotation) then 1 else -1;
         set_emitter_state(server, emitter, .Off, emitter.current_charge + delta_charge * sign);
     }

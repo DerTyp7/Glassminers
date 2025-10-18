@@ -32,7 +32,7 @@ generate_initial_world_section :: (server: *Server) {
     if use_random_world_generation(server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
-        set_emitter_state(server, emitter, .Active, EMITTER_MAX_DEFAULT_CHARGE[server.game_mode]);
+        set_emitter_state(server, emitter, .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
 
         chest_entity := create_entity(server, .Chest, .{ 0, 3 }, .North);
         chest := down(chest_entity, Chest);
@@ -233,7 +233,7 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
                 if kind == .Emitter {
                     emitter := down(entity, Emitter);
 
-                    if x == 0 set_emitter_state(server, emitter, .Active, EMITTER_MAX_DEFAULT_CHARGE[server.game_mode]);
+                    if x == 0 set_emitter_state(server, emitter, .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
 
                     if server.latest_emitter == INVALID_PID || get_entity(server, server.latest_emitter).physical_position.x < entity.physical_position.x then server.latest_emitter = emitter.pid;
                 } else if kind == .Slime_Hole {

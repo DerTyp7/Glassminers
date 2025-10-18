@@ -499,6 +499,9 @@ visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
 /* ----------------------------------------------- Entity Logic ----------------------------------------------- */
 
 update_powered_emitter :: (client: *Client, emitter: *Emitter) {
+    //
+    // Update the emitter beam
+    //
     clear_beam_data(client, *emitter.beam_data);
 
     previous_charge := emitter.current_charge;
@@ -506,6 +509,17 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
 
     if emitter.current_charge > 0 {
         recalculate_beam(client, *emitter.beam_data, emitter.physical_position, emitter.physical_rotation, true, MAX_S64);
+
+        if emitter.beam_data.fields.count {
+            emitter.beam_ends_in_other_emitter = find_entity_of_kind_at_position(client, .Emitter, array_get(*emitter.beam_data.fields, emitter.beam_data.fields.count - 1).position) != null;
+        } else {
+            emitter.beam_ends_in_other_emitter = false;
+        }
+
+        x := 1 - emitter.current_charge / EMITTER_MAX_BASE_CHARGE[client.game_mode];
+        t := cosf(powf(x * 2, 8)) * 0.5 + 0.5;
+        emitter.beam_intensity = smoothstep(t, 0, powf(x, 4) / 3);
+
         /*    
         // :EmitterSound, currently don't have a good sound to use that isn't annoying...
         if !sound_active(client, emitter.sound) {
@@ -516,74 +530,72 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
         stop_sound(client, *emitter.sound);
         emitter.sound = play_sound(client, .Emitter_Dying, .Default); // Don't spatialize this sound so that everyone can hear it
     }
-        
-    if particle_system_exists(client, emitter.particles) {
-        particles := get_particle_system(client, emitter.particles);
-        particle_emitter := *particles.emitters[0];
-        particle_emitter.line_strings = .[];
-    }
 
+    //
+    // Update the emitter particle system
+    //
     if emitter.current_charge > 0 {
-        if emitter.beam_data.fields.count {
-            emitter.beam_ends_in_other_emitter = find_entity_of_kind_at_position(client, .Emitter, array_get(*emitter.beam_data.fields, emitter.beam_data.fields.count - 1).position) != null;
-        } else {
-            emitter.beam_ends_in_other_emitter = false;
-        }
-        
-        x := 1 - emitter.current_charge / EMITTER_MAX_DEFAULT_CHARGE[client.game_mode];
-        t := cosf(powf(x * 2, 8)) * 0.5 + 0.5;
-        emitter.beam_intensity = smoothstep(t, 0, powf(x, 4) / 3);
+        particles: *Particle_System = ---;
 
+        // Manage the particle system
         if !particle_system_exists(client, emitter.particles) {
-            particles := create_particle_system(client, MAX_F32, emitter.visual_position, 1);
+            particles = create_particle_system(client, MAX_F32, emitter.visual_position, 1);
             particle_emitter := create_particle_emitter(particles, 0, 256 * 5);
             particle_emitter.shape    = .Line_String;
             particle_emitter.lifetime = .[ MAX_F32, MAX_F32 ];
-            particle_emitter.color    = .[ .{ 168, 166, 52, 255 }, .{ 255, 240, 160, 255 } ];
             particle_emitter.particles_per_second = 50;
             emitter.particles = particles.pid;
+        } else {
+            particles = get_particle_system(client, emitter.particles);
+            particle_emitter := *particles.emitters[0];
+            particle_emitter.line_strings = .[];
         }
 
-        {
-            particles := get_particle_system(client, emitter.particles);
-            particles.global_alpha = emitter.beam_intensity;
-            particles.world_position = emitter.visual_position;
+        particle_emitter := *particles.emitters[0];
 
-            fields_with_particles_count := emitter.beam_data.fields.count - emitter.beam_ends_in_other_emitter;
+        // Update the particle emitter
+        color_t := clamp((emitter.current_charge - EMITTER_MAX_BASE_CHARGE[client.game_mode]) / EMITTER_MAX_OVER_CHARGE, 0, 1);
+        particle_emitter.color = .[ ge_mix_colors(.{ 183, 186, 59, 255 }, .{ 189, 89, 10, 255 }, color_t), ge_mix_colors(.{ 252, 252, 187, 255 }, .{ 245, 157, 87, 255 }, color_t) ];
+        particles.global_alpha = emitter.beam_intensity;
+        particles.world_position = emitter.visual_position;
+
+        // Set the particle line string shape
+        fields_with_particles_count := emitter.beam_data.fields.count - emitter.beam_ends_in_other_emitter;
+        particle_emitter.line_strings = allocate_slice(*client.tick_allocator, Line_String, fields_with_particles_count);
+
+        WIDTH: f32 : 0.9;
+        
+        for i := 1; i < fields_with_particles_count; ++i {
+            field := array_get(*emitter.beam_data.fields, i);
+
+            my_displacement := vector_from_direction(field.incoming_direction);
+
+            previous_direction := array_get(*emitter.beam_data.fields, i - 1).incoming_direction;
+            next_direction     := ifx i + 1 < fields_with_particles_count then array_get(*emitter.beam_data.fields, i + 1).incoming_direction else field.incoming_direction;
+
+            start_angle := (visual_from_physical_rotation(previous_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
+            end_angle   := (visual_from_physical_rotation(next_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
             
-            particle_emitter := *particles.emitters[0];
-            particle_emitter.line_strings = allocate_slice(*client.tick_allocator, Line_String, fields_with_particles_count);
-
-            WIDTH: f32 : 0.9;
+            start_field := v2f.{ xx field.position.x - xx my_displacement.x - emitter.visual_position.x,
+                                    xx field.position.y - xx my_displacement.y - emitter.visual_position.y };
+            end_field := v2f.{ xx field.position.x - emitter.visual_position.x,
+                                xx field.position.y - emitter.visual_position.y };
             
-            for i := 1; i < fields_with_particles_count; ++i {
-                field := array_get(*emitter.beam_data.fields, i);
+            start_width := ifx i == 1 then 0 else WIDTH;
+            end_width   := WIDTH;
 
-                my_displacement := vector_from_direction(field.incoming_direction);
+            particle_emitter.line_strings[i - 1] = .{ .[ start_field, end_field ], .[ start_angle, end_angle ], .[ start_width, end_width ] };
 
-                previous_direction := array_get(*emitter.beam_data.fields, i - 1).incoming_direction;
-                next_direction     := ifx i + 1 < fields_with_particles_count then array_get(*emitter.beam_data.fields, i + 1).incoming_direction else field.incoming_direction;
-
-                start_angle := (visual_from_physical_rotation(previous_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
-                end_angle   := (visual_from_physical_rotation(next_direction) - visual_from_physical_rotation(field.incoming_direction)) / 2 + 0.25;
-                
-                start_field := v2f.{ xx field.position.x - xx my_displacement.x - emitter.visual_position.x,
-                                     xx field.position.y - xx my_displacement.y - emitter.visual_position.y };
-                end_field := v2f.{ xx field.position.x - emitter.visual_position.x,
-                                   xx field.position.y - emitter.visual_position.y };
-                
-                start_width := ifx i == 1 then 0 else WIDTH;
-                end_width   := WIDTH;
-
-                particle_emitter.line_strings[i - 1] = .{ .[ start_field, end_field ], .[ start_angle, end_angle ], .[ start_width, end_width ] };
-
-                if i + 1 == fields_with_particles_count {
-                    final_field := v2f.{ xx field.position.x + xx my_displacement.x / 2 - emitter.visual_position.x,
-                                         xx field.position.y + xx my_displacement.y / 2 - emitter.visual_position.y };
-                    particle_emitter.line_strings[i] = .{ .[ end_field, final_field ], .[ end_angle, end_angle ], .[ end_width, end_width] };
-                }
+            if i + 1 == fields_with_particles_count {
+                final_field := v2f.{ xx field.position.x + xx my_displacement.x / 2 - emitter.visual_position.x,
+                                        xx field.position.y + xx my_displacement.y / 2 - emitter.visual_position.y };
+                particle_emitter.line_strings[i] = .{ .[ end_field, final_field ], .[ end_angle, end_angle ], .[ end_width, end_width] };
             }
         }
+    } else if particle_system_exists(client, emitter.particles) {
+        system := get_particle_system(client, emitter.particles);
+        system.time_to_live = 0;
+        emitter.particles = INVALID_PID;
     }
 }
 
@@ -594,12 +606,12 @@ update_off_emitter :: (client: *Client, emitter: *Emitter) {
     is_lit := is_beam && incoming_direction == emitter.physical_rotation;
 
     if is_lit {
-        emitter.current_charge = clamp(emitter.current_charge + client.tick_time * (EMITTER_MAX_DEFAULT_CHARGE[client.game_mode] / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_DEFAULT_CHARGE[client.game_mode]);
+        emitter.current_charge = clamp(emitter.current_charge + client.tick_time * (EMITTER_MAX_BASE_CHARGE[client.game_mode] / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_BASE_CHARGE[client.game_mode]);
     } else {
-        emitter.current_charge = clamp(emitter.current_charge - client.tick_time * (EMITTER_MAX_DEFAULT_CHARGE[client.game_mode] / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_DEFAULT_CHARGE[client.game_mode]);
+        emitter.current_charge = clamp(emitter.current_charge - client.tick_time * (EMITTER_MAX_BASE_CHARGE[client.game_mode] / EMITTER_TIME_TO_POWER_UP), 0, EMITTER_MAX_BASE_CHARGE[client.game_mode]);
     }
 
-    emitter.currently_charging_up = is_lit && emitter.current_charge < EMITTER_MAX_DEFAULT_CHARGE[client.game_mode];
+    emitter.currently_charging_up = is_lit && emitter.current_charge < EMITTER_MAX_BASE_CHARGE[client.game_mode];
 }
 
 update_slab :: (client: *Client, slab: *Slab) {

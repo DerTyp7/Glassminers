@@ -308,10 +308,10 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             }
 
           case .Off;
-            should_play_sound := emitter.currently_charging_up && emitter.current_charge < EMITTER_MAX_DEFAULT_CHARGE[client.game_mode]; // Avoid glitching at the end due to client side prediction
+            should_play_sound := emitter.currently_charging_up && emitter.current_charge < EMITTER_MAX_BASE_CHARGE[client.game_mode]; // Avoid glitching at the end due to client side prediction
             if should_play_sound && !sound_active(client, emitter.sound) {
                 emitter.sound = play_sound_on_entity(client, .Emitter_Charging, emitter, .Default);
-                set_sound_playback_position(client, emitter.sound, emitter.current_charge / EMITTER_MAX_DEFAULT_CHARGE[client.game_mode]);
+                set_sound_playback_position(client, emitter.sound, emitter.current_charge / EMITTER_MAX_BASE_CHARGE[client.game_mode]);
             } else if !should_play_sound {
                 stop_sound(client, *emitter.sound);
             }

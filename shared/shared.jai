@@ -83,7 +83,7 @@ VISUAL_HEALTH_ANIMATION_FRAME_TIME: f32 : 0.2;
 COAL_EMITTER_CHARGE: f32 : 45;
 SLAB_TIME_TO_LIVE:   f32 : 20;
 EMITTER_TIME_TO_POWER_UP: f32 : 5;
-EMITTER_MAX_DEFAULT_CHARGE:  [Game_Mode.Count]f32 : .[
+EMITTER_MAX_BASE_CHARGE:  [Game_Mode.Count]f32 : .[
     180, // Developer
     110, // Tutorial
     110, // Easy
@@ -91,7 +91,7 @@ EMITTER_MAX_DEFAULT_CHARGE:  [Game_Mode.Count]f32 : .[
     70,  // Hard
 ];
 
-EMITTER_MAX_OVERCHARGE: f32 : 45;
+EMITTER_MAX_OVER_CHARGE: f32 : 45;
 
 TORCH_TIME_TO_LIVE: f32 : 30; // In seconds
 TORCH_MEDIUM_PERCENTAGE: f32 : 0.3; // This this percent of TTL left, the torch is only medium size...
