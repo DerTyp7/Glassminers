@@ -332,11 +332,10 @@ make_biome_helper :: (server: *Server, section: [2]s32) -> Biome_Helper {
     return helper;
 }
 
-is_reserved_position :: (server: *Server, position: v2i, helper: *Biome_Helper) -> bool {
+is_reserved_position :: (server: *Server, position: v2i, kind: Entity_Kind, helper: *Biome_Helper) -> bool {
     // We want to free up space around the spawn positions of the player (so that players don't spawn on
     // top of monsters, etc) and the emitters.
-    if (position.y >= 1 && position.y <= 3 && position.x >= 0 && position.x <= 2 + server.clients.count + 1)
-        return true;
+    if position.x < 5 + count_total_players(server) && (kind == .Frog || kind == .Goblin || kind == .Slime_Hole)  then return true;
     
     if helper.previous_emitter {
         distance_to_emitter := abs(position.x - helper.previous_emitter.physical_position.x) + abs(position.y - helper.previous_emitter.physical_position.y);
@@ -354,14 +353,14 @@ is_reserved_position :: (server: *Server, position: v2i, helper: *Biome_Helper) 
     return false;
 }
 
-random_position :: (server: *Server, helper: *Biome_Helper, retry_on_reserved: bool) -> v2i, bool {
+random_position :: (server: *Server, kind: Entity_Kind, helper: *Biome_Helper, retry_on_reserved: bool) -> v2i, bool {
     position := v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
                         random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
 
     success := true;
     
     iteration := 0;
-    while find_any_entity_at_position(server, position) || (retry_on_reserved && is_reserved_position(server, position, helper)) {
+    while find_any_entity_at_position(server, position) || (retry_on_reserved && is_reserved_position(server, position, kind, helper)) {
         position = v2i.{ random_u64_in(*server.world_random, helper.section[0], helper.section[1] + 1),
                             random_u64_in(*server.world_random, 0, SECTION_HEIGHT) };
 
@@ -375,7 +374,7 @@ random_position :: (server: *Server, helper: *Biome_Helper, retry_on_reserved: b
     }
 
     if !retry_on_reserved {
-        success = success && !is_reserved_position(server, position, helper);
+        success = success && !is_reserved_position(server, position, kind, helper);
     }
 
     return position, success;
@@ -396,7 +395,7 @@ generate_n_random_entities :: (server: *Server, helper: *Biome_Helper, kind: Ent
     result.allocator = *temp;
 
     for i := 0; i < count; ++i {
-        position, success := random_position(server, helper, retry_on_reserved);
+        position, success := random_position(server, kind, helper, retry_on_reserved);
         if success {
             entity := create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
             array_add(*result, entity);

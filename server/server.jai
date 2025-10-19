@@ -109,6 +109,16 @@ logprint :: (level: Log_Level, format: string, args: ..Any) {
     flush_print_buffer(*buffer);
 }
 
+count_total_players :: (server: *Server) -> s64 {
+    count := 0;
+    
+    for i := 0; i < server.clients.count; ++i {
+        count += array_get_pointer(*server.clients, i).local_player_count;
+    }
+
+    return count;
+}
+
 find_local_player_by_guy_pid :: (server: *Server, guy_pid: Pid) -> *Local_Player {
     for i := 0; i < server.clients.count; ++i {
         client := array_get_pointer(*server.clients, i);
