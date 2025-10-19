@@ -49,6 +49,7 @@ generate_initial_world_section :: (server: *Server) {
         fill_random_biome(server, .[ 0, server.world_size.x - 1], 0);
     } else {
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
+        server.current_biome = .Count;
     }
 }
 
@@ -77,6 +78,7 @@ generate_next_world_section :: (server: *Server) {
 
         resize_lightmap(*server.lightmap, server.world_size);
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
+        server.current_biome = .Count;
     }
 }
 
@@ -677,6 +679,11 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
 fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
     helper := make_biome_helper(server, section);
 
+    // nocheckin
+    fill_lava_lake_biome(server, *helper);
+    server.current_biome = .Lava_Lake;
+    return;
+
     section_number := section_index + 1;
     if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
         biome_type: Biome_Type = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % Biome_Type.Count;
@@ -685,7 +692,10 @@ fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
           case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
           case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
         }
+
+        server.current_biome = biome_type;
     } else {
         fill_randomly_generated_section(server, *helper);
+        server.current_biome = .Count;
     }
 }

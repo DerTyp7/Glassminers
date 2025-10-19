@@ -1,3 +1,5 @@
+// @Cleanup: Should all the update_XXXentityXXX be in here or in tick.jai?
+
 Beam_Data :: struct {
     Field :: struct {
         #using position: v2i;
@@ -42,6 +44,7 @@ Guy :: struct {
     resurrection_t: f32   = 0; // Between 0 and 1
 
     strength_t: f32 = 0;
+    seconds_since_last_move: f32 = 0;
     
     // The client application will send out at most one Guy_Input_Message per frame. 
     // However, with varying latency (such as when on WiFi), it can happen that we receive no input message in one tick, 
@@ -494,6 +497,8 @@ update_physical_location :: (server: *Server, entity: *Entity, position: v2i, ro
               case .Dead, .Idle, .Carrying;
               case .Digging, .Resurrecting; switch_guy_state(server, guy, .Idle);
             }
+
+            guy.seconds_since_last_move = 0;
         }
 
         maybe_move_blocker(*server.lightmap, entity, position);
@@ -572,7 +577,9 @@ update_guy :: (server: *Server, guy: *Guy) {
     }
 
     if guy.strength_t > 0 guy.strength_t -= server.tick_time;
-    
+
+    guy.seconds_since_last_move += server.tick_time;
+
     if guy.state == {
       case .Digging;
         target_entity := find_entity_with_flags_at_position(server, .Diggable, guy.target_position); // This target entity might change (or become null) when the guy rotates because of player input, or the entity is destructed by someone else...
@@ -622,6 +629,10 @@ update_guy :: (server: *Server, guy: *Guy) {
         } else {
             broadcast_guy_state(server, guy); // Update the resurrection time
         }
+    }
+
+    if server.current_biome == .Lava_Lake && guy.seconds_since_last_move >= LAVA_LAKE_TIME_TO_TURN && !find_entity_of_kind_at_position(server, .Lava, guy.physical_position) {
+        create_entity(server, .Lava, guy.physical_position, DEFAULT_ENTITY_ROTATION[.Lava]);
     }
 
     damage_and_maybe_kill_if_in_lava(server, guy);
