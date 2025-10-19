@@ -477,12 +477,12 @@ draw_text_screen_space :: (client: *Client, font: *Font, text: string, position:
 draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_size: f32, box_count: s64, percentage: f32, foreground: GE_Color) {
     background :: GE_Color.{ GRAY_COLOR.r, GRAY_COLOR.g, GRAY_COLOR.b, 200 };
 
-    gap_size := ceil(cast(f32) box_size * 0.1);
+    padding_size := ceil(cast(f32) box_size * 0.1);
     
     for i := 0; i < box_count; ++i {
         theta := cast(f32) i / cast(f32) box_count;
         
-        c0 := v2f.{ center.x + (theta - 0.5) * xx box_count * (box_size + gap_size), center.y - box_size / 2};
+        c0 := v2f.{ center.x + (theta - 0.5) * xx box_count * (box_size + padding_size), center.y - box_size / 2};
         c1 := v2f.{ c0.x + box_size, center.y + box_size / 2 };
         
         alpha: f32 = ---;
@@ -498,12 +498,18 @@ draw_filling_boxes_screen_space :: (client: *Client, center: v2f, box_size: f32,
     }
 }
 
-get_vertices_of_circle_segment :: (center: v2f, outer_radius, inner_radius: f32, outer_theta0, outer_theta1: f32, inner_theta0, inner_theta1: f32, subsegments: s64, i: s64) -> [4]v2f {
-    outer_range := outer_theta1 - outer_theta0;
-    inner_range := inner_theta1 - inner_theta0;
-
+get_vertices_of_circle_subsegment :: (center: v2f, outer_radius, inner_radius: f32, theta: f32, covered_angle: f32, outer_padding_angle: f32, subsegments: s64, i: s64) -> [4]v2f {
     t0 := cast(f32) i / cast(f32) subsegments;
     t1 := cast(f32) (i + 1) / cast(f32) subsegments;
+
+    inner_padding_angle := outer_padding_angle * (outer_radius / inner_radius);
+
+    outer_range := covered_angle - outer_padding_angle;
+    inner_range := covered_angle - inner_padding_angle;
+
+    outer_theta0 := theta - covered_angle * 0.5 + outer_padding_angle * 0.5;
+    inner_theta0 := theta - covered_angle * 0.5 + inner_padding_angle * 0.5;
+
     outer_seg_t0 := (t0 * outer_range + outer_theta0) * FTAU;
     outer_seg_t1 := (t1 * outer_range + outer_theta0) * FTAU;
     inner_seg_t0 := (t0 * inner_range + inner_theta0) * FTAU;
@@ -517,11 +523,11 @@ get_vertices_of_circle_segment :: (center: v2f, outer_radius, inner_radius: f32,
     return result;
 }
 
-draw_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius, inner_radius: f32, outer_theta0, outer_theta1: f32, inner_theta0, inner_theta1: f32, color: GE_Color) {
+draw_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius, inner_radius: f32, theta: f32, covered_angle: f32, outer_padding_angle: f32, color: GE_Color) {
     subsegments :: 24;
 
     for i := 0; i < subsegments; ++i {
-        p := get_vertices_of_circle_segment(center, outer_radius, inner_radius, outer_theta0, outer_theta1, inner_theta0, inner_theta1, subsegments, i);        
+        p := get_vertices_of_circle_subsegment(center, outer_radius, inner_radius, theta, covered_angle, outer_padding_angle, subsegments, i);        
         
         ge_imm2d_colored_vertex(*client.graphics, p[0].x, p[0].y, color);
         ge_imm2d_colored_vertex(*client.graphics, p[1].x, p[1].y, color);
@@ -533,13 +539,13 @@ draw_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius,
     }
 }
 
-draw_outlined_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius, inner_radius: f32, outer_theta0, outer_theta1: f32, inner_theta0, inner_theta1: f32, color: GE_Color, thickness: f32) {
+draw_outlined_circle_segment_screen_space :: (client: *Client, center: v2f, outer_radius, inner_radius: f32, theta: f32, covered_angle: f32, outer_padding_angle: f32, color: GE_Color, thickness: f32) {
     subsegments :: 24;
 
-    draw_endpoint_sides := abs(outer_theta0 - outer_theta1) > 0.01 && (outer_theta0 > 0.01 || outer_theta1 < 0.99);
+    draw_endpoint_sides := covered_angle < 0.9999;
     
     for i := 0; i < subsegments; ++i {
-        p := get_vertices_of_circle_segment(center, outer_radius, inner_radius, outer_theta0, outer_theta1, inner_theta0, inner_theta1, subsegments, i);        
+        p := get_vertices_of_circle_subsegment(center, outer_radius, inner_radius, theta, covered_angle, outer_padding_angle, subsegments, i);
 
         draw_line_screen_space(client, p[0], p[1], color, thickness);
         draw_line_screen_space(client, p[2], p[3], color, thickness);
@@ -554,32 +560,23 @@ draw_outlined_circle_segment_screen_space :: (client: *Client, center: v2f, oute
 draw_filling_circle_screen_space :: (client: *Client, center: v2f, outer_radius: f32, percentage: f32, foreground: GE_Color) {
     segments            :: 8;
     background          :: GE_Color.{ GRAY_COLOR.r, GRAY_COLOR.g, GRAY_COLOR.b, 200 };
+    segment_angle       :: cast(f32) 1 / cast(f32) segments;
     outer_padding_angle :: cast(f32) 0.02; // Percentage of the entire circle
     inner_radius        := outer_radius * 0.35;
-    inner_padding_angle := cast(f32) outer_padding_angle * (outer_radius / inner_radius);
 
-    //
-    // Draw the circle segments
-    //
     for i := 0; i < segments; ++i {
-        t0 := (cast(f32) i / cast(f32) segments);
-        t1 := (cast(f32) (i + 1 % segments) / cast(f32) segments);
+        theta := ((cast(f32) i + 0.5) / cast(f32) segments);
 
-        alpha := clamp((percentage - t0) / (t1 - t0), 0, 1);
+        alpha := clamp((percentage - cast(f32) i * segment_angle) / segment_angle, 0, 1);
         color := GE_Color.{ foreground.r, foreground.g, foreground.b, xx (xx foreground.a * alpha) };
 
-        outer_theta0 := t0 + outer_padding_angle * 0.5;
-        outer_theta1 := t1 - outer_padding_angle * 0.5;
-        inner_theta0 := t0 + inner_padding_angle * 0.5;
-        inner_theta1 := t1 - inner_padding_angle * 0.5;
-
-        draw_circle_segment_screen_space(client, center, outer_radius, inner_radius, outer_theta0, outer_theta1, inner_theta0, inner_theta1, background);
-        draw_circle_segment_screen_space(client, center, outer_radius, inner_radius, outer_theta0, outer_theta1, inner_theta0, inner_theta1, color);
+        draw_circle_segment_screen_space(client, center, outer_radius, inner_radius, theta, segment_angle, outer_padding_angle, background);
+        draw_circle_segment_screen_space(client, center, outer_radius, inner_radius, theta, segment_angle, outer_padding_angle, color);
     }
 }
 
 draw_circle_screen_space :: (client: *Client, center: v2f, inner_radius, outer_radius: f32, color: GE_Color) {
-    draw_circle_segment_screen_space(client, center, inner_radius, outer_radius, 0, 1, 0, 1, color);
+    draw_circle_segment_screen_space(client, center, inner_radius, outer_radius, 0, 1, 0, color);
 }
 
 draw_sprite_screen_space :: (client: *Client, sprite_index: Sprite_Index, screen_center: v2f, screen_size: v2f, rotation: f32, tint: GE_Color, flags: Draw_Sprite_Flags) {
@@ -661,15 +658,15 @@ draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, en
 
     heart_count: s64 = cast(s64) ceil(DEFAULT_ENTITY_HEALTH[entity.entity_kind] / HEALTH_PER_HEART);
 
-    gap_size := round(cast(f32) screen_size * 0.1);
-    leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + gap_size);
+    padding_size := round(cast(f32) screen_size * 0.1);
+    leftmost_center := screen_center.x - xx (heart_count - 1) * cast(f32) 0.5 * (screen_size + padding_size);
 
     brightness := query_lightmap_gamma_adjusted(*client.lightmap, entity.physical_position);
 
     for i := 0; i < heart_count; ++i {
         heart_0 := (cast(f32) i) * DEFAULT_ENTITY_HEALTH[entity.entity_kind] / cast(f32) heart_count;
         heart_1 := (cast(f32) i + 1) * DEFAULT_ENTITY_HEALTH[entity.entity_kind] / cast(f32) heart_count;
-        sprite_center := v2f.{ leftmost_center + xx i * (screen_size + gap_size), screen_center.y };
+        sprite_center := v2f.{ leftmost_center + xx i * (screen_size + padding_size), screen_center.y };
 
         sprite_index: Sprite_Index = ---;
         tint: GE_Color = ---;

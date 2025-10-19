@@ -780,13 +780,12 @@ draw_divider :: (client: *Client, hud: *Hud, option_index: s64, tint: GE_Color) 
 
 draw_circle_segment :: (client: *Client, hud: *Hud, animation_t: f32, color0, color1: GE_Color, option_index: s64) {
     background_color := ge_mix_colors(color0, color1, animation_t);
-    theta0 := cast(f32) option_index * hud.angle_per_option + hud.padding_per_option * 0.5;
-    theta1 := cast(f32) (option_index + 1) * hud.angle_per_option - hud.padding_per_option * 0.5;
+    theta := (cast(f32) option_index + 0.5) * hud.angle_per_option;
 
-    draw_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, theta0, theta1, background_color);
+    draw_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta, hud.angle_per_option, hud.padding_per_option, background_color);
 
     if option_index == hud.selected_option {
-        draw_outlined_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
+        draw_outlined_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta, hud.angle_per_option, hud.padding_per_option, .{ 255, 255, 255, 180 }, 2);
     }
 }
 
