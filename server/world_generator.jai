@@ -44,6 +44,8 @@ generate_initial_world_section :: (server: *Server) {
         chest.inventory = setup_initial_chest_inventory(server);
         broadcast_chest_inventory(server, chest);
 
+        create_entity(server, .Trader, .{ 0, 1 }, .North);
+
         fill_random_biome(server, .[ 0, server.world_size.x - 1], 0);
     } else {
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
@@ -85,7 +87,7 @@ generate_next_world_section :: (server: *Server) {
 SPECIAL_BIOME_OCCURANCE :: 5;
 
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
-MINESHAFT_SPAWN_PROBABILITY_TABLE :: #run setup_mineshaft_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
+DEFAULT_SPAWN_PROBABILITY_TABLE :: #run setup_default_spawn_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
 
 use_random_world_generation :: (server: *Server) -> bool {
     return !(server.game_mode == .Tutorial || server.game_mode == .Developer);
@@ -252,7 +254,7 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
 
 /* --------------------------------------------- Probability Table -------------------------------------------- */
 
-setup_mineshaft_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count]f32 {
+setup_default_spawn_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count]f32 {
     desired_per_section :: (x: f32) -> f32 { // On average I expect X entities in one section
         return cast(f32) x / cast(f32) (SECTION_WIDTH * SECTION_HEIGHT);
     }
@@ -270,7 +272,7 @@ setup_mineshaft_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.Count
     // Set up the default difficulty
     {
         result[.Medium][.Slime_Hole] = desired_per_section(1);
-        result[.Medium][.Trader]     = desired_per_section(0.75);
+        result[.Medium][.Trader]     = desired_per_section(0.6);
         result[.Medium][.Lava]       = desired_coverage(0.085);
         result[.Medium][.Bedrock]    = desired_coverage(0.17);
         result[.Medium][.Coal]       = desired_per_section(4);
@@ -406,7 +408,7 @@ generate_n_random_entities :: (server: *Server, helper: *Biome_Helper, kind: Ent
 
 fill_randomly_generated_section :: (server: *Server, helper: *Biome_Helper) {
     generate_random_count :: (server: *Server, helper: *Biome_Helper, kind: Entity_Kind, modifier: f32) -> s32 {
-        t := MINESHAFT_SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
+        t := DEFAULT_SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
         area := (helper.section[1] - helper.section[0] + 1) * SECTION_HEIGHT;
         mean := t * cast(f32) area;
         stddev: f32 : 0.25;
