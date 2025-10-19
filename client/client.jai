@@ -215,6 +215,7 @@ Client :: struct {
     pause_menu_open: bool;
     server_paused_game: bool;
     requested_game_forfeit := false;
+    current_biome: Biome_Type;
 
     game_seed: s64;
     game_score: u64;

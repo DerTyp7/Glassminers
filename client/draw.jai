@@ -765,8 +765,8 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     }
     
     draw_label :: (client: *Client, local_player: *Local_Player, label: string, entity_pid: Pid) {
-        entity := get_entity(client, entity_pid);
-        if entity {
+        if entity_exists(client, entity_pid) {
+            entity := get_entity(client, entity_pid);
             screen_center := screen_from_world_position(*local_player.camera, v2f.{ entity.visual_position.x, entity.visual_position.y - 0.55 });
             draw_text_screen_space(client, *client.ui_font, label, screen_center, .Center | .Median, WHITE_COLOR, .Background);
         }

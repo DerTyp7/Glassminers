@@ -65,7 +65,6 @@ Game_Pause_Message :: struct {
 Game_Start_Message :: struct {
     MSG_TYPE :: Message_Type.Game_Start;
     seed: s64;
-    size: v2i;
     game_mode: Game_Mode;
 }
 
@@ -101,6 +100,7 @@ Global_Stat_Message :: struct {
 World_Resize_Message :: struct {
     MSG_TYPE :: Message_Type.World_Resize;
     new_world_size: v2i;
+    current_biome: Biome_Type;
 }
 
 Create_Entity_Message :: struct {

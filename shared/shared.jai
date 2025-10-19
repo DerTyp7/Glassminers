@@ -161,6 +161,11 @@ Game_Mode :: enum {
     Hard;
 }
 
+Biome_Type :: enum {
+    Lava_Lake;
+    Goblin_Nest;
+}
+
 Entity_Flags :: enum bitfield {
     Inanimate :: 0;
     Pushable;

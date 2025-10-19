@@ -1,8 +1,3 @@
-Biome_Type :: enum {
-    Lava_Lake;
-    Goblin_Nest;
-}
-
 count_sections_in_predefined_world :: (game_mode: Game_Mode) -> s64 {
     lines, success := load_predefined_world_data(game_mode);
     if !success return 0;
@@ -23,15 +18,17 @@ count_sections_in_predefined_world :: (game_mode: Game_Mode) -> s64 {
     return max_section_count;
 }
 
-get_initial_world_size :: (server: *Server) -> v2i {
-    if use_random_world_generation(server) {
-        return .{ SECTION_WIDTH, SECTION_HEIGHT };
-    } else {
-        return get_current_predefined_world_size(server.game_mode, server.current_section_index);
-    }
-}
-
 generate_initial_world_section :: (server: *Server) {
+    if use_random_world_generation(server) {
+        server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
+    } else {
+        server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
+    }
+
+    select_next_biome(server);
+    send_resize_world_message(server);
+    create_lightmap(*server.lightmap, *server.world_allocator, server.world_size);
+
     try_to_place_item(server, .{ 1, 2 }, .Flag, null, null);
 
     if use_random_world_generation(server) {
@@ -46,7 +43,7 @@ generate_initial_world_section :: (server: *Server) {
 
         create_entity(server, .Trader, .{ 0, 1 }, .North);
 
-        fill_random_biome(server, .[ 0, server.world_size.x - 1], 0);
+        fill_current_biome(server, .[ 0, server.world_size.x - 1]);
     } else {
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
         server.current_biome = .Count;
@@ -58,27 +55,21 @@ generate_next_world_section :: (server: *Server) {
 
     server.void_eyes_spawn_cooldown = 5;    
     ++server.current_section_index;
+    select_next_biome(server);
 
     if use_random_world_generation(server) {
         previous_width := server.world_size.x;
         server.world_size.x += SECTION_WIDTH;
 
-        msg := make_message(World_Resize_Message);
-        msg.world_resize.new_world_size = server.world_size;
-        array_add(*server.outgoing_messages, msg);
-
+        send_resize_world_message(server);
         resize_lightmap(*server.lightmap, server.world_size);
-        fill_random_biome(server, .[ previous_width, server.world_size.x - 1 ], server.current_section_index);
+        fill_current_biome(server, .[ previous_width, server.world_size.x - 1 ]);
     } else {
         server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
 
-        msg := make_message(World_Resize_Message);
-        msg.world_resize.new_world_size = server.world_size;
-        array_add(*server.outgoing_messages, msg);
-
+        send_resize_world_message(server);
         resize_lightmap(*server.lightmap, server.world_size);
         fill_predefined_world_section(server, server.game_mode, server.current_section_index);
-        server.current_biome = .Count;
     }
 }
 
@@ -95,6 +86,12 @@ use_random_world_generation :: (server: *Server) -> bool {
     return !(server.game_mode == .Tutorial || server.game_mode == .Developer);
 }
 
+send_resize_world_message :: (server: *Server) {
+    msg := make_message(World_Resize_Message);
+    msg.world_resize.new_world_size = server.world_size;
+    msg.world_resize.current_biome = server.current_biome;
+    array_add(*server.outgoing_messages, msg);
+}
 
 
 /* --------------------------------------------- Predefined World --------------------------------------------- */
@@ -335,9 +332,13 @@ make_biome_helper :: (server: *Server, section: [2]s32) -> Biome_Helper {
 }
 
 is_reserved_position :: (server: *Server, position: v2i, kind: Entity_Kind, helper: *Biome_Helper) -> bool {
-    // We want to free up space around the spawn positions of the player (so that players don't spawn on
-    // top of monsters, etc) and the emitters.
-    if position.x < 5 + count_total_players(server) && (kind == .Frog || kind == .Goblin || kind == .Slime_Hole)  then return true;
+    if position.x < 5 + count_total_players(server) && (kind == .Frog || kind == .Goblin || kind == .Slime_Hole) {
+        return true; // Don't spawn monsters around the spawn positions of the players
+    }
+
+    if (position.y >= 1 && position.y <= 3 && position.x >= 0 && position.x <= 2 + server.clients.count + 1) {
+        return true; // Don't spawn anything closely around the spawn positions of the players
+    }
     
     if helper.previous_emitter {
         distance_to_emitter := abs(position.x - helper.previous_emitter.physical_position.x) + abs(position.y - helper.previous_emitter.physical_position.y);
@@ -676,26 +677,26 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
     }
 }
 
-fill_random_biome :: (server: *Server, section: [2]s32, section_index: s32) {
+select_next_biome :: (server: *Server) {
+    if !use_random_world_generation(server) {
+        server.current_biome = .Count;
+        return;
+    }
+
+    section_number := server.current_section_index + 1;
+    if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
+        server.current_biome = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % Biome_Type.Count;
+    } else {
+        server.current_biome = .Count;
+    }
+}
+
+fill_current_biome :: (server: *Server, section: [2]s32) {
     helper := make_biome_helper(server, section);
 
-    // nocheckin
-    fill_lava_lake_biome(server, *helper);
-    server.current_biome = .Lava_Lake;
-    return;
-
-    section_number := section_index + 1;
-    if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
-        biome_type: Biome_Type = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % Biome_Type.Count;
-
-        if #complete biome_type == {
-          case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
-          case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
-        }
-
-        server.current_biome = biome_type;
-    } else {
-        fill_randomly_generated_section(server, *helper);
-        server.current_biome = .Count;
+    if #complete server.current_biome == {
+      case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
+      case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
+      case .Count; fill_randomly_generated_section(server, *helper);
     }
 }

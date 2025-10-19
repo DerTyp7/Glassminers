@@ -220,21 +220,22 @@ create_the_game :: (server: *Server) {
     server.current_section_index    = 0;
     server.void_eyes_spawn_cooldown = 5;    
     server.flag_pid   = INVALID_PID;
-    server.world_size = get_initial_world_size(server);
     server.game_seed  = os_get_cpu_time();
     seed_random_generator(*server.world_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
     seed_random_generator(*server.entity_random, server.game_seed, server.game_seed, server.game_seed, server.game_seed);
-
-    create_lightmap(*server.lightmap, *server.world_allocator, server.world_size);
     
     //
     // Notify the clients about the game seed
     //
     game_start := make_message(Game_Start_Message);
     game_start.game_start.seed = server.game_seed;
-    game_start.game_start.size = server.world_size;
     game_start.game_start.game_mode = server.game_mode;
     array_add(*server.outgoing_messages, game_start);
+
+    //
+    // Generate the first section
+    //
+    generate_initial_world_section(server);
 
     //
     // Generate one entity for each player and attach it to the player
@@ -259,11 +260,6 @@ create_the_game :: (server: *Server) {
             ++total_index;
         }
     }
-
-    //
-    // Generate the first section
-    //
-    generate_initial_world_section(server);
 }
 
 setup_initial_chest_inventory :: (server: *Server) -> Item_Inventory {

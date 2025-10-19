@@ -210,6 +210,8 @@ update_player_hud :: (client: *Client, local_player: *Local_Player) {
 }
 
 draw_player_hud :: (client: *Client, local_player: *Local_Player) {
+    if local_player.guy_pid == INVALID_PID return;
+    
     hud := *local_player.hud;
 
     if hud.state != .Disabled {

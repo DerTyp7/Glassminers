@@ -144,6 +144,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
 
       case .World_Resize;
         client.world_size = msg.world_resize.new_world_size;
+        client.current_biome = msg.world_resize.current_biome;
         resize_lightmap(*client.lightmap, client.world_size);
 
         {
@@ -152,7 +153,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             emitter := *system.emitters[0];
             emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
         }
-            
+
+        print("Biome: %\n", client.current_biome);
+
       case .Create_Entity;
         entity := create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
         maybe_add_blocker(*client.lightmap, entity);
@@ -910,11 +913,11 @@ crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_
 }
 
 start_the_game :: (client: *Client, game_info: Game_Start_Message) {
-    client.pause_menu_open    = false;
-    client.server_paused_game = false;
+    client.pause_menu_open        = false;
+    client.server_paused_game     = false;
     client.requested_game_forfeit = false;
+    client.current_biome          = .Count;
     client.game_seed  = game_info.seed;
-    client.world_size = game_info.size;
     client.game_mode  = game_info.game_mode;
     initiate_state_transition(client, .Ingame, 0);
 
@@ -1321,6 +1324,8 @@ find_next_entity_to_spectate :: (client: *Client, current_pid: Pid, forwards: bo
 }
 
 update_local_player_input :: (client: *Client, local_player: *Local_Player) {
+    if local_player.guy_pid == INVALID_PID return; // Could happen if the server didn't send us the Player_Information quick enough...
+    
     guy_entity := get_entity(client, local_player.guy_pid);
     guy := down(guy_entity, Guy);
 
