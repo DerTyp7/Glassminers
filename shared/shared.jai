@@ -85,7 +85,7 @@ SLAB_TIME_TO_LIVE:   f32 : 20;
 EMITTER_TIME_TO_POWER_UP: f32 : 5;
 EMITTER_MAX_BASE_CHARGE:  [Game_Mode.Count]f32 : .[
     180, // Developer
-    110, // Tutorial
+    10, // nocheckin 110, // Tutorial
     110, // Easy
     90,  // Medium
     70,  // Hard

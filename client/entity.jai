@@ -537,7 +537,7 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
     if emitter.current_charge > 0 {
         particles: *Particle_System = ---;
 
-        // Manage the particle system
+        // Create a new particle system if we don't have one yet
         if !particle_system_exists(client, emitter.particles) {
             particles = create_particle_system(client, MAX_F32, emitter.visual_position, 1);
             particle_emitter := create_particle_emitter(particles, 0, 256 * 5);
@@ -547,13 +547,10 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
             emitter.particles = particles.pid;
         } else {
             particles = get_particle_system(client, emitter.particles);
-            particle_emitter := *particles.emitters[0];
-            particle_emitter.line_strings = .[];
         }
 
-        particle_emitter := *particles.emitters[0];
-
         // Update the particle emitter
+        particle_emitter := *particles.emitters[0];
         color_t := clamp((emitter.current_charge - EMITTER_MAX_BASE_CHARGE[client.game_mode]) / EMITTER_MAX_OVER_CHARGE, 0, 1);
         particle_emitter.color = .[ ge_mix_colors(.{ 183, 186, 59, 255 }, .{ 189, 89, 10, 255 }, color_t), ge_mix_colors(.{ 252, 252, 187, 255 }, .{ 245, 157, 87, 255 }, color_t) ];
         particles.global_alpha = emitter.beam_intensity;
@@ -595,6 +592,7 @@ update_powered_emitter :: (client: *Client, emitter: *Emitter) {
     } else if particle_system_exists(client, emitter.particles) {
         system := get_particle_system(client, emitter.particles);
         system.time_to_live = 0;
+        system.emitters[0].line_strings = .[]; // The system will be updated one last time...
         emitter.particles = INVALID_PID;
     }
 }
