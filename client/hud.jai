@@ -783,10 +783,10 @@ draw_circle_segment :: (client: *Client, hud: *Hud, animation_t: f32, color0, co
     theta0 := cast(f32) option_index * hud.angle_per_option + hud.padding_per_option * 0.5;
     theta1 := cast(f32) (option_index + 1) * hud.angle_per_option - hud.padding_per_option * 0.5;
 
-    draw_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, background_color);
+    draw_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, theta0, theta1, background_color);
 
     if option_index == hud.selected_option {
-        draw_outlined_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
+        draw_outlined_circle_segment_screen_space(client, hud.screen_center, hud.outer_wheel_radius, hud.inner_wheel_radius, theta0, theta1, theta0, theta1, .{ 255, 255, 255, 180 }, 2);
     }
 }
 
