@@ -885,9 +885,11 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
     }
     
     //
-    // Handle cheating
+    // Handle cheating.
+    // For now the server always allows cheats, so that we can also cheat as developers when
+    // testing in multiplayer on the nightly build.
+    // Since the cheats can only be triggered by clients in developer mode, this should be fine.
     //
-#if DEVELOPER {
     spawn_creature_with_cheat :: (server: *Server, guy: *Guy, kind: Entity_Kind) {
         if !find_any_entity_at_position(server, guy.target_position) {
             create_entity(server, kind, guy.target_position, DEFAULT_ENTITY_ROTATION[kind]);
@@ -921,7 +923,6 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
             }
         }
     }
-}
 }
 
 manage_void_eye_lifetimes :: (server: *Server) {

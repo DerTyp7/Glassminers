@@ -51,10 +51,8 @@ Guy :: struct {
     received_inputs: [10]Guy_Input_Message; 
     received_inputs_count: u8; // For a single game_tick
 
-#if DEVELOPER {
     invincible := false;
     ghost_mode := false;
-}
 }
 
 Emitter :: struct {
