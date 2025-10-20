@@ -185,6 +185,7 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         if entity.entity_kind == {
           case .Guy;
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle | .Is_Walk, .Guy_Walk);
+            down(entity, Guy).seconds_since_last_move = 0;
           case .Frog;
             maybe_play_animation_from_group_instead(client, entity, .Is_Idle, .Frog_Idle);
           case .Goblin;

@@ -44,6 +44,7 @@ Guy :: struct {
     strength_t: f32 = 0;
     strength_particles: Pid = INVALID_PID;
     digging_particles: Pid = INVALID_PID;
+    seconds_since_last_move: f32 = 0;
 }
 
 Emitter :: struct {
@@ -664,6 +665,7 @@ update_guy :: (client: *Client, guy: *Guy) {
         guy.resurrection_t += client.tick_time / RESURRECTION_TIME;
     }
 
+    guy.seconds_since_last_move += client.tick_time;
     maybe_play_animation_from_group_after(client, guy, .Guy_Idle);
 
     //
@@ -713,6 +715,7 @@ update_guy :: (client: *Client, guy: *Guy) {
             particles.emitters[0].particles_per_second = 0;
             particles.time_to_live = 0.5;
         }
+
         guy.digging_particles = INVALID_PID;
     }
 }
