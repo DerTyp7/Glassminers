@@ -87,7 +87,7 @@ LAVA_LAKE_TIME_TO_TURN: f32 : 5;
 EMITTER_TIME_TO_POWER_UP: f32 : 5;
 EMITTER_MAX_BASE_CHARGE:  [Game_Mode.Count]f32 : .[
     180, // Developer
-    10, // nocheckin 110, // Tutorial
+    110, // Tutorial
     110, // Easy
     90,  // Medium
     70,  // Hard
@@ -162,9 +162,15 @@ Game_Mode :: enum {
 }
 
 Biome_Type :: enum {
+    Predefined;
+    Mineshaft;
+
     Lava_Lake;
     Goblin_Nest;
 }
+
+FIRST_SPECIAL_BIOME :: Biome_Type.Lava_Lake;
+LAST_SPECIAL_BIOME  :: Biome_Type.Goblin_Nest;
 
 Entity_Flags :: enum bitfield {
     Inanimate :: 0;

@@ -19,19 +19,17 @@ count_sections_in_predefined_world :: (game_mode: Game_Mode) -> s64 {
 }
 
 generate_initial_world_section :: (server: *Server) {
-    if use_random_world_generation(server) {
-        server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
-    } else {
+    if is_predefined_world(server) {
         server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
+    } else {
+        server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
     }
 
     select_next_biome(server);
     send_resize_world_message(server);
     create_lightmap(*server.lightmap, *server.world_allocator, server.world_size);
 
-    try_to_place_item(server, .{ 1, 2 }, .Flag, null, null);
-
-    if use_random_world_generation(server) {
+    if !is_predefined_world(server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
@@ -42,35 +40,30 @@ generate_initial_world_section :: (server: *Server) {
         broadcast_chest_inventory(server, chest);
 
         create_entity(server, .Trader, .{ 0, 1 }, .North);
-
-        fill_current_biome(server, .[ 0, server.world_size.x - 1]);
-    } else {
-        fill_predefined_world_section(server, server.game_mode, server.current_section_index);
-        server.current_biome = .Count;
     }
+
+    try_to_place_item(server, .{ 1, 2 }, .Flag, null, null);
+    fill_current_biome(server, .[ 0, server.world_size.x - 1]);
 }
 
 generate_next_world_section :: (server: *Server) {
     if server.game_mode == .Developer && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) return;
 
+    previous_width := server.world_size.x;
+
     server.void_eyes_spawn_cooldown = 5;    
     ++server.current_section_index;
-    select_next_biome(server);
 
-    if use_random_world_generation(server) {
-        previous_width := server.world_size.x;
-        server.world_size.x += SECTION_WIDTH;
-
-        send_resize_world_message(server);
-        resize_lightmap(*server.lightmap, server.world_size);
-        fill_current_biome(server, .[ previous_width, server.world_size.x - 1 ]);
-    } else {
+    if is_predefined_world(server) {
         server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
-
-        send_resize_world_message(server);
-        resize_lightmap(*server.lightmap, server.world_size);
-        fill_predefined_world_section(server, server.game_mode, server.current_section_index);
+    } else {
+        server.world_size.x += SECTION_WIDTH;
     }
+
+    select_next_biome(server);
+    send_resize_world_message(server);
+    resize_lightmap(*server.lightmap, server.world_size);
+    fill_current_biome(server, .[ previous_width, server.world_size.x - 1 ]);
 }
 
 
@@ -82,8 +75,8 @@ SPECIAL_BIOME_OCCURANCE :: 5;
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 DEFAULT_SPAWN_PROBABILITY_TABLE :: #run setup_default_spawn_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
 
-use_random_world_generation :: (server: *Server) -> bool {
-    return !(server.game_mode == .Tutorial || server.game_mode == .Developer);
+is_predefined_world :: (server: *Server) -> bool {
+    return server.game_mode == .Tutorial || server.game_mode == .Developer;
 }
 
 send_resize_world_message :: (server: *Server) {
@@ -165,7 +158,7 @@ get_current_predefined_world_size :: (game_mode: Game_Mode, current_section_inde
     return .{ max_width, lines.count };
 }
 
-fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section_index_to_fill: u32) -> bool {
+fill_predefined_section :: (server: *Server, helper: *Biome_Helper) -> bool {
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
@@ -197,7 +190,7 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
         #char "f", // Flag
     ];
 
-    lines, success := load_predefined_world_data(game_mode);
+    lines, success := load_predefined_world_data(server.game_mode);
     if !success return false;
 
     //
@@ -205,44 +198,46 @@ fill_predefined_world_section :: (server: *Server, game_mode: Game_Mode, section
     //
     for y := 0; y < lines.count; ++y {
         line := array_get(*lines, y);
-        current_section_index := 0;
-        for x := 0; x < line.count && current_section_index <= section_index_to_fill; ++x {
-            if line[x] == #char " " continue;
-            
-            if line[x] == DEVELOPER_WORLD_SECTION_SEPARATOR {
-                current_section_index += 1;
+        x := 0;
+
+        for char_idx := 0; char_idx < line.count; ++char_idx {
+            char := line[char_idx];
+
+            if char == DEVELOPER_WORLD_SECTION_SEPARATOR continue;
+
+            if char == #char " " || x < helper.section[0] || x > helper.section[1] {
+                ++x;
                 continue;
             }
-            if current_section_index < section_index_to_fill continue;
-
-            direction: Direction = ---;
-            xPos := x - current_section_index;
             
             kind := Entity_Kind.Count;
             for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
-                if ENTITY_TO_CHAR[i] == line[x] {
+                if ENTITY_TO_CHAR[i] == char {
                     kind = i;
-                    direction = DEFAULT_ENTITY_ROTATION[kind];
                     break;
                 }
             }
 
-            if kind != .Count {
-                entity := create_entity(server, kind, .{ xPos, y }, direction);
+            if kind == {
+              case .Emitter;
+                entity := create_entity(server, kind, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
+                if x == 0 set_emitter_state(server, down(entity, Emitter), .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
 
-                if kind == .Emitter {
-                    emitter := down(entity, Emitter);
+                if server.latest_emitter == INVALID_PID || get_entity(server, server.latest_emitter).physical_position.x < entity.physical_position.x then server.latest_emitter = entity.pid;
 
-                    if x == 0 set_emitter_state(server, emitter, .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
+              case .Slime_Hole;
+                create_entity(server, kind, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
+                create_entity(server, .Slime, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
 
-                    if server.latest_emitter == INVALID_PID || get_entity(server, server.latest_emitter).physical_position.x < entity.physical_position.x then server.latest_emitter = emitter.pid;
-                } else if kind == .Slime_Hole {
-                    slime := create_entity(server, .Slime, .{ xPos, y }, direction);
-                }
-            } else {
-                logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", game_mode, y + 1, line[x]);
+              case;
+                create_entity(server, kind, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
+
+              case .Count;
+                logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", server.game_mode, y + 1, line[x]);
                 success = false;
             }
+
+            ++x;
         }
     }
     
@@ -408,7 +403,7 @@ generate_n_random_entities :: (server: *Server, helper: *Biome_Helper, kind: Ent
     return result;
 }
 
-fill_randomly_generated_section :: (server: *Server, helper: *Biome_Helper) {
+fill_mineshaft_biome :: (server: *Server, helper: *Biome_Helper) {
     generate_random_count :: (server: *Server, helper: *Biome_Helper, kind: Entity_Kind, modifier: f32) -> s32 {
         t := DEFAULT_SPAWN_PROBABILITY_TABLE[server.game_mode][kind] * modifier;
         area := (helper.section[1] - helper.section[0] + 1) * SECTION_HEIGHT;
@@ -678,16 +673,15 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
 }
 
 select_next_biome :: (server: *Server) {
-    if !use_random_world_generation(server) {
-        server.current_biome = .Count;
-        return;
-    }
-
     section_number := server.current_section_index + 1;
-    if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
-        server.current_biome = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % Biome_Type.Count;
+
+    if is_predefined_world(server) {
+        server.current_biome = .Predefined;
+        return;
+    } else if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
+        server.current_biome = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % (LAST_SPECIAL_BIOME - FIRST_SPECIAL_BIOME + 1) + FIRST_SPECIAL_BIOME;
     } else {
-        server.current_biome = .Count;
+        server.current_biome = .Mineshaft;
     }
 }
 
@@ -695,8 +689,9 @@ fill_current_biome :: (server: *Server, section: [2]s32) {
     helper := make_biome_helper(server, section);
 
     if #complete server.current_biome == {
+      case .Predefined;  fill_predefined_section(server, *helper);
+      case .Mineshaft;   fill_mineshaft_biome(server, *helper);
       case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
       case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
-      case .Count; fill_randomly_generated_section(server, *helper);
     }
 }
