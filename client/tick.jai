@@ -143,8 +143,9 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         play_sound(client, .Hud_Success_0, .Default);
 
       case .World_Resize;
-        client.world_size = msg.world_resize.new_world_size;
-        client.current_biome = msg.world_resize.current_biome;
+        client.world_size      = msg.world_resize.new_world_size;
+        client.current_biome   = msg.world_resize.current_biome;
+        client.current_section = msg.world_resize.current_section;
         resize_lightmap(*client.lightmap, client.world_size);
 
         {
@@ -153,8 +154,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
             emitter := *system.emitters[0];
             emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
         }
-
-        print("Biome: %\n", client.current_biome);
 
       case .Create_Entity;
         entity := create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);

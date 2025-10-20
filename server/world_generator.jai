@@ -25,9 +25,10 @@ generate_initial_world_section :: (server: *Server) {
         server.world_size = .{ SECTION_WIDTH, SECTION_HEIGHT };
     }
 
-    select_next_biome(server);
-    send_resize_world_message(server);
+    server.current_section = .[ 0, server.world_size.x - 1];
+
     create_lightmap(*server.lightmap, *server.world_allocator, server.world_size);
+    initiate_next_biome(server);
 
     if !is_predefined_world(server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
@@ -43,16 +44,14 @@ generate_initial_world_section :: (server: *Server) {
     }
 
     try_to_place_item(server, .{ 1, 2 }, .Flag, null, null);
-    fill_current_biome(server, .[ 0, server.world_size.x - 1]);
+    fill_current_biome(server);
 }
 
 generate_next_world_section :: (server: *Server) {
-    if server.game_mode == .Developer && server.current_section_index + 1 >= count_sections_in_predefined_world(server.game_mode) return;
+    ++server.current_section_index;
+    server.void_eyes_spawn_cooldown = 5;    
 
     previous_width := server.world_size.x;
-
-    server.void_eyes_spawn_cooldown = 5;    
-    ++server.current_section_index;
 
     if is_predefined_world(server) {
         server.world_size = get_current_predefined_world_size(server.game_mode, server.current_section_index);
@@ -60,10 +59,11 @@ generate_next_world_section :: (server: *Server) {
         server.world_size.x += SECTION_WIDTH;
     }
 
-    select_next_biome(server);
-    send_resize_world_message(server);
+    server.current_section = .[ previous_width, server.world_size.x - 1 ];
+
     resize_lightmap(*server.lightmap, server.world_size);
-    fill_current_biome(server, .[ previous_width, server.world_size.x - 1 ]);
+    initiate_next_biome(server);
+    fill_current_biome(server);
 }
 
 
@@ -79,10 +79,21 @@ is_predefined_world :: (server: *Server) -> bool {
     return server.game_mode == .Tutorial || server.game_mode == .Developer;
 }
 
-send_resize_world_message :: (server: *Server) {
+initiate_next_biome :: (server: *Server) {
+    section_number := server.current_section_index + 1;
+
+    if is_predefined_world(server) {
+        server.current_biome = .Predefined;
+    } else if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
+        server.current_biome = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % (LAST_SPECIAL_BIOME - FIRST_SPECIAL_BIOME + 1) + FIRST_SPECIAL_BIOME;
+    } else {
+        server.current_biome = .Mineshaft;
+    }
+    
     msg := make_message(World_Resize_Message);
-    msg.world_resize.new_world_size = server.world_size;
-    msg.world_resize.current_biome = server.current_biome;
+    msg.world_resize.new_world_size  = server.world_size;
+    msg.world_resize.current_biome   = server.current_biome;
+    msg.world_resize.current_section = server.current_section;
     array_add(*server.outgoing_messages, msg);
 }
 
@@ -319,9 +330,9 @@ create_latest_emitter :: (server: *Server, helper: *Biome_Helper) {
     server.latest_emitter = latest_emitter.pid;
 }
 
-make_biome_helper :: (server: *Server, section: [2]s32) -> Biome_Helper {
+make_biome_helper :: (server: *Server) -> Biome_Helper {
     helper: Biome_Helper = ---;
-    helper.section = section;
+    helper.section = server.current_section;
     helper.previous_emitter = ifx server.latest_emitter != INVALID_PID then get_entity(server, server.latest_emitter) else null;
     return helper;
 }
@@ -672,21 +683,8 @@ fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
     }
 }
 
-select_next_biome :: (server: *Server) {
-    section_number := server.current_section_index + 1;
-
-    if is_predefined_world(server) {
-        server.current_biome = .Predefined;
-        return;
-    } else if section_number % SPECIAL_BIOME_OCCURANCE == 0 {
-        server.current_biome = (server.game_seed +% section_number / SPECIAL_BIOME_OCCURANCE) % (LAST_SPECIAL_BIOME - FIRST_SPECIAL_BIOME + 1) + FIRST_SPECIAL_BIOME;
-    } else {
-        server.current_biome = .Mineshaft;
-    }
-}
-
-fill_current_biome :: (server: *Server, section: [2]s32) {
-    helper := make_biome_helper(server, section);
+fill_current_biome :: (server: *Server) {
+    helper := make_biome_helper(server);
 
     if #complete server.current_biome == {
       case .Predefined;  fill_predefined_section(server, *helper);

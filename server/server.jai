@@ -85,6 +85,7 @@ Server :: struct {
     world_size: v2i;
     current_section_index: u64;
     current_biome: Biome_Type = .Count;
+    current_section: [2]s32;
     global_stats: [Global_Stat_Kind.Count]Statistic;
     flag_pid: Pid;
     latest_emitter: Pid = INVALID_PID;

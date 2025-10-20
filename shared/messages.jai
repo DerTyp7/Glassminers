@@ -101,6 +101,7 @@ World_Resize_Message :: struct {
     MSG_TYPE :: Message_Type.World_Resize;
     new_world_size: v2i;
     current_biome: Biome_Type;
+    current_section: [2]s32;
 }
 
 Create_Entity_Message :: struct {
