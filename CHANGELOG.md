@@ -12,6 +12,7 @@
 - Fixed not clearing the "add local player" text box in the lobby, leading to adding the same player twice
 - Fixed Linux stutters due repeated controller detection checks for incompatible devices
 - Fixed a crash when unplugging a controller while playing
+- Fixed a crash when starting a new game while still having stat reports from the previous game
 
 ## 0.4.2 (03.10.2025)
 
