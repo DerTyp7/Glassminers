@@ -654,7 +654,7 @@ draw_progress_bar_world_space :: (client: *Client, local_player: *Local_Player, 
 
 draw_health_bar_world_space :: (client: *Client, local_player: *Local_Player, entity: *Entity) {
     screen_center := screen_from_world_position(*local_player.camera, .{ entity.visual_position.x, entity.visual_position.y + 0.35 });
-    screen_size   := 32 * UI_SCALING_VALUES[client.config.ui_scale];
+    screen_size   := screen_from_world_height(*local_player.camera, 0.2);
 
     heart_count: s64 = cast(s64) ceil(DEFAULT_ENTITY_HEALTH[entity.entity_kind] / HEALTH_PER_HEART);
 
