@@ -65,11 +65,6 @@ Emitter :: struct {
     beam_data: Beam_Data = ---;
 }
 
-Slab :: struct {
-    #using entity : *Entity = ---;
-    time_left_in_seconds: f32 = SLAB_TIME_TO_LIVE;
-}
-
 Torch :: struct {
     #using entity : *Entity = ---;
     time_left_in_seconds: f32 = TORCH_TIME_TO_LIVE;
@@ -121,7 +116,6 @@ Entity_Manager :: struct {
     all_entities: Bucket_Array(Entity);
     guys:         Bucket_Array(Guy);
     emitters:     Bucket_Array(Emitter);
-    slabs:        Bucket_Array(Slab);
     torches:      Bucket_Array(Torch);
     item_stacks:  Bucket_Array(Item_Stack);
     chests:       Bucket_Array(Chest);
@@ -142,7 +136,6 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.all_entities, *server.world_allocator);
     create_bucket_array(*server.guys, *server.world_allocator);
     create_bucket_array(*server.emitters, *server.world_allocator);
-    create_bucket_array(*server.slabs, *server.world_allocator);
     create_bucket_array(*server.torches, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
     create_bucket_array(*server.chests, *server.world_allocator);
@@ -157,7 +150,6 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.all_entities);
     destroy_bucket_array(*server.guys);
     destroy_bucket_array(*server.emitters);
-    destroy_bucket_array(*server.slabs);
     destroy_bucket_array(*server.torches);
     destroy_bucket_array(*server.item_stacks);
     destroy_bucket_array(*server.chests);
@@ -206,7 +198,6 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
     if #complete entity.entity_kind == {
       case .Guy;        make_derived(entity, *server.guys);
       case .Emitter;    make_derived(entity, *server.emitters);
-      case .Slab;       make_derived(entity, *server.slabs);
       case .Torch;      make_derived(entity, *server.torches);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
       case .Chest;      make_derived(entity, *server.chests);
@@ -214,7 +205,7 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Goblin;     make_derived(entity, *server.goblins);
       case .Slime;      make_derived(entity, *server.slimes);
       case .Void_Eye;   make_derived(entity, *server.void_eyes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slab, .Slime_Hole, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -263,7 +254,6 @@ physically_remove_dead_entities :: (server: *Server) {
     
     remove_deriveds(*server.guys);
     remove_deriveds(*server.emitters);
-    remove_deriveds(*server.slabs);
     remove_deriveds(*server.torches);
     remove_deriveds(*server.item_stacks);
     remove_deriveds(*server.chests);
@@ -693,17 +683,6 @@ set_torch_time_left_in_seconds :: (server: *Server, torch: *Torch, ttl: f32) {
 update_torch :: (server: *Server, torch: *Torch) {
     torch.time_left_in_seconds -= server.tick_time;
     if torch.time_left_in_seconds <= 0 then remove_entity(server, torch);
-}
-
-update_slab :: (server: *Server, slab: *Slab) {
-    slab.time_left_in_seconds -= server.tick_time;
-
-    if slab.time_left_in_seconds <= 0 {
-        lava_position := slab.physical_position;
-        
-        remove_entity(server, slab);
-        create_entity(server, .Lava, lava_position, .North);
-    }
 }
 
 update_frog :: (server: *Server, frog: *Frog) {

@@ -70,10 +70,6 @@ Sprite_Index :: enum {
     Lava_2;
     Lava_3;
     Slab_0;
-    Slab_1;
-    Slab_2;
-    Slab_3;
-    Slab_4;
     
     Torch_High_0;
     Torch_High_1;

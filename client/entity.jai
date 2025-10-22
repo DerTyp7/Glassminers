@@ -58,11 +58,6 @@ Emitter :: struct {
     beam_ends_in_other_emitter := false;
 }
 
-Slab :: struct {
-    #using entity : *Entity = ---;
-    time_left_in_seconds: f32 = SLAB_TIME_TO_LIVE;
-}
-
 Item_Stack :: struct {
     #using entity : *Entity = ---;
     item_kind: Item_Kind = 0;
@@ -110,7 +105,6 @@ Entity_Manager :: struct {
     all_entities: Bucket_Array(Entity);
     guys:         Bucket_Array(Guy);
     emitters:     Bucket_Array(Emitter);
-    slabs:        Bucket_Array(Slab);
     item_stacks:  Bucket_Array(Item_Stack);
     torches:      Bucket_Array(Torch);
     chests:       Bucket_Array(Chest);
@@ -131,7 +125,6 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.all_entities, *client.world_allocator);
     create_bucket_array(*client.guys, *client.world_allocator);
     create_bucket_array(*client.emitters, *client.world_allocator);
-    create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.torches, *client.world_allocator);
     create_bucket_array(*client.chests, *client.world_allocator);
@@ -146,7 +139,6 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.all_entities);
     destroy_bucket_array(*client.guys);
     destroy_bucket_array(*client.emitters);
-    destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.torches);
     destroy_bucket_array(*client.chests);
@@ -201,7 +193,6 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     if #complete entity.entity_kind == {
       case .Guy;        make_derived(entity, *client.guys);
       case .Emitter;    make_derived(entity, *client.emitters);
-      case .Slab;       make_derived(entity, *client.slabs);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
       case .Torch;      make_derived(entity, *client.torches);
       case .Chest;      make_derived(entity, *client.chests);
@@ -209,7 +200,7 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
       case .Void_Eye;   make_derived(entity, *client.void_eyes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slab, .Slime_Hole, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -260,7 +251,6 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
     // Set the initial animation
     if entity.entity_kind == {
       case .Lava;     play_animation(entity, .Lava);
-      case .Slab;     play_animation(entity, .Slab);
       case .Torch;    play_animation(entity, .Torch_High);
       case .Flag;     play_animation(entity, .Flag);
       case .Guy;      play_animation_from_group(client, entity, .Guy_Idle);
@@ -297,7 +287,6 @@ physically_remove_dead_entities :: (client: *Client) {
     
     remove_deriveds(*client.guys);
     remove_deriveds(*client.emitters);
-    remove_deriveds(*client.slabs);
     remove_deriveds(*client.item_stacks);
     remove_deriveds(*client.torches);
     remove_deriveds(*client.chests);
@@ -611,10 +600,6 @@ update_off_emitter :: (client: *Client, emitter: *Emitter) {
     }
 
     emitter.currently_charging_up = is_lit && emitter.current_charge < EMITTER_MAX_BASE_CHARGE[client.game_mode];
-}
-
-update_slab :: (client: *Client, slab: *Slab) {
-    slab.time_left_in_seconds -= client.tick_time;
 }
 
 update_torch :: (client: *Client, torch: *Torch) {

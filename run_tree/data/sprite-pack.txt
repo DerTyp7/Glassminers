@@ -64,11 +64,7 @@ Lava_1       pngs/animates/lava-1.png
 Lava_2       pngs/animates/lava-2.png
 Lava_3       pngs/animates/lava-3.png
 
-Slab_0       aseprite/animates/slab.aseprite 0
-Slab_1       aseprite/animates/slab.aseprite 1
-Slab_2       aseprite/animates/slab.aseprite 2
-Slab_3       aseprite/animates/slab.aseprite 3
-Slab_4       aseprite/animates/slab.aseprite 4
+Slab_0       aseprite/animates/slab.aseprite 1 # We used to have an animation for this...
 
 Torch_High_0     aseprite/animates/torch.aseprite 0 100%
 Torch_High_1     aseprite/animates/torch.aseprite 1 100%

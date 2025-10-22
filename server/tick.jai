@@ -514,11 +514,6 @@ do_game_tick :: (server: *Server) {
         update_lightmap(*server.lightmap, *server.em, server.tick_time);
         calculate_shadows(*server.lightmap, *temp);
 
-        for i := 0; i < server.slabs.slot_count; ++i {
-            slab, occupied := index_bucket_array(*server.slabs, i);
-            if occupied update_slab(server, slab);
-        }
-
         for i := 0; i < server.goblins.slot_count; ++i {
             goblin, occupied := index_bucket_array(*server.goblins, i);
             if occupied update_goblin(server, goblin);
