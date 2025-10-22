@@ -288,7 +288,7 @@ create_draw_data :: (client: *Client) -> bool {
     client.entity_pipeline = ge_create_pipeline(*client.graphics, .{ .Default, .Disabled, .Disabled, true });
 
 #if DEVELOPER {
-    client.checkerboard_texture = ge_create_texture_from_file(*client.graphics, "data/sprites/developer/checkerboard.png", .Filter_Nearest | .Wrap_Repeat);
+    client.checkerboard_texture = ge_create_texture_from_file(*client.graphics, "data/pngs/developer/checkerboard.png", .Filter_Nearest | .Wrap_Repeat);
 }
 
     create_ui_scaled_draw_data(client);
