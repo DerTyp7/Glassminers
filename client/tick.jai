@@ -1242,7 +1242,11 @@ recalculate_local_player_viewports :: (client: *Client) {
         client.local_players[3].viewport = .[ center_x, center_y, xx client.window.w, xx client.window.h ];
     }
 
-    if !client.free_camera_enabled {
+    move_cameras := true;
+
+#if DEVELOPER move_cameras = !client.free_camera_enabled;
+
+    if move_cameras {
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
             if entity_exists(client, local_player.guy_pid) {
