@@ -486,6 +486,11 @@ visual_size_for_item_kind :: (kind: Item_Kind) -> v2f {
     return size;
 }
 
+position_in_bounds :: (client: *Client, position: v2i) -> bool {
+    return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
+}
+
+
 
 
 /* ----------------------------------------------- Entity Logic ----------------------------------------------- */

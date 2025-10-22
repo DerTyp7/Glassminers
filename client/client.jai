@@ -604,7 +604,6 @@ main :: (args: []string) -> s32 {
               case .Game_Over;  do_game_over_screen(client);
             }
 
-            send_outgoing_messages(client);
             update_input_binders(client);
 
             #if DEVELOPER {

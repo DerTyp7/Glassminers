@@ -1,29 +1,5 @@
 /* --------------------------------------------- Message Handling --------------------------------------------- */
 
-#if DEVELOPER {
-clear_message_histories :: (client: *Client) {
-    client.incoming_message_history.active = 0;
-    client.outgoing_message_history.active = 0;
-    client.incoming_message_history.total_bytes_received = 0;
-    client.outgoing_message_history.total_bytes_received = 0;
-}
-
-register_message_history :: (client: *Client, history: *Message_History, message: *Message) {
-    size_in_bytes := message_size_in_bytes(message);
-    history.total_bytes_received += size_in_bytes;
-
-    if !client.message_history_paused {
-        copy_memory(*history.entries[1], *history.entries[0], min(history.entries.Capacity - 1, history.active) * size_of(Message_History_Entry));
-        history.active = min(history.entries.Capacity, history.active + 1);
-        
-        entry := *history.entries[0];
-        entry.message       = ~message;
-        entry.age           = 0;
-        entry.size_in_bytes = size_in_bytes;
-    }
-}
-}
-
 send_player_information_message :: (client: *Client, local_player_index: s64) {
     msg := make_message(Player_Information_Message);
     msg.player_information.local_player_index = local_player_index;
@@ -32,26 +8,608 @@ send_player_information_message :: (client: *Client, local_player_index: s64) {
     array_add(*client.outgoing_messages, msg);
 }
 
-send_game_start_request_message :: (client: *Client) {
-    msg := make_message(Request_Game_Start_Message);
-    msg.request_game_start.game_mode = client.config.requested_game_mode;
-    array_add(*client.outgoing_messages, msg);
-}
 
-send_outgoing_messages :: (client: *Client) {
-#if DEVELOPER {
-    now := os_get_cpu_time();
-}
 
-    for i := 0; i < client.outgoing_messages.count; ++i {
-        message := array_get_pointer(*client.outgoing_messages, i);
-        send_reliable_message(*client.connection, message);
+/* ------------------------------------------------ Menu Ticks ------------------------------------------------ */
 
-#if DEVELOPER   register_message_history(client, *client.outgoing_message_history, message);
+do_main_menu :: (client: *Client) {
+    ui :: *client.ui;
+    
+    DEFAULT_PORT: s64 : 9876;
+    WINDOW_WIDTH: f32 : 256;
+    APPROX_WINDOW_HEIGHT: f32 : 256;
+    WINDOW_SPACING: f32 : 50;
+    
+    ui_push_width(ui, .Pixels, WINDOW_WIDTH, 1);
+
+    window_position :: (client: *Client, index: s64) -> UI_Vector2 {
+        scaled_window_width := WINDOW_WIDTH * client.ui.pixel_scaling;
+        scaled_window_spacing := WINDOW_SPACING * client.ui.pixel_scaling;
+        
+        screen := UI_Vector2.{ (xx client.window.w / 2 + (xx index - 0.5) * scaled_window_width),
+                               (xx client.window.h / 2 - APPROX_WINDOW_HEIGHT * 0.65) };
+        screen.x += xx index * scaled_window_spacing;
+        return .{ screen.x / (cast(f32) client.window.w - scaled_window_width), screen.y / (cast(f32) client.window.h - APPROX_WINDOW_HEIGHT) };
     }
 
-    array_clear(*client.outgoing_messages);
+    if client.server_data.state != .Closed && client.info_text_t <= 0 { // Don't override other error conditions...
+        set_temp_info_text(client, "Your local server is still running...");
+    }
+    
+    // Host Window
+    {
+        ui_push_window(ui, "Host", .Default, window_position(client, -1));
+        ui_label(ui, false, "Name");
+        ui_text_input_with_string_pointer(ui, "Enter your name", *client.config.account_name, true, *client.engine_allocator);
+        ui_divider(ui, true);
+        ui_label(ui, false, "Port");
+        ui_text_input_with_int_pointer(ui, "Enter the port", *client.config.network_port, true);
+        ui_divider(ui, true);
+        
+        if client.server_data.state == .Closed && ui_button(ui, "Host!") {
+            if client.config.account_name && host_server(client, client.config.network_port) {
+                join_server(client, client.config.account_name, "localhost", client.config.network_port);
+                client.immediately_start_game = false;
+            }
+        }
+        
+        ui_pop_window(ui);
+    }
+
+    // Single Player Window
+    {
+        ui_push_window(ui, "Single Player", .Default, window_position(client, 0));
+
+        do_game_mode_selector(client);
+        ui_divider(ui, true);
+
+        if client.server_data.state == .Closed && ui_button(ui, "Play!") && host_server(client, DEFAULT_PORT) {
+            join_server(client, client.config.account_name, "localhost", DEFAULT_PORT);
+            client.immediately_start_game = true;
+        }
+        
+        ui_pop_window(ui);
+    }
+    
+    // Join Window
+    {
+        ui_push_window(ui, "Join", .Default, window_position(client, +1));
+        ui_label(ui, false, "Name");
+        ui_text_input_with_string_pointer(ui, "Enter your name", *client.config.account_name, true, *client.engine_allocator);
+        ui_divider(ui, true);
+        ui_label(ui, false, "Host");
+        ui_text_input_with_string_pointer(ui, "Enter the address", *client.config.network_host, true, *client.engine_allocator);
+        ui_label(ui, false, "Port");
+        ui_text_input_with_int_pointer(ui, "Enter the port", *client.config.network_port, true);
+        ui_divider(ui, true);
+        
+        if client.server_data.state == .Closed && ui_button(ui, "Join!") {
+            if client.config.account_name && client.config.network_host {
+                join_server(client, client.config.account_name, client.config.network_host, client.config.network_port);
+                client.immediately_start_game = false;
+            }
+        }
+        
+        ui_pop_window(ui);
+    }
+
+    // Quit Window
+    {
+        ui_push_window(ui, "Quit?", .Default, .{ 0.5, 0.8 });
+
+        if ui_button(ui, "Quit to Desktop") client.window.should_close = true;
+        
+        ui_pop_window(ui);
+    }
+    
+    ui_pop_width(ui);
 }
+
+do_game_over_screen :: (client: *Client) {
+    display_game_stats :: () #macro {
+        summary := client.previous_game_summary;
+
+        if summary.player_stat_message.count {
+            ui_divider(ui, true);
+            ui_multiline_wrapped_label(ui, true, summary.player_stat_message, "", cast(s64) WIDTH, true);
+        }
+
+        if summary.global_stat_message.count {
+            ui_divider(ui, true);
+            ui_multiline_wrapped_label(ui, true, summary.global_stat_message, "", cast(s64) WIDTH, true);
+        }
+    }
+
+    WIDTH: f32 : 350;
+
+    ui :: *client.ui;
+    ui_push_width(ui, .Pixels, WIDTH, 1);
+    ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
+    
+    score_text := tprint("Final Score: %", client.game_score);
+    
+    if #complete client.previous_game_summary.result == {
+      case .Unfinished_Game; // Should never happen, this value is just used on the server side
+          
+      case .Completed_Tutorial;
+        ui_label(ui, true, "You completed the tutorial!");
+
+      case .All_Players_Died; 
+        ui_label(ui, true, "All players have died!");
+        ui_label(ui, true, score_text);
+        display_game_stats();
+
+      case .All_Players_Forfeited;
+        ui_label(ui, true, "All players have forfeited!");
+        ui_label(ui, true, score_text);
+        display_game_stats();
+
+      case .Flag_Was_Destroyed;
+        ui_label(ui, true, "The flag was destroyed!");
+        ui_label(ui, true, score_text);
+        display_game_stats();
+
+      case .Connection_Lost;
+        ui_label(ui, true, "Connection died!");
+    }
+    
+    ui_divider(ui, true);
+    if ui_button(ui, "Back to Main Menu!") then initiate_state_transition(client, .Main_Menu, 0);
+
+    ui_pop_window(ui);
+    ui_pop_width(ui);
+}
+
+do_connecting_screen :: (client: *Client) {
+    read_incoming_packets(client);
+    handle_server_timeout(client, .Main_Menu, "The server could not be reached.");
+    
+    if !client.sent_connection_request && has_tcp_handshake_occurred(*client.connection) {
+        send_connection_request_packet(*client.connection, 1, VERSION_STRING);
+        client.sent_connection_request = true;
+    }
+    
+    {
+        ui :: *client.ui;
+        ui_push_width(ui, .Pixels, 256, 1);
+        ui_push_window(ui, "Connecting...", .Default, .{ .5, .5 });
+        ui_label(ui, false, "...");
+        ui_divider(ui, true);
+        if ui_button(ui, "Cancel!") then initiate_state_transition(client, .Main_Menu, 0);
+        ui_pop_window(ui);
+        ui_pop_width(ui);
+    }    
+
+    send_outgoing_messages(client);
+}
+
+do_lobby_screen :: (client: *Client) {
+    input_device_widget :: (client: *Client, label: string, allowed_devices: *Input_Device) {
+        Custom_State :: struct {
+            allowed_devices: *Input_Device;
+        }
+
+        draw_input_device_widget :: (client: *Client, element: *UI_Element, state: *Custom_State) {
+            index: Sprite_Index = ---;
+
+            if ~state.allowed_devices == .Keyboard {
+                index = .Hud_Keyboard;
+            } else if ~state.allowed_devices == .Gamepad {
+                index = .Hud_Gamepad;
+            } else if ~state.allowed_devices == .ALL {
+                index = .Hud_Keyboard_Gamepad;
+            }
+
+            center: GE_Vector2 = .{ round(element.screen_position.x + element.screen_size.x * 0.5), round(element.screen_position.y + element.screen_size.y * 0.5) };
+            size_animation_factor := sinf(element.size_t * 10) * 0.2 + 1;
+            size: GE_Vector2 = .{ element.screen_size.x * size_animation_factor, element.screen_size.y * size_animation_factor };
+            draw_sprite_screen_space(client, index, center, size, 0, .{ 255, 255, 255, 255 }, false);
+        }
+
+        update_input_device_widget :: (client: *Client, element: *UI_Element, state: *Custom_State) {
+            if element.signals & .Clicked {
+                if ~state.allowed_devices == .Keyboard {
+                    ~state.allowed_devices = .Gamepad;
+                } else if ~state.allowed_devices == .Gamepad {
+                    ~state.allowed_devices = .ALL;
+                } else if ~state.allowed_devices == .ALL {
+                    ~state.allowed_devices = .Keyboard;
+                }
+            }
+        }
+
+        data := ui_custom_widget(*client.ui, label, .Animate_Size_On_Hover | .Animate_Size_On_Activation, update_input_device_widget, draw_input_device_widget, size_of(Sprite_Index));
+        state := cast(*Custom_State) data.custom_state;
+        state.allowed_devices = allowed_devices;
+    }
+
+    read_incoming_packets(client);
+    handle_server_timeout(client, .Main_Menu, "The server died.");
+
+    if client.immediately_start_game {
+        send_game_start_request_message(client);
+        client.immediately_start_game = false;
+    }
+
+    // Do the lobby UI
+    {
+        ui :: *client.ui;
+        ui_push_width(ui, .Pixels, 256, 1);
+        ui_push_window(ui, "Lobby!", .Default, .{ .5, .4 });
+        
+        for i := 0; i < client.local_player_count; ++i {
+            local_player := *client.local_players[i];
+
+            ui_push_height(ui, .Pixels, 32, 1);
+            ui_push_container(ui, .Horizontal);
+
+            ui_push_width(ui, .Pixels, 256, 0);
+            ui_label(ui, false, local_player.name);
+            ui_pop_width(ui);
+            
+            ui_push_width(ui, .Pixels, 32, 1);
+            input_device_widget(client, tprint("local_player_input_devices%", i), *local_player.input_binder.allowed_input_devices);
+            ui_pop_width(ui);
+
+            if local_player.input_binder.allowed_input_devices & .Gamepad && local_player.input_binder.gamepad_index >= client.window.connected_gamepads {
+                ui_push_width(ui, .Label_Size, 5, 1);
+                ui_label(ui, true, "!");
+                ui_pop_width(ui);
+            }
+            
+            ui_pop_container(ui);
+            ui_pop_height(ui);
+        }
+        
+        for i := 0; i < client.remote_players.count; ++i {
+            player := array_get_pointer(*client.remote_players, i);
+            ui_label(ui, false, player.name);
+        }
+
+        ui_divider(ui, true);
+
+        {
+            ui_label(ui, true, "Local Players");
+
+            if client.local_player_count < MAX_LOCAL_PLAYERS {
+                ui_push_container(ui, .Horizontal);
+                ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
+
+                confirmed := ui_text_input_with_string_pointer(ui, "Name", *client.new_local_player_name, true, *client.engine_allocator);
+
+                if ui_button(ui, "Add!") || confirmed {
+                    maybe_add_local_player(client);
+                }
+
+                ui_pop_width(ui);
+                ui_pop_container(ui);
+            }
+            
+            if client.local_player_count > 1 && ui_button(ui, "Remove Local Player!") {
+                deallocate_string(*client.engine_allocator, *client.local_players[client.local_player_count - 1].name);
+                msg := make_message(Remove_Local_Player_Message);
+                msg.remove_local_player.client_pid = client.my_client_pid;
+                msg.remove_local_player.local_player_index = client.local_player_count - 1;
+                array_add(*client.outgoing_messages, msg);
+                --client.local_player_count;
+            }
+        }
+
+        ui_divider(ui, true);
+        do_game_mode_selector(client);
+        
+        if ui_button(ui, "Start!") {
+            maybe_add_local_player(client); // Add a new local player when somebody typed in the name but forgot to press "Add!"
+            send_game_start_request_message(client);
+        }
+        
+        ui_divider(ui, true);
+        if ui_button(ui, "Disconnect!") then initiate_state_transition(client, .Main_Menu, 0);
+        ui_pop_window(ui);
+        ui_pop_width(ui);
+    }
+
+    // Handle test inputs. This can help in figuring out which player uses which gamepad in
+    // local multiplayer.
+    {
+        register_test_input :: (client: *Client, local_player_index: s64, sprite_index: Sprite_Index) {
+            input := array_push(*client.test_inputs);
+            input.cpu_time = os_get_cpu_time();
+            input.local_player_index = local_player_index;
+            input.sprite_index = sprite_index;
+        }
+
+        now := os_get_cpu_time();
+        for i := 0; i < client.test_inputs.count; {
+            input := array_get_pointer(*client.test_inputs, i);
+            if os_convert_cpu_time(now - input.cpu_time, .Seconds) > 2 {
+                array_remove_index(*client.test_inputs, i);
+            } else {
+                ++i;
+            }
+        }
+        
+        for i := 0; i < client.local_player_count; ++i {
+            local_player := *client.local_players[i];
+
+            if bitfield_contains(*local_player.input_binder.allowed_input_devices, Input_Device.Keyboard) && !client.ui.active_text_input {
+                if client.window.keys[.Space] & .Pressed then register_test_input(client, i, .Hud_Key_Space);
+                if client.window.keys[.Shift] & .Pressed then register_test_input(client, i, .Hud_Key_Shift);
+            }
+
+            if bitfield_contains(*local_player.input_binder.allowed_input_devices, Input_Device.Gamepad) && local_player.input_binder.gamepad_index < client.window.connected_gamepads {
+                gamepad := *client.window.gamepads[local_player.input_binder.gamepad_index];
+                if gamepad.buttons[.XBox_A]    & .Pressed then register_test_input(client, i, .Hud_XBox_A);
+                if gamepad.buttons[.XBox_X]    & .Pressed then register_test_input(client, i, .Hud_XBox_X);
+                if gamepad.buttons[.PS_Cross]  & .Pressed then register_test_input(client, i, .Hud_PS_Cross);
+                if gamepad.buttons[.PS_Square] & .Pressed then register_test_input(client, i, .Hud_PS_Square);
+            }
+        }
+    }
+
+    send_outgoing_messages(client);
+}
+
+
+
+/* -------------------------------------------------- Camera -------------------------------------------------- */
+
+Camera :: struct {
+    // To avoid visual artifacts when rendering pixel art, we should ensure that the textures are rendering
+    // with an integer scaling onto the back buffer. Otherwise, we might get small offsets in the UVs on
+    // the same row of pixels and similar things.
+    // Therefore, we ensure that the tile size on screen is a multiple of 16.
+    FORCE_INTEGER_TILE_SCALING :: true;
+
+    DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
+
+    window_aspect_ratio: f32;
+    world_to_screen_coordinates: v2f;
+    covered_world_area: v2f; // Always unzoomed
+    zoomed_covered_world_area: v2f; // Can include zoom in developer builds
+    center_in_world: v2f;
+    viewport: [4]f32;
+
+#if DEVELOPER {
+    zoom: f32 = 1;
+    zoom_step: f32 = 0;
+}
+}
+
+screen_from_world_position :: (camera: *Camera, world: v2f) -> v2f {
+    return .{ round((world.x - camera.center_in_world.x) * camera.world_to_screen_coordinates.x + (camera.viewport[2] - camera.viewport[0]) * 0.5 + camera.viewport[0]),
+              round((world.y - camera.center_in_world.y) * camera.world_to_screen_coordinates.y + (camera.viewport[3] - camera.viewport[1]) * 0.5 + camera.viewport[1]) };
+}
+
+screen_from_world_size :: (camera: *Camera, world: v2f) -> v2f {
+    return .{ round(world.x * camera.world_to_screen_coordinates.x), round(world.y * camera.world_to_screen_coordinates.y) };
+}
+
+screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
+    return round(height * camera.world_to_screen_coordinates.y);
+}
+
+snap_camera_to_guy :: (client: *Client, local_player: *Local_Player) {
+    entity := get_entity(client, local_player.guy_pid);
+    update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
+}
+
+
+
+/* ------------------------------------------------- Game Tick ------------------------------------------------ */
+
+request_tutorial_panel :: (client: *Client, kind: Tutorial_Panel) {
+    if client.game_mode != .Tutorial return;
+
+    already_requested := false;
+    
+    for i := 0; i < client.requested_tutorial_panels.count; ++i {
+        requested_kind := array_get(*client.requested_tutorial_panels, i);
+        if requested_kind == kind {
+            already_requested = true;
+            break;
+        }
+    }
+    
+    if already_requested return;
+    
+    array_add(*client.requested_tutorial_panels, kind);
+}
+
+crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool { // The server is in charge here, but we'll do a heuristic for player feedback
+    // Check that the target position is free if required
+    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Crafting, guy.target_position) return false;
+
+    // Check that the guy has the required resources available
+    available_resources := get_available_resources_for_guy(client, guy);
+    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
+
+    return true;
+}
+
+do_game_tick :: (client: *Client) {
+    read_incoming_packets(client);
+    handle_server_timeout(client, .Game_Over, "");
+
+    if client.window.resized_this_frame recalculate_local_player_viewports(client);
+    reassign_gamepad_indices(client);
+
+    //    
+    // Developer UI
+    //
+#if DEVELOPER { 
+    if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
+        client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
+    }
+
+    maybe_do_developer_panel(client);
+
+    if input_action_fired_globally(client, .Message_History_Panel_Toggle, .Pressed) {
+        client.message_history_panel_state = ifx client.message_history_panel_state == .Closed then .Open else .Closed;
+    }
+
+    maybe_do_message_history_panel(client);
+
+    if input_action_fired_globally(client, .Sound_Hud_Toggle, .Pressed) {
+        client.sound_hud_enabled = !client.sound_hud_enabled;
+        enable_mixer_history(*client.mixer, 128, 2);
+    }
+
+    if input_action_fired_globally(client, .Shadow_Hud_Toggle, .Pressed) then client.shadow_hud_enabled = !client.shadow_hud_enabled;
+
+    if input_action_fired_globally(client, .Checkerboard_Texture_Toggle, .Pressed) then client.draw_entities_with_checkerboard_texture = !client.draw_entities_with_checkerboard_texture;
+}
+    
+    //
+    // Update all local entities based on the information received by the server.
+    // This also does some basic client-side prediction
+    //
+    if !client.server_paused_game {
+        reset_allocator(*client.tick_allocator);
+
+        //
+        // Update all entities that have an impact on the lightmap
+        //
+
+        for i := 0; i < client.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*client.emitters, i);
+            if occupied && emitter.state != .Off then update_powered_emitter(client, emitter);
+        }
+        
+        for i := 0; i < client.emitters.slot_count; ++i {
+            emitter, occupied := index_bucket_array(*client.emitters, i);
+            if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
+        }
+
+        for i := 0; i < client.torches.slot_count; ++i {
+            torch, occupied := index_bucket_array(*client.torches, i);
+            if occupied {
+                update_torch(client, torch);
+            }
+        }
+        
+        for i := 0; i < client.frogs.slot_count; ++i {
+            frog, occupied := index_bucket_array(*client.frogs, i);
+            if occupied {
+                update_frog(client, frog);
+            }
+        }
+
+        update_lightmap(*client.lightmap, *client.em, client.tick_time);
+
+#if DEVELOPER {
+        if client.shadow_hud_enabled calculate_shadows(*client.lightmap, *client.tick_allocator);
+}
+
+
+        for i := 0; i < client.guys.slot_count; ++i {
+            guy, occupied := index_bucket_array(*client.guys, i);
+            if occupied {
+                update_guy(client, guy);
+            }
+        }
+
+        for i := 0; i < client.goblins.slot_count; ++i {
+            goblin, occupied := index_bucket_array(*client.goblins, i);
+            if occupied then update_goblin(client, goblin);
+        }
+
+        for i := 0; i < client.slimes.slot_count; ++i {
+            slime, occupied := index_bucket_array(*client.slimes, i);
+            if occupied then update_slime(client, slime);
+        }
+
+        for i := 0; i < client.void_eyes.slot_count; ++i {
+            eye, occupied := index_bucket_array(*client.void_eyes, i);
+            if occupied then update_void_eye(client, eye);
+        }
+
+        for i := 0; i < client.all_entities.slot_count; ++i {
+            entity, occupied := index_bucket_array(*client.all_entities, i);
+            if occupied interpolate_visuals_and_play_sounds(client, entity);
+        }
+
+        for i := 0; i < client.particle_systems.slot_count; ++i {
+            system, occupied := index_bucket_array(*client.particle_systems, i);
+            if occupied then update_particle_system(system, client.tick_time);
+        }
+
+        play_random_sounds(client);
+
+        client.game_epoch_time += client.tick_time;
+    }
+
+    //
+    // Tutorial UI
+    //
+    maybe_do_tutorial_panel(client);
+
+    //
+    // Update the input for all local players
+    //
+    if !(client.pause_menu_open || client.server_paused_game) {
+        for i := 0; i < client.local_player_count; ++i {
+            local_player := *client.local_players[i];
+            update_local_player_input(client, local_player);
+        }
+    }
+
+    // Do the pause menu. The escape key can close the hud and open the pause menu, but we want to give
+    // input priorization to the hud.
+    {
+        if input_action_fired_globally(client, .Toggle_Pause_Menu, .Pressed) {
+            client.pause_menu_open = !client.pause_menu_open;
+
+            msg := make_message(Game_Pause_Message);
+            msg.game_pause.client_pid = client.my_client_pid;
+            msg.game_pause.should_pause = client.pause_menu_open;
+            array_add(*client.outgoing_messages, msg);
+        }
+
+        maybe_do_input_bindings_panel(client);
+
+        if maybe_do_pause_menu_panel(client) {
+            client.pause_menu_open = false;
+            msg := make_message(Game_Pause_Message);
+            msg.game_pause.client_pid = client.my_client_pid;
+            msg.game_pause.should_pause = client.pause_menu_open;
+            array_add(*client.outgoing_messages, msg);
+        }
+    }
+
+    physically_remove_dead_particle_systems(client);
+    physically_remove_dead_entities(client);
+    send_outgoing_messages(client);
+}
+
+#if MEMORY_DEBUGGING {
+    inside_allocator_callback := false;
+
+    allocator_callback_procedure :: (client: *Client, allocator: *Allocator, operation: Allocator_Operation, pointer: *void, size_in_bytes: s64, old_pointer: *void, old_size_in_bytes: s64) {
+        if inside_allocator_callback return;
+
+        inside_allocator_callback = true;
+        defer inside_allocator_callback = false;
+        
+        if allocator == Default_Allocator && operation == .Allocation {
+            print_into_buffer(*client.memory_debug_printer, "%, %\n", pointer, size_in_bytes);
+
+            trace := os_get_stack_trace(*temp, 3);
+            for i := 0; i < trace.count; ++i {
+                frame := *trace[i];
+                print_into_buffer(*client.memory_debug_printer, "    - %:% - %\n", frame.source_file, frame.source_line, frame.description);
+            }
+            
+            flush_file_printer(*client.memory_debug_printer);
+        }
+    }
+}
+
+
+
+#file_scope
+
+/* --------------------------------------------- Message Handling --------------------------------------------- */
 
 handle_incoming_message :: (client: *Client, msg: *Message) {
     if #complete msg.msg_type == {
@@ -416,17 +974,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
     }
 }
 
-handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: string) {
-    if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
-        client.previous_game_summary.result = .Connection_Lost;
-        initiate_state_transition(client, next_screen, 0);
-        set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
-    } else if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
-        timestamp := os_get_cpu_time();
-        send_ping_packet(*client.connection, .{ size_of(timestamp), xx *timestamp });
-    }
-}
-
 read_incoming_packets :: (client: *Client) {
     while read_packet(*client.connection) {
         packet :: *client.connection.incoming_packet;
@@ -474,442 +1021,60 @@ read_incoming_packets :: (client: *Client) {
     }
 }
 
-
-
-/* ------------------------------------------------ Menu Ticks ------------------------------------------------ */
-
-do_game_mode_selector :: (client: *Client) {
-    ui :: *client.ui;
-
-    if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Game_Mode)[client.config.requested_game_mode]) {
-        for i := 0; i < Game_Mode.Count; ++i {
-            if !DEVELOPER && i == Game_Mode.Developer continue;
-
-            if ui_button(ui, enum_names(Game_Mode)[i]) {
-                client.config.requested_game_mode = i;
-            }
-        }
-    }
-    ui_pop_dropdown(ui);
-}
-
-do_main_menu :: (client: *Client) {
-    ui :: *client.ui;
-    
-    DEFAULT_PORT: s64 : 9876;
-    WINDOW_WIDTH: f32 : 256;
-    APPROX_WINDOW_HEIGHT: f32 : 256;
-    WINDOW_SPACING: f32 : 50;
-    
-    ui_push_width(ui, .Pixels, WINDOW_WIDTH, 1);
-
-    window_position :: (client: *Client, index: s64) -> UI_Vector2 {
-        scaled_window_width := WINDOW_WIDTH * client.ui.pixel_scaling;
-        scaled_window_spacing := WINDOW_SPACING * client.ui.pixel_scaling;
-        
-        screen := UI_Vector2.{ (xx client.window.w / 2 + (xx index - 0.5) * scaled_window_width),
-                               (xx client.window.h / 2 - APPROX_WINDOW_HEIGHT * 0.65) };
-        screen.x += xx index * scaled_window_spacing;
-        return .{ screen.x / (cast(f32) client.window.w - scaled_window_width), screen.y / (cast(f32) client.window.h - APPROX_WINDOW_HEIGHT) };
-    }
-
-    if client.server_data.state != .Closed && client.info_text_t <= 0 { // Don't override other error conditions...
-        set_temp_info_text(client, "Your local server is still running...");
-    }
-    
-    // Host Window
-    {
-        ui_push_window(ui, "Host", .Default, window_position(client, -1));
-        ui_label(ui, false, "Name");
-        ui_text_input_with_string_pointer(ui, "Enter your name", *client.config.account_name, true, *client.engine_allocator);
-        ui_divider(ui, true);
-        ui_label(ui, false, "Port");
-        ui_text_input_with_int_pointer(ui, "Enter the port", *client.config.network_port, true);
-        ui_divider(ui, true);
-        
-        if client.server_data.state == .Closed && ui_button(ui, "Host!") {
-            if client.config.account_name && host_server(client, client.config.network_port) {
-                join_server(client, client.config.account_name, "localhost", client.config.network_port);
-                client.immediately_start_game = false;
-            }
-        }
-        
-        ui_pop_window(ui);
-    }
-
-    // Single Player Window
-    {
-        ui_push_window(ui, "Single Player", .Default, window_position(client, 0));
-
-        do_game_mode_selector(client);
-        ui_divider(ui, true);
-
-        if client.server_data.state == .Closed && ui_button(ui, "Play!") && host_server(client, DEFAULT_PORT) {
-            join_server(client, client.config.account_name, "localhost", DEFAULT_PORT);
-            client.immediately_start_game = true;
-        }
-        
-        ui_pop_window(ui);
-    }
-    
-    // Join Window
-    {
-        ui_push_window(ui, "Join", .Default, window_position(client, +1));
-        ui_label(ui, false, "Name");
-        ui_text_input_with_string_pointer(ui, "Enter your name", *client.config.account_name, true, *client.engine_allocator);
-        ui_divider(ui, true);
-        ui_label(ui, false, "Host");
-        ui_text_input_with_string_pointer(ui, "Enter the address", *client.config.network_host, true, *client.engine_allocator);
-        ui_label(ui, false, "Port");
-        ui_text_input_with_int_pointer(ui, "Enter the port", *client.config.network_port, true);
-        ui_divider(ui, true);
-        
-        if client.server_data.state == .Closed && ui_button(ui, "Join!") {
-            if client.config.account_name && client.config.network_host {
-                join_server(client, client.config.account_name, client.config.network_host, client.config.network_port);
-                client.immediately_start_game = false;
-            }
-        }
-        
-        ui_pop_window(ui);
-    }
-
-    // Quit Window
-    {
-        ui_push_window(ui, "Quit?", .Default, .{ 0.5, 0.8 });
-
-        if ui_button(ui, "Quit to Desktop") client.window.should_close = true;
-        
-        ui_pop_window(ui);
-    }
-    
-    ui_pop_width(ui);
-}
-
-do_game_over_screen :: (client: *Client) {
-    display_game_stats :: () #macro {
-        summary := client.previous_game_summary;
-
-        if summary.player_stat_message.count {
-            ui_divider(ui, true);
-            ui_multiline_wrapped_label(ui, true, summary.player_stat_message, "", cast(s64) WIDTH, true);
-        }
-
-        if summary.global_stat_message.count {
-            ui_divider(ui, true);
-            ui_multiline_wrapped_label(ui, true, summary.global_stat_message, "", cast(s64) WIDTH, true);
-        }
-    }
-
-    WIDTH: f32 : 350;
-
-    ui :: *client.ui;
-    ui_push_width(ui, .Pixels, WIDTH, 1);
-    ui_push_window(ui, "Game Over!", .Default, .{ .5, .5 });
-    
-    score_text := tprint("Final Score: %", client.game_score);
-    
-    if #complete client.previous_game_summary.result == {
-      case .Unfinished_Game; // Should never happen, this value is just used on the server side
-          
-      case .Completed_Tutorial;
-        ui_label(ui, true, "You completed the tutorial!");
-
-      case .All_Players_Died; 
-        ui_label(ui, true, "All players have died!");
-        ui_label(ui, true, score_text);
-        display_game_stats();
-
-      case .All_Players_Forfeited;
-        ui_label(ui, true, "All players have forfeited!");
-        ui_label(ui, true, score_text);
-        display_game_stats();
-
-      case .Flag_Was_Destroyed;
-        ui_label(ui, true, "The flag was destroyed!");
-        ui_label(ui, true, score_text);
-        display_game_stats();
-
-      case .Connection_Lost;
-        ui_label(ui, true, "Connection died!");
-    }
-    
-    ui_divider(ui, true);
-    if ui_button(ui, "Back to Main Menu!") then initiate_state_transition(client, .Main_Menu, 0);
-
-    ui_pop_window(ui);
-    ui_pop_width(ui);
-}
-
-do_connecting_screen :: (client: *Client) {
-    read_incoming_packets(client);
-    handle_server_timeout(client, .Main_Menu, "The server could not be reached.");
-    
-    if !client.sent_connection_request && has_tcp_handshake_occurred(*client.connection) {
-        send_connection_request_packet(*client.connection, 1, VERSION_STRING);
-        client.sent_connection_request = true;
-    }
-    
-    {
-        ui :: *client.ui;
-        ui_push_width(ui, .Pixels, 256, 1);
-        ui_push_window(ui, "Connecting...", .Default, .{ .5, .5 });
-        ui_label(ui, false, "...");
-        ui_divider(ui, true);
-        if ui_button(ui, "Cancel!") then initiate_state_transition(client, .Main_Menu, 0);
-        ui_pop_window(ui);
-        ui_pop_width(ui);
-    }    
-}
-
-
-
-/* ------------------------------------------------ Lobby Tick ------------------------------------------------ */
-
-do_lobby_screen :: (client: *Client) {
-    input_device_widget :: (client: *Client, label: string, allowed_devices: *Input_Device) {
-        Custom_State :: struct {
-            allowed_devices: *Input_Device;
-        }
-
-        draw_input_device_widget :: (client: *Client, element: *UI_Element, state: *Custom_State) {
-            index: Sprite_Index = ---;
-
-            if ~state.allowed_devices == .Keyboard {
-                index = .Hud_Keyboard;
-            } else if ~state.allowed_devices == .Gamepad {
-                index = .Hud_Gamepad;
-            } else if ~state.allowed_devices == .ALL {
-                index = .Hud_Keyboard_Gamepad;
-            }
-
-            center: GE_Vector2 = .{ round(element.screen_position.x + element.screen_size.x * 0.5), round(element.screen_position.y + element.screen_size.y * 0.5) };
-            size_animation_factor := sinf(element.size_t * 10) * 0.2 + 1;
-            size: GE_Vector2 = .{ element.screen_size.x * size_animation_factor, element.screen_size.y * size_animation_factor };
-            draw_sprite_screen_space(client, index, center, size, 0, .{ 255, 255, 255, 255 }, false);
-        }
-
-        update_input_device_widget :: (client: *Client, element: *UI_Element, state: *Custom_State) {
-            if element.signals & .Clicked {
-                if ~state.allowed_devices == .Keyboard {
-                    ~state.allowed_devices = .Gamepad;
-                } else if ~state.allowed_devices == .Gamepad {
-                    ~state.allowed_devices = .ALL;
-                } else if ~state.allowed_devices == .ALL {
-                    ~state.allowed_devices = .Keyboard;
-                }
-            }
-        }
-
-        data := ui_custom_widget(*client.ui, label, .Animate_Size_On_Hover | .Animate_Size_On_Activation, update_input_device_widget, draw_input_device_widget, size_of(Sprite_Index));
-        state := cast(*Custom_State) data.custom_state;
-        state.allowed_devices = allowed_devices;
-    }
-
-    read_incoming_packets(client);
-    handle_server_timeout(client, .Main_Menu, "The server died.");
-
-    if client.immediately_start_game {
-        send_game_start_request_message(client);
-        client.immediately_start_game = false;
-    }
-
-    // Do the lobby UI
-    {
-        ui :: *client.ui;
-        ui_push_width(ui, .Pixels, 256, 1);
-        ui_push_window(ui, "Lobby!", .Default, .{ .5, .4 });
-        
-        for i := 0; i < client.local_player_count; ++i {
-            local_player := *client.local_players[i];
-
-            ui_push_height(ui, .Pixels, 32, 1);
-            ui_push_container(ui, .Horizontal);
-
-            ui_push_width(ui, .Pixels, 256, 0);
-            ui_label(ui, false, local_player.name);
-            ui_pop_width(ui);
-            
-            ui_push_width(ui, .Pixels, 32, 1);
-            input_device_widget(client, tprint("local_player_input_devices%", i), *local_player.input_binder.allowed_input_devices);
-            ui_pop_width(ui);
-
-            if local_player.input_binder.allowed_input_devices & .Gamepad && local_player.input_binder.gamepad_index >= client.window.connected_gamepads {
-                ui_push_width(ui, .Label_Size, 5, 1);
-                ui_label(ui, true, "!");
-                ui_pop_width(ui);
-            }
-            
-            ui_pop_container(ui);
-            ui_pop_height(ui);
-        }
-        
-        for i := 0; i < client.remote_players.count; ++i {
-            player := array_get_pointer(*client.remote_players, i);
-            ui_label(ui, false, player.name);
-        }
-
-        ui_divider(ui, true);
-
-        {
-            ui_label(ui, true, "Local Players");
-
-            if client.local_player_count < MAX_LOCAL_PLAYERS {
-                ui_push_container(ui, .Horizontal);
-                ui_push_width(ui, .Percentage_Of_Parent, 0.5, 0.5);
-
-                confirmed := ui_text_input_with_string_pointer(ui, "Name", *client.new_local_player_name, true, *client.engine_allocator);
-
-                if ui_button(ui, "Add!") || confirmed {
-                    maybe_add_local_player(client);
-                }
-
-                ui_pop_width(ui);
-                ui_pop_container(ui);
-            }
-            
-            if client.local_player_count > 1 && ui_button(ui, "Remove Local Player!") {
-                deallocate_string(*client.engine_allocator, *client.local_players[client.local_player_count - 1].name);
-                msg := make_message(Remove_Local_Player_Message);
-                msg.remove_local_player.client_pid = client.my_client_pid;
-                msg.remove_local_player.local_player_index = client.local_player_count - 1;
-                array_add(*client.outgoing_messages, msg);
-                --client.local_player_count;
-            }
-        }
-
-        ui_divider(ui, true);
-        do_game_mode_selector(client);
-        
-        if ui_button(ui, "Start!") {
-            maybe_add_local_player(client); // Add a new local player when somebody typed in the name but forgot to press "Add!"
-            send_game_start_request_message(client);
-        }
-        
-        ui_divider(ui, true);
-        if ui_button(ui, "Disconnect!") then initiate_state_transition(client, .Main_Menu, 0);
-        ui_pop_window(ui);
-        ui_pop_width(ui);
-    }
-
-    // Handle test inputs. This can help in figuring out which player uses which gamepad in
-    // local multiplayer.
-    {
-        register_test_input :: (client: *Client, local_player_index: s64, sprite_index: Sprite_Index) {
-            input := array_push(*client.test_inputs);
-            input.cpu_time = os_get_cpu_time();
-            input.local_player_index = local_player_index;
-            input.sprite_index = sprite_index;
-        }
-
-        now := os_get_cpu_time();
-        for i := 0; i < client.test_inputs.count; {
-            input := array_get_pointer(*client.test_inputs, i);
-            if os_convert_cpu_time(now - input.cpu_time, .Seconds) > 2 {
-                array_remove_index(*client.test_inputs, i);
-            } else {
-                ++i;
-            }
-        }
-        
-        for i := 0; i < client.local_player_count; ++i {
-            local_player := *client.local_players[i];
-
-            if bitfield_contains(*local_player.input_binder.allowed_input_devices, Input_Device.Keyboard) && !client.ui.active_text_input {
-                if client.window.keys[.Space] & .Pressed then register_test_input(client, i, .Hud_Key_Space);
-                if client.window.keys[.Shift] & .Pressed then register_test_input(client, i, .Hud_Key_Shift);
-            }
-
-            if bitfield_contains(*local_player.input_binder.allowed_input_devices, Input_Device.Gamepad) && local_player.input_binder.gamepad_index < client.window.connected_gamepads {
-                gamepad := *client.window.gamepads[local_player.input_binder.gamepad_index];
-                if gamepad.buttons[.XBox_A]    & .Pressed then register_test_input(client, i, .Hud_XBox_A);
-                if gamepad.buttons[.XBox_X]    & .Pressed then register_test_input(client, i, .Hud_XBox_X);
-                if gamepad.buttons[.PS_Cross]  & .Pressed then register_test_input(client, i, .Hud_PS_Cross);
-                if gamepad.buttons[.PS_Square] & .Pressed then register_test_input(client, i, .Hud_PS_Square);
-            }
-        }
-    }
-}
-
-
-
-/* -------------------------------------------------- Camera -------------------------------------------------- */
-
-Camera :: struct {
-    // To avoid visual artifacts when rendering pixel art, we should ensure that the textures are rendering
-    // with an integer scaling onto the back buffer. Otherwise, we might get small offsets in the UVs on
-    // the same row of pixels and similar things.
-    // Therefore, we ensure that the tile size on screen is a multiple of 16.
-    FORCE_INTEGER_TILE_SCALING :: true;
-
-    DESIRED_MIN_VISIBLE_TILES: f32 : 6.0;
-
-    window_aspect_ratio: f32;
-    world_to_screen_coordinates: v2f;
-    covered_world_area: v2f; // Always unzoomed
-    zoomed_covered_world_area: v2f; // Can include zoom in developer builds
-    center_in_world: v2f;
-    viewport: [4]f32;
-
 #if DEVELOPER {
-    zoom: f32 = 1;
-    zoom_step: f32 = 0;
-}
-}
-
-screen_from_world_position :: (camera: *Camera, world: v2f) -> v2f {
-    return .{ round((world.x - camera.center_in_world.x) * camera.world_to_screen_coordinates.x + (camera.viewport[2] - camera.viewport[0]) * 0.5 + camera.viewport[0]),
-              round((world.y - camera.center_in_world.y) * camera.world_to_screen_coordinates.y + (camera.viewport[3] - camera.viewport[1]) * 0.5 + camera.viewport[1]) };
+clear_message_histories :: (client: *Client) {
+    client.incoming_message_history.active = 0;
+    client.outgoing_message_history.active = 0;
+    client.incoming_message_history.total_bytes_received = 0;
+    client.outgoing_message_history.total_bytes_received = 0;
 }
 
-screen_from_world_size :: (camera: *Camera, world: v2f) -> v2f {
-    return .{ round(world.x * camera.world_to_screen_coordinates.x), round(world.y * camera.world_to_screen_coordinates.y) };
-}
+register_message_history :: (client: *Client, history: *Message_History, message: *Message) {
+    size_in_bytes := message_size_in_bytes(message);
+    history.total_bytes_received += size_in_bytes;
 
-screen_from_world_height :: (camera: *Camera, height: f32) -> f32 {
-    return round(height * camera.world_to_screen_coordinates.y);
-}
-
-snap_camera_to_guy :: (client: *Client, local_player: *Local_Player) {
-    entity := get_entity(client, local_player.guy_pid);
-    update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
-}
-
-position_in_bounds :: (client: *Client, position: v2i) -> bool {
-    return position.x >= 0 && position.x < client.world_size.x && position.y >= 0 && position.y < client.world_size.y;
-}
-
-
-
-/* ------------------------------------------------- Game Tick ------------------------------------------------ */
-
-request_tutorial_panel :: (client: *Client, kind: Tutorial_Panel) {
-    if client.game_mode != .Tutorial return;
-
-    already_requested := false;
-    
-    for i := 0; i < client.requested_tutorial_panels.count; ++i {
-        requested_kind := array_get(*client.requested_tutorial_panels, i);
-        if requested_kind == kind {
-            already_requested = true;
-            break;
-        }
+    if !client.message_history_paused {
+        copy_memory(*history.entries[1], *history.entries[0], min(history.entries.Capacity - 1, history.active) * size_of(Message_History_Entry));
+        history.active = min(history.entries.Capacity, history.active + 1);
+        
+        entry := *history.entries[0];
+        entry.message       = ~message;
+        entry.age           = 0;
+        entry.size_in_bytes = size_in_bytes;
     }
-    
-    if already_requested return;
-    
-    array_add(*client.requested_tutorial_panels, kind);
+}
 }
 
-crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_Recipe) -> bool { // The server is in charge here, but we'll do a heuristic for player feedback
-    // Check that the target position is free if required
-    if CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET[recipe] && find_entity_with_flags_at_position(client, .Blocks_Crafting, guy.target_position) return false;
+send_outgoing_messages :: (client: *Client) {
+#if DEVELOPER {
+    now := os_get_cpu_time();
+}
 
-    // Check that the guy has the required resources available
-    available_resources := get_available_resources_for_guy(client, guy);
-    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
+    for i := 0; i < client.outgoing_messages.count; ++i {
+        message := array_get_pointer(*client.outgoing_messages, i);
+        send_reliable_message(*client.connection, message);
 
-    return true;
+#if DEVELOPER   register_message_history(client, *client.outgoing_message_history, message);
+    }
+
+    array_clear(*client.outgoing_messages);
+}
+
+handle_server_timeout :: (client: *Client, next_screen: Game_State, info_text: string) {
+    if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_received_packet, .Seconds) > NETWORK_TIMEOUT {
+        client.previous_game_summary.result = .Connection_Lost;
+        initiate_state_transition(client, next_screen, 0);
+        set_info_text(client, DEFAULT_INFO_TEXT_TIMER, info_text);
+    } else if os_convert_cpu_time(os_get_cpu_time() - client.connection.time_of_last_sent_packet, .Seconds) > NETWORK_PING_INTERVAL {
+        timestamp := os_get_cpu_time();
+        send_ping_packet(*client.connection, .{ size_of(timestamp), xx *timestamp });
+    }
+}
+
+send_game_start_request_message :: (client: *Client) {
+    msg := make_message(Request_Game_Start_Message);
+    msg.request_game_start.game_mode = client.config.requested_game_mode;
+    array_add(*client.outgoing_messages, msg);
 }
 
 start_the_game :: (client: *Client, game_info: Game_Start_Message) {
@@ -967,186 +1132,7 @@ start_the_game :: (client: *Client, game_info: Game_Start_Message) {
     }
 }
 
-do_game_tick :: (client: *Client) {
-    read_incoming_packets(client);
-    handle_server_timeout(client, .Game_Over, "");
 
-    if client.window.resized_this_frame recalculate_local_player_viewports(client);
-    reassign_gamepad_indices(client);
-
-    //    
-    // Developer UI
-    //
-#if DEVELOPER { 
-    if input_action_fired_globally(client, .Developer_Panel_Toggle, .Pressed) {
-        client.developer_panel_state = ifx client.developer_panel_state == .Closed then .Open else .Closed;
-    }
-
-    maybe_do_developer_panel(client);
-
-    if input_action_fired_globally(client, .Message_History_Panel_Toggle, .Pressed) {
-        client.message_history_panel_state = ifx client.message_history_panel_state == .Closed then .Open else .Closed;
-    }
-
-    maybe_do_message_history_panel(client);
-
-    if input_action_fired_globally(client, .Sound_Hud_Toggle, .Pressed) {
-        client.sound_hud_enabled = !client.sound_hud_enabled;
-        enable_mixer_history(*client.mixer, 128, 2);
-    }
-
-    if input_action_fired_globally(client, .Shadow_Hud_Toggle, .Pressed) then client.shadow_hud_enabled = !client.shadow_hud_enabled;
-
-    if input_action_fired_globally(client, .Checkerboard_Texture_Toggle, .Pressed) then client.draw_entities_with_checkerboard_texture = !client.draw_entities_with_checkerboard_texture;
-}
-    
-    //
-    // Update all local entities based on the information received by the server.
-    // This also does some basic client-side prediction
-    //
-    if !client.server_paused_game {
-        reset_allocator(*client.tick_allocator);
-
-        //
-        // Update all entities that have an impact on the lightmap
-        //
-
-        for i := 0; i < client.emitters.slot_count; ++i {
-            emitter, occupied := index_bucket_array(*client.emitters, i);
-            if occupied && emitter.state != .Off then update_powered_emitter(client, emitter);
-        }
-        
-        for i := 0; i < client.emitters.slot_count; ++i {
-            emitter, occupied := index_bucket_array(*client.emitters, i);
-            if occupied && emitter.state == .Off then update_off_emitter(client, emitter);
-        }
-
-        for i := 0; i < client.torches.slot_count; ++i {
-            torch, occupied := index_bucket_array(*client.torches, i);
-            if occupied {
-                update_torch(client, torch);
-            }
-        }
-        
-        for i := 0; i < client.frogs.slot_count; ++i {
-            frog, occupied := index_bucket_array(*client.frogs, i);
-            if occupied {
-                update_frog(client, frog);
-            }
-        }
-
-        update_lightmap(*client.lightmap, *client.em, client.tick_time);
-
-#if DEVELOPER {
-        if client.shadow_hud_enabled calculate_shadows(*client.lightmap, *client.tick_allocator);
-}
-
-
-        for i := 0; i < client.guys.slot_count; ++i {
-            guy, occupied := index_bucket_array(*client.guys, i);
-            if occupied {
-                update_guy(client, guy);
-            }
-        }
-
-        for i := 0; i < client.goblins.slot_count; ++i {
-            goblin, occupied := index_bucket_array(*client.goblins, i);
-            if occupied then update_goblin(client, goblin);
-        }
-
-        for i := 0; i < client.slimes.slot_count; ++i {
-            slime, occupied := index_bucket_array(*client.slimes, i);
-            if occupied then update_slime(client, slime);
-        }
-
-        for i := 0; i < client.void_eyes.slot_count; ++i {
-            eye, occupied := index_bucket_array(*client.void_eyes, i);
-            if occupied then update_void_eye(client, eye);
-        }
-
-        for i := 0; i < client.all_entities.slot_count; ++i {
-            entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied interpolate_visuals_and_play_sounds(client, entity);
-        }
-
-        for i := 0; i < client.particle_systems.slot_count; ++i {
-            system, occupied := index_bucket_array(*client.particle_systems, i);
-            if occupied then update_particle_system(system, client.tick_time);
-        }
-
-        play_random_sounds(client);
-
-        client.game_epoch_time += client.tick_time;
-    }
-
-    //
-    // Tutorial UI
-    //
-    maybe_do_tutorial_panel(client);
-
-    //
-    // Update the input for all local players
-    //
-    if !(client.pause_menu_open || client.server_paused_game) {
-        for i := 0; i < client.local_player_count; ++i {
-            local_player := *client.local_players[i];
-            update_local_player_input(client, local_player);
-        }
-    }
-
-    // Do the pause menu. The escape key can close the hud and open the pause menu, but we want to give
-    // input priorization to the hud.
-    {
-        if input_action_fired_globally(client, .Toggle_Pause_Menu, .Pressed) {
-            client.pause_menu_open = !client.pause_menu_open;
-
-            msg := make_message(Game_Pause_Message);
-            msg.game_pause.client_pid = client.my_client_pid;
-            msg.game_pause.should_pause = client.pause_menu_open;
-            array_add(*client.outgoing_messages, msg);
-        }
-
-        maybe_do_input_bindings_panel(client);
-
-        if maybe_do_pause_menu_panel(client) {
-            client.pause_menu_open = false;
-            msg := make_message(Game_Pause_Message);
-            msg.game_pause.client_pid = client.my_client_pid;
-            msg.game_pause.should_pause = client.pause_menu_open;
-            array_add(*client.outgoing_messages, msg);
-        }
-    }
-
-    physically_remove_dead_particle_systems(client);
-    physically_remove_dead_entities(client);
-}
-
-#if MEMORY_DEBUGGING {
-    inside_allocator_callback := false;
-
-    allocator_callback_procedure :: (client: *Client, allocator: *Allocator, operation: Allocator_Operation, pointer: *void, size_in_bytes: s64, old_pointer: *void, old_size_in_bytes: s64) {
-        if inside_allocator_callback return;
-
-        inside_allocator_callback = true;
-        defer inside_allocator_callback = false;
-        
-        if allocator == Default_Allocator && operation == .Allocation {
-            print_into_buffer(*client.memory_debug_printer, "%, %\n", pointer, size_in_bytes);
-
-            trace := os_get_stack_trace(*temp, 3);
-            for i := 0; i < trace.count; ++i {
-                frame := *trace[i];
-                print_into_buffer(*client.memory_debug_printer, "    - %:% - %\n", frame.source_file, frame.source_line, frame.description);
-            }
-            
-            flush_file_printer(*client.memory_debug_printer);
-        }
-    }
-}
-
-
-
-#file_scope
 
 /* ------------------------------------------- Local Player Handling ------------------------------------------ */
 
@@ -1454,6 +1440,21 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
 
 
 /* ------------------------------------------------- UI Panels ------------------------------------------------ */
+
+do_game_mode_selector :: (client: *Client) {
+    ui :: *client.ui;
+
+    if ui_push_dropdown(ui, "Campaign", .Vertical, true, enum_names(Game_Mode)[client.config.requested_game_mode]) {
+        for i := 0; i < Game_Mode.Count; ++i {
+            if !DEVELOPER && i == Game_Mode.Developer continue;
+
+            if ui_button(ui, enum_names(Game_Mode)[i]) {
+                client.config.requested_game_mode = i;
+            }
+        }
+    }
+    ui_pop_dropdown(ui);
+}
 
 maybe_do_pause_menu_panel :: (client: *Client) -> bool {
     if !client.pause_menu_open then return false;
