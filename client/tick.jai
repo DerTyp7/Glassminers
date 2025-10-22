@@ -458,6 +458,10 @@ do_game_tick :: (client: *Client) {
     if input_action_fired_globally(client, .Shadow_Hud_Toggle, .Pressed) then client.shadow_hud_enabled = !client.shadow_hud_enabled;
 
     if input_action_fired_globally(client, .Checkerboard_Texture_Toggle, .Pressed) then client.draw_entities_with_checkerboard_texture = !client.draw_entities_with_checkerboard_texture;
+
+    if input_action_fired_globally(client, .Free_Camera_Toggle, .Pressed) then client.free_camera_enabled = !client.free_camera_enabled;
+
+    if input_action_fired_globally(client, .Lightmap_Toggle, .Pressed) then client.lightmap.disabled = !client.lightmap.disabled;
 }
     
     //

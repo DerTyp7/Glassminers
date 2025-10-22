@@ -45,6 +45,8 @@ Input_Action :: enum {
     Sound_Hud_Toggle;
     Shadow_Hud_Toggle;
     Checkerboard_Texture_Toggle;
+    Free_Camera_Toggle;
+    Lightmap_Toggle;
 }
 
 Input_Binding :: struct {
@@ -126,10 +128,14 @@ register_all_input_bindings :: (client: *Client) {
     ib[.Hud_Left]           = .[ keycode(.A), keycode(.Arrow_Left),  gamepad_button(.Left_Bumper) ];
     ib[.Hud_Right]          = .[ keycode(.D), keycode(.Arrow_Right), gamepad_button(.Right_Bumper) ];
     ib[.Cheat_Menu_Toggle]  = .[ keycode(.C), gamepad_button(.PS_Triangle), gamepad_button(.XBox_Y) ];
+    ib[.Free_Camera_Toggle]           = .[ keycode(.F1) ];
+    ib[.Lightmap_Toggle]              = .[ keycode(.F2) ];
+    ib[.Shadow_Hud_Toggle]            = .[ keycode(.F3) ];
+
     ib[.Developer_Panel_Toggle]       = .[ keycode(.F5) ];
     ib[.Message_History_Panel_Toggle] = .[ keycode(.F6) ];
     ib[.Sound_Hud_Toggle]             = .[ keycode(.F7) ];
-    ib[.Shadow_Hud_Toggle]            = .[ keycode(.F8) ];
+
     ib[.Checkerboard_Texture_Toggle]  = .[ keycode(.F9) ];
 
     for i := 0; i < ib.Capacity; ++i {
@@ -203,6 +209,8 @@ input_action_string :: (action: Input_Action) -> string {
       case .Sound_Hud_Toggle;       name = "Toggle Sound Hud";
       case .Shadow_Hud_Toggle;      name = "Toggle Shadow Hud";
       case .Checkerboard_Texture_Toggle; name = "Toggle Checkerboard Texture";
+      case .Free_Camera_Toggle;     name = "Toggle Free Camera";
+      case .Lightmap_Toggle;        name = "Toggle Lightmap";
     }
 
     return name;
@@ -213,7 +221,15 @@ input_action_available :: (action: Input_Action) -> bool {
         available: bool = ---;
 
         if action == {
-          case .Cheat_Menu_Toggle, .Developer_Panel_Toggle, .Message_History_Panel_Toggle, .Sound_Hud_Toggle, .Shadow_Hud_Toggle, .Checkerboard_Texture_Toggle; available = false;
+          case .Cheat_Menu_Toggle,
+               .Developer_Panel_Toggle,
+               .Message_History_Panel_Toggle,
+               .Sound_Hud_Toggle,
+               .Shadow_Hud_Toggle,
+               .Checkerboard_Texture_Toggle,
+               .Free_Camera_Toggle,
+               .Lightmap_Toggle; 
+                 available = false;
           case; available = true;
         }
 
