@@ -36,9 +36,7 @@ generate_initial_world_section :: (server: *Server) {
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
 
         chest_entity := create_entity(server, .Chest, .{ 0, 3 }, .North);
-        chest := down(chest_entity, Chest);
-        chest.inventory = setup_initial_chest_inventory(server);
-        broadcast_chest_inventory(server, chest);
+        setup_initial_chest(server, down(chest_entity, Chest));
 
         create_entity(server, .Trader, .{ 0, 1 }, .North);
     }

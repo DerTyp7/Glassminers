@@ -1,3 +1,5 @@
+// @Cleanup: Should all the update_XXXentityXXX be in here or in tick.jai?
+
 Beam_Data :: struct {
     Field :: struct {
         #using position: v2i;
