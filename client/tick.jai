@@ -1242,11 +1242,13 @@ recalculate_local_player_viewports :: (client: *Client) {
         client.local_players[3].viewport = .[ center_x, center_y, xx client.window.w, xx client.window.h ];
     }
 
-    for i := 0; i < client.local_player_count; ++i {
-        local_player := *client.local_players[i];
-        if entity_exists(client, local_player.guy_pid) {
-            entity := get_entity(client, local_player.guy_pid);
-            update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
+    if !client.free_camera_enabled {
+        for i := 0; i < client.local_player_count; ++i {
+            local_player := *client.local_players[i];
+            if entity_exists(client, local_player.guy_pid) {
+                entity := get_entity(client, local_player.guy_pid);
+                update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, false);
+            }
         }
     }
 }
@@ -1406,6 +1408,8 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
             if input_action_fired_globally(client, .Move_South, .Held) target_center.y += speed * client.tick_time;
         
             update_camera(client, local_player, target_center, 1, false);
+
+            print("Target center: %, zoom: %\n", target_center, local_player.camera.zoom_step);
 
             return;
         }
