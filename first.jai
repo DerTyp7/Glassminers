@@ -5,6 +5,7 @@ DEVELOPER_OPTIONS := []string.[ "Developer" ];
 
 Build_Mode :: enum {
     Debug;
+    Debug_Without_Developer;
     Release_With_Debug_Info;
     Release;
 }
@@ -23,8 +24,15 @@ apply_flags :: (options: *Workspace_Options, mode: Build_Mode, target: Build_Tar
         options.target_subsystem   = .Console;
         options.runtime_features   = .Bounds_Check | .Cast_Check | .Overflow_Check;
         options.optimization_level = .Unoptimized;
-        options.debug_information  = target == .Executable || options.target_backend == .C;
+        options.debug_information  = target == .Executable;
         options.user_options       = DEVELOPER_OPTIONS;
+
+      case .Debug_Without_Developer;
+        options.target_backend     = .X64;
+        options.target_subsystem   = release_subsystem;
+        options.runtime_features   = .Bounds_Check | .Cast_Check | .Overflow_Check;
+        options.optimization_level = .Unoptimized;
+        options.debug_information  = target == .Executable;
 
       case .Release_With_Debug_Info;
         options.target_backend     = .C;
@@ -100,12 +108,15 @@ build_client :: (mode: Build_Mode) {
         for i := 0; i < options.user_options.count; ++i {
             if options.user_options[i] == {
               case "debug"; build_client(.Debug);
-              case "release"; build_client(.Release);
+              case "debug-without-developer"; build_client(.Debug_Without_Developer);
               case "release-with-debug"; build_client(.Release_With_Debug_Info);
+              case "release"; build_client(.Release);
+
               case "server-debug"; build_server(.Debug, .Executable);
+              case "server-debug-without-developer"; build_server(.Debug_Without_Developer, .Executable);
+              case "server-release-with-debug"; build_server(.Release_With_Debug_Info, .Executable);
               case "server-release"; build_server(.Release, .Executable);
-              case "server-with-debug"; build_server(.Release_With_Debug_Info, .Executable);
-              case; print("Unknown build option, please specify one of: [ 'debug', 'release', 'release-with-debug', 'server-debug', 'server-release', 'server-with-debug' ].\n");
+              case; print("Unknown build option, please specify one of the following values: [ debug, debug-without-developer, release-with-debug, release, server-debug, server-debug-without-developer, server-release-with-debug, server-release ]\n");
             }
         }
     } else {
