@@ -89,7 +89,7 @@ initiate_next_biome :: (server: *Server) {
         server.current_biome = .Mineshaft;
     }
 
-    server.current_biome = .Lava_Fortress;
+    server.current_biome = .Lava_Fortress; // @Incomplete
 
     msg := make_message(World_Resize_Message);
     msg.world_resize.new_world_size  = server.world_size;
@@ -171,8 +171,6 @@ get_current_predefined_world_size :: (game_mode: Game_Mode, current_section_inde
 }
 
 create_entity_from_character :: (server: *Server, position: v2i, character: char) -> bool {
-    found_entity := false;
-    
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
@@ -212,6 +210,8 @@ create_entity_from_character :: (server: *Server, position: v2i, character: char
         }
     }
 
+    found_entity := true;
+
     if kind == {
       case .Emitter;
         entity := create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
@@ -236,7 +236,6 @@ create_entity_from_character :: (server: *Server, position: v2i, character: char
 }
 
 fill_predefined_section :: (server: *Server, helper: *Biome_Helper) -> bool {
-
     lines, success := load_predefined_world_data(server.game_mode);
     if !success return false;
 
@@ -537,35 +536,50 @@ fill_lava_fortress_biome :: (server: *Server, helper: *Biome_Helper) {
         }
     }
 
-    // Create the first obstacle
-    {
-        tilemap: string : "lb\n"
-                          "lb\n"
-                          "lb\n"
-                          "l \n"
-                          "lb\n";
-        fill_from_string(server, helper, tilemap, 2);
-    }
+    FIRST_PART: [3]string : .[
+        "c lbF\n"
+        "  lbb\n"
+        "  lb \n"
+        "  l b\n"
+        "s lb \n",
 
-    // Create the second obstacle
-    {
-        tilemap: string : "l l\n"
-                          "bGb\n"
-                          "lsl\n"
-                          "bFb\n"
-                          "l l\n";
-        fill_from_string(server, helper, tilemap, 6);
-    }
+        "c lbF\n"
+        "  lbb\n"
+        "  lb \n"
+        "  l b\n"
+        "s lb \n",
 
-    // Create the third obstacle
-    {
-        tilemap: string : "bs   \n"
-                          "bG   \n"
-                          "bbbbl\n"
-                          "    e\n"
-                          "llbbF\n";
-        fill_from_string(server, helper, tilemap, 11);
-    }
+        "c lbF\n"
+        "  lbb\n"
+        "  lb \n"
+        "  l b\n"
+        "s lb \n",
+    ];
+
+    SECOND_PART: [1]string : .[
+        " l l \n"
+        " bGb \n"
+        "blslb\n"
+        " bFb \n"
+        " l l \n",
+    ];
+
+    THIRD_PART: [1]string : .[
+        "lbs  e\n"
+        "lbG   \n"
+        "lbbbbl\n"
+        "      \n"
+        " llbbF\n",
+    ];
+
+    first_idx := random_u64_in(*server.world_random, 0, FIRST_PART.Capacity);
+    fill_from_string(server, helper, FIRST_PART[first_idx], 0);
+
+    second_idx := random_u64_in(*server.world_random, 0, SECOND_PART.Capacity);
+    fill_from_string(server, helper, SECOND_PART[second_idx], 6);
+    
+    third_idx := random_u64_in(*server.world_random, 0, THIRD_PART.Capacity);
+    fill_from_string(server, helper, THIRD_PART[third_idx], 12);
 }
 
 fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
