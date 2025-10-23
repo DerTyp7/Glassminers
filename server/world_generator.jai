@@ -543,33 +543,57 @@ fill_lava_fortress_biome :: (server: *Server, helper: *Biome_Helper) {
         "  l b\n"
         "s lb \n",
 
-        "c lbF\n"
-        "  lbb\n"
-        "  lb \n"
-        "  l b\n"
-        "s lb \n",
+        "  lsl\n"
+        "  lbl\n"
+        "  lbF\n"
+        "g lbb\n"
+        "c bbl\n",
 
-        "c lbF\n"
-        "  lbb\n"
-        "  lb \n"
-        "  l b\n"
-        "s lb \n",
+        "g lbF\n"
+        "s  bl\n"
+        "  lbl\n"
+        "   bb\n"
+        "  lbl\n",
     ];
 
-    SECOND_PART: [1]string : .[
+    SECOND_PART: [3]string : .[
         " l l \n"
         " bGb \n"
         "blslb\n"
         " bFb \n"
         " l l \n",
+
+        "blllb\n"
+        "b b b\n"
+        "bbFbb\n"
+        "llbll\n"
+        "bbGbb\n",
+
+        " blbF\n"
+        "bGl b\n"
+        " blb \n"
+        "bGl b\n"
+        " blbF\n",
     ];
 
-    THIRD_PART: [1]string : .[
+    THIRD_PART: [3]string : .[
         "lbs  e\n"
         "lbG   \n"
         "lbbbbl\n"
         "      \n"
         " llbbF\n",
+
+        "bbl  F\n"
+        " bbl  \n"
+        " gbb e\n"
+        " bbl  \n"
+        "bbl  F\n",
+
+        "  blG\n"
+        " Gbl \n"
+        "bsb  \n"
+        "bF  e\n"
+        "sllbb\n",
     ];
 
     first_idx := random_u64_in(*server.world_random, 0, FIRST_PART.Capacity);
