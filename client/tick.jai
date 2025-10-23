@@ -1412,9 +1412,6 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
             if input_action_fired_globally(client, .Move_South, .Held) target_center.y += speed * client.tick_time;
         
             update_camera(client, local_player, target_center, 1, false);
-
-            print("Target center: %, zoom: %\n", target_center, local_player.camera.zoom_step);
-
             return;
         }
     }

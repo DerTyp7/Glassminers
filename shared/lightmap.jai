@@ -152,18 +152,22 @@ query_lightmap_at_fractional_gamma_adjusted :: (map: *Lightmap, position: v2f) -
 
 maybe_add_blocker :: (map: *Lightmap, entity: *Entity) {
     if entity.entity_flags & .Blocks_Line_Of_Sight {
+        assert(entity.physical_position.x >= 0 && entity.physical_position.x < map.size.x && entity.physical_position.y >= 0 && entity.physical_position.y < map.size.y, "Tried to add a lightmap blocker out-of-bounds.");
         ++map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
     }
 }
 
 maybe_remove_blocker :: (map: *Lightmap, entity: *Entity) {
     if entity.entity_flags & .Blocks_Line_Of_Sight {
+        assert(entity.physical_position.x >= 0 && entity.physical_position.x < map.size.x && entity.physical_position.y >= 0 && entity.physical_position.y < map.size.y, "Tried to remove a lightmap blocker out-of-bounds.");
         --map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
     }
 }
 
 maybe_move_blocker :: (map: *Lightmap, entity: *Entity, new_position: v2i) {
     if entity.entity_flags & .Blocks_Line_Of_Sight {
+        assert(entity.physical_position.x >= 0 && entity.physical_position.x < map.size.x && entity.physical_position.y >= 0 && entity.physical_position.y < map.size.y, "Tried to move a lightmap blocker out-of-bounds.");
+        assert(new_position.x >= 0 && new_position.x < map.size.x && new_position.y >= 0 && new_position.y < map.size.y, "Tried to move a lightmap blocker out-of-bounds.");
         --map.blockers[entity.physical_position.y * map.size.x + entity.physical_position.x];
         ++map.blockers[new_position.y * map.size.x + new_position.x];
     }

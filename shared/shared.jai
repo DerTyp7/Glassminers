@@ -166,6 +166,7 @@ Biome_Type :: enum {
     Mineshaft;
 
     Lava_Lake;
+    Lava_Fortress;
     Goblin_Nest;
 }
 

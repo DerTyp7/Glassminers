@@ -34,6 +34,7 @@ generate_initial_world_section :: (server: *Server) {
         emitter_entity := create_entity(server, .Emitter, .{ 0, 2 }, .East);
         emitter := down(emitter_entity, Emitter);
         set_emitter_state(server, emitter, .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
+        server.latest_emitter = emitter.pid;
 
         chest_entity := create_entity(server, .Chest, .{ 0, 3 }, .North);
         setup_initial_chest(server, down(chest_entity, Chest));
@@ -87,7 +88,9 @@ initiate_next_biome :: (server: *Server) {
     } else {
         server.current_biome = .Mineshaft;
     }
-    
+
+    server.current_biome = .Lava_Fortress;
+
     msg := make_message(World_Resize_Message);
     msg.world_resize.new_world_size  = server.world_size;
     msg.world_resize.current_biome   = server.current_biome;
@@ -167,7 +170,9 @@ get_current_predefined_world_size :: (game_mode: Game_Mode, current_section_inde
     return .{ max_width, lines.count };
 }
 
-fill_predefined_section :: (server: *Server, helper: *Biome_Helper) -> bool {
+create_entity_from_character :: (server: *Server, position: v2i, character: char) -> bool {
+    found_entity := false;
+    
     ENTITY_TO_CHAR: [Entity_Kind.Count]char : .[
         // Beams
         #char "e", // Emitter
@@ -198,6 +203,39 @@ fill_predefined_section :: (server: *Server, helper: *Biome_Helper) -> bool {
         // Misc
         #char "f", // Flag
     ];
+           
+    kind := Entity_Kind.Count;
+    for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
+        if ENTITY_TO_CHAR[i] == character {
+            kind = i;
+            break;
+        }
+    }
+
+    if kind == {
+      case .Emitter;
+        entity := create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
+        if server.latest_emitter == INVALID_PID then set_emitter_state(server, down(entity, Emitter), .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
+
+        if server.latest_emitter == INVALID_PID || get_entity(server, server.latest_emitter).physical_position.x < entity.physical_position.x {
+            server.latest_emitter = entity.pid;
+        }
+
+      case .Slime_Hole;
+        create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
+        create_entity(server, .Slime, position, DEFAULT_ENTITY_ROTATION[kind]);
+
+      case;
+        create_entity(server, kind, position, DEFAULT_ENTITY_ROTATION[kind]);
+
+      case .Count;
+        found_entity = false;
+    }
+
+    return found_entity;
+}
+
+fill_predefined_section :: (server: *Server, helper: *Biome_Helper) -> bool {
 
     lines, success := load_predefined_world_data(server.game_mode);
     if !success return false;
@@ -218,33 +256,9 @@ fill_predefined_section :: (server: *Server, helper: *Biome_Helper) -> bool {
                 ++x;
                 continue;
             }
-            
-            kind := Entity_Kind.Count;
-            for i := 0; i < ENTITY_TO_CHAR.Capacity; ++i {
-                if ENTITY_TO_CHAR[i] == char {
-                    kind = i;
-                    break;
-                }
-            }
 
-            if kind == {
-              case .Emitter;
-                entity := create_entity(server, kind, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
-                if x == 0 set_emitter_state(server, down(entity, Emitter), .Active, EMITTER_MAX_BASE_CHARGE[server.game_mode]);
-
-                if server.latest_emitter == INVALID_PID || get_entity(server, server.latest_emitter).physical_position.x < entity.physical_position.x then server.latest_emitter = entity.pid;
-
-              case .Slime_Hole;
-                create_entity(server, kind, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
-                create_entity(server, .Slime, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
-
-              case;
-                create_entity(server, kind, .{ x, y }, DEFAULT_ENTITY_ROTATION[kind]);
-
-              case .Count;
-                logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", server.game_mode, y + 1, line[x]);
-                success = false;
-            }
+            found_entity := create_entity_from_character(server, .{ x, y }, char);
+            if !found_entity logprint(.Error, "Failed to parse the world string for '%' in line %: The character '%' is not a known entity.", server.game_mode, y + 1, line[x]);
 
             ++x;
         }
@@ -324,8 +338,7 @@ Biome_Helper :: struct {
 }
 
 create_latest_emitter :: (server: *Server, helper: *Biome_Helper) {
-    latest_emitter := create_entity(server, .Emitter, .{ helper.section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East);
-    server.latest_emitter = latest_emitter.pid;
+    server.latest_emitter = create_entity(server, .Emitter, .{ helper.section[1], random_u64_in(*server.world_random, 0, SECTION_HEIGHT) }, .East).pid;
 }
 
 make_biome_helper :: (server: *Server) -> Biome_Helper {
@@ -507,6 +520,54 @@ fill_lava_lake_biome :: (server: *Server, helper: *Biome_Helper) {
     }
 }
 
+fill_lava_fortress_biome :: (server: *Server, helper: *Biome_Helper) {
+    fill_from_string :: (server: *Server, helper: *Biome_Helper, tilemap: string, offset_in_section: s32) {
+        x, y: s32 = 0, 0;
+        for i := 0; i < tilemap.count; ++i {
+            if tilemap[i] == #char "\r" {
+            } else if tilemap[i] == #char "\n" {
+                x = 0;
+                ++y;
+            } else if tilemap[i] != #char " " {
+                create_entity_from_character(server, .{ helper.section[0] + offset_in_section + x, y }, tilemap[i]);
+                ++x;
+            } else {
+                ++x;
+            }
+        }
+    }
+
+    // Create the first obstacle
+    {
+        tilemap: string : "lb\n"
+                          "lb\n"
+                          "lb\n"
+                          "l \n"
+                          "lb\n";
+        fill_from_string(server, helper, tilemap, 2);
+    }
+
+    // Create the second obstacle
+    {
+        tilemap: string : "l l\n"
+                          "bGb\n"
+                          "lsl\n"
+                          "bFb\n"
+                          "l l\n";
+        fill_from_string(server, helper, tilemap, 6);
+    }
+
+    // Create the third obstacle
+    {
+        tilemap: string : "bs   \n"
+                          "bG   \n"
+                          "bbbbl\n"
+                          "    e\n"
+                          "llbbF\n";
+        fill_from_string(server, helper, tilemap, 11);
+    }
+}
+
 fill_goblin_nest_biome :: (server: *Server, helper: *Biome_Helper) {
     Tilemap :: []Entity_Kind;
     Path :: [..]v2i;
@@ -685,9 +746,10 @@ fill_current_biome :: (server: *Server) {
     helper := make_biome_helper(server);
 
     if #complete server.current_biome == {
-      case .Predefined;  fill_predefined_section(server, *helper);
-      case .Mineshaft;   fill_mineshaft_biome(server, *helper);
-      case .Lava_Lake;   fill_lava_lake_biome(server, *helper);
-      case .Goblin_Nest; fill_goblin_nest_biome(server, *helper);
+      case .Predefined;    fill_predefined_section(server, *helper);
+      case .Mineshaft;     fill_mineshaft_biome(server, *helper);
+      case .Lava_Lake;     fill_lava_lake_biome(server, *helper);
+      case .Lava_Fortress; fill_lava_fortress_biome(server, *helper);
+      case .Goblin_Nest;   fill_goblin_nest_biome(server, *helper);
     }
 }
