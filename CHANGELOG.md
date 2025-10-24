@@ -7,6 +7,7 @@
 - Made the slabs over lava tiles last indefinitely
 - The players now respawn with their carried item (or chest) in hand after being resurrected
 - Made the progress bars a circle instead of some boxes
+- Fixed not being able to change move / look direction by rotating an analog stick / changing held keys
 - Fixed entities generated at positions where they block access to the emitter
 - Fixed monsters spawning at positions where they attack the player at the start of the game
 - Fixed not clearing the "add local player" text box in the lobby, leading to adding the same player twice

@@ -142,7 +142,7 @@ register_all_input_bindings :: (client: *Client) {
         client.input_bindings[i] = copy_slice(*client.engine_allocator, ib[i]);
     }
 
-    MOVE_INTERVAL: f32 : 0.33;
+    MOVE_INTERVAL: f32 : 0.25;
     client.input_action_repetition_intervals[.Move_North] = MOVE_INTERVAL;
     client.input_action_repetition_intervals[.Move_East]  = MOVE_INTERVAL;
     client.input_action_repetition_intervals[.Move_South] = MOVE_INTERVAL;
@@ -400,7 +400,7 @@ compare_input_bindings :: (lhs, rhs: *Input_Binding) -> bool {
 }
 
 update_input_binder :: (client: *Client, binder: *Input_Binder) {
-    for action := 0; action < binder.input_action_held.Capacity; ++action {
+    for action: Input_Action = 0; action < binder.input_action_held.Capacity; ++action {
         if binder.input_action_held[action] {
             still_held := false;
 
