@@ -1210,7 +1210,9 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
 	  case .Remove_Entity; 
         for i := 0; i < server.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*server.all_entities, i);
-            if occupied && entity.physical_position.x == guy.target_position.x && entity.physical_position.y == guy.target_position.y then remove_entity(server, entity);
+            if occupied && entity.physical_position.x == guy.target_position.x && entity.physical_position.y == guy.target_position.y && entity.entity_kind != .Guy {
+                remove_entity(server, entity);
+            }
         }
         
       case .Complete_Emitters;
