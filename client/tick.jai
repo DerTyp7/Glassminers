@@ -1251,7 +1251,7 @@ recalculate_local_player_viewports :: (client: *Client) {
             local_player := *client.local_players[i];
             if entity_exists(client, local_player.guy_pid) {
                 entity := get_entity(client, local_player.guy_pid);
-                update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, false);
+                update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
             }
         }
     }

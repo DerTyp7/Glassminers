@@ -69,7 +69,7 @@ generate_next_world_section :: (server: *Server) {
 
 #file_scope
 
-SPECIAL_BIOME_OCCURANCE :: 5;
+SPECIAL_BIOME_OCCURANCE :: 4;
 
 DEVELOPER_WORLD_SECTION_SEPARATOR :: #char "|";
 DEFAULT_SPAWN_PROBABILITY_TABLE :: #run setup_default_spawn_probabilities_table(); // This table contains the chance ([0-1]) that an entity of this category will spawn on one tile.
@@ -88,8 +88,6 @@ initiate_next_biome :: (server: *Server) {
     } else {
         server.current_biome = .Mineshaft;
     }
-
-    server.current_biome = .Lava_Fortress; // @Incomplete
 
     msg := make_message(World_Resize_Message);
     msg.world_resize.new_world_size  = server.world_size;
