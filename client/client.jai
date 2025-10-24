@@ -37,6 +37,7 @@
 #load "aseprite.jai";
 
 GE_ACTIVE_BACKEND :: GE_Backend.GL_Fixed;
+ENABLE_PROFILING :: DEVELOPER;
 
 DEVELOPER :: #run compiler_is_user_option_present("Developer");
 MEMORY_DEBUGGING :: false;
