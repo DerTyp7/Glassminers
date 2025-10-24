@@ -285,13 +285,13 @@ setup_default_spawn_probabilities_table :: () -> [Game_Mode.Count][Entity_Kind.C
 
     // Set up the default difficulty
     {
-        result[.Medium][.Slime_Hole] = desired_per_section(1);
+        result[.Medium][.Slime_Hole] = desired_per_section(1.35);
         result[.Medium][.Trader]     = desired_per_section(0.6);
         result[.Medium][.Lava]       = desired_coverage(0.085);
         result[.Medium][.Bedrock]    = desired_coverage(0.17);
-        result[.Medium][.Coal]       = desired_per_section(4);
+        result[.Medium][.Coal]       = desired_per_section(3.5);
         result[.Medium][.Rock]       = desired_per_section(4);
-        result[.Medium][.Crystal]    = desired_per_section(3);
+        result[.Medium][.Crystal]    = desired_per_section(2.9);
         result[.Medium][.Frog]       = desired_per_section(3);
         result[.Medium][.Goblin]     = desired_per_section(4);
     }

@@ -4,6 +4,8 @@
 - Added a crash handler in play-testing builds that prints out a `crash.log` file
 - Added a sound effect to resurrecting players
 - Added overloading the emitter with more charge for up to 45 seconds - at double the coal price
+- Added an initial trader next to the very first emitter
+- Slighty increased the slime spawn rate, decreased the trader, coal, and crystal spawn rates
 - Made the slabs over lava tiles last indefinitely
 - The players now respawn with their carried item (or chest) in hand after being resurrected
 - Made the progress bars a circle instead of some boxes
