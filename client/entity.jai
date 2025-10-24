@@ -272,7 +272,7 @@ get_entity :: (client: *Client, pid: Pid) -> *Entity {
 
 entity_exists :: (client: *Client, pid: Pid) -> bool {
     pointer := probed_hash_table_query(*client.entity_pid_lookup, pid);
-    return pointer != null;
+    return pointer != null && !(~pointer).marked_for_removal;
 }
 
 physically_remove_dead_entities :: (client: *Client) {

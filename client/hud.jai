@@ -296,7 +296,7 @@ draw_player_hud :: (client: *Client, local_player: *Local_Player) {
         player_name_text: string = find_player_name_from_guy_pid(client, local_player.entity_tracked_by_camera);
 
         // Draw the player name
-        {            
+        {
             spectated_guy := down(get_entity(client, local_player.entity_tracked_by_camera), Guy);
             if spectated_guy.state == .Dead {
                 player_name_text = concatenate_strings(*temp, player_name_text, " (DEAD)");

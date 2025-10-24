@@ -558,6 +558,16 @@ do_game_tick :: (client: *Client) {
         }
     }
 
+    // Make sure we're not tracking entities that have been deleted - this also goes for players that
+    // might've disconnected while the game is paused.
+    for i := 0; i < client.local_player_count; ++i {
+        local_player := *client.local_players[i];
+        if !entity_exists(client, local_player.entity_tracked_by_camera) {
+            // Fallback in case the tracked entity disappears for some reason
+            local_player.entity_tracked_by_camera = local_player.guy_pid;
+        }
+    }
+
     // Do the pause menu. The escape key can close the hud and open the pause menu, but we want to give
     // input priorization to the hud.
     {
@@ -1502,11 +1512,6 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
             local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, true);
         } else if input_action_fired_for_local_player(client, local_player, .Move_West, .Pressed) {
             local_player.entity_tracked_by_camera = find_next_entity_to_spectate(client, local_player.entity_tracked_by_camera, false);
-        }
-
-        if !entity_exists(client, local_player.entity_tracked_by_camera) {
-            // Fallback in case the tracked entity disappears for some reason
-            local_player.entity_tracked_by_camera = local_player.guy_pid;
         }
     }
 
