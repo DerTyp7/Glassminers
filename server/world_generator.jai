@@ -587,11 +587,11 @@ fill_lava_fortress_biome :: (server: *Server, helper: *Biome_Helper) {
         " bbl  \n"
         "bbl  F\n",
 
-        "  blG\n"
-        " Gbl \n"
-        "bsb  \n"
-        "bF  e\n"
-        "sllbb\n",
+        "  blGl\n"
+        " Gbl l\n"
+        "bsb   \n"
+        "bF   e\n"
+        "sllbbl\n",
     ];
 
     first_idx := random_u64_in(*server.world_random, 0, FIRST_PART.Capacity);
