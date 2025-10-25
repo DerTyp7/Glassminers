@@ -723,18 +723,27 @@ main :: (args: []string) -> s32 {
         if client.current_state == .Ingame {
             for i := 0; i < client.local_player_count; ++i {
                 local_player := *client.local_players[i];
-                if local_player.input_binder.active_input_device == .Gamepad {
+                if local_player.input_binder.active_input_device != .Gamepad { continue; }
+
+                full_health_color  :: GE_Color.{ 255, 55, 0, 255 };
+                worst_health_color :: GE_Color.{  95, 55, 0, 255 };
+                if local_player.guy_pid != INVALID_PID {
                     entity := get_entity(client, local_player.guy_pid);
                     guy := down(entity, Guy);
-                    
+
                     digging_vibration: f32 = ifx guy.state == .Digging then 0.2 else 0;
                     damage_vibration:  f32 = clamp(1 - guy.time_since_last_damage * 2, 0, 1); // When taking damage once, vibrate of 0.5 seconds
-                    
+
                     applied_vibration := ifx !client.server_paused_game && client.config.gamepad_vibration then max(damage_vibration, digging_vibration) else 0;
 
                     health := (entity.health - HEALTH_PER_HEART) / (DEFAULT_ENTITY_HEALTH[entity.entity_kind] - HEALTH_PER_HEART); // We want to show the worst color when you've only got one heart left
-                    color: GE_Color = ge_mix_colors(.{ 255, 55, 0, 255 }, .{ 95, 255, 0, 255 }, health);
+                    color: GE_Color = ge_mix_colors(full_health_color, worst_health_color, health);
 
+                    set_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, applied_vibration, applied_vibration, color.r, color.g, color.b);
+                } else {
+                    // This branch sometimes happens during game startup. 
+                    applied_vibration: f32 = 0;
+                    color := full_health_color;
                     set_gamepad_properties(*client.window, local_player.input_binder.gamepad_index, applied_vibration, applied_vibration, color.r, color.g, color.b);
                 }
             }
