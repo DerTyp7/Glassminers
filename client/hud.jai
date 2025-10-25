@@ -602,7 +602,7 @@ CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[
     .Trader_Idle_Front_0,   // Spawn Trader
     .Hud_Heart_Full,        // Toggle Invincibility
     .Ghost_Mode,            // Toggle Ghost Mode
-    .Kill_Creature,         // Kill Creature
+    .Kill_Entity,           // Kill entity
     .Emitter,               // Complete Emitters
 ];
 

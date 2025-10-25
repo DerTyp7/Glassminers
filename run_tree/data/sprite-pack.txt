@@ -36,7 +36,7 @@ Strength_Potion aseprite/items/strength-potion.aseprite
 # Debug Icons
 #
 Ghost_Mode      aseprite/developer/ghost-mode.aseprite
-Kill_Creature   aseprite/developer/skull.aseprite
+Kill_Entity     aseprite/developer/skull.aseprite
 
 #
 # Inanimates
