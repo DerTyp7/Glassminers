@@ -630,12 +630,10 @@ do_game_tick :: (server: *Server) {
 /* ------------------------------------------------ Base Entity ----------------------------------------------- */
 
 damage_entity :: (server: *Server, entity: *Entity, immediate_damage: f32) -> bool {
-#if DEVELOPER {
     if entity.entity_kind == .Guy {
         guy := down(entity, Guy);
         if guy.invincible return false;
     }
-}
 
     //
     // If the entity has no more health we consider it dead, but the entity itself might be kept in storage.
