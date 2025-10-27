@@ -1014,12 +1014,7 @@ handle_guy_movement :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
         return;
     }
 
-    is_in_ghost_mode := false;
-    #if DEVELOPER { 
-        is_in_ghost_mode = guy.ghost_mode;
-    }
-
-    if is_in_ghost_mode {
+    if guy.ghost_mode {
         // Bypass checks and recursive move routine
         if position_in_bounds(server, input.position) {
             update_physical_location(server, guy, input.position, input.aim_direction);
