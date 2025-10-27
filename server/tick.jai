@@ -1002,12 +1002,6 @@ update_guy :: (server: *Server, guy: *Guy) {
         }
     }
 
-    if server.current_biome == .Lava_Lake && guy.seconds_since_last_move >= LAVA_LAKE_SINK_TIME && 
-            guy.physical_position.x >= server.current_section[0] && guy.physical_position.x <= server.current_section[1] &&
-            !find_entity_of_kind_at_position(server, .Lava, guy.physical_position) {
-        create_entity(server, .Lava, guy.physical_position, DEFAULT_ENTITY_ROTATION[.Lava]);
-    }
-
     damage_and_maybe_kill_if_in_lava(server, guy);
 }
 

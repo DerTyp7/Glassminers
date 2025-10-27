@@ -830,14 +830,6 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
                 tint.a = cast(u8) (entity.health / DEFAULT_ENTITY_HEALTH[entity.entity_kind] * 255);
             }
 
-            if entity.entity_kind == .Guy && client.current_biome == .Lava_Lake {
-                guy := down(entity, Guy);
-                if guy.physical_position.x >= client.current_section[0] && guy.physical_position.x <= client.current_section[1] && guy.seconds_since_last_move >= LAVA_LAKE_SINK_INDICATION_START {
-                    alpha: f32 = clamp((guy.seconds_since_last_move - LAVA_LAKE_SINK_INDICATION_START) / (LAVA_LAKE_SINK_TIME - LAVA_LAKE_SINK_INDICATION_START), 0, 1) * 255;
-                    draw_sprite_world_space(client, local_player, .Lava_0, entity.visual_position, .{ 1, 1 }, 0, .{ 200, 200, 200, cast(u8) alpha }, .None);
-                }
-            }
-
             if entity.entity_kind == .Item_Stack {
                 item_stack := down(entity, Item_Stack);
                 count := min(VISUAL_ITEM_STACK_CAPACITY, item_stack.count);
