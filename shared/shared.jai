@@ -290,6 +290,7 @@ Crafting_Recipe :: enum {
     Strength_Potion;
     Shard;
     Coal;
+    Stone;
 }
 
 Game_Result :: enum {
@@ -460,7 +461,7 @@ DEFAULT_ENTITY_VISUAL_DEPTH: [Entity_Kind.Count]Visual_Layer : .[ // A higher de
     .Creations_Moveable, // Flag
 ];
 
-CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
+CRAFTING_RECIPE_COSTS: [Crafting_Recipe.Count][]Item_Kind = .[
     // Crafting hud
     .[ .Shard ], // Mirror
     .[ .Coal ],  // Torch
@@ -471,6 +472,7 @@ CRAFTING_RECIPE_REQUIRED_ITEMS: [Crafting_Recipe.Count][]Item_Kind = .[
     .[ .Coin ], // Strength Potion
     .[ .Coin ], // Shard
     .[ .Coin ], // Coal
+    .[ .Coin ], // Stone
 ];
 
 CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
@@ -484,6 +486,7 @@ CRAFTING_RECIPE_ENABLER: [Crafting_Recipe.Count]Entity_Kind = .[
     .Trader, // Strength Potion
     .Trader, // Shard
     .Trader, // Coal
+    .Trader, // Stone
 ];
 
 CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
@@ -497,6 +500,7 @@ CRAFTING_RECIPE_REQUIRES_EMPTY_TARGET: [Crafting_Recipe.Count]bool = .[
     false, // Strength Potion
     false, // Shard
     false, // Coal
+    false, // Stone
 ];
 
 

@@ -422,7 +422,7 @@ crafting_recipe_should_succeed :: (client: *Client, guy: *Guy, recipe: Crafting_
 
     // Check that the guy has the required resources available
     available_resources := get_available_resources_for_guy(client, guy);
-    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
+    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_COSTS[recipe]) return false;
 
     return true;
 }

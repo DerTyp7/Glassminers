@@ -253,8 +253,8 @@ draw_player_hud :: (client: *Client, local_player: *Local_Player) {
                 should_succeed := hud_option_should_succeed(client, local_player, i);
                 tint := ifx should_succeed then WHITE_COLOR else GRAY_COLOR;
 
-                for j := 0; j < CRAFTING_RECIPE_REQUIRED_ITEMS[recipe].count; ++j {
-                    draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_REQUIRED_ITEMS[recipe][j]), 1, i, xx j + 1, tint);
+                for j := 0; j < CRAFTING_RECIPE_COSTS[recipe].count; ++j {
+                    draw_icon(client, hud, get_sprite_index_for_item(CRAFTING_RECIPE_COSTS[recipe][j]), 1, i, xx j + 1, tint);
                 }
 
                 draw_divider(client, hud, i, tint);
@@ -592,6 +592,7 @@ CRAFTING_RECIPE_ICONS: [Crafting_Recipe.Count]Sprite_Index : .[
     .Strength_Potion,
     .Shard,
     .Coal_Item,
+    .Stone,
 ];
 
 CHEAT_ICONS: [Cheat.Count]Sprite_Index : .[

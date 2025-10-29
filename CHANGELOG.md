@@ -3,6 +3,7 @@
 - Added a new statistic tracking the number of times a player charged an emitter
 - Added a crash handler in play-testing builds that prints out a `crash.log` file
 - Added a sound effect to resurrecting players
+- Added a stone recipe to the trader
 - Added overloading the emitter with more charge for up to 45 seconds - at double the coal price
 - Added an initial trader next to the very first emitter
 - Slighty increased the slime spawn rate, decreased the trader, coal, and crystal spawn rates

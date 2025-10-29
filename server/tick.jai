@@ -891,10 +891,10 @@ try_to_fulfill_recipe :: (server: *Server, guy: *Guy, recipe: Crafting_Recipe) -
     
     // Check the guy has enough resources
     available_resources := get_available_resources_for_guy(server, guy);
-    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]) return false;
+    if !available_resources_fulfill(available_resources, CRAFTING_RECIPE_COSTS[recipe]) return false;
     
     // Actually commit to crafting.
-    consume_resources_from_guy(server, guy, CRAFTING_RECIPE_REQUIRED_ITEMS[recipe]);
+    consume_resources_from_guy(server, guy, CRAFTING_RECIPE_COSTS[recipe]);
     return true;
 }
 
@@ -1124,9 +1124,7 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
     //
     if input.crafting_recipe != .Count {
         if try_to_fulfill_recipe(server, guy, input.crafting_recipe) {
-            // @Cleanup: We're currently manually tracking the stats for the coins here when interacting with
-            // the trader. I would like to read that out from the crafting recipe basically to make it
-            // more robust.
+            // Create the outcome of the recipe
 
             if #complete input.crafting_recipe == {
               /* Crafting Hud */
@@ -1136,22 +1134,25 @@ handle_guy_input :: (server: *Server, guy: *Guy, input: *Guy_Input_Message) {
               case .Torch;
                 put_item_in_hand(server, guy, .Torch);
                 guy.carrying_item_data.torch_time_left_in_seconds = TORCH_TIME_TO_LIVE;
-              case .Chest;  create_entity(server, .Chest, guy.target_position, .North);
+              case .Chest;
+                create_entity(server, .Chest, guy.target_position, .North);
               
               /* Trader Hud */              
-              case .Health_Potion;
-                set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
-                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
-                increment_player_statistic(server, guy.pid, .Coins_Spent_Healing);
-              case .Strength_Potion;
-                start_strength_effect(server, guy);
-                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
-              case .Shard;
-                put_item_in_hand(server, guy, .Shard);
-                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
-              case .Coal;
-                put_item_in_hand(server, guy, .Coal);
-                increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+              case .Health_Potion;   set_entity_health(server, guy, guy.health + HEALTH_PER_HEART);
+              case .Strength_Potion; start_strength_effect(server, guy);
+              case .Shard;           put_item_in_hand(server, guy, .Shard);
+              case .Coal;            put_item_in_hand(server, guy, .Coal);
+              case .Stone;           put_item_in_hand(server, guy, .Stone);
+            }
+
+            // Track the costs of the recipe
+
+            costs := CRAFTING_RECIPE_COSTS[input.crafting_recipe];
+            for i := 0; i < costs.count; ++i {
+                if costs[i] == .Coin {
+                    increment_player_statistic(server, guy.pid, .Coins_Spent_Total);
+                    if input.crafting_recipe == .Health_Potion then increment_player_statistic(server, guy.pid, .Coins_Spent_Healing);
+                }
             }
         }
     }
