@@ -1427,12 +1427,12 @@ update_local_player_input :: (client: *Client, local_player: *Local_Player) {
         }
     }
 
+    update_player_hud(client, local_player);
+
     if guy.state != .Dead {
         //
-        // If the guy is alive, update the hud and send some input to the server.
+        // If the guy is alive, figure out the input to send to the server
         //
-        update_player_hud(client, local_player);
-
         input: Guy_Input_Message = ---;
         input.guy_pid          = local_player.guy_pid;
         input.position         = guy.physical_position;

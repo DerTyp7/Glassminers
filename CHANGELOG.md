@@ -13,6 +13,7 @@
 - Fixed entities generated at positions where they block access to the emitter
 - Fixed monsters spawning at positions where they attack the player at the start of the game
 - Fixed not clearing the "add local player" text box in the lobby, leading to adding the same player twice
+- Fixed the hud still being open when the player dies
 - Fixed Linux stutters due repeated controller detection checks for incompatible devices
 - Fixed a crash when unplugging a controller while playing
 - Fixed a crash when starting a new game while still having stat reports from the previous game

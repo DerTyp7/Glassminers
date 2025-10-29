@@ -105,6 +105,11 @@ update_player_hud :: (client: *Client, local_player: *Local_Player) {
         close_hud(client, local_player, guy);
     }
 
+    // Close the hud if the player died
+    if hud.state != .Disabled && guy.state == .Dead {
+        close_hud(client, local_player, guy);
+    }
+
 #if DEVELOPER {
     if input_action_fired_for_local_player(client, local_player, .Cheat_Menu_Toggle, .Pressed) {
         maybe_open_hud(client, local_player, guy, .Cheat_Menu, INVALID_PID);
