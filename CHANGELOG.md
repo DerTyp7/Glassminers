@@ -14,6 +14,7 @@
 - Fixed entities generated at positions where they block access to the emitter
 - Fixed monsters spawning at positions where they attack the player at the start of the game
 - Fixed a glitch in the camera when resizing the window while spectating another player
+- Fixed the dust particles not being initialized correctly
 - Fixed not clearing the "add local player" text box in the lobby, leading to adding the same player twice
 - Fixed the hud still being open when the player dies
 - Fixed Linux stutters due repeated controller detection checks for incompatible devices

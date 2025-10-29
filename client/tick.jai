@@ -720,7 +720,25 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.current_section = msg.world_resize.current_section;
         resize_lightmap(*client.lightmap, client.world_size);
 
-        {
+        if client.global_particle_system == INVALID_PID {
+            system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
+            emitter := create_particle_emitter(system, 0, client.world_size.x * 10);
+            emitter.shape = .Box;
+            emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
+            emitter.random_initial_velocity = true;
+            emitter.turbulence = 0.001;
+            emitter.fadein     = 1;
+            emitter.fadeout    = 3;
+            emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
+            emitter.speed      = .[ 0.05, 0.2 ];
+            emitter.lifetime   = .[ 2, 10 ];
+            emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
+            emitter.particles_per_second = xx client.world_size.x;
+            
+            prewarm_particle_system(system, 5, 0.1);
+
+            client.global_particle_system = system.pid;
+        } else {
             system := get_particle_system(client, client.global_particle_system);
             system.world_position = .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) };
             emitter := *system.emitters[0];
@@ -1096,6 +1114,7 @@ start_the_game :: (client: *Client, game_info: Game_Start_Message) {
     client.server_paused_game     = false;
     client.requested_game_forfeit = false;
     client.current_biome          = .Count;
+    client.global_particle_system = INVALID_PID;
     client.game_seed  = game_info.seed;
     client.game_mode  = game_info.game_mode;
     initiate_state_transition(client, .Ingame, 0);
@@ -1113,27 +1132,6 @@ start_the_game :: (client: *Client, game_info: Game_Start_Message) {
     for i := 0; i < client.local_player_count; ++i {
         create_hud(client, i);
         client.local_players[i].guy_pid = INVALID_PID;
-    }
-    
-    // Create the dust particles
-    {
-        system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
-        emitter := create_particle_emitter(system, 0, client.world_size.x * 10);
-        emitter.shape = .Box;
-        emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
-        emitter.random_initial_velocity = true;
-        emitter.turbulence = 0.001;
-        emitter.fadein     = 1;
-        emitter.fadeout    = 3;
-        emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
-        emitter.speed      = .[ 0.05, 0.2 ];
-        emitter.lifetime   = .[ 2, 10 ];
-        emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
-        emitter.particles_per_second = xx client.world_size.x;
-        
-        prewarm_particle_system(system, 5, 0.1);
-
-        client.global_particle_system = system.pid;
     }
 
     request_tutorial_panel(client, .About_Tutorial_Panels);
