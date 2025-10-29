@@ -18,6 +18,7 @@
 - Fixed a crash when starting a new game while still having stat reports from the previous game
 - Fixed a crash when a player that is being spectated disconnects
 - Fixed occasional crashes during game startup using a gamepad with vibrations
+- Fixed not inhibiting the OS's screen saver when playing
 
 ## 0.4.2 (03.10.2025)
 

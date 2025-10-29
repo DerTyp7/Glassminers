@@ -504,6 +504,9 @@ main :: (args: []string) -> s32 {
 
     create_window(*client.window, "Glassminers", client.window.x, client.window.y, client.window.w, client.window.h, desired_window_style(client));
 
+    if !os_inhibit_screen_saver(true) then logprint(.Warning, "Failed to inhibit the screen saver");
+    defer os_inhibit_screen_saver(false);
+
 #if OS == .Windows {
     set_window_icon_from_resource_name(*client.window, "IDI_ICON1");
 }
