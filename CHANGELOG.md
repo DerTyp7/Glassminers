@@ -8,18 +8,18 @@
 - Slighty increased the slime spawn rate, decreased the trader, coal, and crystal spawn rates
 - Made the slabs over lava tiles last indefinitely
 - The players now respawn with their carried item (or chest) in hand after being resurrected
-- Made the progress bars a circle instead of some boxes
+- Changed the progress bars to a circle instead of boxes
 - Fixed not being able to change move / look direction by rotating an analog stick / changing held keys
 - Fixed entities generated at positions where they block access to the emitter
 - Fixed monsters spawning at positions where they attack the player at the start of the game
 - Fixed not clearing the "add local player" text box in the lobby, leading to adding the same player twice
 - Fixed the hud still being open when the player dies
 - Fixed Linux stutters due repeated controller detection checks for incompatible devices
+- Fixed not inhibiting the OS's screen saver when playing
 - Fixed a crash when unplugging a controller while playing
 - Fixed a crash when starting a new game while still having stat reports from the previous game
 - Fixed a crash when a player that is being spectated disconnects
 - Fixed occasional crashes during game startup using a gamepad with vibrations
-- Fixed not inhibiting the OS's screen saver when playing
 
 ## 0.4.2 (03.10.2025)
 
@@ -78,6 +78,11 @@ The Void Eye takes damage from being on lighter tiles.
 - Added the slime moving slower when in a light beam
 - Added a randomness to whether a monster dying will actually drop a coin or not
 - Added a chest that spawns in the first section containing some helping resources
+- Changed the health of the slime entity to just a single heart
+- Changed all crafting options now always showing even when they're not doable. Not doable crafting options are grayed out now.
+- Changed the sound file format to OGG, which massively reduces the file size of the game
+- Reduced the network traffic by (x7) by not sending some unnecessary messages
+- Removed the "Emitter Dying" sound playing for emitters in previous sections
 - Fixed chests being drawn under slime holes when they're pushed on top of one
 - Fixed a server crash and an unwanted game-over caused by a bug in the compiler modules
 - Fixed flag duplication bug
@@ -90,11 +95,6 @@ The Void Eye takes damage from being on lighter tiles.
 - Fixed inputs being dropped when playing an online game with bad or varying latency
 - Fixed the main menu UI not being layed out correctly on different UI scales
 - Fixed the world generation not being deterministic for a seed
-- Changed the health of the slime entity to just a single heart
-- Changed all crafting options now always showing even when they're not doable. Not doable crafting options are grayed out now.
-- Changed the sound file format to OGG, which massively reduces the file size of the game
-- Reduced the network traffic by (x7) by not sending some unnecessary messages
-- Removed the "Emitter Dying" sound playing for emitters in previous sections
 
 ## 0.3.4 (14.09.2025)
 
