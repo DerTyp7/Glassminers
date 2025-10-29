@@ -1260,7 +1260,7 @@ recalculate_local_player_viewports :: (client: *Client) {
         for i := 0; i < client.local_player_count; ++i {
             local_player := *client.local_players[i];
             if entity_exists(client, local_player.guy_pid) {
-                entity := get_entity(client, local_player.guy_pid);
+                entity := get_entity(client, local_player.entity_tracked_by_camera);
                 update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
             }
         }
