@@ -11,6 +11,7 @@
 #load "virtual_connection.jai";
 #load "tweak_file.jai";
 #load "graphics_engine/graphics_engine.jai";
+#load "screen_saver_inhibit.jai";
 
 #load "stb/stb_image_write.jai";
 #load "file_watcher.jai";
