@@ -1,4 +1,10 @@
-## 0.5.0 (unreleased)
+## 0.5.0 (30.10.2025)
+
+Added biomes to the game.
+Biomes are special sections that offer a lot of variety to the base game.
+Each biome is expected to be solved through different mechanics.
+They are also meant as a big challenge to the players, which they have to prepare for.
+Each fourth section is a biome, and there's a total of three different biomes which are cycled through in a game.
 
 - Added a new statistic tracking the number of times a player charged an emitter
 - Added a crash handler in play-testing builds that prints out a `crash.log` file
