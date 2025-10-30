@@ -100,6 +100,11 @@ Torch :: struct {
     time_left_in_seconds: f32 = TORCH_TIME_TO_LIVE;
 }
 
+Slab :: struct {
+    #using entity : *Entity = ---;
+    uses_left: s64 = MAX_SLAB_USES;
+}
+
 Entity_Manager :: struct {
     entity_pid_lookup: Probed_Hash_Table(Pid, *Entity);
     all_entities: Bucket_Array(Entity);
@@ -107,6 +112,7 @@ Entity_Manager :: struct {
     emitters:     Bucket_Array(Emitter);
     item_stacks:  Bucket_Array(Item_Stack);
     torches:      Bucket_Array(Torch);
+    slabs:        Bucket_Array(Slab);
     chests:       Bucket_Array(Chest);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
@@ -127,6 +133,7 @@ create_entity_manager :: (client: *Client) {
     create_bucket_array(*client.emitters, *client.world_allocator);
     create_bucket_array(*client.item_stacks, *client.world_allocator);
     create_bucket_array(*client.torches, *client.world_allocator);
+    create_bucket_array(*client.slabs, *client.world_allocator);
     create_bucket_array(*client.chests, *client.world_allocator);
     create_bucket_array(*client.frogs, *client.world_allocator);
     create_bucket_array(*client.goblins, *client.world_allocator);
@@ -141,6 +148,7 @@ destroy_entity_manager :: (client: *Client) {
     destroy_bucket_array(*client.emitters);
     destroy_bucket_array(*client.item_stacks);
     destroy_bucket_array(*client.torches);
+    destroy_bucket_array(*client.slabs);
     destroy_bucket_array(*client.chests);
     destroy_bucket_array(*client.frogs);
     destroy_bucket_array(*client.goblins);
@@ -195,12 +203,13 @@ create_entity_with_pid :: (client: *Client, pid: Pid, kind: Entity_Kind, positio
       case .Emitter;    make_derived(entity, *client.emitters);
       case .Item_Stack; make_derived(entity, *client.item_stacks);
       case .Torch;      make_derived(entity, *client.torches);
+      case .Slab;       make_derived(entity, *client.slabs);
       case .Chest;      make_derived(entity, *client.chests);
       case .Frog;       make_derived(entity, *client.frogs);
       case .Goblin;     make_derived(entity, *client.goblins);
       case .Slime;      make_derived(entity, *client.slimes);
       case .Void_Eye;   make_derived(entity, *client.void_eyes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slab, .Slime_Hole, .Trader, .Flag;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -289,6 +298,7 @@ physically_remove_dead_entities :: (client: *Client) {
     remove_deriveds(*client.emitters);
     remove_deriveds(*client.item_stacks);
     remove_deriveds(*client.torches);
+    remove_deriveds(*client.slabs);
     remove_deriveds(*client.chests);
     remove_deriveds(*client.frogs);
     remove_deriveds(*client.goblins);

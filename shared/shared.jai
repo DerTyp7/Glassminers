@@ -97,6 +97,8 @@ TORCH_TIME_TO_LIVE: f32 : 30; // In seconds
 TORCH_MEDIUM_PERCENTAGE: f32 : 0.3; // This this percent of TTL left, the torch is only medium size...
 TORCH_LOW_PERCENTAGE: f32 : 0.1; // This this percent of TTL left, the torch is only low size...
 
+MAX_SLAB_USES: s64 = 6;
+
 COIN_DROP_CHANCE: [Game_Mode.Count][2]f32 : .[
     .[ 1,    1   ], // Developer
     .[ 1,    0.5 ], // Tutorial

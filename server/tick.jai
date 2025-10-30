@@ -46,7 +46,7 @@ send_all_outgoing_messages :: (server: *Server) {
 
 handle_incoming_message :: (server: *Server, msg: *Message) {
     if #complete msg.msg_type == {
-      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .Player_Stat, .Global_Stat, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Torch_State, .Frog_State, .Goblin_State, .Slime_State, .Void_Eye_State; // Ignore
+      case .Client_Disconnect, .Game_Start, .Game_Over, .Game_Score, .Player_Stat, .Global_Stat, .World_Resize, .Create_Entity, .Destroy_Entity, .Move_Entity, .Entity_Health, .Guy_State, .Emitter_State, .Item_Stack_State, .Torch_State, .Slab_State, .Frog_State, .Goblin_State, .Slime_State, .Void_Eye_State; // Ignore
 
       case .Player_Information;
         // Respond to this specific player by sending all other already-connected clients
@@ -459,6 +459,20 @@ try_to_place_item :: (server: *Server, target_position: v2i, kind: Item_Kind, so
     }
     
     return success;
+}
+
+decrease_slab_uses :: (server: *Server, slab: *Slab) {
+    --slab.uses_left;
+
+    if slab.uses_left > 0 {
+        msg := make_message(Slab_State_Message);
+        msg.slab_state.entity_pid = slab.pid;
+        msg.slab_state.uses_left = slab.uses_left;
+        array_add(*server.outgoing_messages, msg);
+    } else {
+        remove_entity(server, slab);
+        create_entity(server, .Lava, slab.physical_position, DEFAULT_ENTITY_ROTATION[.Lava]);
+    }
 }
 
 do_game_tick :: (server: *Server) {

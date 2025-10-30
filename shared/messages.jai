@@ -21,6 +21,7 @@ Message_Type :: enum {
     Item_Stack_State;
     Torch_State;
     Chest_State;
+    Slab_State;
     Frog_State;
     Goblin_State;
     Slime_State;
@@ -171,6 +172,12 @@ Torch_State_Message :: struct {
     time_left_in_seconds: f32;
 }
 
+Slab_State_Message :: struct {
+    MSG_TYPE :: Message_Type.Slab_State;
+    entity_pid: Pid;
+    uses_left: s64;
+}
+
 Chest_State_Message :: struct {
     MSG_TYPE :: Message_Type.Chest_State;
     entity_pid: Pid;
@@ -228,6 +235,7 @@ Message :: struct {
         emitter_state: Emitter_State_Message;
         item_stack_state: Item_Stack_State_Message;
         torch_state: Torch_State_Message;
+        slab_state: Slab_State_Message;
         chest_state: Chest_State_Message;
         frog_state: Frog_State_Message;
         goblin_state: Goblin_State_Message;
@@ -326,6 +334,7 @@ message_size_in_bytes :: (message: *Message) -> s64 { // This is only really rel
            .Emitter_State,
            .Item_Stack_State,
            .Torch_State,
+           .Slab_State,
            .Chest_State,
            .Frog_State,
            .Goblin_State,
@@ -369,6 +378,7 @@ type_id_from_message_type :: (type: Message_Type) -> Type {
       case .Emitter_State;        result = type_id(Emitter_State_Message);
       case .Item_Stack_State;     result = type_id(Item_Stack_State_Message);
       case .Torch_State;          result = type_id(Torch_State_Message);
+      case .Slab_State;           result = type_id(Slab_State_Message);
       case .Chest_State;          result = type_id(Chest_State_Message);
       case .Frog_State;           result = type_id(Frog_State_Message);
       case .Goblin_State;         result = type_id(Goblin_State_Message);
@@ -408,6 +418,7 @@ print_message :: (message: *Message, prefix: string) {
       case .Emitter_State;        sprint(*builder, "%", message.emitter_state);
       case .Item_Stack_State;     sprint(*builder, "%", message.item_stack_state);
       case .Torch_State;          sprint(*builder, "%", message.torch_state);
+      case .Slab_State;           sprint(*builder, "%", message.slab_state);
       case .Chest_State;          sprint(*builder, "%", message.chest_state);
       case .Frog_State;           sprint(*builder, "%", message.frog_state);
       case .Goblin_State;         sprint(*builder, "%", message.goblin_state);

@@ -7,7 +7,7 @@
 - Added overloading the emitter with more charge for up to 45 seconds - at double the coal price
 - Added an initial trader next to the very first emitter
 - Slighty increased the slime spawn rate, decreased the trader, coal, and crystal spawn rates
-- Made the slabs over lava tiles last indefinitely
+- Changed the slabs to disappear after being walked on enough times, instead of disappearing based on a timer
 - The players now respawn with their carried item (or chest) in hand after being resurrected
 - Changed the progress bars to a circle instead of boxes
 - Fixed not being able to change move / look direction by rotating an analog stick / changing held keys

@@ -142,7 +142,7 @@ destroy_animation_data :: (client: *Client) {
     client.animations = .[];
     client.animation_groups = .[];
 }
-    
+
 get_animation_frame_index :: (animation: *Animation, rotation: Direction, t: f32) -> s64, bool {
     if animation.frame_count == 0 return -1, false;
 

@@ -921,6 +921,11 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         torch := down(entity, Torch);
         torch.time_left_in_seconds = msg.torch_state.time_left_in_seconds;
 
+      case .Slab_State;
+        entity := get_entity(client, msg.slab_state.entity_pid);
+        slab := down(entity, Slab);
+        slab.uses_left = msg.slab_state.uses_left;
+
       case .Chest_State;
         entity := get_entity(client, msg.chest_state.entity_pid);
         chest := down(entity, Chest);

@@ -74,6 +74,11 @@ Item_Stack :: struct {
     count: s64 = 0;
 }
 
+Slab :: struct {
+    #using entity : *Entity = ---;
+    uses_left: s64 = MAX_SLAB_USES;
+}
+
 Chest :: struct {
     #using entity : *Entity = ---;
     #using inventory: Item_Inventory;
@@ -116,6 +121,7 @@ Entity_Manager :: struct {
     emitters:     Bucket_Array(Emitter);
     torches:      Bucket_Array(Torch);
     item_stacks:  Bucket_Array(Item_Stack);
+    slabs:        Bucket_Array(Slab);
     chests:       Bucket_Array(Chest);
     frogs:        Bucket_Array(Frog);
     goblins:      Bucket_Array(Goblin);
@@ -136,6 +142,7 @@ create_entity_manager :: (server: *Server) {
     create_bucket_array(*server.emitters, *server.world_allocator);
     create_bucket_array(*server.torches, *server.world_allocator);
     create_bucket_array(*server.item_stacks, *server.world_allocator);
+    create_bucket_array(*server.slabs, *server.world_allocator);
     create_bucket_array(*server.chests, *server.world_allocator);
     create_bucket_array(*server.frogs, *server.world_allocator);
     create_bucket_array(*server.goblins, *server.world_allocator);
@@ -150,6 +157,7 @@ destroy_entity_manager :: (server: *Server) {
     destroy_bucket_array(*server.emitters);
     destroy_bucket_array(*server.torches);
     destroy_bucket_array(*server.item_stacks);
+    destroy_bucket_array(*server.slabs);
     destroy_bucket_array(*server.chests);
     destroy_bucket_array(*server.frogs);
     destroy_bucket_array(*server.goblins);
@@ -198,12 +206,13 @@ create_entity :: (server: *Server, kind: Entity_Kind, position: v2i, rotation: D
       case .Emitter;    make_derived(entity, *server.emitters);
       case .Torch;      make_derived(entity, *server.torches);
       case .Item_Stack; make_derived(entity, *server.item_stacks);
+      case .Slab;       make_derived(entity, *server.slabs);
       case .Chest;      make_derived(entity, *server.chests);
       case .Frog;       make_derived(entity, *server.frogs);
       case .Goblin;     make_derived(entity, *server.goblins);
       case .Slime;      make_derived(entity, *server.slimes);
       case .Void_Eye;   make_derived(entity, *server.void_eyes);
-      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slab, .Slime_Hole, .Trader, .Flag;
+      case .Crystal, .Bedrock, .Mirror, .Lava, .Rock, .Coal, .Slime_Hole, .Trader, .Flag;
         entity.derived = null;
     }
 
@@ -254,6 +263,7 @@ physically_remove_dead_entities :: (server: *Server) {
     remove_deriveds(*server.emitters);
     remove_deriveds(*server.torches);
     remove_deriveds(*server.item_stacks);
+    remove_deriveds(*server.slabs);
     remove_deriveds(*server.chests);
     remove_deriveds(*server.frogs);
     remove_deriveds(*server.goblins);
@@ -420,6 +430,9 @@ update_physical_location :: (server: *Server, entity: *Entity, position: v2i, ro
             }
 
             guy.seconds_since_last_move = 0;
+
+            slab_entity := find_entity_of_kind_at_position(server, .Slab, entity.physical_position);
+            if slab_entity then decrease_slab_uses(server, down(slab_entity, Slab));
         }
 
         maybe_move_blocker(*server.lightmap, entity, position);
