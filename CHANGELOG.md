@@ -10,6 +10,7 @@
 - Changed the slabs to disappear after being walked on enough times, instead of disappearing based on a timer
 - The players now respawn with their carried item (or chest) in hand after being resurrected
 - Changed the progress bars to a circle instead of boxes
+- Tried to improve the performance by not updating particle systems that are out of view
 - Fixed not being able to change move / look direction by rotating an analog stick / changing held keys
 - Fixed entities generated at positions where they block access to the emitter
 - Fixed monsters spawning at positions where they attack the player at the start of the game

@@ -740,14 +740,14 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
 draw_world :: (client: *Client, local_player: *Local_Player) {
     draw_vertical_world_edge :: (client: *Client, local_player: *Local_Player, x: s64, rotation: f32) {
         for y := 0; y < client.world_size.y; ++y {
-            if visibility_check_tile(local_player, .{ x, y }) {
+            if visibility_check_tile(*local_player.camera, .{ x, y }) {
                 draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, xx y, }, .{ 1, 1, }, rotation, .{ 255, 255, 255, 255 }, .Lit);
             }
         }
     }
 
     draw_world_corner :: (client: *Client, local_player: *Local_Player, position: v2i, rotation: f32) {
-        if visibility_check_tile(local_player, position) {
+        if visibility_check_tile(*local_player.camera, position) {
             draw_sprite_world_space(client, local_player, .World_Corner, .{ xx position.x, xx position.y }, .{ 1, 1 }, rotation, .{ 255, 255, 255, 255 }, .Lit);
         }
     }
@@ -787,18 +787,18 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
     draw_world_corner(client, local_player, .{ -1, client.world_size.y }, 0.0);
 
     for x := 0; x < client.world_size.x; ++x {
-        if visibility_check_tile(local_player, .{ x, -1 }) {
+        if visibility_check_tile(*local_player.camera, .{ x, -1 }) {
             draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, -1 }, .{ 1, 1 }, 0.5, .{ 255, 255, 255, 255 }, .Lit);
         }
         
-        if visibility_check_tile(local_player, .{ x, client.world_size.y }) {
+        if visibility_check_tile(*local_player.camera, .{ x, client.world_size.y }) {
             draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, xx client.world_size.y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, .Lit);
         }
 
         // @Speed: We're also drawing background inanimates under other entities such as bedrock, where we know
         // this isn't going to be visible...
         for y := 0; y < client.world_size.y; ++y {
-            if visibility_check_tile(local_player, .{ x, y }) {
+            if visibility_check_tile(*local_player.camera, .{ x, y }) {
                 draw_sprite_world_space(client, local_player, .Background, .{ xx x, xx y }, .{ 1, 1 }, 0, .{ 255, 255, 255, 255 }, .Lit);
             }
         }
@@ -818,7 +818,7 @@ draw_world :: (client: *Client, local_player: *Local_Player) {
         
         for i := 0; i < client.all_entities.slot_count; ++i {
             entity, occupied := index_bucket_array(*client.all_entities, i);
-            if occupied && !bitfield_contains(*entity.entity_flags, Entity_Flags.Disabled_Temporarily) && visibility_check_entity(local_player, entity) {
+            if occupied && !bitfield_contains(*entity.entity_flags, Entity_Flags.Disabled_Temporarily) && visibility_check_entity(*local_player.camera, entity) {
                 array_add(*entities_to_draw, entity);
             }
         }
@@ -1266,26 +1266,6 @@ calculate_uv_box_for_index_in_atlas :: (index: s64, flags: Draw_Sprite_Flags) ->
     return .[ .{ x0, y0 }, .{ x1, y0 }, .{ x1, y1 }, .{ x0, y1 } ];
 }
 
-visibility_check_box :: (local_player: *Local_Player, top_left, bottom_right: v2f) -> bool {
-    camera := *local_player.camera;
-
-    visible_top_left     := v2f.{ camera.center_in_world.x - camera.zoomed_covered_world_area.x / 2, camera.center_in_world.y - camera.zoomed_covered_world_area.y / 2 };
-    visible_bottom_right := v2f.{ camera.center_in_world.x + camera.zoomed_covered_world_area.x / 2, camera.center_in_world.y + camera.zoomed_covered_world_area.y / 2 };
-    
-    return (bottom_right.x >= visible_top_left.x && bottom_right.y >= visible_top_left.y) &&
-        (top_left.x <= visible_bottom_right.x && top_left.y <= visible_bottom_right.y);
-}
-
-visibility_check_tile :: (local_player: *Local_Player, tile: v2i) -> bool {
-    return visibility_check_box(local_player, .{ xx tile.x - 0.5, xx tile.y - 0.5 }, .{ xx tile.x + 0.5, xx tile.y + 0.5 });
-}
-
-visibility_check_entity :: (local_player: *Local_Player, entity: *Entity) -> bool {
-    entity_top_left := v2f.{ entity.visual_position.x - entity.visual_size.x / 2, entity.visual_position.y - entity.visual_size.y / 2 };
-    entity_bottom_right := v2f.{ entity.visual_position.x + entity.visual_size.x / 2, entity.visual_position.y + entity.visual_size.y / 2 };
-    return visibility_check_box(local_player, entity_top_left, entity_bottom_right);
-}
-
 draw_ui_text :: (client: *Client, font: *Font, text: string, position: UI_Vector2, foreground: UI_Color, background: UI_Color) {
     ge_set_pipeline(*client.graphics, client.ui_pipeline);
     ge_draw_text(*client.graphics, font, text, position.x, position.y, .Left | .Bottom, .{ foreground.r, foreground.g, foreground.b, foreground.a });    
@@ -1353,7 +1333,7 @@ draw_particle_system :: (client: *Client, local_player: *Local_Player, system: *
 
         local_to_world_position := v2f.{ emitter.local_position.x + system.world_position.x, emitter.local_position.y + system.world_position.y };
 
-        if !visibility_check_box(local_player, .{ emitter.local_bounding_box[0].x + local_to_world_position.x, emitter.local_bounding_box[0].y + local_to_world_position.y }, .{ emitter.local_bounding_box[1].x + local_to_world_position.x, emitter.local_bounding_box[1].y + local_to_world_position.y }) continue;
+        if !is_particle_emitter_visible(*local_player.camera, system, emitter) continue;
         
         for j := 0; j < emitter.particles.count; ++j {
             particle := *emitter.particles[j];

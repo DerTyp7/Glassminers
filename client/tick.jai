@@ -394,6 +394,25 @@ snap_camera_to_guy :: (client: *Client, local_player: *Local_Player) {
     update_camera(client, local_player, .{ xx entity.physical_position.x, xx entity.physical_position.y }, 1, true);
 }
 
+visibility_check_box :: (camera: *Camera, top_left, bottom_right: v2f) -> bool {
+    visible_top_left     := v2f.{ camera.center_in_world.x - camera.zoomed_covered_world_area.x / 2, camera.center_in_world.y - camera.zoomed_covered_world_area.y / 2 };
+    visible_bottom_right := v2f.{ camera.center_in_world.x + camera.zoomed_covered_world_area.x / 2, camera.center_in_world.y + camera.zoomed_covered_world_area.y / 2 };
+    
+    return (bottom_right.x >= visible_top_left.x && bottom_right.y >= visible_top_left.y) &&
+        (top_left.x <= visible_bottom_right.x && top_left.y <= visible_bottom_right.y);
+}
+
+visibility_check_tile :: (camera: *Camera, tile: v2i) -> bool {
+    return visibility_check_box(camera, .{ xx tile.x - 0.5, xx tile.y - 0.5 }, .{ xx tile.x + 0.5, xx tile.y + 0.5 });
+}
+
+visibility_check_entity :: (camera: *Camera, entity: *Entity) -> bool {
+    entity_top_left := v2f.{ entity.visual_position.x - entity.visual_size.x / 2, entity.visual_position.y - entity.visual_size.y / 2 };
+    entity_bottom_right := v2f.{ entity.visual_position.x + entity.visual_size.x / 2, entity.visual_position.y + entity.visual_size.y / 2 };
+    return visibility_check_box(camera, entity_top_left, entity_bottom_right);
+}
+
+
 
 
 /* ------------------------------------------------- Game Tick ------------------------------------------------ */
@@ -535,7 +554,7 @@ do_game_tick :: (client: *Client) {
 
         for i := 0; i < client.particle_systems.slot_count; ++i {
             system, occupied := index_bucket_array(*client.particle_systems, i);
-            if occupied then update_particle_system(system, client.tick_time);
+            if occupied then update_particle_system(client, system, client.tick_time);
         }
 
         play_random_sounds(client);

@@ -160,14 +160,19 @@ create_particle_emitter :: (#using system: *Particle_System, emitter_index: s64,
     }
     
     emitter.new_particle_accumulator = 0;
+    emitter.local_bounding_box = .[ .{ 0, 0 } ];
     return emitter;
 }
 
-update_particle_system :: (#using system: *Particle_System, dt: f32) {
+update_particle_system :: (client: *Client, #using system: *Particle_System, dt: f32) {
     system.time_to_live -= dt;
 
     for i := 0; i < emitters.count; ++i {
-        update_particle_emitter(system, *emitters[i], dt);
+        emitter := *emitters[i];
+        
+        if is_particle_emitter_visible_by_anybody(client, system, emitter) {
+            update_particle_emitter(system, emitter, dt);
+        }
     }
 }
 
@@ -175,9 +180,27 @@ prewarm_particle_system :: (#using system: *Particle_System, total_time: f32, st
     t: f32 = 0;
 
     while t < total_time {
-        update_particle_system(system, step_time);
+        for i := 0; i < emitters.count; ++i {
+            update_particle_emitter(system, *emitters[i], step_time);
+        }
         t += step_time;
     }
+}
+
+is_particle_emitter_visible :: (camera: *Camera, system: *Particle_System, emitter: *Particle_Emitter) -> bool {
+    top_left := v2f.{ system.world_position.x + emitter.local_position.x + emitter.local_bounding_box[0].x,
+                      system.world_position.y + emitter.local_position.y + emitter.local_bounding_box[0].y };
+    bottom_right := v2f.{ system.world_position.x + emitter.local_position.x + emitter.local_bounding_box[1].x,
+                          system.world_position.y + emitter.local_position.y + emitter.local_bounding_box[1].y };
+    return visibility_check_box(camera, top_left, bottom_right);
+}
+
+is_particle_emitter_visible_by_anybody :: (client: *Client, system: *Particle_System, emitter: *Particle_Emitter) -> bool {
+    for i := 0; i < client.local_player_count; ++i {
+        if is_particle_emitter_visible(*client.local_players[i].camera, system, emitter) then return true;
+    }
+
+    return false;
 }
 
 
@@ -196,6 +219,8 @@ update_particle_emitter :: (system: *Particle_System, #using emitter: *Particle_
 
     local_bounding_box = .[ .{ MAX_F32, MAX_F32 }, .{ MIN_F32, MIN_F32 } ];
     
+    active_particle_count := 0;
+
     for i := 0; i < emitter.particles.count; ++i {
         particle := *emitter.particles[i];
 
@@ -242,6 +267,12 @@ update_particle_emitter :: (system: *Particle_System, #using emitter: *Particle_
         local_bounding_box[0].y = min(local_bounding_box[0].y, particle.position.y - particle.size.y);
         local_bounding_box[1].x = max(local_bounding_box[1].x, particle.position.x + particle.size.x);
         local_bounding_box[1].y = max(local_bounding_box[1].y, particle.position.y + particle.size.y);
+
+        ++active_particle_count;
+    }
+
+    if active_particle_count == 0 {
+        local_bounding_box = .[ .{ 0, 0 } ];
     }
 
     alive_t -= dt;
