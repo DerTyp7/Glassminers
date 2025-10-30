@@ -720,31 +720,6 @@ handle_incoming_message :: (client: *Client, msg: *Message) {
         client.current_section = msg.world_resize.current_section;
         resize_lightmap(*client.lightmap, client.world_size);
 
-        if client.global_particle_system == INVALID_PID {
-            system := create_particle_system(client, MAX_F32, .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) }, 1);
-            emitter := create_particle_emitter(system, 0, client.world_size.x * 10);
-            emitter.shape = .Box;
-            emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
-            emitter.random_initial_velocity = true;
-            emitter.turbulence = 0.001;
-            emitter.fadein     = 1;
-            emitter.fadeout    = 3;
-            emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
-            emitter.speed      = .[ 0.05, 0.2 ];
-            emitter.lifetime   = .[ 2, 10 ];
-            emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
-            emitter.particles_per_second = xx client.world_size.x;
-            
-            prewarm_particle_system(system, 5, 0.1);
-
-            client.global_particle_system = system.pid;
-        } else {
-            system := get_particle_system(client, client.global_particle_system);
-            system.world_position = .{ xx (client.world_size.x / 2), xx (client.world_size.y / 2) };
-            emitter := *system.emitters[0];
-            emitter.box_half_size = .{ xx (client.world_size.x / 2) + 2, xx (client.world_size.y / 2) + 2 };
-        }
-
       case .Create_Entity;
         entity := create_entity_with_pid(client, msg.create_entity.entity_pid, msg.create_entity.kind, msg.create_entity.position, msg.create_entity.rotation);
         maybe_add_blocker(*client.lightmap, entity);
@@ -1141,6 +1116,27 @@ start_the_game :: (client: *Client, game_info: Game_Start_Message) {
 
     request_tutorial_panel(client, .About_Tutorial_Panels);
     recalculate_local_player_viewports(client);
+
+    {
+        system := create_particle_system(client, MAX_F32, .{ xx (SECTION_WIDTH / 2), xx (SECTION_HEIGHT / 2) }, 1);
+        system.positioning = .World_Absolute;
+        emitter := create_particle_emitter(system, 0, SECTION_WIDTH * 10);
+        emitter.shape = .Box;
+        emitter.box_half_size = .{ xx (SECTION_WIDTH / 2) + 2, xx (SECTION_HEIGHT / 2) + 2 };
+        emitter.random_initial_velocity = true;
+        emitter.turbulence = 0.001;
+        emitter.fadein     = 1;
+        emitter.fadeout    = 3;
+        emitter.size       = .[ .{ 0.02, 0.02 }, .{ 0.1, 0.1 } ];
+        emitter.speed      = .[ 0.05, 0.2 ];
+        emitter.lifetime   = .[ 2, 10 ];
+        emitter.color      = .[ .{ 50, 50, 50, 130 }, .{ 200, 200, 200, 70 } ];
+        emitter.particles_per_second = xx SECTION_WIDTH;
+        
+        prewarm_particle_system(system, 5, 0.1);
+
+        client.global_particle_system = system.pid;
+    }
 
     // Reset debug settings
     #if DEVELOPER {

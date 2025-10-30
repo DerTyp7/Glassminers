@@ -5,7 +5,7 @@ Line_String :: struct {
 }
 
 Particle :: struct {
-    local_position: v2f;
+    position: v2f;
     velocity: v2f;
     speed: f32;
     size: v2f;
@@ -54,12 +54,18 @@ Particle_Emitter :: struct {
     local_bounding_box: [2]v2f;
 }
 
+Particle_Positioning :: enum {
+    World_Absolute;
+    Emitter_Relative;
+}
+
 Particle_System :: struct {
     allocator: *Allocator;
     pid: Pid;
     
     time_to_live: f32;
     
+    positioning: Particle_Positioning;
     world_position: v2f;
     global_alpha: f32;
     
@@ -95,6 +101,7 @@ create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitt
     system.pid            = pid;
     system.allocator      = *client.world_allocator;
     system.time_to_live   = ttl;
+    system.positioning    = .Emitter_Relative;
     system.world_position = world_position;
     system.global_alpha   = 1;
     system.emitters       = allocate_slice(system.allocator, Particle_Emitter, emitter_count);
@@ -167,7 +174,7 @@ update_particle_system :: (#using system: *Particle_System, dt: f32) {
     system.time_to_live -= dt;
 
     for i := 0; i < emitters.count; ++i {
-        update_particle_emitter(*system.random, *emitters[i], dt);
+        update_particle_emitter(system, *emitters[i], dt);
     }
 }
 
@@ -191,7 +198,7 @@ destroy_particle_system :: (#using system: *Particle_System) {
     deallocate_slice(allocator, *emitters);
 }
 
-update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle_Emitter, dt: f32) {
+update_particle_emitter :: (system: *Particle_System, #using emitter: *Particle_Emitter, dt: f32) {
     new_particle_accumulator += particles_per_second * dt;
 
     local_bounding_box = .[ .{ MAX_F32, MAX_F32 }, .{ MIN_F32, MIN_F32 } ];
@@ -204,15 +211,15 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
                 continue;
             }
 
-            particle.local_position    = get_spawn_position(random, emitter);
-            particle.velocity          = get_spawn_velocity(random, emitter, particle.local_position);
-            particle.speed             = random_f32_in(random, emitter.speed[0], emitter.speed[1]);
-            particle.size.x            = random_f32_in(random, emitter.size[0].x, emitter.size[1].x);
-            particle.size.y            = ifx !emitter.force_uniform_scale then random_f32_in(random, emitter.size[0].y, emitter.size[1].y) else particle.size.x;
-            particle.color             = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(random));
+            particle.position          = get_spawn_position(system, emitter);
+            particle.velocity          = get_spawn_velocity(system, emitter, particle.position);
+            particle.speed             = random_f32_in(*system.random, emitter.speed[0], emitter.speed[1]);
+            particle.size.x            = random_f32_in(*system.random, emitter.size[0].x, emitter.size[1].x);
+            particle.size.y            = ifx !emitter.force_uniform_scale then random_f32_in(*system.random, emitter.size[0].y, emitter.size[1].y) else particle.size.x;
+            particle.color             = ge_mix_colors(emitter.color[0], emitter.color[1], random_f32_zero_to_one(*system.random));
             particle.elapsed           = 0;
-            particle.lifetime          = random_f32_in(random, emitter.lifetime[0], emitter.lifetime[1]);
-            particle.random_zero_to_one = random_f32_in(random, 0, 1);
+            particle.lifetime          = random_f32_in(*system.random, emitter.lifetime[0], emitter.lifetime[1]);
+            particle.random_zero_to_one = random_f32_in(*system.random, 0, 1);
             new_particle_accumulator -= 1;
         }
 
@@ -221,33 +228,33 @@ update_particle_emitter :: (random: *Random_Generator, #using emitter: *Particle
 
             // If the line string changed drastically, we don't want to teleport this particle
             // to the next position, since that looks bad. Instead, we just want to kill it.
-            if v2_magnitude_squared(v2f.{ target_position.x - particle.local_position.x, target_position.y - particle.local_position.y }) <= 0.5 {
-                particle.local_position = target_position;
+            if v2_magnitude_squared(v2f.{ target_position.x - particle.position.x, target_position.y - particle.position.y }) <= 0.5 {
+                particle.position = target_position;
                 particle.lifetime = total_travel_distance / particle.speed;
             } else {
                 particle.lifetime = 0;
             }
         } else {
-            particle.local_position.x += particle.velocity.x * particle.speed * dt;
-            particle.local_position.y += particle.velocity.y * particle.speed * dt;
-            particle.velocity.x += emitter.gravity.x * dt + emitter.turbulence * random_f32_in(random, -1, 1);
-            particle.velocity.y += emitter.gravity.y * dt + emitter.turbulence * random_f32_in(random, -1, 1);
+            particle.position.x += particle.velocity.x * particle.speed * dt;
+            particle.position.y += particle.velocity.y * particle.speed * dt;
+            particle.velocity.x += emitter.gravity.x * dt + emitter.turbulence * random_f32_in(*system.random, -1, 1);
+            particle.velocity.y += emitter.gravity.y * dt + emitter.turbulence * random_f32_in(*system.random, -1, 1);
             particle.velocity.x *= expf(-emitter.drag * dt);
             particle.velocity.y *= expf(-emitter.drag * dt);
         }
         
         particle.elapsed += dt;
 
-        local_bounding_box[0].x = min(local_bounding_box[0].x, particle.local_position.x - particle.size.x);
-        local_bounding_box[0].y = min(local_bounding_box[0].y, particle.local_position.y - particle.size.y);
-        local_bounding_box[1].x = max(local_bounding_box[1].x, particle.local_position.x + particle.size.x);
-        local_bounding_box[1].y = max(local_bounding_box[1].y, particle.local_position.y + particle.size.y);
+        local_bounding_box[0].x = min(local_bounding_box[0].x, particle.position.x - particle.size.x);
+        local_bounding_box[0].y = min(local_bounding_box[0].y, particle.position.y - particle.size.y);
+        local_bounding_box[1].x = max(local_bounding_box[1].x, particle.position.x + particle.size.x);
+        local_bounding_box[1].y = max(local_bounding_box[1].y, particle.position.y + particle.size.y);
     }
 
     alive_t -= dt;
 }
 
-get_spawn_position :: (random: *Random_Generator, #using emitter: *Particle_Emitter) -> v2f {
+get_spawn_position :: (system: *Particle_System, #using emitter: *Particle_Emitter) -> v2f {
     position: v2f = ---;
 
     if #complete emitter.shape == {
@@ -256,8 +263,8 @@ get_spawn_position :: (random: *Random_Generator, #using emitter: *Particle_Emit
 
         // @Cleanup: I'm sure there's a smarter way of doing this, that isn't rejection sampling
         while true {
-            position.x = random_f32_in(random, -box_half_size.x, box_half_size.x);
-            position.y = random_f32_in(random, -box_half_size.y, box_half_size.y);
+            position.x = random_f32_in(*system.random, -box_half_size.x, box_half_size.x);
+            position.y = random_f32_in(*system.random, -box_half_size.y, box_half_size.y);
 
             if abs(position.x) >= cutout_half_size.x || abs(position.y) >= cutout_half_size.y break;
         }
@@ -266,23 +273,28 @@ get_spawn_position :: (random: *Random_Generator, #using emitter: *Particle_Emit
         position = .{ 0, 0 };
     }
     
+    if system.positioning == .World_Absolute {
+        position.x += system.world_position.x + emitter.local_position.x;
+        position.y += system.world_position.y + emitter.local_position.y;
+    }    
+
     return position;
 }
 
-get_spawn_velocity :: (random: *Random_Generator, #using emitter: *Particle_Emitter, position: v2f) -> v2f {
+get_spawn_velocity :: (system: *Particle_System, #using emitter: *Particle_Emitter, position: v2f) -> v2f {
     velocity: v2f = ---;
 
     if !emitter.random_initial_velocity {
         if #complete emitter.shape == {
           case .Box; velocity = position;
           case .Cone;
-            theta := random_f32_in(random, emitter.cone_angles[0], emitter.cone_angles[1]);
+            theta := random_f32_in(*system.random, emitter.cone_angles[0], emitter.cone_angles[1]);
             velocity = .{ sinf(theta * FTAU), -cosf(theta * FTAU) };
 
           case .Line_String; velocity = .{ 0, 0 };
         }
     } else {
-        velocity = .{ random_f32_in(random, -1, 1), random_f32_in(random, -1, 1) };
+        velocity = .{ random_f32_in(*system.random, -1, 1), random_f32_in(*system.random, -1, 1) };
     }
 
     return velocity;
