@@ -739,8 +739,8 @@ draw_sprite_world_space :: (client: *Client, local_player: *Local_Player, sprite
 
 draw_world :: (client: *Client, local_player: *Local_Player) {
     draw_vertical_world_edge :: (client: *Client, local_player: *Local_Player, x: s64, rotation: f32) {
-        if visibility_check_tile(local_player, .{ x, 0 }) {
-            for y := 0; y < client.world_size.y; ++y {
+        for y := 0; y < client.world_size.y; ++y {
+            if visibility_check_tile(local_player, .{ x, y }) {
                 draw_sprite_world_space(client, local_player, .World_Edge, .{ xx x, xx y, }, .{ 1, 1, }, rotation, .{ 255, 255, 255, 255 }, .Lit);
             }
         }
