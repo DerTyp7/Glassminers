@@ -1359,12 +1359,7 @@ draw_particle_system :: (client: *Client, local_player: *Local_Player, system: *
             particle := *emitter.particles[j];
             
             if particle.elapsed < particle.lifetime {
-                world_position: v2f = ---;
-
-                if system.positioning == {
-                  case .World_Absolute; world_position = particle.position;
-                  case; world_position = .{ particle.position.x + local_to_world_position.x, particle.position.y + local_to_world_position.y };
-                }
+                world_position: v2f = .{ particle.position.x + local_to_world_position.x, particle.position.y + local_to_world_position.y };
                 
                 c0 := screen_from_world_position(*local_player.camera, .{ world_position.x - particle.size.x / 2, world_position.y - particle.size.y / 2 });
                 c1 := screen_from_world_position(*local_player.camera, .{ world_position.x + particle.size.x / 2, world_position.y + particle.size.y / 2 });

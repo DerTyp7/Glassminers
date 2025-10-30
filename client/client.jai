@@ -234,7 +234,6 @@ Client :: struct {
     #using em: Entity_Manager;
     #using pm: Particle_Manager;
     lightmap: Lightmap;
-    global_particle_system: Pid;
     stat_hud: Stat_Hud;
     
     //

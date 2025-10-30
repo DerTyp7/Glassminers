@@ -54,18 +54,12 @@ Particle_Emitter :: struct {
     local_bounding_box: [2]v2f;
 }
 
-Particle_Positioning :: enum {
-    World_Absolute;
-    Emitter_Relative;
-}
-
 Particle_System :: struct {
     allocator: *Allocator;
     pid: Pid;
     
     time_to_live: f32;
     
-    positioning: Particle_Positioning;
     world_position: v2f;
     global_alpha: f32;
     
@@ -101,7 +95,6 @@ create_particle_system :: (client: *Client, ttl: f32, world_position: v2f, emitt
     system.pid            = pid;
     system.allocator      = *client.world_allocator;
     system.time_to_live   = ttl;
-    system.positioning    = .Emitter_Relative;
     system.world_position = world_position;
     system.global_alpha   = 1;
     system.emitters       = allocate_slice(system.allocator, Particle_Emitter, emitter_count);
@@ -272,11 +265,6 @@ get_spawn_position :: (system: *Particle_System, #using emitter: *Particle_Emitt
       case .Cone, .Line_String;
         position = .{ 0, 0 };
     }
-    
-    if system.positioning == .World_Absolute {
-        position.x += system.world_position.x + emitter.local_position.x;
-        position.y += system.world_position.y + emitter.local_position.y;
-    }    
 
     return position;
 }
