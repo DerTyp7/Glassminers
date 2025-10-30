@@ -485,14 +485,14 @@ fill_lava_lake_biome :: (server: *Server, helper: *Biome_Helper) {
         // spawning at this position.
         // We want to generate a little bridge in the middle of the lava lake to make it a
         // little easier to survive...
-        lava_weight: s64 = min(abs((x - first_lake_x - lake_half_width)) * 50, 100);
+        lava_weight: s64 = min(abs((x - first_lake_x - lake_half_width)) * 70, 100);
 
         spawn_weights: []struct { weight: s64; kind: Entity_Kind; } = .[
             .{ lava_weight, .Lava },
-            .{  48, .Count },
-            .{   8, .Rock },
+            .{  45, .Count },
+            .{  10, .Rock },
             .{   7, .Frog },
-            .{   2, .Crystal },
+            .{   4, .Crystal },
         ];
         
         total_weight := 0;
